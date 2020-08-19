@@ -133,7 +133,7 @@ For example:
 */
 const initialAccounts: IAccount[] = createAccounts();
 const initialTags: ITag[] = createTags();
-const initialTransactions: TransactionState = [];
+const initialTransactions: TransactionState = {};
 
 /*
 NOTE: Update this when adding new data

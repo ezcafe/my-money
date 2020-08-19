@@ -13,20 +13,18 @@ interface IAddTransactionAction {
 export const addTransactionAction = (transaction: ITransactionData): IAddTransactionAction => ({
     type: TransactionTypes.ADD,
     payload: {
-        transaction: {
-            ...transaction,
-        },
+        transaction,
     },
 });
 
 interface IRemoveTransactionAction {
     type: TransactionTypes.REMOVE;
-    payload: { id: string };
+    payload: { id: string; time: number };
 }
 
-export const removeTransactionAction = (id: string): IRemoveTransactionAction => ({
+export const removeTransactionAction = (id: string, time: number): IRemoveTransactionAction => ({
     type: TransactionTypes.REMOVE,
-    payload: { id },
+    payload: { id, time },
 });
 
 export type TransactionActions = IAddTransactionAction | IRemoveTransactionAction;

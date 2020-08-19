@@ -22,7 +22,7 @@ const Transaction = (props: ITransactionProps) => {
     } = props;
 
     const removeTransaction = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-        dispatch(removeTransactionAction(id));
+        dispatch(removeTransactionAction(id, time));
     };
 
     const account: IAccount | undefined = findAccount(accounts, accountId);

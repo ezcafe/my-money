@@ -5,7 +5,7 @@ import { ITag, ITagData } from "../types/tag";
 
 export type TagState = ITag[];
 
-function addTagReducer(state: TagState, tag: ITagData) {
+function addTagReducer(state: TagState, tag: ITagData): TagState {
     const newTag: ITag = {
         ...tag,
         id: `tag-${uuidv4()}`,
@@ -13,7 +13,7 @@ function addTagReducer(state: TagState, tag: ITagData) {
     return [...state, newTag];
 }
 
-function removeTagReducer(state: TagState, id: string) {
+function removeTagReducer(state: TagState, id: string): TagState {
     return state.reduce((_state: TagState, tag: ITag): TagState => {
         if (tag.id === id) {
             return _state;
@@ -22,7 +22,7 @@ function removeTagReducer(state: TagState, id: string) {
     }, []);
 }
 
-export const tagReducer = (state: TagState, action: Action) => {
+export const tagReducer = (state: TagState, action: Action): TagState => {
     switch (action.type) {
         case TagTypes.ADD:
             return addTagReducer(state, action.payload.tag);

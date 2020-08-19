@@ -9,3 +9,5 @@ export interface ITransactionData {
 export interface ITransaction extends ITransactionData {
     id: string;
 }
+
+export type ITransactionGroup = ITransaction[];

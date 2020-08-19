@@ -5,7 +5,7 @@ import { IAccount, IAccountData } from "../types/account";
 
 export type AccountState = IAccount[];
 
-function addAccountReducer(state: AccountState, account: IAccountData) {
+function addAccountReducer(state: AccountState, account: IAccountData): AccountState {
     const newAccount: IAccount = {
         ...account,
         id: `account-${uuidv4()}`,
@@ -13,7 +13,7 @@ function addAccountReducer(state: AccountState, account: IAccountData) {
     return [...state, newAccount];
 }
 
-function removeAccountReducer(state: AccountState, id: string) {
+function removeAccountReducer(state: AccountState, id: string): AccountState {
     return state.reduce((_state: AccountState, account: IAccount): AccountState => {
         if (account.id === id) {
             return _state;
@@ -22,7 +22,7 @@ function removeAccountReducer(state: AccountState, id: string) {
     }, []);
 }
 
-export const accountReducer = (state: AccountState, action: Action) => {
+export const accountReducer = (state: AccountState, action: Action): AccountState => {
     switch (action.type) {
         case AccountTypes.ADD:
             return addAccountReducer(state, action.payload.account);

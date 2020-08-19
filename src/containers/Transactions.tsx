@@ -1,16 +1,10 @@
 import React, { useContext } from "react";
-import { groupBy } from "lodash";
 import { DateTime } from "luxon";
 
 import Transaction from "../components/Transaction";
 import { AppContext, IAppContext } from "../store/store";
-import { ITransaction } from "../types/transaction";
+import { ITransaction, ITransactionGroup } from "../types/transaction";
 import "../styles/Transactions.css";
-
-type IGroup = ITransaction[];
-interface IGroups {
-    [date: string]: IGroup;
-}
 
 interface IGroupHeaderComponentProps {
     date: string;
@@ -27,7 +21,7 @@ const GroupHeaderComponent = (props: IGroupHeaderComponentProps): React.ReactEle
 };
 
 interface IGroupBodyComponentProps {
-    group: IGroup;
+    group: ITransactionGroup;
 }
 
 const GroupBodyComponent = (props: IGroupBodyComponentProps): React.ReactElement => {
@@ -51,24 +45,20 @@ const Transactions = () => {
     const {
         state: { transactions },
     } = useContext<IAppContext>(AppContext);
-
-    const groups: IGroups = groupBy(transactions, ({ time }: ITransaction) => {
-        const date = DateTime.fromMillis(time);
-        return date.toLocaleString(DateTime.DATE_SHORT);
-    });
-    const dates: string[] = Object.keys(groups);
+    const dates: string[] = Object.keys(transactions);
 
     return (
         <div className="ui Page Tags">
-            {dates.map((date: string): React.ReactElement | null => {
-                const group: IGroup = groups[date];
+            {dates.map((groupKey: string): React.ReactElement | null => {
+                const group: ITransactionGroup = transactions[groupKey];
                 if (!group || group.length === 0) {
                     return null;
                 }
 
+                const monthYear = DateTime.fromMillis(group[0].time).toFormat("MMM yyyy");
                 return (
-                    <React.Fragment key={date}>
-                        <GroupHeaderComponent date={date} />
+                    <React.Fragment key={groupKey}>
+                        <GroupHeaderComponent date={monthYear} />
                         <GroupBodyComponent group={group} />
                     </React.Fragment>
                 );
