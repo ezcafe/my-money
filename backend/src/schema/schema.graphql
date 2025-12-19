@@ -1,0 +1,375 @@
+"""
+My Money GraphQL Schema
+"""
+
+scalar DateTime
+scalar Decimal
+scalar Upload
+
+type Query {
+  """
+  Get current user information
+  """
+  me: User!
+
+  """
+  Get all accounts for current user
+  """
+  accounts: [Account!]!
+
+  """
+  Get account by ID
+  """
+  account(id: ID!): Account
+
+  """
+  Get account balance (calculated)
+  """
+  accountBalance(accountId: ID!): Decimal!
+
+  """
+  Get transactions with pagination
+  """
+  transactions(
+    accountId: ID
+    skip: Int
+    take: Int
+    first: Int
+    after: String
+  ): TransactionConnection!
+
+  """
+  Get last 30 transactions for home page
+  """
+  recentTransactions(limit: Int = 30): [Transaction!]!
+
+  """
+  Get transaction by ID
+  """
+  transaction(id: ID!): Transaction
+
+  """
+  Get all categories
+  """
+  categories: [Category!]!
+
+  """
+  Get category by ID
+  """
+  category(id: ID!): Category
+
+  """
+  Get all payees
+  """
+  payees: [Payee!]!
+
+  """
+  Get payee by ID
+  """
+  payee(id: ID!): Payee
+
+  """
+  Get user preferences
+  """
+  preferences: UserPreferences
+
+  """
+  Get recurring transactions
+  """
+  recurringTransactions: [RecurringTransaction!]!
+
+  """
+  Get report transactions with filters
+  """
+  reportTransactions(
+    accountIds: [ID!]
+    categoryIds: [ID!]
+    payeeIds: [ID!]
+    startDate: DateTime
+    endDate: DateTime
+    skip: Int
+    take: Int
+  ): ReportTransactionConnection!
+}
+
+type Mutation {
+  """
+  Create a new account
+  """
+  createAccount(input: CreateAccountInput!): Account!
+
+  """
+  Update account
+  """
+  updateAccount(id: ID!, input: UpdateAccountInput!): Account!
+
+  """
+  Delete account (cannot delete default account)
+  """
+  deleteAccount(id: ID!): Boolean!
+
+  """
+  Create a transaction
+  """
+  createTransaction(input: CreateTransactionInput!): Transaction!
+
+  """
+  Update transaction
+  """
+  updateTransaction(id: ID!, input: UpdateTransactionInput!): Transaction!
+
+  """
+  Delete transaction
+  """
+  deleteTransaction(id: ID!): Boolean!
+
+  """
+  Create category
+  """
+  createCategory(input: CreateCategoryInput!): Category!
+
+  """
+  Update category
+  """
+  updateCategory(id: ID!, input: UpdateCategoryInput!): Category!
+
+  """
+  Delete category
+  """
+  deleteCategory(id: ID!): Boolean!
+
+  """
+  Create payee
+  """
+  createPayee(input: CreatePayeeInput!): Payee!
+
+  """
+  Update payee
+  """
+  updatePayee(id: ID!, input: UpdatePayeeInput!): Payee!
+
+  """
+  Delete payee
+  """
+  deletePayee(id: ID!): Boolean!
+
+  """
+  Update user preferences
+  """
+  updatePreferences(input: UpdatePreferencesInput!): UserPreferences!
+
+  """
+  Create recurring transaction
+  """
+  createRecurringTransaction(input: CreateRecurringTransactionInput!): RecurringTransaction!
+
+  """
+  Update recurring transaction
+  """
+  updateRecurringTransaction(id: ID!, input: UpdateRecurringTransactionInput!): RecurringTransaction!
+
+  """
+  Delete recurring transaction
+  """
+  deleteRecurringTransaction(id: ID!): Boolean!
+
+  """
+  Upload PDF for import
+  """
+  uploadPDF(file: Upload!): PDFUploadResult!
+
+  """
+  Match imported transaction
+  """
+  matchImportedTransaction(importedId: ID!, transactionId: ID!): ImportedTransaction!
+}
+
+type User {
+  id: ID!
+  oidcSubject: String!
+  email: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Account {
+  id: ID!
+  name: String!
+  initBalance: Decimal!
+  isDefault: Boolean!
+  userId: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  balance: Decimal!
+}
+
+type Transaction {
+  id: ID!
+  value: Decimal!
+  date: DateTime!
+  accountId: ID!
+  account: Account
+  categoryId: ID
+  category: Category
+  payeeId: ID
+  payee: Payee
+  note: String
+  userId: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type TransactionConnection {
+  items: [Transaction!]!
+  totalCount: Int!
+  hasMore: Boolean!
+  nextCursor: String
+}
+
+type Category {
+  id: ID!
+  name: String!
+  icon: String
+  isDefault: Boolean!
+  userId: ID
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Payee {
+  id: ID!
+  name: String!
+  icon: String
+  isDefault: Boolean!
+  userId: ID
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type UserPreferences {
+  id: ID!
+  userId: ID!
+  currency: String!
+  useThousandSeparator: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type RecurringTransaction {
+  id: ID!
+  cronExpression: String!
+  value: Decimal!
+  accountId: ID!
+  account: Account
+  categoryId: ID
+  category: Category
+  payeeId: ID
+  payee: Payee
+  note: String
+  nextRunDate: DateTime!
+  userId: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ImportedTransaction {
+  id: ID!
+  rawDate: String!
+  rawDescription: String!
+  rawDebit: Decimal
+  rawCredit: Decimal
+  matched: Boolean!
+  transactionId: ID
+  transaction: Transaction
+  userId: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type PDFUploadResult {
+  success: Boolean!
+  importedCount: Int!
+  importedTransactions: [ImportedTransaction!]!
+}
+
+type ReportTransactionConnection {
+  items: [Transaction!]!
+  totalCount: Int!
+  totalAmount: Decimal!
+}
+
+input CreateAccountInput {
+  name: String!
+  initBalance: Decimal
+}
+
+input UpdateAccountInput {
+  name: String
+  initBalance: Decimal
+}
+
+input CreateTransactionInput {
+  value: Decimal!
+  date: DateTime
+  accountId: ID!
+  categoryId: ID
+  payeeId: ID
+  note: String
+}
+
+input UpdateTransactionInput {
+  value: Decimal
+  date: DateTime
+  accountId: ID
+  categoryId: ID
+  payeeId: ID
+  note: String
+}
+
+input CreateCategoryInput {
+  name: String!
+  icon: String
+}
+
+input UpdateCategoryInput {
+  name: String
+  icon: String
+}
+
+input CreatePayeeInput {
+  name: String!
+  icon: String
+}
+
+input UpdatePayeeInput {
+  name: String
+  icon: String
+}
+
+input UpdatePreferencesInput {
+  currency: String
+  useThousandSeparator: Boolean
+}
+
+input CreateRecurringTransactionInput {
+  cronExpression: String!
+  value: Decimal!
+  accountId: ID!
+  categoryId: ID
+  payeeId: ID
+  note: String
+  nextRunDate: DateTime!
+}
+
+input UpdateRecurringTransactionInput {
+  cronExpression: String
+  value: Decimal
+  accountId: ID
+  categoryId: ID
+  payeeId: ID
+  note: String
+  nextRunDate: DateTime
+}
+
+
+

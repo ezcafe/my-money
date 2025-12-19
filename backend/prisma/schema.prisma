@@ -1,0 +1,191 @@
+// Prisma schema for My Money application
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  oidcSubject String   @unique
+  email       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  accounts            Account[]
+  categories          Category[]
+  payees              Payee[]
+  transactions        Transaction[]
+  recurringTransactions RecurringTransaction[]
+  importMatchRules    ImportMatchRule[]
+  importedTransactions ImportedTransaction[]
+  preferences         UserPreferences?
+
+  @@index([oidcSubject])
+  @@index([email])
+}
+
+model UserPreferences {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  currency  String   @default("USD")
+  useThousandSeparator Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id         String   @id @default(uuid())
+  name       String
+  initBalance Decimal  @default(0) @db.Decimal(15, 2)
+  isDefault  Boolean  @default(false)
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  recurringTransactions RecurringTransaction[]
+  importMatchRules ImportMatchRule[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, isDefault])
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  icon      String?
+  isDefault Boolean  @default(false)
+  userId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  recurringTransactions RecurringTransaction[]
+  importMatchRules ImportMatchRule[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([isDefault])
+}
+
+model Payee {
+  id        String   @id @default(uuid())
+  name      String
+  icon      String?
+  isDefault Boolean  @default(false)
+  userId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  recurringTransactions RecurringTransaction[]
+  importMatchRules ImportMatchRule[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([isDefault])
+}
+
+model Transaction {
+  id         String   @id @default(uuid())
+  value      Decimal  @db.Decimal(15, 2)
+  date       DateTime @default(now())
+  accountId  String
+  categoryId String?
+  payeeId    String?
+  note       String?
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  payee    Payee?    @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+  importedTransactions ImportedTransaction[]
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([date])
+  @@index([userId, date])
+  @@index([accountId, date])
+  @@index([userId, accountId, date])
+}
+
+model RecurringTransaction {
+  id         String   @id @default(uuid())
+  cronExpression String
+  value      Decimal  @db.Decimal(15, 2)
+  accountId  String
+  categoryId String?
+  payeeId    String?
+  note       String?
+  nextRunDate DateTime
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  payee    Payee?    @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([nextRunDate])
+  @@index([nextRunDate, userId])
+}
+
+model ImportMatchRule {
+  id         String   @id @default(uuid())
+  pattern    String
+  accountId  String?
+  categoryId String?
+  payeeId    String?
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  payee    Payee?    @relation(fields: [payeeId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([pattern])
+}
+
+model ImportedTransaction {
+  id            String   @id @default(uuid())
+  rawDate       String
+  rawDescription String
+  rawDebit      Decimal? @db.Decimal(15, 2)
+  rawCredit     Decimal? @db.Decimal(15, 2)
+  matched       Boolean  @default(false)
+  transactionId String?
+  userId        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([matched])
+  @@index([userId, matched])
+  @@index([userId, matched, createdAt])
+}
+
+

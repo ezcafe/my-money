@@ -1,4 +1,46 @@
-node_modules
-*.md
-*.lock
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+dist/
+build/
+*.min.js
+
+# Coverage
+coverage/
+.nyc_output
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+*.db
+*.db-journal
+
+# Generated files
+*.d.ts.map
+*.js.map
+
+# Config files that should maintain their format
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+

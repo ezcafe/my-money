@@ -1,0 +1,100 @@
+# Build arguments for version tracking
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION=1.0.0
+
+FROM node:25.2.1-alpine AS builder
+
+# Add metadata labels
+LABEL maintainer="my-money-app" \
+      org.label-schema.build-date="${BUILD_DATE}" \
+      org.label-schema.vcs-ref="${VCS_REF}" \
+      org.label-schema.version="${VERSION}" \
+      org.label-schema.description="My Money Backend Service" \
+      org.label-schema.name="my-money-backend"
+
+WORKDIR /app
+
+# Copy workspace files
+COPY package*.json ./
+COPY backend/package*.json ./backend/
+COPY shared/package*.json ./shared/
+
+# Install dependencies with BuildKit cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy source files
+COPY backend ./backend
+COPY shared ./shared
+
+# Generate Prisma client
+WORKDIR /app/backend
+RUN npx prisma generate
+
+# Build backend
+RUN npm run build
+
+# Production stage
+FROM node:25.2.1-alpine
+
+# Add metadata labels
+LABEL maintainer="my-money-app" \
+      org.label-schema.build-date="${BUILD_DATE}" \
+      org.label-schema.vcs-ref="${VCS_REF}" \
+      org.label-schema.version="${VERSION}" \
+      org.label-schema.description="My Money Backend Service" \
+      org.label-schema.name="my-money-backend"
+
+# Add non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY backend/package*.json ./backend/
+COPY shared/package*.json ./shared/
+
+# Install production dependencies only with BuildKit cache mount
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --only=production && \
+    npm cache clean --force
+
+# Install Prisma CLI as dev dependency for migrations (needed in production)
+# This is required for running migrations via entrypoint script
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --save-dev prisma@^5.20.0
+
+# Copy built files
+COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/backend/prisma ./backend/prisma
+COPY --from=builder /app/backend/node_modules/.prisma ./backend/node_modules/.prisma
+COPY --from=builder /app/shared ./shared
+
+# Copy entrypoint script for database migrations
+COPY docker/backend-entrypoint.sh /app/backend-entrypoint.sh
+
+WORKDIR /app/backend
+
+# Make entrypoint script executable
+RUN chmod +x /app/backend-entrypoint.sh
+
+# Change ownership to non-root user
+RUN chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+EXPOSE 4000
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Use entrypoint script to run migrations before starting server
+ENTRYPOINT ["/app/backend-entrypoint.sh"]
+CMD ["node", "dist/index.js"]
+
+

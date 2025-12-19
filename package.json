@@ -1,59 +1,39 @@
 {
-    "name": "my-money",
-    "version": "0.1.0",
-    "private": true,
-    "dependencies": {
-        "@testing-library/jest-dom": "^4.2.4",
-        "@testing-library/react": "^9.3.2",
-        "@testing-library/user-event": "^7.1.2",
-        "@types/jest": "^26.0.5",
-        "@types/lodash": "^4.14.159",
-        "@types/luxon": "^1.24.3",
-        "@types/node": "^14.0.24",
-        "@types/react": "^16.9.43",
-        "@types/react-dom": "^16.9.8",
-        "@types/react-router-dom": "^5.1.5",
-        "@types/uuid": "^8.0.0",
-        "lodash": "^4.17.19",
-        "luxon": "^1.24.1",
-        "react": "^16.13.1",
-        "react-dom": "^16.13.1",
-        "react-hook-form": "^6.3.0",
-        "react-router-dom": "^5.2.0",
-        "react-scripts": "3.4.1",
-        "typescript": "^3.9.7",
-        "uuid": "^8.2.0"
-    },
-    "scripts": {
-        "start": "HTTPS=true SSL_CRT_FILE=./.cert/cert.pem SSL_KEY_FILE=./.cert/key.pem react-scripts start",
-        "build": "react-scripts build",
-        "test": "react-scripts test",
-        "eject": "react-scripts eject",
-        "prettier-check": "prettier --check .",
-        "prettier-write": "prettier --write .",
-        "validate": "tsc --noEmit && eslint '*/**/*.{js,ts,tsx}' --quiet --fix && yarn prettier-check"
-    },
-    "eslintConfig": {
-        "extends": "react-app"
-    },
-    "browserslist": {
-        "production": [
-            ">0.2%",
-            "not dead",
-            "not op_mini all"
-        ],
-        "development": [
-            "last 1 chrome version",
-            "last 1 firefox version",
-            "last 1 safari version"
-        ]
-    },
-    "devDependencies": {
-        "@typescript-eslint/eslint-plugin": "^3.7.0",
-        "@typescript-eslint/parser": "^3.7.0",
-        "eslint-config-prettier": "^6.11.0",
-        "eslint-plugin-prettier": "^3.1.4",
-        "eslint-plugin-react": "^7.20.3",
-        "prettier": "^2.0.5"
-    }
+  "name": "my-money",
+  "version": "1.0.0",
+  "description": "Expense management application with passkey authentication",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend & npm run dev --workspace=backend",
+    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
+    "test": "npm run test --workspaces",
+    "test:frontend": "npm run test --workspace=frontend",
+    "test:backend": "npm run test --workspace=backend",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "docker:up": "docker-compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f docker/docker-compose.yml down",
+    "docker:build": "docker-compose -f docker/docker-compose.yml build"
+  },
+  "engines": {
+    "node": ">=25.2.1",
+    "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.50.0"
+  }
 }
