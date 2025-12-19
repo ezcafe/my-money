@@ -19,6 +19,7 @@ import {GraphQLError} from 'graphql';
 import type {GraphQLRequestContext} from '@apollo/server';
 import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
+import cors from '@fastify/cors';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,6 +30,17 @@ const fastify = Fastify({
 
 // Register security plugins
 async function registerSecurityPlugins(): Promise<void> {
+  // CORS configuration - allow frontend to communicate with backend
+  await fastify.register(cors, {
+    origin: process.env.CORS_ORIGIN?.split(',') ?? [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  });
+
   // Security headers
   await fastify.register(helmet, {
     contentSecurityPolicy: {

@@ -3,18 +3,30 @@
  * Allows user to change currency, toggle 000/decimal, manage categories, payees, schedule, and logout
  */
 
-import React from 'react';
+import React, {useState} from 'react';
+import {useNavigate} from 'react-router';
 import {Box, Typography, Switch, FormControlLabel, List} from '@mui/material';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
+import {logout} from '../utils/oidc';
 
 /**
  * Preferences Page Component
  */
-export function PreferencesPage(): JSX.Element {
-  const [useThousandSeparator, setUseThousandSeparator] = React.useState(true);
-  const [currency, setCurrency] = React.useState('USD');
+export function PreferencesPage(): React.JSX.Element {
+  const navigate = useNavigate();
+  const [useThousandSeparator, setUseThousandSeparator] = useState(true);
+  const [currency, setCurrency] = useState('USD');
+
+  /**
+   * Handle logout
+   * Clears tokens and redirects to login page
+   */
+  const handleLogout = (): void => {
+    logout();
+    navigate('/login', {replace: true});
+  };
 
   return (
     <Box sx={{p: 2, maxWidth: 800, mx: 'auto'}}>
@@ -83,10 +95,7 @@ export function PreferencesPage(): JSX.Element {
           variant="contained"
           color="error"
           fullWidth
-          onClick={() => {
-            localStorage.removeItem('oidc_token');
-            window.location.href = '/';
-          }}
+          onClick={handleLogout}
         >
           Logout
         </Button>

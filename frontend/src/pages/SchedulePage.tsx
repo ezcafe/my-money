@@ -11,7 +11,7 @@ import {Button} from '../components/ui/Button';
 /**
  * Schedule Page Component
  */
-export function SchedulePage(): JSX.Element {
+export function SchedulePage(): React.JSX.Element {
   return (
     <Box sx={{p: 2, maxWidth: 800, mx: 'auto'}}>
       <Typography variant="h4" gutterBottom>

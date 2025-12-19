@@ -15,7 +15,7 @@ interface LoadingSpinnerProps {
  * Loading Spinner Component
  * Displays a loading indicator with optional message
  */
-export function LoadingSpinner({message, fullScreen = false}: LoadingSpinnerProps): JSX.Element {
+export function LoadingSpinner({message, fullScreen = false}: LoadingSpinnerProps): React.JSX.Element {
   const content = (
     <Box
       sx={{

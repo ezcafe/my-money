@@ -16,7 +16,7 @@ interface LayoutProps {
  * Layout Component
  * Provides navigation and main app structure
  */
-export function Layout({children}: LayoutProps): JSX.Element {
+export function Layout({children}: LayoutProps): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
 

@@ -27,7 +27,7 @@ import {ErrorAlert} from '../components/common/ErrorAlert';
 /**
  * Account Details Page Component
  */
-const AccountDetailsPageComponent = (): JSX.Element => {
+const AccountDetailsPageComponent = (): React.JSX.Element => {
   const {id} = useParams<{id: string}>();
   const [page, setPage] = useState(1);
   const skip = (page - 1) * ITEMS_PER_PAGE;

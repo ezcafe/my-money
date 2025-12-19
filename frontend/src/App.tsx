@@ -5,10 +5,11 @@
 
 import React from 'react';
 import {BrowserRouter, Routes, Route, Navigate} from 'react-router';
-import {ApolloProvider} from '@apollo/client';
+import {ApolloProvider} from '@apollo/client/react';
 import {ThemeProvider} from './theme/ThemeProvider';
 import {ErrorBoundary} from './components/common/ErrorBoundary';
 import {Layout} from './components/common/Layout';
+import {ProtectedRoute} from './components/common/ProtectedRoute';
 import {client} from './graphql/client';
 import {Calculator} from './components/Calculator';
 import {AccountsPage} from './pages/AccountsPage';
@@ -17,34 +18,97 @@ import {ReportPage} from './pages/ReportPage';
 import {ImportPage} from './pages/ImportPage';
 import {SchedulePage} from './pages/SchedulePage';
 import {PreferencesPage} from './pages/PreferencesPage';
+import {LoginPage} from './pages/LoginPage';
+import {AuthCallbackPage} from './pages/AuthCallbackPage';
 
 /**
  * Main App Component
  * Provides routing, theme, and error handling
  */
-function App(): JSX.Element {
+function App(): React.JSX.Element {
   return (
     <ErrorBoundary>
       <ApolloProvider client={client}>
         <ThemeProvider>
-          <BrowserRouter
-            future={{
-              v7_relativeSplatPath: true,
-              v7_startTransition: true,
-            }}
-          >
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Calculator />} />
-                <Route path="/accounts" element={<AccountsPage />} />
-                <Route path="/accounts/:id" element={<AccountDetailsPage />} />
-                <Route path="/report" element={<ReportPage />} />
-                <Route path="/import" element={<ImportPage />} />
-                <Route path="/schedule" element={<SchedulePage />} />
-                <Route path="/preferences" element={<PreferencesPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Layout>
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes - no authentication required */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+
+              {/* Protected routes - require authentication */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Calculator />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/accounts"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <AccountsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/accounts/:id"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <AccountDetailsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/report"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ReportPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/import"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ImportPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/schedule"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <SchedulePage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/preferences"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <PreferencesPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </BrowserRouter>
         </ThemeProvider>
       </ApolloProvider>

@@ -185,7 +185,8 @@ my-money/
 
 ### Root level
 
-- `npm run dev` - Start both frontend and backend in development mode
+- `npm run dev` - Start both frontend and backend in development mode (automatically kills processes on ports 3000 and 4000)
+- `npm run kill-ports` - Kill processes using ports 3000 and 4000 (or specify custom ports: `tsx scripts/kill-ports.ts 3000 4000`)
 - `npm run build` - Build both frontend and backend for production
 - `npm run test` - Run all tests
 - `npm run lint` - Lint all packages
@@ -295,6 +296,8 @@ npm run docker:up
 
 ### Port Conflicts
 
+- The `npm run dev` command automatically kills processes on ports 3000 and 4000 before starting
+- To manually kill ports: `npm run kill-ports` or `tsx scripts/kill-ports.ts [port1] [port2] ...`
 - Change ports in `docker-compose.yml` if needed
 - Update `REACT_APP_GRAPHQL_URL` if backend port changes
 

@@ -6,22 +6,14 @@
 import * as oidc from 'openid-client';
 import {UnauthorizedError} from '../utils/errors';
 
-// Type aliases for openid-client types - using eslint-disable for types that aren't properly exported
-// The runtime behavior is correct, types are just not properly exported from the library
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Issuer = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Client = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Type aliases for openid-client types
 type TokenSet = any;
 
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
-let issuer: Issuer | null = null;
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
-let client: Client | null = null;
+let config: oidc.Configuration | null = null;
 
 /**
  * Initialize OIDC client
+ * Authentication is required - the server will not start without proper OIDC configuration
  */
 export async function initializeOIDC(): Promise<void> {
   const discoveryUrl = process.env.OPENID_DISCOVERY_URL;
@@ -29,26 +21,50 @@ export async function initializeOIDC(): Promise<void> {
   const clientSecret = process.env.OPENID_CLIENT_SECRET;
 
   if (!discoveryUrl || !clientId || !clientSecret) {
-    throw new Error('OIDC configuration missing. Please set OPENID_DISCOVERY_URL, OPENID_CLIENT_ID, and OPENID_CLIENT_SECRET');
+    const missingVars: string[] = [];
+    if (!discoveryUrl) missingVars.push('OPENID_DISCOVERY_URL');
+    if (!clientId) missingVars.push('OPENID_CLIENT_ID');
+    if (!clientSecret) missingVars.push('OPENID_CLIENT_SECRET');
+
+    console.error('❌ OIDC configuration missing. Authentication is required.');
+    console.error('');
+    console.error('   Please update your .env file with the following variables:');
+    console.error('');
+    missingVars.forEach((varName) => {
+      console.error(`   ${varName}=<your-value>`);
+    });
+    console.error('');
+    console.error('   Example .env configuration:');
+    console.error('   OPENID_DISCOVERY_URL=https://your-oidc-provider/.well-known/openid-configuration');
+    console.error('   OPENID_CLIENT_ID=your-client-id');
+    console.error('   OPENID_CLIENT_SECRET=your-client-secret');
+    console.error('');
+
+    throw new Error(`OIDC configuration missing: ${missingVars.join(', ')}. Please update your .env file.`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  issuer = await (oidc as unknown as {Issuer: {discover: (url: string) => Promise<Issuer>}}).Issuer.discover(discoveryUrl);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  client = new issuer.Client({
-    client_id: clientId,
-    client_secret: clientSecret,
-  });
+  try {
+    const url = new URL(discoveryUrl);
+    config = await oidc.discovery(
+      url,
+      clientId,
+      clientSecret,
+      oidc.ClientSecretPost(clientSecret)
+    );
+  } catch (error) {
+    console.error('❌ Failed to initialize OIDC client:', error instanceof Error ? error.message : 'Unknown error');
+    throw error;
+  }
 }
 
 /**
- * Get OIDC client instance
+ * Get OIDC configuration instance
  */
-export function getOIDCClient(): Client {
-  if (!client) {
+export function getOIDCConfig(): oidc.Configuration {
+  if (!config) {
     throw new Error('OIDC client not initialized. Call initializeOIDC() first.');
   }
-  return client;
+  return config;
 }
 
 /**
@@ -64,7 +80,7 @@ function extractToken(authHeader: string | undefined): string | null {
     return null;
   }
 
-  return parts[1];
+  return parts[1] ?? null;
 }
 
 /**
@@ -73,8 +89,8 @@ function extractToken(authHeader: string | undefined): string | null {
  * The openid-client library handles token validation automatically
  */
 export async function verifyToken(token: string): Promise<TokenSet> {
-  if (!client) {
-    throw new Error('OIDC client not initialized');
+  if (!config) {
+    throw new Error('OIDC client not initialized. Call initializeOIDC() first.');
   }
 
   if (!token || token.trim().length === 0) {
@@ -82,10 +98,8 @@ export async function verifyToken(token: string): Promise<TokenSet> {
   }
 
   try {
-    // The userinfo() method validates the token signature, expiration, and issuer
-    // before making the request. If validation fails, it throws an error.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    const userInfo = await client.userinfo(token) as {sub?: string; email?: string};
+    // The fetchUserInfo() function validates the token and returns user data
+    const userInfo = await oidc.fetchUserInfo(config, token, oidc.skipSubjectCheck);
     
     // Additional validation: check if we got a valid subject
     if (!userInfo.sub) {

@@ -3,7 +3,7 @@
  * Provides transactions data with loading and error states
  */
 
-import {useQuery} from '@apollo/client';
+import {useQuery} from '@apollo/client/react';
 import {GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS} from '../graphql/queries';
 
 /**
@@ -60,35 +60,44 @@ export interface UseTransactionsResult {
   refetch: () => void;
 }
 
+interface GetRecentTransactionsData {
+  recentTransactions?: Transaction[];
+}
+
 /**
  * Custom hook to fetch recent transactions
  * @param limit - Maximum number of transactions to fetch (default: 30)
  * @returns Recent transactions with loading and error states
  */
 export function useRecentTransactions(limit: number = 30): UseRecentTransactionsResult {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-  const {data, loading, error, refetch} = useQuery(GET_RECENT_TRANSACTIONS, {
+  const {data, loading, error, refetch} = useQuery<GetRecentTransactionsData>(GET_RECENT_TRANSACTIONS, {
     variables: {limit},
     errorPolicy: 'all',
   });
 
   let errorResult: Error | undefined;
   if (error) {
-    errorResult = error instanceof Error ? error : new Error(String(error));
+    if (error instanceof Error) {
+      errorResult = error;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+      errorResult = new Error(String(error.message));
+    } else {
+      errorResult = new Error('An unknown error occurred');
+    }
   }
 
   return {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    transactions: (data?.recentTransactions as Transaction[] | undefined) ?? [],
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    loading,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    transactions: data?.recentTransactions ?? [],
+    loading: Boolean(loading),
     error: errorResult,
     refetch: (): void => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       void refetch();
     },
   };
+}
+
+interface GetTransactionsData {
+  transactions?: PaginatedTransactions;
 }
 
 /**
@@ -103,18 +112,22 @@ export function useTransactions(
   skip: number = 0,
   take: number = 20,
 ): UseTransactionsResult {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-  const {data, loading, error, refetch} = useQuery(GET_TRANSACTIONS, {
+  const {data, loading, error, refetch} = useQuery<GetTransactionsData>(GET_TRANSACTIONS, {
     variables: {accountId, skip, take},
     errorPolicy: 'all',
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-  const transactionsData = data?.transactions as PaginatedTransactions | undefined;
+  const transactionsData = data?.transactions;
   
   let errorResult: Error | undefined;
   if (error) {
-    errorResult = error instanceof Error ? error : new Error(String(error));
+    if (error instanceof Error) {
+      errorResult = error;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+      errorResult = new Error(String(error.message));
+    } else {
+      errorResult = new Error('An unknown error occurred');
+    }
   }
 
   return {
@@ -124,12 +137,9 @@ export function useTransactions(
       hasMore: transactionsData?.hasMore ?? false,
       nextCursor: transactionsData?.nextCursor,
     },
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    loading,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    loading: Boolean(loading),
     error: errorResult,
     refetch: (): void => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       void refetch();
     },
   };

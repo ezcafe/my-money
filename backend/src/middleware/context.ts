@@ -18,13 +18,11 @@ export interface GraphQLContext extends DataLoaderContext {
 
 /**
  * Create GraphQL context from request
- * Requires authentication for all operations (introspection disabled in production)
+ * Requires authentication for all operations
  */
 export async function createContext(req: FastifyRequest): Promise<GraphQLContext | null> {
   const authHeader = req.headers.authorization;
 
-  // In production, introspection is disabled at Apollo Server level
-  // In development, we still require auth for introspection queries
   if (!authHeader) {
     throw new UnauthorizedError('No authorization header provided');
   }

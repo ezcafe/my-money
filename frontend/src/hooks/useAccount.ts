@@ -3,7 +3,7 @@
  * Provides account data with loading and error states
  */
 
-import {useQuery} from '@apollo/client';
+import {useQuery} from '@apollo/client/react';
 import {GET_ACCOUNT} from '../graphql/queries';
 
 /**
@@ -32,9 +32,12 @@ export interface UseAccountResult {
  * @param id - Account ID
  * @returns Account data with loading and error states
  */
+interface GetAccountData {
+  account?: Account;
+}
+
 export function useAccount(id: string | undefined): UseAccountResult {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-  const {data, loading, error, refetch} = useQuery(GET_ACCOUNT, {
+  const {data, loading, error, refetch} = useQuery<GetAccountData>(GET_ACCOUNT, {
     variables: {id},
     skip: !id,
     errorPolicy: 'all',
@@ -42,18 +45,20 @@ export function useAccount(id: string | undefined): UseAccountResult {
 
   let errorResult: Error | undefined;
   if (error) {
-    errorResult = error instanceof Error ? error : new Error(String(error));
+    if (error instanceof Error) {
+      errorResult = error;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+      errorResult = new Error(String(error.message));
+    } else {
+      errorResult = new Error('An unknown error occurred');
+    }
   }
 
   return {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    account: data?.account as Account | undefined,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    loading,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    account: data?.account,
+    loading: Boolean(loading),
     error: errorResult,
     refetch: (): void => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       void refetch();
     },
   };

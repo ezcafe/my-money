@@ -16,6 +16,9 @@ export function decodeToken(token: string): {exp?: number; iat?: number; sub?: s
     }
 
     const payload = parts[1];
+    if (!payload) {
+      return null;
+    }
     const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as {
       exp?: number;
       iat?: number;
@@ -76,9 +79,7 @@ export async function refreshToken(): Promise<string | null> {
     }
 
     // Get OIDC configuration from environment
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const discoveryUrl: string | undefined = process.env.REACT_APP_OPENID_DISCOVERY_URL;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const clientId: string | undefined = process.env.REACT_APP_OPENID_CLIENT_ID;
 
     if (!discoveryUrl || !clientId) {

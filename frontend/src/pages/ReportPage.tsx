@@ -14,7 +14,7 @@ import {validateDateRange} from '../utils/validation';
 /**
  * Report Page Component
  */
-export function ReportPage(): JSX.Element {
+export function ReportPage(): React.JSX.Element {
   const [filters, setFilters] = useState({
     accountIds: [] as string[],
     categoryIds: [] as string[],

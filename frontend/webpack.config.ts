@@ -2,7 +2,12 @@ import path from 'path';
 import {fileURLToPath} from 'url';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
+import webpack from 'webpack';
 import type {Configuration} from 'webpack';
+import {config as dotenvConfig} from 'dotenv';
+
+// Load environment variables from .env file
+dotenvConfig();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,6 +70,20 @@ const config: Configuration = {
         },
       ],
     }),
+    new webpack.DefinePlugin({
+      'process.env.REACT_APP_GRAPHQL_URL': JSON.stringify(
+        process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql',
+      ),
+      'process.env.REACT_APP_OPENID_DISCOVERY_URL': JSON.stringify(
+        process.env.REACT_APP_OPENID_DISCOVERY_URL,
+      ),
+      'process.env.REACT_APP_OPENID_CLIENT_ID': JSON.stringify(
+        process.env.REACT_APP_OPENID_CLIENT_ID,
+      ),
+      'process.env.REACT_APP_OPENID_CLIENT_SECRET': JSON.stringify(
+        process.env.REACT_APP_OPENID_CLIENT_SECRET,
+      ),
+    }),
   ],
   optimization: {
     moduleIds: 'deterministic',
@@ -88,9 +107,15 @@ const config: Configuration = {
   },
   devtool: process.env.NODE_ENV === 'production' ? 'source-map' : 'eval-source-map',
   devServer: {
-    static: {
-      directory: path.join(__dirname, 'public'),
-    },
+    static: [
+      {
+        directory: path.join(__dirname, 'public'),
+      },
+      {
+        directory: path.join(__dirname, 'dist'),
+        publicPath: '/',
+      },
+    ],
     compress: true,
     port: 3000,
     hot: true,

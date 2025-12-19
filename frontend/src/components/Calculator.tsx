@@ -3,9 +3,9 @@
  * Modern calculator UI with history list and operations
  */
 
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect} from 'react';
 import {Box, Grid, Paper, Typography, Alert, Select, MenuItem, FormControl, InputLabel} from '@mui/material';
-import {useMutation} from '@apollo/client';
+import {useMutation} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
 import {Button} from './ui/Button';
 import {TextField} from './ui/TextField';
@@ -28,14 +28,13 @@ interface CalculatorState {
 /**
  * Calculator component
  */
-export function Calculator(): JSX.Element {
+export function Calculator(): React.JSX.Element {
   const navigate = useNavigate();
   const {accounts} = useAccounts();
   const {transactions} = useRecentTransactions(MAX_RECENT_TRANSACTIONS);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
     refetchQueries: [GET_RECENT_TRANSACTIONS, GET_ACCOUNTS],
     onError: (err: unknown) => {
@@ -55,7 +54,7 @@ export function Calculator(): JSX.Element {
   });
 
   // Set default account if available
-  React.useEffect(() => {
+  useEffect(() => {
     if (accounts.length > 0 && !selectedAccountId) {
       const defaultAccount = accounts.find((acc) => acc.isDefault) ?? accounts[0];
       if (defaultAccount) {
@@ -157,7 +156,6 @@ export function Calculator(): JSX.Element {
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       await createTransaction({
         variables: {
           input: {
@@ -196,7 +194,12 @@ export function Calculator(): JSX.Element {
         <Typography variant="h6" gutterBottom>
           History
         </Typography>
-        <HistoryList transactions={transactions} />
+        <HistoryList
+          transactions={transactions.map((t) => ({
+            ...t,
+            date: typeof t.date === 'string' ? new Date(t.date) : t.date,
+          }))}
+        />
       </Card>
 
       <Card sx={{p: 2, mb: 2}}>

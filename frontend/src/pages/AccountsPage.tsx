@@ -16,7 +16,7 @@ import {ErrorAlert} from '../components/common/ErrorAlert';
 /**
  * Accounts Page Component
  */
-const AccountsPageComponent = (): JSX.Element => {
+const AccountsPageComponent = (): React.JSX.Element => {
   const {accounts, loading, error} = useAccounts();
   const navigate = useNavigate();
 

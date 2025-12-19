@@ -36,7 +36,7 @@ interface ThemeProviderProps {
  * Theme Provider Component
  * Automatically updates theme based on time (6 AM - 6 PM = light, 6 PM - 6 AM = dark)
  */
-export function ThemeProvider({children}: ThemeProviderProps): JSX.Element {
+export function ThemeProvider({children}: ThemeProviderProps): React.JSX.Element {
   const [mode, setMode] = useState<'dark' | 'light'>(getInitialTheme());
   const [theme, setThemeState] = useState<Theme>(createAppTheme(mode));
   const [lastCheck, setLastCheck] = useState<Date>(new Date());

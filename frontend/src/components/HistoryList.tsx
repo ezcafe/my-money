@@ -4,7 +4,7 @@
  */
 
 import React, {memo, useMemo} from 'react';
-import {List, ListItem, ListItemText, Avatar, Box, Typography} from '@mui/material';
+import {List, ListItem, ListItemButton, ListItemText, Avatar, Box, Typography} from '@mui/material';
 import {Circle} from '@mui/icons-material';
 import {Card} from './ui/Card';
 import {formatCurrency, formatDate} from '../utils/formatting';
@@ -31,7 +31,7 @@ interface HistoryListProps {
 const HistoryListComponent = ({
   transactions,
   onTransactionClick,
-}: HistoryListProps): JSX.Element => {
+}: HistoryListProps): React.JSX.Element => {
   const isIncomplete = useMemo(
     () => (transaction: Transaction): boolean => {
       return !transaction.account || !transaction.category || !transaction.payee;
@@ -52,9 +52,8 @@ const HistoryListComponent = ({
             </ListItem>
           ) : (
             transactions.map((transaction) => (
-              <ListItem
+              <ListItemButton
                 key={transaction.id}
-                button
                 onClick={() => onTransactionClick?.(transaction)}
                 sx={{
                   borderBottom: '1px solid',
@@ -91,7 +90,7 @@ const HistoryListComponent = ({
                     </Box>
                   }
                 />
-              </ListItem>
+              </ListItemButton>
             ))
           )}
         </List>

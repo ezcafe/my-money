@@ -13,14 +13,14 @@ import {ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES} from '../utils/constants';
 /**
  * Import Page Component
  */
-export function ImportPage(): JSX.Element {
+export function ImportPage(): React.JSX.Element {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleFileChange = (e: {target: {files?: FileList | null} | null}): void => {
     setError(null);
-    if (e.target.files?.[0]) {
+    if (e.target?.files?.[0]) {
       const selectedFile = e.target.files[0];
 
       if (!validateFileType(selectedFile, ALLOWED_FILE_TYPES)) {

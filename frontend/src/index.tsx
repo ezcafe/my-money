@@ -18,15 +18,30 @@ root.render(
   </React.StrictMode>,
 );
 
-// Register service worker for PWA
+// Register service worker for PWA (only in production or if file exists)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
+    // Check if service worker file exists before registering
+    fetch('/sw.js', {method: 'HEAD'})
+      .then((response) => {
+        if (response.ok) {
+          return navigator.serviceWorker.register('/sw.js');
+        }
+        // Service worker file doesn't exist (dev mode), skip registration
+        return null;
+      })
       .then((registration) => {
-        console.warn('Service Worker registered:', registration.scope);
+        if (registration) {
+          console.warn('Service Worker registered:', registration.scope);
+        }
       })
       .catch((error) => {
+        // Only log errors if we actually tried to register (file exists)
+        // Silently ignore 404 errors in dev mode
+        if (error instanceof TypeError && error.message.includes('404')) {
+          // Service worker not available in dev mode, this is expected
+          return;
+        }
         console.error('Service Worker registration failed:', error);
       });
   });

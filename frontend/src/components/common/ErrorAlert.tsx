@@ -22,7 +22,7 @@ export function ErrorAlert({
   message,
   onClose,
   severity = 'error',
-}: ErrorAlertProps): JSX.Element {
+}: ErrorAlertProps): React.JSX.Element {
   return (
     <Box sx={{mb: 2}}>
       <Alert severity={severity} onClose={onClose}>
