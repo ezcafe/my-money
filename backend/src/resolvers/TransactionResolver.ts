@@ -102,16 +102,52 @@ export class TransactionResolver {
 
   /**
    * Get last N transactions for home page
+   * @param limit - Maximum number of transactions to return
+   * @param orderBy - Ordering configuration with field and direction
    */
   async recentTransactions(
     _: unknown,
-    {limit = 30}: {limit?: number},
+    {
+      limit = 30,
+      orderBy,
+    }: {
+      limit?: number;
+      orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'};
+    },
     context: GraphQLContext,
   ) {
+    // Default to date descending (most recent first)
+    const orderField = orderBy?.field ?? 'date';
+    const orderDirection = orderBy?.direction ?? 'desc';
+
+    // Build Prisma orderBy based on field type
+    let prismaOrderBy: Record<string, string | Record<string, string>>;
+    
+    switch (orderField) {
+      case 'date':
+        prismaOrderBy = {date: orderDirection};
+        break;
+      case 'value':
+        prismaOrderBy = {value: orderDirection};
+        break;
+      case 'category':
+        prismaOrderBy = {category: {name: orderDirection}};
+        break;
+      case 'account':
+        prismaOrderBy = {account: {name: orderDirection}};
+        break;
+      case 'payee':
+        prismaOrderBy = {payee: {name: orderDirection}};
+        break;
+      default:
+        prismaOrderBy = {date: orderDirection};
+    }
+
+    // Get transactions with ordering
     const transactions = await context.prisma.transaction.findMany({
       where: {userId: context.userId},
       take: limit,
-      orderBy: {date: 'desc'},
+      orderBy: prismaOrderBy,
       include: {
         account: true,
         category: true,

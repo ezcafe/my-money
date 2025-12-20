@@ -65,13 +65,30 @@ interface GetRecentTransactionsData {
 }
 
 /**
+ * Transaction order by field type
+ */
+export type TransactionOrderByField = 'date' | 'value' | 'category' | 'account' | 'payee';
+
+/**
+ * Transaction order input type
+ */
+export interface TransactionOrderInput {
+  field: TransactionOrderByField;
+  direction: 'asc' | 'desc';
+}
+
+/**
  * Custom hook to fetch recent transactions
  * @param limit - Maximum number of transactions to fetch (default: 30)
+ * @param orderBy - Ordering configuration with field and direction (default: {field: 'date', direction: 'asc'})
  * @returns Recent transactions with loading and error states
  */
-export function useRecentTransactions(limit: number = 30): UseRecentTransactionsResult {
+export function useRecentTransactions(
+  limit: number = 30,
+  orderBy: TransactionOrderInput = {field: 'date', direction: 'asc'},
+): UseRecentTransactionsResult {
   const {data, loading, error, refetch} = useQuery<GetRecentTransactionsData>(GET_RECENT_TRANSACTIONS, {
-    variables: {limit},
+    variables: {limit, orderBy},
     errorPolicy: 'all',
   });
 

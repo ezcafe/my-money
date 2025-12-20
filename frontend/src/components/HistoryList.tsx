@@ -40,8 +40,8 @@ const HistoryListComponent = ({
   );
 
   return (
-    <Card sx={{p: 2, backgroundColor: 'transparent', boxShadow: 'none', border: 'none'}}>
-      <Box sx={{border: 'none'}}>
+    <Card sx={{p: 2}}>
+      <Box>
         <List sx={{backgroundColor: 'transparent', padding: 0}}>
           {transactions.map((transaction) => (
             <ListItemButton

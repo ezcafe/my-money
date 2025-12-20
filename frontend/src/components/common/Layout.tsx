@@ -1,12 +1,12 @@
 /**
  * Layout Component
- * Main layout with navigation
+ * Main layout wrapper with transparent toolbar and back button
  */
 
 import React from 'react';
-import {Box, AppBar, Toolbar, Typography, Button} from '@mui/material';
+import {Box, AppBar, Toolbar, IconButton} from '@mui/material';
+import {ArrowBack} from '@mui/icons-material';
 import {useNavigate, useLocation} from 'react-router';
-import {Home, AccountBalance, Assessment, Upload, Schedule, Settings} from '@mui/icons-material';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,46 +14,61 @@ interface LayoutProps {
 
 /**
  * Layout Component
- * Provides navigation and main app structure
+ * Provides main app structure with transparent toolbar and back button
  */
 export function Layout({children}: LayoutProps): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
+  const isHomePage = location.pathname === '/';
 
-  const navItems = [
-    {path: '/', label: 'Home', icon: <Home />},
-    {path: '/accounts', label: 'Accounts', icon: <AccountBalance />},
-    {path: '/report', label: 'Report', icon: <Assessment />},
-    {path: '/import', label: 'Import', icon: <Upload />},
-    {path: '/schedule', label: 'Schedule', icon: <Schedule />},
-    {path: '/preferences', label: 'Settings', icon: <Settings />},
-  ];
+  /**
+   * Handle back button click - navigates to previous page
+   */
+  const handleBack = (): void => {
+    navigate(-1);
+  };
 
   return (
-    <Box sx={{display: 'flex', flexDirection: 'column', minHeight: '100vh'}}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{flexGrow: 1}}>
-            My Money
-          </Typography>
-          <Box sx={{display: 'flex', gap: 1}}>
-            {navItems.map((item) => (
-              <Button
-                key={item.path}
-                color="inherit"
-                startIcon={item.icon}
-                onClick={(): void => {
-                  void navigate(item.path);
-                }}
-                variant={location.pathname === item.path ? 'outlined' : 'text'}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </Box>
-        </Toolbar>
-      </AppBar>
-      <Box component="main" sx={{flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', minHeight: 0}}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+        maxWidth: '100vw',
+        margin: 0,
+        overflow: 'hidden',
+      }}
+    >
+      {!isHomePage && (
+        <AppBar
+          position="static"
+          sx={{
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            color: 'inherit',
+          }}
+        >
+          <Toolbar>
+            <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back">
+              <ArrowBack />
+            </IconButton>
+          </Toolbar>
+        </AppBar>
+      )}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          width: '100%',
+          maxWidth: '100vw',
+          margin: 0,
+        }}
+      >
         {children}
       </Box>
     </Box>

@@ -49,7 +49,7 @@ export function ReportPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{p: 2, maxWidth: 1200, mx: 'auto'}}>
+    <Box sx={{p: 2, width: '100%'}}>
       <Typography variant="h4" gutterBottom>
         Report
       </Typography>

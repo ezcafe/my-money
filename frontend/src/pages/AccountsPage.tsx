@@ -34,7 +34,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={{p: 2, maxWidth: 1200, mx: 'auto'}}>
+    <Box sx={{p: 2, width: '100%'}}>
       <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 3}}>
         <Typography variant="h4">Accounts</Typography>
         <Button

@@ -3,13 +3,21 @@
  * Modern calculator UI with history list and operations
  */
 
-import React, {useState, useCallback, useMemo} from 'react';
-import {Box, Grid, Paper, Typography, Alert} from '@mui/material';
+import React, {useState, useCallback, useMemo, useEffect, useRef} from 'react';
+import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText} from '@mui/material';
 import {useMutation} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
 import {Button} from './ui/Button';
 import {HistoryList} from './HistoryList';
-import {MoreHorizOutlined as MoreIcon, ArrowForward as GoIcon} from '@mui/icons-material';
+import {
+  MoreHorizOutlined as MoreIcon,
+  ArrowForward as GoIcon,
+  AccountBalance,
+  Assessment,
+  Schedule,
+  Upload,
+  Settings,
+} from '@mui/icons-material';
 import {PlusMinusIcon} from './calculator/PlusMinusIcon';
 import {CREATE_TRANSACTION} from '../graphql/mutations';
 import {GET_RECENT_TRANSACTIONS, GET_ACCOUNTS} from '../graphql/queries';
@@ -30,7 +38,8 @@ interface CalculatorState {
 export function Calculator(): React.JSX.Element {
   const navigate = useNavigate();
   const {accounts} = useAccounts();
-  const {transactions} = useRecentTransactions(MAX_RECENT_TRANSACTIONS);
+  const {transactions, loading: transactionsLoading} = useRecentTransactions(MAX_RECENT_TRANSACTIONS);
+  const hasScrolledOnLoad = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
@@ -50,6 +59,10 @@ export function Calculator(): React.JSX.Element {
     operation: null,
     waitingForNewValue: false,
   });
+
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const historyListRef = useRef<HTMLDivElement>(null);
+  const previousTransactionsLength = useRef(0);
 
   // Get default account ID
   const defaultAccountId = useMemo(() => {
@@ -165,6 +178,19 @@ export function Calculator(): React.JSX.Element {
     });
   }, []);
 
+  /**
+   * Scroll history list to bottom with smooth animation
+   * @param smooth - Whether to use smooth scrolling animation (default: true)
+   */
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (historyListRef.current) {
+      historyListRef.current.scrollTo({
+        top: historyListRef.current.scrollHeight,
+        behavior: smooth ? 'smooth' : 'instant',
+      });
+    }
+  }, []);
+
   const handleEquals = useCallback(async () => {
     setState((prev) => {
       const currentValue = parseFloat(prev.display);
@@ -217,6 +243,7 @@ export function Calculator(): React.JSX.Element {
             operation: null,
             waitingForNewValue: false,
           });
+          // Scroll will be handled by useEffect when transactions update
         })
         .catch(() => {
           // Error handled by onError callback
@@ -229,37 +256,149 @@ export function Calculator(): React.JSX.Element {
         waitingForNewValue: false,
       };
     });
-  }, [defaultAccountId, createTransaction]);
+  }, [defaultAccountId, createTransaction, scrollToBottom]);
 
-  const handleSettings = useCallback(() => {
-    void navigate('/preferences');
-  }, [navigate]);
+  /**
+   * Handle settings button click - opens context menu
+   */
+  const handleSettingsClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchor(event.currentTarget);
+  }, []);
+
+  /**
+   * Close context menu
+   */
+  const handleMenuClose = useCallback(() => {
+    setMenuAnchor(null);
+  }, []);
+
+  /**
+   * Handle menu item click - navigates to page and closes menu
+   */
+  const handleMenuNavigation = useCallback(
+    (path: string) => {
+      handleMenuClose();
+      void navigate(path);
+    },
+    [navigate, handleMenuClose],
+  );
+
+  const menuItems = [
+    {path: '/accounts', label: 'Accounts', icon: <AccountBalance />},
+    {path: '/report', label: 'Report', icon: <Assessment />},
+    {path: '/schedule', label: 'Schedule', icon: <Schedule />},
+    {path: '/import', label: 'Import', icon: <Upload />},
+    {path: '/preferences', label: 'Settings', icon: <Settings />},
+  ];
+
+  // Transactions are already sorted by date ascending (oldest first, latest at bottom) from backend
+
+  /**
+   * Scroll to bottom on initial load when data is ready
+   * Uses smooth animation for a polished user experience
+   */
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    
+    if (!transactionsLoading && transactions.length > 0 && !hasScrolledOnLoad.current) {
+      // Mark that we've done the initial scroll
+      hasScrolledOnLoad.current = true;
+      // Use setTimeout to ensure DOM layout is complete after React render
+      // 300ms delay ensures content is fully rendered before scrolling
+      timeoutId = setTimeout(() => {
+        if (historyListRef.current) {
+          const element = historyListRef.current;
+          element.scrollTo({
+            top: element.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
+      }, 300);
+    }
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [transactionsLoading, transactions.length]);
+
+  /**
+   * Auto-scroll to bottom when a new transaction is added
+   * Detects when transaction count increases and scrolls smoothly
+   */
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    
+    // Skip if still loading or if this is the initial load
+    if (transactionsLoading || !hasScrolledOnLoad.current) {
+      previousTransactionsLength.current = transactions.length;
+      return;
+    }
+
+    // If transaction count increased, scroll to bottom
+    if (transactions.length > previousTransactionsLength.current) {
+      timeoutId = setTimeout(() => {
+        if (historyListRef.current) {
+          const element = historyListRef.current;
+          element.scrollTo({
+            top: element.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
+      }, 300);
+      
+      previousTransactionsLength.current = transactions.length;
+    } else {
+      previousTransactionsLength.current = transactions.length;
+    }
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [transactions.length, transactionsLoading]);
 
   return (
     <Box
       sx={{
-        p: 2,
-        maxWidth: 400,
-        mx: 'auto',
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
+        position: 'relative',
       }}
     >
       {error && (
-        <Alert severity="error" sx={{mb: 2}} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 2,
+            position: 'sticky',
+            top: 0,
+            zIndex: 1,
+            maxWidth: 400,
+            mx: 'auto',
+            px: 2,
+          }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
 
       <Box
+        ref={historyListRef}
         sx={{
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
-          mb: 2,
+          width: '100%',
+          maxWidth: '100vw',
+          // Padding at bottom to prevent content from being hidden behind fixed calculator
+          pb: '340px',
           '&::-webkit-scrollbar': {
             width: '8px',
           },
@@ -283,7 +422,26 @@ export function Calculator(): React.JSX.Element {
         />
       </Box>
 
-      <Paper sx={{p: 2, backgroundColor: 'transparent', boxShadow: 'none', flexShrink: 0}}>
+      <Box
+        sx={{
+          maxWidth: 400,
+          mx: 'auto',
+          width: '100%',
+        }}
+      >
+        <Paper
+          sx={{
+            p: 2,
+            position: 'fixed',
+            bottom: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '100%',
+            maxWidth: 400,
+            zIndex: 10,
+            backgroundColor: 'background.default',
+          }}
+        >
         <Typography
           variant="h4"
           sx={{
@@ -304,105 +462,105 @@ export function Calculator(): React.JSX.Element {
         <Grid container spacing={1}>
           {/* Row 1: Backspace, ±, %, ÷ */}
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handleBackspace}>
+            <Button fullWidth variant="outlined" onClick={handleBackspace} sx={{ boxShadow: 'none' }}>
               «
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handlePlusMinus}>
+            <Button fullWidth variant="outlined" onClick={handlePlusMinus} sx={{ boxShadow: 'none' }}>
               <PlusMinusIcon />
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('%')}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('%')} sx={{ boxShadow: 'none' }}>
               %
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('/')}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('/')} sx={{ boxShadow: 'none' }}>
               ÷
             </Button>
           </Grid>
 
           {/* Row 2: 7, 8, 9, × */}
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('7')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('7')} sx={{ boxShadow: 'none' }}>
               7
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('8')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('8')} sx={{ boxShadow: 'none' }}>
               8
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('9')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('9')} sx={{ boxShadow: 'none' }}>
               9
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('*')}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('*')} sx={{ boxShadow: 'none' }}>
               ×
             </Button>
           </Grid>
 
           {/* Row 3: 4, 5, 6, − */}
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('4')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('4')} sx={{ boxShadow: 'none' }}>
               4
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('5')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('5')} sx={{ boxShadow: 'none' }}>
               5
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('6')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('6')} sx={{ boxShadow: 'none' }}>
               6
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('-')}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('-')} sx={{ boxShadow: 'none' }}>
               −
             </Button>
           </Grid>
 
           {/* Row 4: 1, 2, 3, + */}
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('1')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('1')} sx={{ boxShadow: 'none' }}>
               1
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('2')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('2')} sx={{ boxShadow: 'none' }}>
               2
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('3')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('3')} sx={{ boxShadow: 'none' }}>
               3
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('+')}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('+')} sx={{ boxShadow: 'none' }}>
               +
             </Button>
           </Grid>
 
-          {/* Row 5: Preferences, 0, 000, = */}
+          {/* Row 5: Settings, 0, 000, = */}
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handleSettings} aria-label="Preferences">
+            <Button fullWidth variant="outlined" onClick={handleSettingsClick} aria-label="Settings" sx={{ boxShadow: 'none' }}>
               <MoreIcon />
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('0')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('0')} sx={{ boxShadow: 'none' }}>
               0
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('000')}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('000')} sx={{ boxShadow: 'none' }}>
               000
             </Button>
           </Grid>
@@ -418,12 +576,41 @@ export function Calculator(): React.JSX.Element {
                 Boolean(creatingTransaction) ||
                 (state.display === '0' && state.previousValue === null)
               }
+              sx={{ boxShadow: 'none' }}
             >
-              {creatingTransaction ? 'Adding...' : <GoIcon />}
+              {creatingTransaction ? '...' : <GoIcon />}
             </Button>
           </Grid>
         </Grid>
-      </Paper>
+        </Paper>
+      </Box>
+
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#ffffff',
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: 'divider',
+            minWidth: 200,
+          },
+        }}
+      >
+        {menuItems.map((item) => (
+          <MenuItem
+            key={item.path}
+            onClick={() => {
+              handleMenuNavigation(item.path);
+            }}
+          >
+            <ListItemIcon>{item.icon}</ListItemIcon>
+            <ListItemText>{item.label}</ListItemText>
+          </MenuItem>
+        ))}
+      </Menu>
     </Box>
   );
 }

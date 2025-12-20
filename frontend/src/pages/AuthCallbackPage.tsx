@@ -66,6 +66,9 @@ export function AuthCallbackPage(): React.JSX.Element {
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
+          width: '100%',
+          maxWidth: '100vw',
+          margin: 0,
         }}
       >
         <LoadingSpinner message="Completing authentication..." />
@@ -82,9 +85,12 @@ export function AuthCallbackPage(): React.JSX.Element {
           alignItems: 'center',
           minHeight: '100vh',
           padding: 2,
+          width: '100%',
+          maxWidth: '100vw',
+          margin: 0,
         }}
       >
-        <Box sx={{maxWidth: 500, width: '100%'}}>
+        <Box sx={{width: '100%', maxWidth: 500}}>
           <Typography variant="h5" component="h2" gutterBottom>
             Authentication Error
           </Typography>

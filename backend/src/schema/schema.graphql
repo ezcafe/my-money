@@ -6,6 +6,24 @@ scalar DateTime
 scalar Decimal
 scalar Upload
 
+enum SortOrder {
+  asc
+  desc
+}
+
+enum TransactionOrderBy {
+  date
+  value
+  category
+  account
+  payee
+}
+
+input TransactionOrderInput {
+  field: TransactionOrderBy!
+  direction: SortOrder!
+}
+
 type Query {
   """
   Get current user information
@@ -41,7 +59,7 @@ type Query {
   """
   Get last 30 transactions for home page
   """
-  recentTransactions(limit: Int = 30): [Transaction!]!
+  recentTransactions(limit: Int = 30, orderBy: TransactionOrderInput): [Transaction!]!
 
   """
   Get transaction by ID

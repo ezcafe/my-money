@@ -29,7 +29,7 @@ export function PreferencesPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{p: 2, maxWidth: 800, mx: 'auto'}}>
+    <Box sx={{p: 2, width: '100%'}}>
       <Typography variant="h4" gutterBottom>
         Preferences
       </Typography>

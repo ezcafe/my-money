@@ -45,6 +45,9 @@ export function LoginPage(): React.JSX.Element {
         minHeight: '100vh',
         padding: 2,
         backgroundColor: 'background.default',
+        width: '100%',
+        maxWidth: '100vw',
+        margin: 0,
       }}
     >
       <Card

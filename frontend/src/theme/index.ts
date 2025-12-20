@@ -114,8 +114,42 @@ export function createAppTheme(mode: 'dark' | 'light' = getThemeByTime()): Theme
       MuiCard: {
         styleOverrides: {
           root: {
-            backgroundColor: mode === 'dark' ? palette.mantle : palette.mantle,
-            border: `1px solid ${mode === 'dark' ? palette.surface0 : palette.surface1}`,
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            border: 'none',
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            border: 'none',
+          },
+        },
+      },
+      MuiCssBaseline: {
+        styleOverrides: {
+          html: {
+            width: '100%',
+            maxWidth: '100vw',
+            margin: 0,
+            padding: 0,
+            overflowX: 'hidden',
+          },
+          body: {
+            width: '100%',
+            maxWidth: '100vw',
+            margin: 0,
+            padding: 0,
+            overflowX: 'hidden',
+          },
+          '#root': {
+            width: '100%',
+            maxWidth: '100vw',
+            margin: 0,
+            padding: 0,
           },
         },
       },

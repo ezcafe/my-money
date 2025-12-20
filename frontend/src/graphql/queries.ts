@@ -29,8 +29,8 @@ export const GET_ACCOUNT = gql`
 `;
 
 export const GET_RECENT_TRANSACTIONS = gql`
-  query GetRecentTransactions($limit: Int) {
-    recentTransactions(limit: $limit) {
+  query GetRecentTransactions($limit: Int, $orderBy: TransactionOrderInput) {
+    recentTransactions(limit: $limit, orderBy: $orderBy) {
       id
       value
       date

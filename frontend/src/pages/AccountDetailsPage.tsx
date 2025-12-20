@@ -65,7 +65,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   const totalPages = Math.ceil(transactions.totalCount / ITEMS_PER_PAGE);
 
   return (
-    <Box sx={{p: 2, maxWidth: 1200, mx: 'auto'}}>
+    <Box sx={{p: 2, width: '100%'}}>
       <Typography variant="h4" gutterBottom>
         {account.name}
       </Typography>
