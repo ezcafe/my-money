@@ -45,6 +45,8 @@ export const resolvers = {
       new TransactionResolver().recentTransactions(parent, args as {limit?: number}, context),
     transaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
       new TransactionResolver().transaction(parent, args as {id: string}, context),
+    topUsedValues: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new TransactionResolver().topUsedValues(parent, args as {days?: number}, context),
 
     // Category queries
     categories: (parent: unknown, args: unknown, context: GraphQLContext) =>

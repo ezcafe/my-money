@@ -19,7 +19,7 @@ import {
 import {Card} from '../components/ui/Card';
 import {useAccount} from '../hooks/useAccount';
 import {useTransactions} from '../hooks/useTransactions';
-import {formatCurrency, formatDateShort} from '../utils/formatting';
+import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {ITEMS_PER_PAGE} from '../utils/constants';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
@@ -70,7 +70,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
         {account.name}
       </Typography>
       <Typography variant="h5" color="primary" gutterBottom>
-        Balance: {formatCurrency(account.balance)}
+        Balance: {formatCurrencyPreserveDecimals(account.balance)}
       </Typography>
 
       <Card sx={{mt: 3, p: 2}}>
@@ -92,7 +92,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
               {transactions.items.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>{formatDateShort(transaction.date)}</TableCell>
-                  <TableCell>{formatCurrency(transaction.value)}</TableCell>
+                  <TableCell>{formatCurrencyPreserveDecimals(transaction.value)}</TableCell>
                   <TableCell>{transaction.category?.name ?? '-'}</TableCell>
                   <TableCell>{transaction.payee?.name ?? '-'}</TableCell>
                   <TableCell>{transaction.note ?? '-'}</TableCell>

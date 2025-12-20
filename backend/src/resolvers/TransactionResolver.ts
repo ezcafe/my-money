@@ -337,6 +337,52 @@ export class TransactionResolver {
 
     return true;
   }
+
+  /**
+   * Get top 5 most used transaction values from recent transactions
+   * @param days - Number of days to look back (default: 90)
+   * @returns Array of top used values with their counts
+   */
+  async topUsedValues(
+    _: unknown,
+    {days = 90}: {days?: number},
+    context: GraphQLContext,
+  ) {
+    // Calculate start date
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Use Prisma groupBy to get values with counts
+    // Note: Prisma groupBy doesn't support orderBy with _count, so we sort in JavaScript
+    const results = await withPrismaErrorHandling(
+      async () =>
+        await context.prisma.transaction.groupBy({
+          by: ['value'],
+          where: {
+            userId: context.userId,
+            date: {
+              gte: startDate,
+            },
+          },
+          _count: {
+            value: true,
+          },
+        }),
+      {resource: 'Transaction', operation: 'topUsedValues'},
+    );
+
+    // Sort by count descending and take top 5
+    const sortedResults = results
+      .sort((a, b) => b._count.value - a._count.value)
+      .slice(0, 5);
+
+    // Transform results to match GraphQL schema
+    // Convert Decimal to string to preserve decimal precision (.00)
+    return sortedResults.map((result) => ({
+      value: String(result.value),
+      count: result._count.value,
+    }));
+  }
 }
 
 

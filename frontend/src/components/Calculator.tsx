@@ -4,8 +4,8 @@
  */
 
 import React, {useState, useCallback, useMemo, useEffect, useRef} from 'react';
-import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText} from '@mui/material';
-import {useMutation} from '@apollo/client/react';
+import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText, Chip} from '@mui/material';
+import {useMutation, useQuery} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
 import {Button} from './ui/Button';
 import {HistoryList} from './HistoryList';
@@ -20,9 +20,11 @@ import {
 } from '@mui/icons-material';
 import {PlusMinusIcon} from './calculator/PlusMinusIcon';
 import {CREATE_TRANSACTION} from '../graphql/mutations';
-import {GET_RECENT_TRANSACTIONS, GET_ACCOUNTS} from '../graphql/queries';
+import {GET_RECENT_TRANSACTIONS, GET_ACCOUNTS, GET_TOP_USED_VALUES, GET_PREFERENCES} from '../graphql/queries';
 import {useRecentTransactions} from '../hooks/useTransactions';
 import {useAccounts} from '../hooks/useAccounts';
+import {useTopUsedValues} from '../hooks/useTopUsedValues';
+import {formatCurrencyPreserveDecimals} from '../utils/formatting';
 import {MAX_RECENT_TRANSACTIONS} from '../utils/constants';
 
 interface CalculatorState {
@@ -39,11 +41,14 @@ export function Calculator(): React.JSX.Element {
   const navigate = useNavigate();
   const {accounts} = useAccounts();
   const {transactions, loading: transactionsLoading} = useRecentTransactions(MAX_RECENT_TRANSACTIONS);
+  const {topUsedValues} = useTopUsedValues(90);
+  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const currency = preferencesData?.preferences?.currency ?? 'USD';
   const hasScrolledOnLoad = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
-    refetchQueries: [GET_RECENT_TRANSACTIONS, GET_ACCOUNTS],
+    refetchQueries: [GET_RECENT_TRANSACTIONS, GET_ACCOUNTS, GET_TOP_USED_VALUES],
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
@@ -176,6 +181,18 @@ export function Calculator(): React.JSX.Element {
         display: String(-currentValue),
       };
     });
+  }, []);
+
+  /**
+   * Handle top used value button click
+   * Sets the calculator display to the selected value
+   */
+  const handleTopUsedValueClick = useCallback((value: number) => {
+    setState((prev) => ({
+      ...prev,
+      display: String(value),
+      waitingForNewValue: false,
+    }));
   }, []);
 
   /**
@@ -458,6 +475,43 @@ export function Calculator(): React.JSX.Element {
             ? `${state.previousValue} ${state.operation} ${state.waitingForNewValue ? '' : state.display}`
             : state.display}
         </Typography>
+
+        {/* Top 5 Most Used Values Row */}
+        {topUsedValues.length > 0 && (
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              mb: 1,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              scrollbarWidth: 'thin',
+              '&::-webkit-scrollbar': {
+                height: '6px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: 'action.disabled',
+                borderRadius: '3px',
+                '&:hover': {
+                  backgroundColor: 'action.disabledBackground',
+                },
+              },
+            }}
+          >
+            {topUsedValues.slice(0, 5).map((item, index) => (
+              <Chip
+                key={`${item.value}-${index}`}
+                label={formatCurrencyPreserveDecimals(item.value, currency)}
+                variant="outlined"
+                onClick={() => handleTopUsedValueClick(Number(item.value))}
+                sx={{cursor: 'pointer'}}
+              />
+            ))}
+          </Box>
+        )}
 
         <Grid container spacing={1}>
           {/* Row 1: Backspace, ±, %, ÷ */}

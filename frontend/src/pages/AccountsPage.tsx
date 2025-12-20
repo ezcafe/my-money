@@ -9,7 +9,7 @@ import {Button} from '../components/ui/Button';
 import {Card} from '../components/ui/Card';
 import {useNavigate} from 'react-router';
 import {useAccounts} from '../hooks/useAccounts';
-import {formatCurrency} from '../utils/formatting';
+import {formatCurrencyPreserveDecimals} from '../utils/formatting';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 
@@ -58,7 +58,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
             >
               <Typography variant="h6">{account.name}</Typography>
               <Typography variant="h5" color="primary">
-                {formatCurrency(account.balance)}
+                {formatCurrencyPreserveDecimals(account.balance)}
               </Typography>
             </Card>
           </Grid>

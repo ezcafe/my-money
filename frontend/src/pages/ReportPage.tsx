@@ -8,7 +8,7 @@ import {Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead,
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
-import {formatCurrency} from '../utils/formatting';
+import {formatCurrencyPreserveDecimals} from '../utils/formatting';
 import {validateDateRange} from '../utils/validation';
 
 /**
@@ -112,7 +112,7 @@ export function ReportPage(): React.JSX.Element {
                 results.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.date}</TableCell>
-                    <TableCell>{formatCurrency(item.value)}</TableCell>
+                    <TableCell>{formatCurrencyPreserveDecimals(item.value)}</TableCell>
                     <TableCell>{item.account}</TableCell>
                     <TableCell>{item.category}</TableCell>
                     <TableCell>{item.payee}</TableCell>

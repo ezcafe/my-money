@@ -7,7 +7,7 @@ import React, {memo, useMemo, Fragment} from 'react';
 import {List, ListItemButton, ListItemText, Avatar, Box, Typography} from '@mui/material';
 import {Circle} from '@mui/icons-material';
 import {Card} from './ui/Card';
-import {formatCurrency, formatDate} from '../utils/formatting';
+import {formatCurrencyPreserveDecimals, formatDate} from '../utils/formatting';
 
 interface Transaction {
   id: string;
@@ -68,7 +68,7 @@ const HistoryListComponent = ({
                 </Avatar>
               )}
               <ListItemText
-                primary={formatCurrency(transaction.value)}
+                primary={formatCurrencyPreserveDecimals(transaction.value)}
                 secondary={
                   <Fragment>
                     <Typography variant="body2" color="text.secondary" component="span">

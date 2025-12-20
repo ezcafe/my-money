@@ -89,6 +89,25 @@ export const GET_ACCOUNT_BALANCE = gql`
   }
 `;
 
+export const GET_TOP_USED_VALUES = gql`
+  query GetTopUsedValues($days: Int) {
+    topUsedValues(days: $days) {
+      value
+      count
+    }
+  }
+`;
+
+export const GET_PREFERENCES = gql`
+  query GetPreferences {
+    preferences {
+      id
+      currency
+      useThousandSeparator
+    }
+  }
+`;
+
 
 
 

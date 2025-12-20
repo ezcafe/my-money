@@ -108,6 +108,11 @@ type Query {
     skip: Int
     take: Int
   ): ReportTransactionConnection!
+
+  """
+  Get top 5 most used transaction values from recent transactions
+  """
+  topUsedValues(days: Int = 90): [TopUsedValue!]!
 }
 
 type Mutation {
@@ -314,6 +319,11 @@ type ReportTransactionConnection {
   items: [Transaction!]!
   totalCount: Int!
   totalAmount: Decimal!
+}
+
+type TopUsedValue {
+  value: String!
+  count: Int!
 }
 
 input CreateAccountInput {
