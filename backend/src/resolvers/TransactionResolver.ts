@@ -40,12 +40,16 @@ export class TransactionResolver {
       skip,
       take,
       first,
+      orderBy,
+      note,
     }: {
       accountId?: string;
       skip?: number;
       take?: number;
       first?: number;
       after?: string;
+      orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'};
+      note?: string;
     },
     context: GraphQLContext,
   ) {
@@ -55,6 +59,7 @@ export class TransactionResolver {
     const where: {
       userId: string;
       accountId?: string;
+      note?: {contains: string; mode: 'insensitive'};
     } = {
       userId: context.userId,
     };
@@ -75,12 +80,46 @@ export class TransactionResolver {
       where.accountId = accountId;
     }
 
+    // Add note filtering if provided
+    if (note) {
+      where.note = {
+        contains: note,
+        mode: 'insensitive',
+      };
+    }
+
+    // Build orderBy based on field type
+    const orderField = orderBy?.field ?? 'date';
+    const orderDirection = orderBy?.direction ?? 'desc';
+
+    let prismaOrderBy: Record<string, string | Record<string, string>>;
+    
+    switch (orderField) {
+      case 'date':
+        prismaOrderBy = {date: orderDirection};
+        break;
+      case 'value':
+        prismaOrderBy = {value: orderDirection};
+        break;
+      case 'category':
+        prismaOrderBy = {category: {name: orderDirection}};
+        break;
+      case 'account':
+        prismaOrderBy = {account: {name: orderDirection}};
+        break;
+      case 'payee':
+        prismaOrderBy = {payee: {name: orderDirection}};
+        break;
+      default:
+        prismaOrderBy = {date: orderDirection};
+    }
+
     const [items, totalCount] = await Promise.all([
       context.prisma.transaction.findMany({
         where,
         skip: offset,
         take: limit + 1, // Fetch one extra to determine hasMore
-        orderBy: {date: 'desc'},
+        orderBy: prismaOrderBy,
         include: {
           account: true,
           category: true,

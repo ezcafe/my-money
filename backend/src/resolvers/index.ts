@@ -38,6 +38,8 @@ export const resolvers = {
           take?: number;
           first?: number;
           after?: string;
+          orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'};
+          note?: string;
         },
         context,
       ),

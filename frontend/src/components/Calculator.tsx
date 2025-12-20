@@ -587,15 +587,6 @@ export function Calculator(): React.JSX.Element {
         anchorEl={menuAnchor}
         open={Boolean(menuAnchor)}
         onClose={handleMenuClose}
-        PaperProps={{
-          sx: {
-            backgroundColor: '#ffffff',
-            borderRadius: 1,
-            border: '1px solid',
-            borderColor: 'divider',
-            minWidth: 200,
-          },
-        }}
       >
         {menuItems.map((item) => (
           <MenuItem

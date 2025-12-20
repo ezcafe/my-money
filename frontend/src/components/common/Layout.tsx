@@ -5,8 +5,10 @@
 
 import React from 'react';
 import {Box, AppBar, Toolbar, IconButton} from '@mui/material';
-import {ArrowBack} from '@mui/icons-material';
+import {ArrowBack, Search as SearchIcon} from '@mui/icons-material';
 import {useNavigate, useLocation} from 'react-router';
+import {useSearch} from '../../contexts/SearchContext';
+import {FloatingSearchBox} from '../FloatingSearchBox';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,12 +22,20 @@ export function Layout({children}: LayoutProps): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const isHomePage = location.pathname === '/';
+  const {openSearch} = useSearch();
 
   /**
    * Handle back button click - navigates to previous page
    */
   const handleBack = (): void => {
     navigate(-1);
+  };
+
+  /**
+   * Handle search button click - opens search box
+   */
+  const handleSearchClick = (): void => {
+    openSearch();
   };
 
   return (
@@ -54,6 +64,10 @@ export function Layout({children}: LayoutProps): React.JSX.Element {
               <ArrowBack />
             </IconButton>
           )}
+          <Box sx={{flexGrow: 1}} />
+          <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
+            <SearchIcon />
+          </IconButton>
         </Toolbar>
       </AppBar>
       <Box
@@ -71,6 +85,7 @@ export function Layout({children}: LayoutProps): React.JSX.Element {
       >
         {children}
       </Box>
+      <FloatingSearchBox />
     </Box>
   );
 }

@@ -50,6 +50,12 @@ export const UPDATE_TRANSACTION = gql`
   }
 `;
 
+export const DELETE_TRANSACTION = gql`
+  mutation DeleteTransaction($id: ID!) {
+    deleteTransaction(id: $id)
+  }
+`;
+
 export const CREATE_ACCOUNT = gql`
   mutation CreateAccount($input: CreateAccountInput!) {
     createAccount(input: $input) {

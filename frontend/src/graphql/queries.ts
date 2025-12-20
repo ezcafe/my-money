@@ -54,8 +54,8 @@ export const GET_RECENT_TRANSACTIONS = gql`
 `;
 
 export const GET_TRANSACTIONS = gql`
-  query GetTransactions($accountId: ID, $skip: Int, $take: Int) {
-    transactions(accountId: $accountId, skip: $skip, take: $take) {
+  query GetTransactions($accountId: ID, $skip: Int, $take: Int, $orderBy: TransactionOrderInput, $note: String) {
+    transactions(accountId: $accountId, skip: $skip, take: $take, orderBy: $orderBy, note: $note) {
       items {
         id
         value
@@ -104,6 +104,28 @@ export const GET_PREFERENCES = gql`
       id
       currency
       useThousandSeparator
+    }
+  }
+`;
+
+export const GET_CATEGORIES = gql`
+  query GetCategories {
+    categories {
+      id
+      name
+      icon
+      isDefault
+    }
+  }
+`;
+
+export const GET_PAYEES = gql`
+  query GetPayees {
+    payees {
+      id
+      name
+      icon
+      isDefault
     }
   }
 `;

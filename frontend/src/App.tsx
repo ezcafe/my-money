@@ -10,6 +10,7 @@ import {ThemeProvider} from './theme/ThemeProvider';
 import {ErrorBoundary} from './components/common/ErrorBoundary';
 import {Layout} from './components/common/Layout';
 import {ProtectedRoute} from './components/common/ProtectedRoute';
+import {SearchProvider} from './contexts/SearchContext';
 import {client} from './graphql/client';
 import {Calculator} from './components/Calculator';
 import {AccountsPage} from './pages/AccountsPage';
@@ -30,8 +31,9 @@ function App(): React.JSX.Element {
     <ErrorBoundary>
       <ApolloProvider client={client}>
         <ThemeProvider>
-          <BrowserRouter>
-            <Routes>
+          <SearchProvider>
+            <BrowserRouter>
+              <Routes>
               {/* Public routes - no authentication required */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
@@ -108,8 +110,9 @@ function App(): React.JSX.Element {
                 }
               />
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </BrowserRouter>
+              </Routes>
+            </BrowserRouter>
+          </SearchProvider>
         </ThemeProvider>
       </ApolloProvider>
     </ErrorBoundary>

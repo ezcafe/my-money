@@ -54,6 +54,8 @@ type Query {
     take: Int
     first: Int
     after: String
+    orderBy: TransactionOrderInput
+    note: String
   ): TransactionConnection!
 
   """
