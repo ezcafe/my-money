@@ -1,13 +1,12 @@
 /**
  * History List Component
- * Shows last 30 transactions with green circle indicator for incomplete entries
+ * Shows last 30 transactions with category and payee information
  */
 
-import React, {memo, useMemo, Fragment} from 'react';
-import {List, ListItemButton, ListItemText, Avatar, Box, Typography} from '@mui/material';
-import {Circle} from '@mui/icons-material';
+import React, {memo} from 'react';
+import {List, ListItemButton, ListItemText, Box, Typography} from '@mui/material';
 import {Card} from './ui/Card';
-import {formatCurrencyPreserveDecimals, formatDate} from '../utils/formatting';
+import {formatCurrencyPreserveDecimals} from '../utils/formatting';
 
 interface Transaction {
   id: string;
@@ -26,21 +25,14 @@ interface HistoryListProps {
 
 /**
  * History List Component
- * Displays last 30 transactions with green circle for incomplete entries
+ * Displays last 30 transactions with category and payee information
  */
 const HistoryListComponent = ({
   transactions,
   onTransactionClick,
 }: HistoryListProps): React.JSX.Element => {
-  const isIncomplete = useMemo(
-    () => (transaction: Transaction): boolean => {
-      return !transaction.account || !transaction.category || !transaction.payee;
-    },
-    [],
-  );
-
   return (
-    <Card sx={{p: 2}}>
+    <Card sx={{p: 0}}>
       <Box>
         <List sx={{backgroundColor: 'transparent', padding: 0}}>
           {transactions.map((transaction) => (
@@ -48,40 +40,30 @@ const HistoryListComponent = ({
               key={transaction.id}
               onClick={() => onTransactionClick?.(transaction)}
               sx={{
-                borderBottom: '1px solid',
-                borderColor: 'divider',
+                minHeight: 48,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
                 '&:hover': {
                   backgroundColor: 'action.hover',
                 },
               }}
             >
-              {isIncomplete(transaction) && (
-                <Avatar
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    bgcolor: 'success.main',
-                    mr: 1,
-                  }}
-                >
-                  <Circle sx={{fontSize: 8}} />
-                </Avatar>
-              )}
               <ListItemText
-                primary={formatCurrencyPreserveDecimals(transaction.value)}
-                secondary={
-                  <Fragment>
-                    <Typography variant="body2" color="text.secondary" component="span">
-                      {formatDate(transaction.date)}
-                    </Typography>
-                    {transaction.account && (
-                      <Typography variant="caption" color="text.secondary" component="span" sx={{display: 'block'}}>
-                        {transaction.account.name}
-                      </Typography>
-                    )}
-                  </Fragment>
-                }
+                primary={transaction.category?.name ?? ''}
+                secondary={transaction.payee?.name ?? undefined}
+                sx={{flex: '0 1 auto'}}
               />
+              <Typography
+                variant="body1"
+                sx={{
+                  flexShrink: 0,
+                  ml: 2,
+                  textAlign: 'right',
+                }}
+              >
+                {formatCurrencyPreserveDecimals(transaction.value)}
+              </Typography>
             </ListItemButton>
           ))}
         </List>

@@ -84,6 +84,14 @@ export async function refreshToken(): Promise<string | null> {
         ],
         action: 'User will need to re-authenticate',
       });
+      // Clear all tokens and redirect to login page
+      localStorage.removeItem('oidc_token');
+      localStorage.removeItem('oidc_refresh_token');
+      localStorage.removeItem('oidc_token_expiration');
+      // Only redirect if we're not already on the login page
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
+        window.location.href = '/login';
+      }
       return null;
     }
 
@@ -155,10 +163,16 @@ export async function refreshToken(): Promise<string | null> {
         ],
       });
       
-      // If refresh token is invalid, clear it
+      // If refresh token is invalid, clear all tokens and redirect to login
       if (response.status === 400 || response.status === 401) {
         console.warn('Clearing invalid refresh token from storage');
+        localStorage.removeItem('oidc_token');
         localStorage.removeItem('oidc_refresh_token');
+        localStorage.removeItem('oidc_token_expiration');
+        // Only redirect if we're not already on the login page
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
+          window.location.href = '/login';
+        }
       }
       
       return null;
@@ -202,7 +216,8 @@ export async function ensureValidToken(token: string | null): Promise<string | n
       console.warn('Token refreshed successfully');
       return newToken;
     }
-    // If refresh failed, return null to trigger re-authentication
+    // If refresh failed, refreshToken() will have already handled redirect to login
+    // Return null to indicate token is invalid
     console.warn('Token refresh failed, user will need to re-authenticate');
     return null;
   }

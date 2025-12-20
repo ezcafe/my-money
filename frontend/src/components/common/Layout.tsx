@@ -40,22 +40,22 @@ export function Layout({children}: LayoutProps): React.JSX.Element {
         overflow: 'hidden',
       }}
     >
-      {!isHomePage && (
-        <AppBar
-          position="static"
-          sx={{
-            backgroundColor: 'transparent',
-            boxShadow: 'none',
-            color: 'inherit',
-          }}
-        >
-          <Toolbar>
+      <AppBar
+        position="static"
+        sx={{
+          backgroundColor: 'transparent',
+          boxShadow: 'none',
+          color: 'inherit',
+        }}
+      >
+        <Toolbar>
+          {!isHomePage && (
             <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back">
               <ArrowBack />
             </IconButton>
-          </Toolbar>
-        </AppBar>
-      )}
+          )}
+        </Toolbar>
+      </AppBar>
       <Box
         component="main"
         sx={{

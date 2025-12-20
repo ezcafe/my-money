@@ -3,7 +3,7 @@
  * Modern calculator UI with history list and operations
  */
 
-import React, {useState, useCallback, useMemo, useEffect, useRef} from 'react';
+import React, {useState, useCallback, useMemo, useRef} from 'react';
 import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText, Chip} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
@@ -20,10 +20,11 @@ import {
 } from '@mui/icons-material';
 import {PlusMinusIcon} from './calculator/PlusMinusIcon';
 import {CREATE_TRANSACTION} from '../graphql/mutations';
-import {GET_RECENT_TRANSACTIONS, GET_ACCOUNTS, GET_TOP_USED_VALUES, GET_PREFERENCES} from '../graphql/queries';
+import {GET_PREFERENCES} from '../graphql/queries';
 import {useRecentTransactions} from '../hooks/useTransactions';
 import {useAccounts} from '../hooks/useAccounts';
 import {useTopUsedValues} from '../hooks/useTopUsedValues';
+import {useAutoScroll} from '../hooks/useAutoScroll';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
 import {MAX_RECENT_TRANSACTIONS} from '../utils/constants';
 
@@ -40,21 +41,28 @@ interface CalculatorState {
 export function Calculator(): React.JSX.Element {
   const navigate = useNavigate();
   const {accounts} = useAccounts();
-  const {transactions, loading: transactionsLoading} = useRecentTransactions(MAX_RECENT_TRANSACTIONS);
+  // Order by desc to get newest transactions first, then reverse for display (oldest first, newest at bottom)
+  const {transactions, loading: transactionsLoading, refetch: refetchRecentTransactions} = useRecentTransactions(
+    MAX_RECENT_TRANSACTIONS,
+    {field: 'date', direction: 'desc'},
+  );
   const {topUsedValues} = useTopUsedValues(90);
   const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
   const currency = preferencesData?.preferences?.currency ?? 'USD';
-  const hasScrolledOnLoad = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
-    refetchQueries: [GET_RECENT_TRANSACTIONS, GET_ACCOUNTS, GET_TOP_USED_VALUES],
+    // Use query name string for more reliable cache matching
+    refetchQueries: ['GetRecentTransactions'],
+    awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
     },
     onCompleted: () => {
       setError(null);
+      // Manually refetch to ensure cache is updated with correct variables
+      void refetchRecentTransactions();
     },
   });
 
@@ -67,7 +75,9 @@ export function Calculator(): React.JSX.Element {
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const historyListRef = useRef<HTMLDivElement>(null);
-  const previousTransactionsLength = useRef(0);
+
+  // Auto-scroll to bottom when transactions are loaded or new ones are added
+  useAutoScroll(historyListRef, transactions, transactionsLoading);
 
   // Get default account ID
   const defaultAccountId = useMemo(() => {
@@ -308,74 +318,8 @@ export function Calculator(): React.JSX.Element {
     {path: '/preferences', label: 'Settings', icon: <Settings />},
   ];
 
-  // Transactions are already sorted by date ascending (oldest first, latest at bottom) from backend
-
-  /**
-   * Scroll to bottom on initial load when data is ready
-   * Uses smooth animation for a polished user experience
-   */
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    
-    if (!transactionsLoading && transactions.length > 0 && !hasScrolledOnLoad.current) {
-      // Mark that we've done the initial scroll
-      hasScrolledOnLoad.current = true;
-      // Use setTimeout to ensure DOM layout is complete after React render
-      // 300ms delay ensures content is fully rendered before scrolling
-      timeoutId = setTimeout(() => {
-        if (historyListRef.current) {
-          const element = historyListRef.current;
-          element.scrollTo({
-            top: element.scrollHeight,
-            behavior: 'smooth',
-          });
-        }
-      }, 300);
-    }
-    
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [transactionsLoading, transactions.length]);
-
-  /**
-   * Auto-scroll to bottom when a new transaction is added
-   * Detects when transaction count increases and scrolls smoothly
-   */
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    
-    // Skip if still loading or if this is the initial load
-    if (transactionsLoading || !hasScrolledOnLoad.current) {
-      previousTransactionsLength.current = transactions.length;
-      return;
-    }
-
-    // If transaction count increased, scroll to bottom
-    if (transactions.length > previousTransactionsLength.current) {
-      timeoutId = setTimeout(() => {
-        if (historyListRef.current) {
-          const element = historyListRef.current;
-          element.scrollTo({
-            top: element.scrollHeight,
-            behavior: 'smooth',
-          });
-        }
-      }, 300);
-      
-      previousTransactionsLength.current = transactions.length;
-    } else {
-      previousTransactionsLength.current = transactions.length;
-    }
-    
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [transactions.length, transactionsLoading]);
+  // Transactions are fetched ordered by date descending (newest first) to get the 30 most recent,
+  // then reversed for display (oldest first, newest at bottom)
 
   return (
     <Box
@@ -432,7 +376,7 @@ export function Calculator(): React.JSX.Element {
         }}
       >
         <HistoryList
-          transactions={transactions.map((t) => ({
+          transactions={[...transactions].reverse().map((t) => ({
             ...t,
             date: typeof t.date === 'string' ? new Date(t.date) : t.date,
           }))}
