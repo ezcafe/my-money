@@ -3,8 +3,8 @@
  * Shows last 30 transactions with green circle indicator for incomplete entries
  */
 
-import React, {memo, useMemo} from 'react';
-import {List, ListItem, ListItemButton, ListItemText, Avatar, Box, Typography} from '@mui/material';
+import React, {memo, useMemo, Fragment} from 'react';
+import {List, ListItemButton, ListItemText, Avatar, Box, Typography} from '@mui/material';
 import {Circle} from '@mui/icons-material';
 import {Card} from './ui/Card';
 import {formatCurrency, formatDate} from '../utils/formatting';
@@ -40,59 +40,50 @@ const HistoryListComponent = ({
   );
 
   return (
-    <Card>
-      <Box sx={{p: 2}}>
-        <Typography variant="h6" gutterBottom>
-          Recent Transactions
-        </Typography>
-        <List>
-          {transactions.length === 0 ? (
-            <ListItem>
-              <ListItemText primary="No transactions yet" />
-            </ListItem>
-          ) : (
-            transactions.map((transaction) => (
-              <ListItemButton
-                key={transaction.id}
-                onClick={() => onTransactionClick?.(transaction)}
-                sx={{
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  '&:hover': {
-                    backgroundColor: 'action.hover',
-                  },
-                }}
-              >
-                {isIncomplete(transaction) && (
-                  <Avatar
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      bgcolor: 'success.main',
-                      mr: 1,
-                    }}
-                  >
-                    <Circle sx={{fontSize: 8}} />
-                  </Avatar>
-                )}
-                <ListItemText
-                  primary={formatCurrency(transaction.value)}
-                  secondary={
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatDate(transaction.date)}
+    <Card sx={{p: 2, backgroundColor: 'transparent', boxShadow: 'none', border: 'none'}}>
+      <Box sx={{border: 'none'}}>
+        <List sx={{backgroundColor: 'transparent', padding: 0}}>
+          {transactions.map((transaction) => (
+            <ListItemButton
+              key={transaction.id}
+              onClick={() => onTransactionClick?.(transaction)}
+              sx={{
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
+            >
+              {isIncomplete(transaction) && (
+                <Avatar
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    bgcolor: 'success.main',
+                    mr: 1,
+                  }}
+                >
+                  <Circle sx={{fontSize: 8}} />
+                </Avatar>
+              )}
+              <ListItemText
+                primary={formatCurrency(transaction.value)}
+                secondary={
+                  <Fragment>
+                    <Typography variant="body2" color="text.secondary" component="span">
+                      {formatDate(transaction.date)}
+                    </Typography>
+                    {transaction.account && (
+                      <Typography variant="caption" color="text.secondary" component="span" sx={{display: 'block'}}>
+                        {transaction.account.name}
                       </Typography>
-                      {transaction.account && (
-                        <Typography variant="caption" color="text.secondary">
-                          {transaction.account.name}
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                />
-              </ListItemButton>
-            ))
-          )}
+                    )}
+                  </Fragment>
+                }
+              />
+            </ListItemButton>
+          ))}
         </List>
       </Box>
     </Card>

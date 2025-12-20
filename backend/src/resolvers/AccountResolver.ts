@@ -10,10 +10,44 @@ import {withPrismaErrorHandling} from '../utils/prismaErrors';
 
 export class AccountResolver {
   /**
+   * Ensure a default account exists for the user
+   * Creates a default account if none exists or if no default account is found
+   */
+  private async ensureDefaultAccount(context: GraphQLContext): Promise<void> {
+    // Check if user has a default account
+    const defaultAccount = await context.prisma.account.findFirst({
+      where: {
+        userId: context.userId,
+        isDefault: true,
+      },
+    });
+
+    // If no default account exists, create one
+    if (!defaultAccount) {
+      await withPrismaErrorHandling(
+        async () =>
+          await context.prisma.account.create({
+            data: {
+              name: 'Default Account',
+              initBalance: 0,
+              isDefault: true,
+              userId: context.userId,
+            },
+          }),
+        {resource: 'Account', operation: 'create'},
+      );
+    }
+  }
+
+  /**
    * Get all accounts for the current user
    * Optimized to calculate balances using database aggregation
+   * Ensures a default account exists before returning results
    */
   async accounts(_: unknown, __: unknown, context: GraphQLContext) {
+    // Ensure a default account exists
+    await this.ensureDefaultAccount(context);
+
     const accounts = await context.prisma.account.findMany({
       where: {userId: context.userId},
       orderBy: {createdAt: 'desc'},
@@ -34,6 +68,7 @@ export class AccountResolver {
 
         return {
           ...account,
+          initBalance: Number(account.initBalance),
           balance,
         };
       }),
@@ -71,6 +106,7 @@ export class AccountResolver {
 
     return {
       ...account,
+      initBalance: Number(account.initBalance),
       balance,
     };
   }
@@ -119,6 +155,7 @@ export class AccountResolver {
     const balance = Number(account.initBalance);
     return {
       ...account,
+      initBalance: Number(account.initBalance),
       balance,
     };
   }
@@ -164,6 +201,7 @@ export class AccountResolver {
 
     return {
       ...account,
+      initBalance: Number(account.initBalance),
       balance,
     };
   }

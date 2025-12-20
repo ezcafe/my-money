@@ -9,6 +9,21 @@
 const STATIC_CACHE = 'my-money-static-v1';
 const API_CACHE = 'my-money-api-v1';
 
+/**
+ * Check if we're in development mode
+ * @returns True if in development mode
+ */
+function isDevelopmentMode(): boolean {
+  // Check if origin is localhost or 127.0.0.1 (development server)
+  if (typeof self !== 'undefined' && 'location' in self) {
+    const origin = (self as {location?: {origin?: string}}).location?.origin ?? '';
+    return origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes(':3000');
+  }
+  // Fallback: check if NODE_ENV is development (if available via build-time replacement)
+  // Note: process.env is not available in service workers, but esbuild can replace it
+  return false;
+}
+
 // Assets to cache on install
 const STATIC_ASSETS = [
   '/',
@@ -59,6 +74,12 @@ self.addEventListener('fetch', (event: Event): void => {
 
   // Skip non-GET requests
   if (request.method !== 'GET') {
+    return;
+  }
+
+  // In development mode, bypass caching entirely to support hot reload
+  if (isDevelopmentMode()) {
+    fetchEvent.respondWith(fetch(request));
     return;
   }
 

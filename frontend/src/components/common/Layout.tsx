@@ -53,7 +53,7 @@ export function Layout({children}: LayoutProps): React.JSX.Element {
           </Box>
         </Toolbar>
       </AppBar>
-      <Box component="main" sx={{flexGrow: 1, p: 2}}>
+      <Box component="main" sx={{flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', minHeight: 0}}>
         {children}
       </Box>
     </Box>

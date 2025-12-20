@@ -49,6 +49,44 @@ describe('AccountResolver', () => {
       expect(accounts).toHaveLength(1);
       expect(accounts[0].id).toBe(testAccountId);
     });
+
+    it('should create a default account if none exists', async () => {
+      // Delete all accounts for this user
+      await prisma.account.deleteMany({where: {userId: testUserId}});
+
+      const resolver = new AccountResolver();
+      const accounts = await resolver.accounts(null, {}, context);
+
+      // Should have created a default account
+      expect(accounts).toHaveLength(1);
+      expect(accounts[0].name).toBe('Default Account');
+      expect(accounts[0].isDefault).toBe(true);
+      expect(Number(accounts[0].initBalance)).toBe(0);
+    });
+
+    it('should create a default account if no default account exists', async () => {
+      // Delete all accounts for this user
+      await prisma.account.deleteMany({where: {userId: testUserId}});
+
+      // Create a non-default account
+      await prisma.account.create({
+        data: {
+          name: 'Non-Default Account',
+          initBalance: 100,
+          isDefault: false,
+          userId: testUserId,
+        },
+      });
+
+      const resolver = new AccountResolver();
+      const accounts = await resolver.accounts(null, {}, context);
+
+      // Should have created a default account in addition to the existing one
+      expect(accounts.length).toBeGreaterThanOrEqual(1);
+      const defaultAccount = accounts.find((acc) => acc.isDefault === true);
+      expect(defaultAccount).toBeDefined();
+      expect(defaultAccount?.name).toBe('Default Account');
+    });
   });
 
   describe('account', () => {
