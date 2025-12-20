@@ -116,7 +116,7 @@ export async function initiateLogin(): Promise<void> {
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'openid email profile',
+    scope: 'openid email profile offline_access',
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
@@ -230,6 +230,8 @@ export async function handleCallback(code: string, state: string): Promise<boole
 
     if (tokenData.refresh_token) {
       localStorage.setItem('oidc_refresh_token', tokenData.refresh_token);
+    } else {
+      console.warn('No refresh token received from OIDC provider. Token refresh will not be available. Ensure "offline_access" scope is included in the authorization request.');
     }
 
     // Clean up session storage only after successful token exchange

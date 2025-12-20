@@ -74,7 +74,16 @@ export async function refreshToken(): Promise<string | null> {
     // Get refresh token from storage
     const refreshTokenValue = localStorage.getItem('oidc_refresh_token');
     if (!refreshTokenValue) {
-      console.warn('No refresh token available for refresh');
+      console.warn('No refresh token available for refresh. Possible reasons:', {
+        reason: 'Refresh token not found in localStorage',
+        possibleCauses: [
+          'Refresh token was never stored during initial login (OIDC provider may not have returned one)',
+          'Refresh token was cleared due to a previous error',
+          'Refresh token expired and was cleared',
+          'Missing "offline_access" scope in OIDC authorization request',
+        ],
+        action: 'User will need to re-authenticate',
+      });
       return null;
     }
 
@@ -127,10 +136,28 @@ export async function refreshToken(): Promise<string | null> {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
-      console.error('Token refresh failed:', response.status, response.statusText, errorText);
+      let errorDetails: unknown;
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch {
+        errorDetails = errorText;
+      }
+      
+      console.error('Token refresh failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorDetails,
+        possibleReasons: [
+          'Refresh token has expired',
+          'Refresh token was revoked',
+          'Invalid refresh token',
+          'OIDC provider configuration issue',
+        ],
+      });
       
       // If refresh token is invalid, clear it
       if (response.status === 400 || response.status === 401) {
+        console.warn('Clearing invalid refresh token from storage');
         localStorage.removeItem('oidc_refresh_token');
       }
       
