@@ -9,6 +9,7 @@ import cron from 'node-cron';
 import {prisma} from '../utils/prisma';
 import {retry, isRetryableError} from '../utils/retry';
 import {logInfo, logError, logWarn} from '../utils/logger';
+import {incrementAccountBalance} from '../services/AccountBalanceService';
 
 /**
  * Process a single recurring transaction with retry logic
@@ -41,7 +42,7 @@ async function processRecurringTransaction(
     await retry(
       async () => {
         // Use database transaction to ensure atomicity
-        // Both transaction creation and recurring transaction update must succeed together
+        // Transaction creation, balance update, and recurring transaction update must succeed together
         await prisma.$transaction(async (tx): Promise<void> => {
           // Create transaction
           await tx.transaction.create({
@@ -55,6 +56,9 @@ async function processRecurringTransaction(
               userId: recurring.userId,
             },
           });
+
+          // Update account balance incrementally
+          await incrementAccountBalance(recurring.accountId, recurring.value, tx);
 
           // Calculate next run date based on cron expression
           // For simplicity, assuming daily for now

@@ -7,6 +7,7 @@
 import type {GraphQLContext} from '../middleware/context';
 import {NotFoundError, ForbiddenError} from '../utils/errors';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {recalculateAccountBalance} from '../services/AccountBalanceService';
 
 export class AccountResolver {
   /**
@@ -30,6 +31,7 @@ export class AccountResolver {
             data: {
               name: 'Default Account',
               initBalance: 0,
+              balance: 0, // New account has no transactions, balance equals initBalance
               isDefault: true,
               userId: context.userId,
             },
@@ -41,7 +43,7 @@ export class AccountResolver {
 
   /**
    * Get all accounts for the current user
-   * Optimized to calculate balances using database aggregation
+   * Reads balance directly from stored column for O(1) performance
    * Ensures a default account exists before returning results
    */
   async accounts(_: unknown, __: unknown, context: GraphQLContext) {
@@ -53,33 +55,17 @@ export class AccountResolver {
       orderBy: {createdAt: 'desc'},
     });
 
-    // Calculate balance for each account using database aggregation
-    const accountsWithBalance = await Promise.all(
-      accounts.map(async (account) => {
-        const balanceResult = await context.prisma.transaction.aggregate({
-          where: {accountId: account.id},
-          _sum: {value: true},
-        });
-
-        const transactionSum = balanceResult._sum.value
-          ? Number(balanceResult._sum.value)
-          : 0;
-        const balance = Number(account.initBalance) + transactionSum;
-
-        return {
-          ...account,
-          initBalance: Number(account.initBalance),
-          balance,
-        };
-      }),
-    );
-
-    return accountsWithBalance;
+    // Return accounts with balance from stored column
+    return accounts.map((account) => ({
+      ...account,
+      initBalance: Number(account.initBalance),
+      balance: Number(account.balance),
+    }));
   }
 
   /**
    * Get account by ID
-   * Optimized to calculate balance using database aggregation
+   * Reads balance directly from stored column for O(1) performance
    */
   async account(_: unknown, {id}: {id: string}, context: GraphQLContext) {
     const account = await context.prisma.account.findFirst({
@@ -93,21 +79,10 @@ export class AccountResolver {
       return null;
     }
 
-    // Calculate balance using database aggregation
-    const balanceResult = await context.prisma.transaction.aggregate({
-      where: {accountId: account.id},
-      _sum: {value: true},
-    });
-
-    const transactionSum = balanceResult._sum.value
-      ? Number(balanceResult._sum.value)
-      : 0;
-    const balance = Number(account.initBalance) + transactionSum;
-
     return {
       ...account,
       initBalance: Number(account.initBalance),
-      balance,
+      balance: Number(account.balance),
     };
   }
 
@@ -139,24 +114,24 @@ export class AccountResolver {
     {input}: {input: {name: string; initBalance?: number}},
     context: GraphQLContext,
   ) {
+    const initBalance = input.initBalance ?? 0;
     const account = await withPrismaErrorHandling(
       async () =>
         await context.prisma.account.create({
           data: {
             name: input.name,
-            initBalance: input.initBalance ?? 0,
+            initBalance,
+            balance: initBalance, // New account has no transactions, balance equals initBalance
             userId: context.userId,
           },
         }),
       {resource: 'Account', operation: 'create'},
     );
 
-    // New account has no transactions, balance equals initBalance
-    const balance = Number(account.initBalance);
     return {
       ...account,
       initBalance: Number(account.initBalance),
-      balance,
+      balance: Number(account.balance),
     };
   }
 
@@ -180,29 +155,33 @@ export class AccountResolver {
       throw new NotFoundError('Account');
     }
 
-    const account = await context.prisma.account.update({
-      where: {id},
-      data: {
-        ...(input.name !== undefined && {name: input.name}),
-        ...(input.initBalance !== undefined && {initBalance: input.initBalance}),
-      },
+    // Update account and recalculate balance if initBalance changed
+    const account = await context.prisma.$transaction(async (tx) => {
+      const updatedAccount = await tx.account.update({
+        where: {id},
+        data: {
+          ...(input.name !== undefined && {name: input.name}),
+          ...(input.initBalance !== undefined && {initBalance: input.initBalance}),
+        },
+      });
+
+      // If initBalance changed, recalculate balance
+      if (input.initBalance !== undefined) {
+        await recalculateAccountBalance(id, tx);
+      }
+
+      return updatedAccount;
     });
 
-    // Calculate balance using database aggregation
-    const balanceResult = await context.prisma.transaction.aggregate({
-      where: {accountId: account.id},
-      _sum: {value: true},
+    // Fetch updated account with balance
+    const accountWithBalance = await context.prisma.account.findUnique({
+      where: {id: account.id},
     });
-
-    const transactionSum = balanceResult._sum.value
-      ? Number(balanceResult._sum.value)
-      : 0;
-    const balance = Number(account.initBalance) + transactionSum;
 
     return {
-      ...account,
-      initBalance: Number(account.initBalance),
-      balance,
+      ...accountWithBalance,
+      initBalance: Number(accountWithBalance!.initBalance),
+      balance: Number(accountWithBalance!.balance),
     };
   }
 

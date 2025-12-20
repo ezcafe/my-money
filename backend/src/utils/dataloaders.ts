@@ -9,45 +9,25 @@ import {prisma} from './prisma';
 import type {Account, Category, Payee, User} from '@prisma/client';
 
 /**
- * Create a DataLoader for account balance calculations
- * Batches multiple account balance queries into efficient database aggregations
+ * Create a DataLoader for account balance lookups
+ * Batches multiple account balance queries by reading from stored balance column
+ * O(1) read performance - no aggregation needed
  */
 export function createAccountBalanceLoader(): DataLoader<string, number> {
   return new DataLoader<string, number>(async (accountIds: readonly string[]): Promise<number[]> => {
-    // Fetch accounts and their transaction sums in parallel
-    const [accounts, transactionSums] = await Promise.all([
-      prisma.account.findMany({
-        where: {id: {in: [...accountIds]}},
-      }),
-      // Use groupBy to get sums for all accounts in one query
-      prisma.transaction.groupBy({
-        by: ['accountId'],
-        where: {accountId: {in: [...accountIds]}},
-        _sum: {value: true},
-      }),
-    ]);
-
-    // Create maps for efficient lookup
-    const accountMap = new Map<string, Account>(
-      accounts.map((account) => [account.id, account]),
-    );
-
-    const sumMap = new Map<string, number>(
-      transactionSums.map((sum) => [
-        sum.accountId,
-        sum._sum.value ? Number(sum._sum.value) : 0,
-      ]),
-    );
-
-    // Calculate balance for each account
-    return accountIds.map((id) => {
-      const account = accountMap.get(id);
-      if (!account) {
-        return 0;
-      }
-      const transactionSum = sumMap.get(id) ?? 0;
-      return Number(account.initBalance) + transactionSum;
+    // Fetch accounts with balance column
+    const accounts = await prisma.account.findMany({
+      where: {id: {in: [...accountIds]}},
+      select: {id: true, balance: true},
     });
+
+    // Create map for efficient lookup
+    const accountMap = new Map<string, number>(
+      accounts.map((account) => [account.id, Number(account.balance)]),
+    );
+
+    // Return balance for each account ID, defaulting to 0 if not found
+    return accountIds.map((id) => accountMap.get(id) ?? 0);
   });
 }
 

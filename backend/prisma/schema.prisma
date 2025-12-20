@@ -46,6 +46,7 @@ model Account {
   id         String   @id @default(uuid())
   name       String
   initBalance Decimal  @default(0) @db.Decimal(15, 2)
+  balance    Decimal  @default(0) @db.Decimal(15, 2)
   isDefault  Boolean  @default(false)
   userId     String
   createdAt  DateTime @default(now())

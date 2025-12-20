@@ -9,6 +9,7 @@ import {NotFoundError} from '../utils/errors';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {incrementAccountBalance} from '../services/AccountBalanceService';
 
 const CreateTransactionInputSchema = z.object({
   value: z.number().finite(),
@@ -230,30 +231,38 @@ export class TransactionResolver {
       }
     }
 
-    // Create transaction
+    // Create transaction and update account balance atomically
     const transaction = await withPrismaErrorHandling(
       async () =>
-        await context.prisma.transaction.create({
-          data: {
-            value: validatedInput.value,
-            date: validatedInput.date ?? new Date(),
-            accountId: validatedInput.accountId,
-            categoryId: validatedInput.categoryId,
-            payeeId: validatedInput.payeeId,
-            note: validatedInput.note,
-            userId: context.userId,
-          },
-          include: {
-            account: true,
-            category: true,
-            payee: true,
-          },
+        await context.prisma.$transaction(async (tx) => {
+          // Create transaction
+          const newTransaction = await tx.transaction.create({
+            data: {
+              value: validatedInput.value,
+              date: validatedInput.date ?? new Date(),
+              accountId: validatedInput.accountId,
+              categoryId: validatedInput.categoryId,
+              payeeId: validatedInput.payeeId,
+              note: validatedInput.note,
+              userId: context.userId,
+            },
+          });
+
+          // Update account balance incrementally
+          await incrementAccountBalance(validatedInput.accountId, validatedInput.value, tx);
+
+          // Return transaction with relations
+          return await tx.transaction.findUnique({
+            where: {id: newTransaction.id},
+            include: {
+              account: true,
+              category: true,
+              payee: true,
+            },
+          });
         }),
       {resource: 'Transaction', operation: 'create'},
     );
-
-    // Account balance is automatically calculated from initBalance + sum of transactions
-    // No need to explicitly update it here, but we could trigger a recalculation if needed
 
     return transaction;
   }
@@ -295,21 +304,52 @@ export class TransactionResolver {
       }
     }
 
-    const transaction = await context.prisma.transaction.update({
-      where: {id},
-      data: {
-        ...(validatedInput.value !== undefined && {value: validatedInput.value}),
-        ...(validatedInput.date !== undefined && {date: validatedInput.date}),
-        ...(validatedInput.accountId !== undefined && {accountId: validatedInput.accountId}),
-        ...(validatedInput.categoryId !== undefined && {categoryId: validatedInput.categoryId}),
-        ...(validatedInput.payeeId !== undefined && {payeeId: validatedInput.payeeId}),
-        ...(validatedInput.note !== undefined && {note: validatedInput.note}),
-      },
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
+    // Update transaction and adjust account balances atomically
+    const transaction = await context.prisma.$transaction(async (tx) => {
+      const oldValue = Number(existingTransaction.value);
+      const oldAccountId = existingTransaction.accountId;
+      const newValue = validatedInput.value !== undefined
+        ? validatedInput.value
+        : oldValue;
+      const newAccountId = validatedInput.accountId ?? oldAccountId;
+
+      // Update transaction
+      const updatedTransaction = await tx.transaction.update({
+        where: {id},
+        data: {
+          ...(validatedInput.value !== undefined && {value: validatedInput.value}),
+          ...(validatedInput.date !== undefined && {date: validatedInput.date}),
+          ...(validatedInput.accountId !== undefined && {accountId: validatedInput.accountId}),
+          ...(validatedInput.categoryId !== undefined && {categoryId: validatedInput.categoryId}),
+          ...(validatedInput.payeeId !== undefined && {payeeId: validatedInput.payeeId}),
+          ...(validatedInput.note !== undefined && {note: validatedInput.note}),
+        },
+      });
+
+      // Adjust account balances
+      if (validatedInput.value !== undefined || validatedInput.accountId !== undefined) {
+        if (oldAccountId === newAccountId) {
+          // Same account: adjust by difference
+          const delta = newValue - oldValue;
+          if (delta !== 0) {
+            await incrementAccountBalance(newAccountId, delta, tx);
+          }
+        } else {
+          // Different accounts: remove from old, add to new
+          await incrementAccountBalance(oldAccountId, -oldValue, tx);
+          await incrementAccountBalance(newAccountId, newValue, tx);
+        }
+      }
+
+      // Return transaction with relations
+      return await tx.transaction.findUnique({
+        where: {id: updatedTransaction.id},
+        include: {
+          account: true,
+          category: true,
+          payee: true,
+        },
+      });
     });
 
     return transaction;
@@ -331,8 +371,16 @@ export class TransactionResolver {
       throw new NotFoundError('Transaction');
     }
 
-    await context.prisma.transaction.delete({
-      where: {id},
+    // Delete transaction and update account balance atomically
+    await context.prisma.$transaction(async (tx) => {
+      // Delete transaction
+      await tx.transaction.delete({
+        where: {id},
+      });
+
+      // Decrement account balance
+      const transactionValue = Number(transaction.value);
+      await incrementAccountBalance(transaction.accountId, -transactionValue, tx);
     });
 
     return true;
