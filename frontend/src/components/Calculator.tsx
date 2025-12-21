@@ -49,8 +49,9 @@ export function Calculator(): React.JSX.Element {
     {field: 'date', direction: 'desc'},
   );
   const {topUsedValues} = useTopUsedValues(90);
-  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const {data: preferencesData} = useQuery<{preferences?: {currency: string; useThousandSeparator: boolean}}>(GET_PREFERENCES);
   const currency = preferencesData?.preferences?.currency ?? 'USD';
+  const useThousandSeparator = preferencesData?.preferences?.useThousandSeparator ?? true;
   const [error, setError] = useState<string | null>(null);
 
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
@@ -106,6 +107,17 @@ export function Calculator(): React.JSX.Element {
           ...prev,
           display: num,
           waitingForNewValue: false,
+        };
+      }
+      // Handle decimal point
+      if (num === '.') {
+        // Don't add decimal if one already exists
+        if (prev.display.includes('.')) {
+          return prev;
+        }
+        return {
+          ...prev,
+          display: prev.display === '0' ? '0.' : prev.display + '.',
         };
       }
       return {
@@ -336,7 +348,7 @@ export function Calculator(): React.JSX.Element {
     {path: '/report', label: 'Report', icon: <Assessment />},
     {path: '/schedule', label: 'Schedule', icon: <Schedule />},
     {path: '/import', label: 'Import', icon: <Upload />},
-    {path: '/preferences', label: 'Settings', icon: <Settings />},
+    {path: '/preferences', label: 'Preferences', icon: <Settings />},
   ];
 
   // Transactions are fetched ordered by date descending (newest first) to get the 30 most recent,
@@ -569,9 +581,9 @@ export function Calculator(): React.JSX.Element {
             </Button>
           </Grid>
 
-          {/* Row 5: Settings, 0, 000, = */}
+          {/* Row 5: Settings, 0, 000/., = */}
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handleSettingsClick} aria-label="Settings" sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={handleSettingsClick} aria-label="Preferences" sx={{ boxShadow: 'none' }}>
               <MoreIcon />
             </Button>
           </Grid>
@@ -581,9 +593,15 @@ export function Calculator(): React.JSX.Element {
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('000')} sx={{ boxShadow: 'none' }}>
-              000
-            </Button>
+            {useThousandSeparator ? (
+              <Button fullWidth variant="contained" onClick={() => handleNumber('000')} sx={{ boxShadow: 'none' }}>
+                000
+              </Button>
+            ) : (
+              <Button fullWidth variant="contained" onClick={() => handleNumber('.')} sx={{ boxShadow: 'none' }}>
+                .
+              </Button>
+            )}
           </Grid>
           <Grid item xs={3}>
             <Button

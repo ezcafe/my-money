@@ -5,16 +5,21 @@
 
 import React, {useState} from 'react';
 import {Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow} from '@mui/material';
+import {useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
 import {validateDateRange} from '../utils/validation';
+import {GET_PREFERENCES} from '../graphql/queries';
 
 /**
  * Report Page Component
  */
 export function ReportPage(): React.JSX.Element {
+  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const currency = preferencesData?.preferences?.currency ?? 'USD';
+
   const [filters, setFilters] = useState({
     accountIds: [] as string[],
     categoryIds: [] as string[],
@@ -112,7 +117,7 @@ export function ReportPage(): React.JSX.Element {
                 results.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.date}</TableCell>
-                    <TableCell>{formatCurrencyPreserveDecimals(item.value)}</TableCell>
+                    <TableCell>{formatCurrencyPreserveDecimals(item.value, currency)}</TableCell>
                     <TableCell>{item.account}</TableCell>
                     <TableCell>{item.category}</TableCell>
                     <TableCell>{item.payee}</TableCell>

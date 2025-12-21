@@ -74,9 +74,9 @@ describe('Calculator', () => {
     expect(screen.getByText('Add')).toBeInTheDocument();
   });
 
-  it('should have Settings button', () => {
+  it('should have Preferences button', () => {
     renderCalculator();
-    expect(screen.getByLabelText('Settings')).toBeInTheDocument();
+    expect(screen.getByLabelText('Preferences')).toBeInTheDocument();
   });
 });
 

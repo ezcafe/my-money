@@ -4,9 +4,11 @@
  */
 
 import React, {memo, useMemo} from 'react';
-import {List, ListItemButton, ListItemText, Box, Typography, Divider} from '@mui/material';
+import {List, ListItemButton, ListItemText, Box, Typography} from '@mui/material';
+import {useQuery} from '@apollo/client/react';
 import {Card} from './ui/Card';
 import {formatCurrencyPreserveDecimals, groupTransactionsByDate, formatDateHeader, getDateKey} from '../utils/formatting';
+import {GET_PREFERENCES} from '../graphql/queries';
 
 interface Transaction {
   id: string;
@@ -31,6 +33,9 @@ const HistoryListComponent = ({
   transactions,
   onTransactionClick,
 }: HistoryListProps): React.JSX.Element => {
+  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const currency = preferencesData?.preferences?.currency ?? 'USD';
+
   // Group transactions by date and preserve order
   const {groupedTransactions, dateKeys} = useMemo(() => {
     const grouped = groupTransactionsByDate(transactions);
@@ -54,7 +59,7 @@ const HistoryListComponent = ({
     <Card sx={{p: 0}}>
       <Box>
         <List sx={{backgroundColor: 'transparent', padding: 0}}>
-          {dateKeys.map((dateKey, dateIndex) => {
+          {dateKeys.map((dateKey) => {
             const dateTransactions = groupedTransactions.get(dateKey) ?? [];
             // Get the date from the first transaction in the group
             const date = dateTransactions[0]?.date;
@@ -62,7 +67,6 @@ const HistoryListComponent = ({
 
             return (
               <React.Fragment key={dateKey}>
-                {dateIndex > 0 && <Divider />}
                 <Box
                   sx={{
                     px: 2,
@@ -124,7 +128,7 @@ const HistoryListComponent = ({
                         textAlign: 'right',
                       }}
                     >
-                      {formatCurrencyPreserveDecimals(transaction.value)}
+                      {formatCurrencyPreserveDecimals(transaction.value, currency)}
                     </Typography>
                   </ListItemButton>
                 ))}

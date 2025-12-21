@@ -4,7 +4,7 @@
  */
 
 import React, {useState, type KeyboardEvent} from 'react';
-import {Box, Paper, TextField, IconButton, InputAdornment} from '@mui/material';
+import {Box, Paper, TextField, IconButton, InputAdornment, useTheme} from '@mui/material';
 import {Search as SearchIcon, Close as CloseIcon} from '@mui/icons-material';
 import {useSearch} from '../contexts/SearchContext';
 
@@ -12,6 +12,7 @@ import {useSearch} from '../contexts/SearchContext';
  * Floating Search Box Component
  */
 export function FloatingSearchBox(): React.JSX.Element {
+  const theme = useTheme();
   const {isSearchOpen, closeSearch, performSearch} = useSearch();
   const [inputValue, setInputValue] = useState('');
 
@@ -68,9 +69,12 @@ export function FloatingSearchBox(): React.JSX.Element {
           display: 'flex',
           gap: 1,
           alignItems: 'center',
-          backgroundColor: '#ffffff',
+          backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#ffffff',
           border: '1px solid',
           borderColor: 'divider',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0px 5px 5px -3px rgba(0,0,0,0.2), 0px 8px 10px 1px rgba(0,0,0,0.14), 0px 3px 14px 2px rgba(0,0,0,0.12)'
+            : '0px 5px 5px -3px rgba(0,0,0,0.2), 0px 8px 10px 1px rgba(0,0,0,0.14), 0px 3px 14px 2px rgba(0,0,0,0.12)',
         }}
       >
         <TextField

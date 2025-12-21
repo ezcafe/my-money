@@ -3,21 +3,50 @@
  * Allows user to change currency, toggle 000/decimal, manage categories, payees, schedule, and logout
  */
 
-import React, {useState} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {useNavigate} from 'react-router';
 import {Box, Typography, Switch, FormControlLabel, List} from '@mui/material';
+import {useQuery, useMutation} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
 import {logout} from '../utils/oidc';
+import {GET_PREFERENCES} from '../graphql/queries';
+import {UPDATE_PREFERENCES} from '../graphql/mutations';
 
 /**
  * Preferences Page Component
  */
 export function PreferencesPage(): React.JSX.Element {
   const navigate = useNavigate();
+  const {data: preferencesData, loading: preferencesLoading} = useQuery<{
+    preferences?: {currency: string; useThousandSeparator: boolean};
+  }>(GET_PREFERENCES);
+  const [updatePreferences, {loading: updating}] = useMutation(UPDATE_PREFERENCES, {
+    refetchQueries: ['GetPreferences'],
+    awaitRefetchQueries: true,
+  });
+
   const [useThousandSeparator, setUseThousandSeparator] = useState(true);
   const [currency, setCurrency] = useState('USD');
+  const currencyUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize state from loaded preferences
+  useEffect(() => {
+    if (preferencesData?.preferences) {
+      setUseThousandSeparator(preferencesData.preferences.useThousandSeparator);
+      setCurrency(preferencesData.preferences.currency);
+    }
+  }, [preferencesData]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (currencyUpdateTimeoutRef.current) {
+        clearTimeout(currencyUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   /**
    * Handle logout
@@ -28,12 +57,48 @@ export function PreferencesPage(): React.JSX.Element {
     navigate('/login', {replace: true});
   };
 
-  return (
-    <Box sx={{p: 2, width: '100%'}}>
-      <Typography variant="h4" gutterBottom>
-        Preferences
-      </Typography>
+  /**
+   * Handle useThousandSeparator change
+   * Saves preference to backend
+   */
+  const handleUseThousandSeparatorChange = (checked: boolean): void => {
+    setUseThousandSeparator(checked);
+    void updatePreferences({
+      variables: {
+        input: {
+          useThousandSeparator: checked,
+        },
+      },
+    });
+  };
 
+  /**
+   * Handle currency change
+   * Updates local state immediately and debounces the API call to prevent excessive requests
+   */
+  const handleCurrencyChange = (newCurrency: string): void => {
+    setCurrency(newCurrency);
+
+    // Clear existing timeout if user is still typing
+    if (currencyUpdateTimeoutRef.current) {
+      clearTimeout(currencyUpdateTimeoutRef.current);
+    }
+
+    // Set new timeout to update preferences after user stops typing (500ms delay)
+    currencyUpdateTimeoutRef.current = setTimeout(() => {
+      void updatePreferences({
+        variables: {
+          input: {
+            currency: newCurrency,
+          },
+        },
+      });
+      currencyUpdateTimeoutRef.current = null;
+    }, 500);
+  };
+
+  return (
+    <Box sx={{width: '100%'}}>
       <Card sx={{p: 2, mb: 2}}>
         <Typography variant="h6" gutterBottom>
           Display Settings
@@ -42,7 +107,8 @@ export function PreferencesPage(): React.JSX.Element {
           control={
             <Switch
               checked={useThousandSeparator}
-              onChange={(e) => setUseThousandSeparator(e.target.checked)}
+              onChange={(e) => handleUseThousandSeparatorChange(e.target.checked)}
+              disabled={preferencesLoading || updating}
             />
           }
           label="Use 000 separator (instead of decimal)"
@@ -51,8 +117,9 @@ export function PreferencesPage(): React.JSX.Element {
           <TextField
             label="Currency"
             value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
+            onChange={(e) => handleCurrencyChange(e.target.value)}
             fullWidth
+            disabled={preferencesLoading || updating}
           />
         </Box>
       </Card>

@@ -68,6 +68,16 @@ export const CREATE_ACCOUNT = gql`
   }
 `;
 
+export const UPDATE_PREFERENCES = gql`
+  mutation UpdatePreferences($input: UpdatePreferencesInput!) {
+    updatePreferences(input: $input) {
+      id
+      currency
+      useThousandSeparator
+    }
+  }
+`;
+
 
 
 

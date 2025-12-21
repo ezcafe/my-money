@@ -57,33 +57,33 @@ export function Layout({children, title, hideSearch = false}: LayoutProps): Reac
         overflow: 'hidden',
       }}
     >
-      <AppBar
-        position="static"
-        sx={{
-          backgroundColor: 'transparent',
-          boxShadow: 'none',
-          color: 'inherit',
-        }}
-      >
-        <Toolbar>
-          {!isHomePage && (
+      {!isHomePage && (
+        <AppBar
+          position="static"
+          sx={{
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            color: 'inherit',
+          }}
+        >
+          <Toolbar>
             <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back">
               <ArrowBack />
             </IconButton>
-          )}
-          {displayTitle && (
-            <Typography variant="h6" sx={{ml: !isHomePage ? 1 : 0, flexGrow: 1}}>
-              {displayTitle}
-            </Typography>
-          )}
-          {!displayTitle && <Box sx={{flexGrow: 1}} />}
-          {!hideSearch && (
-            <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
-              <SearchIcon />
-            </IconButton>
-          )}
-        </Toolbar>
-      </AppBar>
+            {displayTitle && (
+              <Typography variant="h6" sx={{ml: 1, flexGrow: 1}}>
+                {displayTitle}
+              </Typography>
+            )}
+            {!displayTitle && <Box sx={{flexGrow: 1}} />}
+            {!hideSearch && (
+              <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
+                <SearchIcon />
+              </IconButton>
+            )}
+          </Toolbar>
+        </AppBar>
+      )}
       <Box
         component="main"
         sx={{

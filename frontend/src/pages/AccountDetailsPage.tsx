@@ -28,7 +28,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear} from '@mui/icons-material';
-import {useMutation} from '@apollo/client/react';
+import {useMutation, useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {useAccount} from '../hooks/useAccount';
 import {useTransactions, type TransactionOrderInput} from '../hooks/useTransactions';
@@ -37,6 +37,7 @@ import {ITEMS_PER_PAGE} from '../utils/constants';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
+import {GET_PREFERENCES} from '../graphql/queries';
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 
@@ -69,6 +70,10 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   
   // Title state
   const {setTitle} = useTitle();
+
+  // Get currency preference
+  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const currency = preferencesData?.preferences?.currency ?? 'USD';
 
   // Build orderBy object
   const orderBy: TransactionOrderInput | undefined =
@@ -230,7 +235,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
               {`Balance`}
             </Typography>
             <Typography variant="h2" color="primary" gutterBottom>
-              {formatCurrencyPreserveDecimals(account.balance)}
+              {formatCurrencyPreserveDecimals(account.balance, currency)}
             </Typography>
           </Box>
         </Box>
@@ -347,7 +352,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
                     transactions.items.map((transaction) => (
                       <TableRow key={transaction.id}>
                         <TableCell>{formatDateShort(transaction.date)}</TableCell>
-                        <TableCell>{formatCurrencyPreserveDecimals(transaction.value)}</TableCell>
+                        <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
                         <TableCell>{transaction.category?.name ?? '-'}</TableCell>
                         <TableCell>{transaction.payee?.name ?? '-'}</TableCell>
                         <TableCell>{transaction.note ?? '-'}</TableCell>
