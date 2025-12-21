@@ -155,6 +155,55 @@ export const GET_TRANSACTION = gql`
   }
 `;
 
+export const GET_REPORT_TRANSACTIONS = gql`
+  query GetReportTransactions(
+    $accountIds: [ID!]
+    $categoryIds: [ID!]
+    $payeeIds: [ID!]
+    $startDate: DateTime
+    $endDate: DateTime
+    $note: String
+    $orderBy: TransactionOrderInput
+    $skip: Int
+    $take: Int
+  ) {
+    reportTransactions(
+      accountIds: $accountIds
+      categoryIds: $categoryIds
+      payeeIds: $payeeIds
+      startDate: $startDate
+      endDate: $endDate
+      note: $note
+      orderBy: $orderBy
+      skip: $skip
+      take: $take
+    ) {
+      items {
+        id
+        value
+        date
+        account {
+          id
+          name
+        }
+        category {
+          id
+          name
+          icon
+        }
+        payee {
+          id
+          name
+          icon
+        }
+        note
+      }
+      totalCount
+      totalAmount
+    }
+  }
+`;
+
 
 
 

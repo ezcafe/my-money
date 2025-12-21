@@ -60,11 +60,6 @@ export function Layout({children, title, hideSearch = false}: LayoutProps): Reac
       {!isHomePage && (
         <AppBar
           position="static"
-          sx={{
-            backgroundColor: 'transparent',
-            boxShadow: 'none',
-            color: 'inherit',
-          }}
         >
           <Toolbar>
             <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back">
@@ -95,6 +90,7 @@ export function Layout({children, title, hideSearch = false}: LayoutProps): Reac
           width: '100%',
           maxWidth: '100vw',
           margin: 0,
+          overflowY: 'auto',
         }}
       >
         {children}

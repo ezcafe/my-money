@@ -56,7 +56,7 @@ function App(): React.JSX.Element {
                 path="/accounts"
                 element={
                   <ProtectedRoute>
-                    <Layout title="Accounts">
+                    <Layout title="Accounts" hideSearch>
                       <AccountsPage />
                     </Layout>
                   </ProtectedRoute>
@@ -86,7 +86,7 @@ function App(): React.JSX.Element {
                 path="/report"
                 element={
                   <ProtectedRoute>
-                    <Layout>
+                    <Layout title="Report" hideSearch>
                       <ReportPage />
                     </Layout>
                   </ProtectedRoute>

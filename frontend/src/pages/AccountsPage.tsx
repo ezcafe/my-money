@@ -1,11 +1,10 @@
 /**
  * Accounts Page
- * Lists all accounts with total amounts and Report button
+ * Lists all accounts with total amounts
  */
 
 import React, {memo} from 'react';
 import {Box, Typography, List, ListItemButton, ListItemText} from '@mui/material';
-import {Button} from '../components/ui/Button';
 import {Card} from '../components/ui/Card';
 import {useNavigate} from 'react-router';
 import {useAccounts} from '../hooks/useAccounts';
@@ -35,19 +34,8 @@ const AccountsPageComponent = (): React.JSX.Element => {
 
   return (
     <Box sx={{p: 2, width: '100%'}}>
-      <Box sx={{display: 'flex', justifyContent: 'flex-end', mb: 2}}>
-        <Button
-          variant="contained"
-          onClick={(): void => {
-            void navigate('/report');
-          }}
-        >
-          Report
-        </Button>
-      </Box>
-
-      <Card sx={{p: 0}}>
-        <List sx={{backgroundColor: 'transparent', padding: 0}}>
+      <Card>
+        <List>
           {accounts.map((account) => (
             <ListItemButton
               key={account.id}

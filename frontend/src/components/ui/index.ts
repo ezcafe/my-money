@@ -5,5 +5,7 @@ export {Button, type ButtonProps} from './Button';
 export {TextField, type TextFieldProps} from './TextField';
 export {Card, type CardProps} from './Card';
 export {Dialog, type DialogProps} from './Dialog';
+export {MultiSelect} from './MultiSelect';
+export type {MultiSelectOption, MultiSelectProps} from './MultiSelect';
 
 

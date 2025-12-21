@@ -56,9 +56,9 @@ const HistoryListComponent = ({
   }, [transactions]);
 
   return (
-    <Card sx={{p: 0}}>
+    <Card>
       <Box>
-        <List sx={{backgroundColor: 'transparent', padding: 0}}>
+        <List>
           {dateKeys.map((dateKey) => {
             const dateTransactions = groupedTransactions.get(dateKey) ?? [];
             // Get the date from the first transaction in the group
@@ -81,12 +81,7 @@ const HistoryListComponent = ({
                 >
                   <Typography
                     variant="caption"
-                    sx={{
-                      fontWeight: 600,
-                      color: 'text.secondary',
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.5,
-                    }}
+                    color="text.secondary"
                   >
                     {dateHeader}
                   </Typography>
@@ -96,7 +91,6 @@ const HistoryListComponent = ({
                       flex: 1,
                       height: '1px',
                       backgroundColor: 'divider',
-                      opacity: 0.3,
                     }}
                   />
                 </Box>
@@ -109,10 +103,6 @@ const HistoryListComponent = ({
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      backgroundColor: 'transparent',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
-                      },
                     }}
                   >
                     <ListItemText

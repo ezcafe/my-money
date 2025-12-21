@@ -14,6 +14,7 @@ const ReportTransactionsInputSchema = z.object({
   payeeIds: z.array(z.string().uuid()).optional(),
   startDate: z.date().optional(),
   endDate: z.date().optional(),
+  note: z.string().optional(),
   skip: z.number().int().min(0).optional(),
   take: z.number().int().min(1).max(1000).optional(),
 });
@@ -30,6 +31,8 @@ export class ReportResolver {
       payeeIds,
       startDate,
       endDate,
+      note,
+      orderBy,
       skip,
       take,
     }: {
@@ -38,6 +41,8 @@ export class ReportResolver {
       payeeIds?: string[];
       startDate?: Date;
       endDate?: Date;
+      note?: string;
+      orderBy?: {field: string; direction: string};
       skip?: number;
       take?: number;
     },
@@ -49,6 +54,7 @@ export class ReportResolver {
       payeeIds,
       startDate,
       endDate,
+      note,
       skip,
       take,
     });
@@ -59,6 +65,7 @@ export class ReportResolver {
       categoryId?: {in: string[]} | null;
       payeeId?: {in: string[]} | null;
       date?: {gte?: Date; lte?: Date};
+      note?: {contains: string; mode: string};
     } = {
       userId: context.userId,
     };
@@ -101,6 +108,40 @@ export class ReportResolver {
       }
     }
 
+    // Filter by note
+    if (validatedInput.note) {
+      where.note = {
+        contains: validatedInput.note,
+        mode: 'insensitive',
+      };
+    }
+
+    // Build orderBy based on field type
+    const orderField = orderBy?.field ?? 'date';
+    const orderDirection = orderBy?.direction ?? 'desc';
+
+    let prismaOrderBy: Record<string, string | Record<string, string>>;
+    
+    switch (orderField) {
+      case 'date':
+        prismaOrderBy = {date: orderDirection};
+        break;
+      case 'value':
+        prismaOrderBy = {value: orderDirection};
+        break;
+      case 'category':
+        prismaOrderBy = {category: {name: orderDirection}};
+        break;
+      case 'account':
+        prismaOrderBy = {account: {name: orderDirection}};
+        break;
+      case 'payee':
+        prismaOrderBy = {payee: {name: orderDirection}};
+        break;
+      default:
+        prismaOrderBy = {date: orderDirection};
+    }
+
     const limit = validatedInput.take ?? 100;
     const offset = validatedInput.skip ?? 0;
 
@@ -109,7 +150,7 @@ export class ReportResolver {
         where,
         skip: offset,
         take: limit,
-        orderBy: {date: 'desc'},
+        orderBy: prismaOrderBy,
         include: {
           account: true,
           category: true,

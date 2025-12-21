@@ -75,12 +75,13 @@ export function ImportPage(): React.JSX.Element {
             {error}
           </Alert>
         )}
-        <input
-          type="file"
-          accept=".pdf"
-          onChange={handleFileChange}
-          style={{marginBottom: '1rem'}}
-        />
+        <Box sx={{mb: 2}}>
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={handleFileChange}
+          />
+        </Box>
         <Button
           variant="contained"
           onClick={() => {

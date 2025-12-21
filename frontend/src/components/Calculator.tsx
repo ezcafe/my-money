@@ -397,7 +397,6 @@ export function Calculator(): React.JSX.Element {
             width: '8px',
           },
           '&::-webkit-scrollbar-track': {
-            backgroundColor: 'transparent',
           },
           '&::-webkit-scrollbar-thumb': {
             backgroundColor: 'action.disabled',
@@ -435,7 +434,6 @@ export function Calculator(): React.JSX.Element {
             maxWidth: 400,
             zIndex: 10,
             backgroundColor: 'background.paper',
-            backgroundImage: 'none',
           }}
         >
         <Typography
@@ -469,7 +467,6 @@ export function Calculator(): React.JSX.Element {
                 height: '6px',
               },
               '&::-webkit-scrollbar-track': {
-                backgroundColor: 'transparent',
               },
               '&::-webkit-scrollbar-thumb': {
                 backgroundColor: 'action.disabled',
@@ -495,110 +492,110 @@ export function Calculator(): React.JSX.Element {
         <Grid container spacing={1}>
           {/* Row 1: Backspace, ±, %, ÷ */}
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handleBackspace} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={handleBackspace}>
               «
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handlePlusMinus} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={handlePlusMinus}>
               <PlusMinusIcon />
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('%')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('%')}>
               %
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('/')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('/')}>
               ÷
             </Button>
           </Grid>
 
           {/* Row 2: 7, 8, 9, × */}
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('7')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('7')}>
               7
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('8')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('8')}>
               8
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('9')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('9')}>
               9
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('*')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('*')}>
               ×
             </Button>
           </Grid>
 
           {/* Row 3: 4, 5, 6, − */}
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('4')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('4')}>
               4
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('5')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('5')}>
               5
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('6')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('6')}>
               6
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('-')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('-')}>
               −
             </Button>
           </Grid>
 
           {/* Row 4: 1, 2, 3, + */}
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('1')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('1')}>
               1
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('2')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('2')}>
               2
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('3')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('3')}>
               3
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('+')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={() => handleOperation('+')}>
               +
             </Button>
           </Grid>
 
           {/* Row 5: Settings, 0, 000/., = */}
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handleSettingsClick} aria-label="Preferences" sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="outlined" onClick={handleSettingsClick} aria-label="Preferences">
               <MoreIcon />
             </Button>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('0')} sx={{ boxShadow: 'none' }}>
+            <Button fullWidth variant="contained" onClick={() => handleNumber('0')}>
               0
             </Button>
           </Grid>
           <Grid item xs={3}>
             {useThousandSeparator ? (
-              <Button fullWidth variant="contained" onClick={() => handleNumber('000')} sx={{ boxShadow: 'none' }}>
+              <Button fullWidth variant="contained" onClick={() => handleNumber('000')}>
                 000
               </Button>
             ) : (
-              <Button fullWidth variant="contained" onClick={() => handleNumber('.')} sx={{ boxShadow: 'none' }}>
+              <Button fullWidth variant="contained" onClick={() => handleNumber('.')}>
                 .
               </Button>
             )}
@@ -615,7 +612,6 @@ export function Calculator(): React.JSX.Element {
                 Boolean(creatingTransaction) ||
                 (state.display === '0' && state.previousValue === null)
               }
-              sx={{ boxShadow: 'none' }}
             >
               {creatingTransaction ? '...' : <GoIcon />}
             </Button>

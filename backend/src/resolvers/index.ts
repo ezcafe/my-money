@@ -80,6 +80,8 @@ export const resolvers = {
           payeeIds?: string[];
           startDate?: Date;
           endDate?: Date;
+          note?: string;
+          orderBy?: {field: string; direction: string};
           skip?: number;
           take?: number;
         },

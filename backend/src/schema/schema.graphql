@@ -107,6 +107,8 @@ type Query {
     payeeIds: [ID!]
     startDate: DateTime
     endDate: DateTime
+    note: String
+    orderBy: TransactionOrderInput
     skip: Int
     take: Int
   ): ReportTransactionConnection!
