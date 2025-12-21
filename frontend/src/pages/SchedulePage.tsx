@@ -6,23 +6,17 @@
 import React from 'react';
 import {Box, Typography} from '@mui/material';
 import {Card} from '../components/ui/Card';
-import {Button} from '../components/ui/Button';
 
 /**
  * Schedule Page Component
  */
 export function SchedulePage(): React.JSX.Element {
   return (
-    <Box sx={{p: 2, width: '100%'}}>
-      <Typography variant="h4" gutterBottom>
-        Recurring Transactions
-      </Typography>
-
+    <Box sx={{width: '100%'}}>
       <Card sx={{p: 2}}>
-        <Button variant="contained" sx={{mb: 2}}>
-          Add Recurring Transaction
-        </Button>
-        {/* Recurring transactions list will be populated from GraphQL */}
+        <Typography variant="body2" color="text.secondary">
+          Recurring transactions list will be populated from GraphQL
+        </Typography>
       </Card>
     </Box>
   );

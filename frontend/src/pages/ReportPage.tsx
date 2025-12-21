@@ -3,7 +3,7 @@
  * Comprehensive reporting interface with filters, charts, and interactive results
  */
 
-import React, {useState, useCallback, useMemo} from 'react';
+import React, {useState, useCallback, useMemo, useEffect} from 'react';
 import {
   Box,
   Typography,
@@ -25,8 +25,14 @@ import {
   CircularProgress,
   ToggleButton,
   ToggleButtonGroup,
+  Popover,
+  Collapse,
 } from '@mui/material';
-import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear, PictureAsPdf} from '@mui/icons-material';
+import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear, PictureAsPdf, CalendarToday, ExpandMore, ExpandLess} from '@mui/icons-material';
+import {DateCalendar} from '@mui/x-date-pickers/DateCalendar';
+import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
+import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, {type Dayjs} from 'dayjs';
 import {useQuery, useMutation} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
 import {LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer} from 'recharts';
@@ -124,6 +130,13 @@ export function ReportPage(): React.JSX.Element {
   // Delete state
   const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
 
+  // Date picker popover state
+  const [datePickerAnchor, setDatePickerAnchor] = useState<HTMLElement | null>(null);
+  const [datePickerType, setDatePickerType] = useState<'start' | 'end' | null>(null);
+
+  // Filter panel collapse state
+  const [filterPanelExpanded, setFilterPanelExpanded] = useState<boolean>(true);
+
   // Build orderBy object
   const orderBy: TransactionOrderInput = {
     field: sortField,
@@ -195,6 +208,13 @@ export function ReportPage(): React.JSX.Element {
   const totalCount = data?.reportTransactions?.totalCount ?? 0;
   const totalAmount = data?.reportTransactions?.totalAmount ?? 0;
 
+  // Auto-collapse filter panel when data is loaded after filtering
+  useEffect(() => {
+    if (hasFilters && !loading && transactions.length > 0) {
+      setFilterPanelExpanded(false);
+    }
+  }, [hasFilters, loading, transactions.length]);
+
   // Delete mutation
   const [deleteTransaction, {loading: deleting}] = useMutation(DELETE_TRANSACTION, {
     refetchQueries: ['GetReportTransactions', 'GetRecentTransactions'],
@@ -213,6 +233,68 @@ export function ReportPage(): React.JSX.Element {
   }, []);
 
   /**
+   * Handle date picker button click
+   */
+  const handleDatePickerOpen = useCallback((event: React.MouseEvent<HTMLElement>, type: 'start' | 'end') => {
+    setDatePickerAnchor(event.currentTarget);
+    setDatePickerType(type);
+  }, []);
+
+  /**
+   * Handle date picker close
+   */
+  const handleDatePickerClose = useCallback(() => {
+    setDatePickerAnchor(null);
+    setDatePickerType(null);
+  }, []);
+
+  /**
+   * Handle start date change from calendar
+   */
+  const handleStartDateChange = useCallback(
+    (newValue: Dayjs | null) => {
+      if (newValue) {
+        handleFilterChange('startDate', newValue.format('YYYY-MM-DD'));
+      } else {
+        handleFilterChange('startDate', '');
+      }
+      handleDatePickerClose();
+    },
+    [handleFilterChange, handleDatePickerClose],
+  );
+
+  /**
+   * Handle end date change from calendar
+   */
+  const handleEndDateChange = useCallback(
+    (newValue: Dayjs | null) => {
+      if (newValue) {
+        handleFilterChange('endDate', newValue.format('YYYY-MM-DD'));
+      } else {
+        handleFilterChange('endDate', '');
+      }
+      handleDatePickerClose();
+    },
+    [handleFilterChange, handleDatePickerClose],
+  );
+
+  /**
+   * Get formatted start date text for button
+   */
+  const startDateText = useMemo(() => {
+    const text = filters.startDate || 'Start Date';
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }, [filters.startDate]);
+
+  /**
+   * Get formatted end date text for button
+   */
+  const endDateText = useMemo(() => {
+    const text = filters.endDate || 'End Date';
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }, [filters.endDate]);
+
+  /**
    * Clear all filters
    */
   const handleClearFilters = useCallback((): void => {
@@ -224,6 +306,7 @@ export function ReportPage(): React.JSX.Element {
       endDate: '',
       note: '',
     });
+    setFilterPanelExpanded(true);
   }, []);
 
   /**
@@ -449,88 +532,110 @@ export function ReportPage(): React.JSX.Element {
     <Box sx={{p: 2, width: '100%'}}>
       {/* Filters Section */}
       <Card sx={{p: 2, mb: 3}}>
-        <Typography variant="h6" gutterBottom>
-          Filters
-        </Typography>
-        {validationError && (
-          <Box sx={{mb: 2, color: 'error.main'}}>
-            <Typography variant="body2" color="error">
-              {validationError}
-            </Typography>
-          </Box>
-        )}
-        {error && (
-          <Box sx={{mb: 2, color: 'error.main'}}>
-            <Typography variant="body2" color="error">
-              {error?.message ?? 'Error loading report data'}
-            </Typography>
-          </Box>
-        )}
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-          {/* Date Range - Same Row */}
-          <Box sx={{display: 'flex', gap: 2, alignItems: 'center'}}>
-            <TextField
-              label="Start Date"
-              type="date"
-              value={filters.startDate}
-              onChange={(e) => handleFilterChange('startDate', e.target.value)}
-              InputLabelProps={{shrink: true}}
-              size="small"
-              sx={{width: '200px'}}
-            />
-            <TextField
-              label="End Date"
-              type="date"
-              value={filters.endDate}
-              onChange={(e) => handleFilterChange('endDate', e.target.value)}
-              InputLabelProps={{shrink: true}}
-              size="small"
-              sx={{width: '200px'}}
-            />
-          </Box>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+          }}
+          onClick={() => setFilterPanelExpanded(!filterPanelExpanded)}
+        >
+          <Typography variant="h6">Filters</Typography>
+          <IconButton size="small" onClick={(e) => {
+            e.stopPropagation();
+            setFilterPanelExpanded(!filterPanelExpanded);
+          }}>
+            {filterPanelExpanded ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
+        </Box>
+        <Collapse in={filterPanelExpanded}>
+          <Box sx={{mt: 2}}>
+            {validationError && (
+              <Box sx={{mb: 2, color: 'error.main'}}>
+                <Typography variant="body2" color="error">
+                  {validationError}
+                </Typography>
+              </Box>
+            )}
+            {error && (
+              <Box sx={{mb: 2, color: 'error.main'}}>
+                <Typography variant="body2" color="error">
+                  {error?.message ?? 'Error loading report data'}
+                </Typography>
+              </Box>
+            )}
+            <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
+              {/* Date Range - Two Separate Buttons */}
+              <Box sx={{display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap'}}>
+                <Button
+                  variant="outlined"
+                  onClick={(e) => handleDatePickerOpen(e, 'start')}
+                  startIcon={<CalendarToday />}
+                  sx={{flex: 1, justifyContent: 'flex-start', textTransform: 'none'}}
+                >
+                  {startDateText}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={(e) => handleDatePickerOpen(e, 'end')}
+                  startIcon={<CalendarToday />}
+                  sx={{flex: 1, justifyContent: 'flex-start', textTransform: 'none'}}
+                >
+                  {endDateText}
+                </Button>
+              </Box>
 
-          {/* Multi-select Filters */}
-          <MultiSelect
-            label="Account"
-            options={accountOptions}
-            value={filters.accountIds}
-            onChange={(value) => handleFilterChange('accountIds', value)}
-          />
-          <MultiSelect
-            label="Payee"
-            options={payeeOptions}
-            value={filters.payeeIds}
-            onChange={(value) => handleFilterChange('payeeIds', value)}
-          />
-          <MultiSelect
-            label="Category"
-            options={categoryOptions}
-            value={filters.categoryIds}
-            onChange={(value) => handleFilterChange('categoryIds', value)}
-          />
+              {/* Multi-select Filters */}
+              <MultiSelect
+                label="Account"
+                options={accountOptions}
+                value={filters.accountIds}
+                onChange={(value) => handleFilterChange('accountIds', value)}
+              />
+              <MultiSelect
+                label="Payee"
+                options={payeeOptions}
+                value={filters.payeeIds}
+                onChange={(value) => handleFilterChange('payeeIds', value)}
+              />
+              <MultiSelect
+                label="Category"
+                options={categoryOptions}
+                value={filters.categoryIds}
+                onChange={(value) => handleFilterChange('categoryIds', value)}
+              />
 
-          {/* Note Search */}
-          <TextField
-            label="Note"
-            value={filters.note}
-            onChange={(e) => handleFilterChange('note', e.target.value)}
-            placeholder="Search transactions by note..."
-            fullWidth
-          />
+              {/* Note Search */}
+              <TextField
+                label="Note"
+                value={filters.note}
+                onChange={(e) => handleFilterChange('note', e.target.value)}
+                placeholder="Search transactions by note..."
+                fullWidth
+              />
+            </Box>
+          </Box>
+        </Collapse>
+      </Card>
 
-          {/* Action Buttons */}
+      {/* Actions Card */}
+      {(hasFilters || transactions.length > 0) && (
+        <Card sx={{p: 2, mb: 3}}>
           <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap'}}>
-            <Button variant="outlined" onClick={handleClearFilters} startIcon={<Clear />}>
-              Clear
-            </Button>
+            {hasFilters && (
+              <Button variant="outlined" onClick={handleClearFilters} startIcon={<Clear />} sx={{textTransform: 'none'}}>
+                Clear
+              </Button>
+            )}
             {transactions.length > 0 && (
-              <Button variant="contained" onClick={handleDownloadPDF} startIcon={<PictureAsPdf />}>
+              <Button variant="contained" onClick={handleDownloadPDF} startIcon={<PictureAsPdf />} sx={{textTransform: 'none'}}>
                 Download PDF
               </Button>
             )}
           </Box>
-        </Box>
-      </Card>
+        </Card>
+      )}
 
       {/* Chart Section */}
       {transactions.length > 0 && chartData.length > 0 && (
@@ -724,14 +829,48 @@ export function ReportPage(): React.JSX.Element {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeletingTransactionId(null)} disabled={deleting}>
+          <Button onClick={() => setDeletingTransactionId(null)} disabled={deleting} sx={{textTransform: 'none'}}>
             Cancel
           </Button>
-          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting}>
+          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting} sx={{textTransform: 'none'}}>
             {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Date Picker Popover */}
+      <Popover
+        open={Boolean(datePickerAnchor)}
+        anchorEl={datePickerAnchor}
+        onClose={handleDatePickerClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: datePickerType === 'start' ? 'left' : 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: datePickerType === 'start' ? 'left' : 'right',
+        }}
+      >
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <Box sx={{display: 'flex', flexDirection: 'column', p: 2}}>
+            {datePickerType === 'start' && (
+              <DateCalendar
+                value={filters.startDate ? dayjs(filters.startDate) : null}
+                onChange={handleStartDateChange}
+                views={['year', 'month', 'day']}
+              />
+            )}
+            {datePickerType === 'end' && (
+              <DateCalendar
+                value={filters.endDate ? dayjs(filters.endDate) : null}
+                onChange={handleEndDateChange}
+                views={['year', 'month', 'day']}
+              />
+            )}
+          </Box>
+        </LocalizationProvider>
+      </Popover>
     </Box>
   );
 }

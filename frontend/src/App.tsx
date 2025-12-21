@@ -6,6 +6,7 @@
 import React from 'react';
 import {BrowserRouter, Routes, Route, Navigate} from 'react-router';
 import {ApolloProvider} from '@apollo/client/react';
+import {Add} from '@mui/icons-material';
 import {ThemeProvider} from './theme/ThemeProvider';
 import {ErrorBoundary} from './components/common/ErrorBoundary';
 import {Layout} from './components/common/Layout';
@@ -106,7 +107,18 @@ function App(): React.JSX.Element {
                 path="/schedule"
                 element={
                   <ProtectedRoute>
-                    <Layout>
+                    <Layout
+                      title="Schedule"
+                      hideSearch
+                      actionButton={{
+                        icon: <Add />,
+                        onClick: () => {
+                          // TODO: Implement add recurring transaction functionality
+                          console.log('Add recurring transaction clicked');
+                        },
+                        ariaLabel: 'Add Recurring Transaction',
+                      }}
+                    >
                       <SchedulePage />
                     </Layout>
                   </ProtectedRoute>

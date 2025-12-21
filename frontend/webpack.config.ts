@@ -22,7 +22,7 @@ const config: Configuration = {
     publicPath: '/',
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.jsx', '.js'],
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs'],
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@components': path.resolve(__dirname, 'src/components'),
@@ -33,12 +33,23 @@ const config: Configuration = {
       '@theme': path.resolve(__dirname, 'src/theme'),
     },
   },
+  experiments: {
+    topLevelAwait: true,
+  },
   module: {
     rules: [
       {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/,
+      },
+      {
+        test: /\.m?js$/,
+        include: /node_modules\/@mui\/x-date-pickers/,
+        type: 'javascript/auto',
+        resolve: {
+          fullySpecified: false,
+        },
       },
       {
         test: /\.css$/i,

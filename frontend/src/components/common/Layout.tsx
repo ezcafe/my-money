@@ -15,13 +15,18 @@ interface LayoutProps {
   children: React.ReactNode;
   title?: string;
   hideSearch?: boolean;
+  actionButton?: {
+    icon: React.ReactNode;
+    onClick: () => void;
+    ariaLabel: string;
+  };
 }
 
 /**
  * Layout Component
  * Provides main app structure with transparent toolbar and back button
  */
-export function Layout({children, title, hideSearch = false}: LayoutProps): React.JSX.Element {
+export function Layout({children, title, hideSearch = false, actionButton}: LayoutProps): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const isHomePage = location.pathname === '/';
@@ -71,7 +76,11 @@ export function Layout({children, title, hideSearch = false}: LayoutProps): Reac
               </Typography>
             )}
             {!displayTitle && <Box sx={{flexGrow: 1}} />}
-            {!hideSearch && (
+            {actionButton ? (
+              <IconButton edge="end" color="inherit" onClick={actionButton.onClick} aria-label={actionButton.ariaLabel}>
+                {actionButton.icon}
+              </IconButton>
+            ) : !hideSearch && (
               <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
                 <SearchIcon />
               </IconButton>
