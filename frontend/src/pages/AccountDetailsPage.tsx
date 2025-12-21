@@ -3,8 +3,8 @@
  * Shows account details with paginated transactions and charts
  */
 
-import React, {useState, memo, useCallback, useEffect} from 'react';
-import {useParams} from 'react-router';
+import React, {useState, memo, useCallback, useEffect, useRef} from 'react';
+import {useParams, useNavigate, useLocation} from 'react-router';
 import {
   Box,
   Typography,
@@ -31,12 +31,11 @@ import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear} from '@mui/ic
 import {useMutation} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {useAccount} from '../hooks/useAccount';
-import {useTransactions, type TransactionOrderInput, type Transaction} from '../hooks/useTransactions';
+import {useTransactions, type TransactionOrderInput} from '../hooks/useTransactions';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {ITEMS_PER_PAGE} from '../utils/constants';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
-import {TransactionEditDialog} from '../components/TransactionEditDialog';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
@@ -46,6 +45,9 @@ import {useTitle} from '../contexts/TitleContext';
  */
 const AccountDetailsPageComponent = (): React.JSX.Element => {
   const {id} = useParams<{id: string}>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const prevLocationRef = useRef<string>(location.pathname);
   const [page, setPage] = useState(1);
   const skip = (page - 1) * ITEMS_PER_PAGE;
 
@@ -58,8 +60,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     null,
   );
 
-  // Edit/Delete state
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  // Delete state
   const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
 
   // Search state
@@ -143,17 +144,16 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   }, []);
 
   /**
-   * Handle edit click
+   * Handle edit click - navigate to edit page
    */
   const handleEdit = useCallback(() => {
-    if (menuAnchor) {
-      const transaction = transactions.items.find((t) => t.id === menuAnchor.transactionId);
-      if (transaction) {
-        setEditingTransaction(transaction);
-      }
+    if (menuAnchor && id) {
+      const transactionId = menuAnchor.transactionId;
+      const returnTo = `/accounts/${id}`;
+      navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`);
       handleMenuClose();
     }
-  }, [menuAnchor, transactions.items, handleMenuClose]);
+  }, [menuAnchor, id, navigate, handleMenuClose]);
 
   /**
    * Handle delete click
@@ -176,20 +176,15 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     }
   }, [deletingTransactionId, deleteTransaction]);
 
-  /**
-   * Handle edit dialog close
-   */
-  const handleEditClose = useCallback(() => {
-    setEditingTransaction(null);
-  }, []);
-
-  /**
-   * Handle edit success
-   */
-  const handleEditSuccess = useCallback(() => {
-    void refetchTransactions();
-    void refetchAccount();
-  }, [refetchTransactions, refetchAccount]);
+  // Refetch data when returning from edit page
+  useEffect(() => {
+    // If we navigated back from a different path (e.g., from edit page), refetch data
+    if (prevLocationRef.current !== location.pathname && prevLocationRef.current.includes('/transactions/')) {
+      void refetchTransactions();
+      void refetchAccount();
+    }
+    prevLocationRef.current = location.pathname;
+  }, [location.pathname, refetchTransactions, refetchAccount]);
 
   /**
    * Get sort icon for column
@@ -399,16 +394,6 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
           Delete
         </MenuItem>
       </Menu>
-
-      {/* Edit Dialog */}
-      {editingTransaction && (
-        <TransactionEditDialog
-          open={Boolean(editingTransaction)}
-          transaction={editingTransaction}
-          onClose={handleEditClose}
-          onSuccess={handleEditSuccess}
-        />
-      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog

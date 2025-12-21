@@ -3,10 +3,10 @@
  * Modern calculator UI with history list and operations
  */
 
-import React, {useState, useCallback, useMemo, useRef} from 'react';
+import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
 import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText, Chip} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
-import {useNavigate} from 'react-router';
+import {useNavigate, useLocation} from 'react-router';
 import {Button} from './ui/Button';
 import {HistoryList} from './HistoryList';
 import {
@@ -40,6 +40,8 @@ interface CalculatorState {
  */
 export function Calculator(): React.JSX.Element {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prevLocationRef = useRef<string>(location.pathname);
   const {accounts} = useAccounts();
   // Order by desc to get newest transactions first, then reverse for display (oldest first, newest at bottom)
   const {transactions, loading: transactionsLoading, refetch: refetchRecentTransactions} = useRecentTransactions(
@@ -78,6 +80,15 @@ export function Calculator(): React.JSX.Element {
 
   // Auto-scroll to bottom when transactions are loaded or new ones are added
   useAutoScroll(historyListRef, transactions, transactionsLoading);
+
+  // Refetch transactions when returning from edit page
+  useEffect(() => {
+    // If we navigated back from a different path (e.g., from edit page), refetch data
+    if (prevLocationRef.current !== location.pathname && prevLocationRef.current.includes('/transactions/')) {
+      void refetchRecentTransactions();
+    }
+    prevLocationRef.current = location.pathname;
+  }, [location.pathname, refetchRecentTransactions]);
 
   // Get default account ID
   const defaultAccountId = useMemo(() => {
@@ -310,6 +321,16 @@ export function Calculator(): React.JSX.Element {
     [navigate, handleMenuClose],
   );
 
+  /**
+   * Handle transaction click - navigate to edit page
+   */
+  const handleTransactionClick = useCallback(
+    (transaction: {id: string}) => {
+      navigate(`/transactions/${transaction.id}/edit?returnTo=${encodeURIComponent('/')}`);
+    },
+    [navigate],
+  );
+
   const menuItems = [
     {path: '/accounts', label: 'Accounts', icon: <AccountBalance />},
     {path: '/report', label: 'Report', icon: <Assessment />},
@@ -380,6 +401,7 @@ export function Calculator(): React.JSX.Element {
             ...t,
             date: typeof t.date === 'string' ? new Date(t.date) : t.date,
           }))}
+          onTransactionClick={handleTransactionClick}
         />
       </Box>
 

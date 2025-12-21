@@ -16,6 +16,7 @@ import {client} from './graphql/client';
 import {Calculator} from './components/Calculator';
 import {AccountsPage} from './pages/AccountsPage';
 import {AccountDetailsPage} from './pages/AccountDetailsPage';
+import {TransactionEditPage} from './pages/TransactionEditPage';
 import {ReportPage} from './pages/ReportPage';
 import {ImportPage} from './pages/ImportPage';
 import {SchedulePage} from './pages/SchedulePage';
@@ -67,6 +68,16 @@ function App(): React.JSX.Element {
                   <ProtectedRoute>
                     <Layout>
                       <AccountDetailsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/transactions/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <Layout hideSearch>
+                      <TransactionEditPage />
                     </Layout>
                   </ProtectedRoute>
                 }

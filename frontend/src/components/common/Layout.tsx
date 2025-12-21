@@ -14,13 +14,14 @@ import {FloatingSearchBox} from '../FloatingSearchBox';
 interface LayoutProps {
   children: React.ReactNode;
   title?: string;
+  hideSearch?: boolean;
 }
 
 /**
  * Layout Component
  * Provides main app structure with transparent toolbar and back button
  */
-export function Layout({children, title}: LayoutProps): React.JSX.Element {
+export function Layout({children, title, hideSearch = false}: LayoutProps): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const isHomePage = location.pathname === '/';
@@ -76,9 +77,11 @@ export function Layout({children, title}: LayoutProps): React.JSX.Element {
             </Typography>
           )}
           {!displayTitle && <Box sx={{flexGrow: 1}} />}
-          <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
-            <SearchIcon />
-          </IconButton>
+          {!hideSearch && (
+            <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
+              <SearchIcon />
+            </IconButton>
+          )}
         </Toolbar>
       </AppBar>
       <Box

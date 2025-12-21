@@ -130,6 +130,31 @@ export const GET_PAYEES = gql`
   }
 `;
 
+export const GET_TRANSACTION = gql`
+  query GetTransaction($id: ID!) {
+    transaction(id: $id) {
+      id
+      value
+      date
+      account {
+        id
+        name
+      }
+      category {
+        id
+        name
+        icon
+      }
+      payee {
+        id
+        name
+        icon
+      }
+      note
+    }
+  }
+`;
+
 
 
 
