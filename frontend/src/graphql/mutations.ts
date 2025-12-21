@@ -78,6 +78,38 @@ export const UPDATE_PREFERENCES = gql`
   }
 `;
 
+export const CREATE_RECURRING_TRANSACTION = gql`
+  mutation CreateRecurringTransaction($input: CreateRecurringTransactionInput!) {
+    createRecurringTransaction(input: $input) {
+      id
+      cronExpression
+      value
+      accountId
+      account {
+        id
+        name
+      }
+      categoryId
+      category {
+        id
+        name
+        icon
+      }
+      payeeId
+      payee {
+        id
+        name
+        icon
+      }
+      note
+      nextRunDate
+      userId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 
 
 

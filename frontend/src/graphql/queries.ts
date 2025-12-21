@@ -204,6 +204,38 @@ export const GET_REPORT_TRANSACTIONS = gql`
   }
 `;
 
+export const GET_RECURRING_TRANSACTIONS = gql`
+  query GetRecurringTransactions {
+    recurringTransactions {
+      id
+      cronExpression
+      value
+      accountId
+      account {
+        id
+        name
+      }
+      categoryId
+      category {
+        id
+        name
+        icon
+      }
+      payeeId
+      payee {
+        id
+        name
+        icon
+      }
+      note
+      nextRunDate
+      userId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 
 
 

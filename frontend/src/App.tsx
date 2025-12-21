@@ -18,12 +18,37 @@ import {Calculator} from './components/Calculator';
 import {AccountsPage} from './pages/AccountsPage';
 import {AccountDetailsPage} from './pages/AccountDetailsPage';
 import {TransactionEditPage} from './pages/TransactionEditPage';
+import {TransactionAddPage} from './pages/TransactionAddPage';
 import {ReportPage} from './pages/ReportPage';
 import {ImportPage} from './pages/ImportPage';
 import {SchedulePage} from './pages/SchedulePage';
 import {PreferencesPage} from './pages/PreferencesPage';
 import {LoginPage} from './pages/LoginPage';
 import {AuthCallbackPage} from './pages/AuthCallbackPage';
+import {useNavigate} from 'react-router';
+
+/**
+ * Schedule Page Wrapper
+ * Wraps SchedulePage with navigation functionality
+ */
+function SchedulePageWrapper(): React.JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <Layout
+      title="Schedule"
+      hideSearch
+      actionButton={{
+        icon: <Add />,
+        onClick: () => {
+          navigate('/transactions/add?returnTo=/schedule');
+        },
+        ariaLabel: 'Add Recurring Transaction',
+      }}
+    >
+      <SchedulePage />
+    </Layout>
+  );
+}
 
 /**
  * Main App Component
@@ -84,6 +109,16 @@ function App(): React.JSX.Element {
                 }
               />
               <Route
+                path="/transactions/add"
+                element={
+                  <ProtectedRoute>
+                    <Layout hideSearch>
+                      <TransactionAddPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/report"
                 element={
                   <ProtectedRoute>
@@ -107,20 +142,7 @@ function App(): React.JSX.Element {
                 path="/schedule"
                 element={
                   <ProtectedRoute>
-                    <Layout
-                      title="Schedule"
-                      hideSearch
-                      actionButton={{
-                        icon: <Add />,
-                        onClick: () => {
-                          // TODO: Implement add recurring transaction functionality
-                          console.log('Add recurring transaction clicked');
-                        },
-                        ariaLabel: 'Add Recurring Transaction',
-                      }}
-                    >
-                      <SchedulePage />
-                    </Layout>
+                    <SchedulePageWrapper />
                   </ProtectedRoute>
                 }
               />
