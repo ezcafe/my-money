@@ -4,25 +4,31 @@
  */
 
 import React from 'react';
-import {Box, AppBar, Toolbar, IconButton} from '@mui/material';
+import {Box, AppBar, Toolbar, IconButton, Typography} from '@mui/material';
 import {ArrowBack, Search as SearchIcon} from '@mui/icons-material';
 import {useNavigate, useLocation} from 'react-router';
 import {useSearch} from '../../contexts/SearchContext';
+import {useTitle} from '../../contexts/TitleContext';
 import {FloatingSearchBox} from '../FloatingSearchBox';
 
 interface LayoutProps {
   children: React.ReactNode;
+  title?: string;
 }
 
 /**
  * Layout Component
  * Provides main app structure with transparent toolbar and back button
  */
-export function Layout({children}: LayoutProps): React.JSX.Element {
+export function Layout({children, title}: LayoutProps): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const isHomePage = location.pathname === '/';
   const {openSearch} = useSearch();
+  const {title: contextTitle} = useTitle();
+  
+  // Use context title if available, otherwise fall back to prop title
+  const displayTitle = contextTitle ?? title;
 
   /**
    * Handle back button click - navigates to previous page
@@ -64,7 +70,12 @@ export function Layout({children}: LayoutProps): React.JSX.Element {
               <ArrowBack />
             </IconButton>
           )}
-          <Box sx={{flexGrow: 1}} />
+          {displayTitle && (
+            <Typography variant="h6" sx={{ml: !isHomePage ? 1 : 0, flexGrow: 1}}>
+              {displayTitle}
+            </Typography>
+          )}
+          {!displayTitle && <Box sx={{flexGrow: 1}} />}
           <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
             <SearchIcon />
           </IconButton>

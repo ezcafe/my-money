@@ -400,7 +400,8 @@ export function Calculator(): React.JSX.Element {
             width: '100%',
             maxWidth: 400,
             zIndex: 10,
-            backgroundColor: 'background.default',
+            backgroundColor: 'background.paper',
+            backgroundImage: 'none',
           }}
         >
         <Typography

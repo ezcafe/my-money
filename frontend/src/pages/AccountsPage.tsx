@@ -4,7 +4,7 @@
  */
 
 import React, {memo} from 'react';
-import {Box, Typography, Grid} from '@mui/material';
+import {Box, Typography, List, ListItemButton, ListItemText} from '@mui/material';
 import {Button} from '../components/ui/Button';
 import {Card} from '../components/ui/Card';
 import {useNavigate} from 'react-router';
@@ -35,8 +35,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
 
   return (
     <Box sx={{p: 2, width: '100%'}}>
-      <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 3}}>
-        <Typography variant="h4">Accounts</Typography>
+      <Box sx={{display: 'flex', justifyContent: 'flex-end', mb: 2}}>
         <Button
           variant="contained"
           onClick={(): void => {
@@ -47,23 +46,41 @@ const AccountsPageComponent = (): React.JSX.Element => {
         </Button>
       </Box>
 
-      <Grid container spacing={2}>
-        {accounts.map((account) => (
-          <Grid item xs={12} sm={6} md={4} key={account.id}>
-            <Card
-              sx={{p: 2, cursor: 'pointer'}}
+      <Card sx={{p: 0}}>
+        <List sx={{backgroundColor: 'transparent', padding: 0}}>
+          {accounts.map((account) => (
+            <ListItemButton
+              key={account.id}
               onClick={(): void => {
                 void navigate(`/accounts/${account.id}`);
               }}
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
             >
-              <Typography variant="h6">{account.name}</Typography>
-              <Typography variant="h5" color="primary">
+              <ListItemText
+                primary={account.name}
+                sx={{flex: '0 1 auto'}}
+              />
+              <Typography
+                variant="body1"
+                sx={{
+                  flexShrink: 0,
+                  ml: 2,
+                  textAlign: 'right',
+                }}
+              >
                 {formatCurrencyPreserveDecimals(account.balance)}
               </Typography>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+            </ListItemButton>
+          ))}
+        </List>
+      </Card>
     </Box>
   );
 };

@@ -39,6 +39,7 @@ import {ErrorAlert} from '../components/common/ErrorAlert';
 import {TransactionEditDialog} from '../components/TransactionEditDialog';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
 import {useSearch} from '../contexts/SearchContext';
+import {useTitle} from '../contexts/TitleContext';
 
 /**
  * Account Details Page Component
@@ -64,6 +65,9 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   // Search state
   const {searchQuery, clearSearch} = useSearch();
   const isSearchMode = Boolean(searchQuery);
+  
+  // Title state
+  const {setTitle} = useTitle();
 
   // Build orderBy object
   const orderBy: TransactionOrderInput | undefined =
@@ -84,6 +88,17 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   useEffect(() => {
     setPage(1);
   }, [searchQuery]);
+  
+  // Set appbar title when account is loaded
+  useEffect(() => {
+    if (account) {
+      setTitle(account.name);
+    }
+    // Cleanup: clear title when component unmounts
+    return () => {
+      setTitle(undefined);
+    };
+  }, [account, setTitle]);
 
   const [deleteTransaction, {loading: deleting}] = useMutation(DELETE_TRANSACTION, {
     refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetAccount'],
@@ -216,8 +231,8 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
       <Box sx={{p: 2, width: '100%'}}>
         <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
           <Box>
-            <Typography variant="h5" gutterBottom>
-              {account.name}
+            <Typography variant="h6" gutterBottom>
+              {`Balance`}
             </Typography>
             <Typography variant="h2" color="primary" gutterBottom>
               {formatCurrencyPreserveDecimals(account.balance)}
@@ -238,8 +253,8 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     <Box sx={{p: 2, width: '100%'}}>
       <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
         <Box>
-          <Typography variant="h5" gutterBottom>
-            {account.name}
+          <Typography variant="h6" gutterBottom>
+            {`Balance`}
           </Typography>
           <Typography variant="h2" color="primary" gutterBottom>
             {formatCurrencyPreserveDecimals(account.balance)}

@@ -105,6 +105,7 @@ const HistoryListComponent = ({
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
+                      backgroundColor: 'transparent',
                       '&:hover': {
                         backgroundColor: 'action.hover',
                       },

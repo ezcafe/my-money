@@ -124,6 +124,7 @@ export function createAppTheme(mode: 'dark' | 'light' = getThemeByTime()): Theme
         styleOverrides: {
           root: {
             backgroundColor: 'transparent',
+            backgroundImage: 'none',
             boxShadow: 'none',
             border: 'none',
           },
