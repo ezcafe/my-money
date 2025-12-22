@@ -21,6 +21,7 @@ import {CREATE_TRANSACTION} from '../graphql/mutations';
 import {GET_PREFERENCES} from '../graphql/queries';
 import {useRecentTransactions} from '../hooks/useTransactions';
 import {useAccounts} from '../hooks/useAccounts';
+import {useCategories} from '../hooks/useCategories';
 import {useTopUsedValues} from '../hooks/useTopUsedValues';
 import {useAutoScroll} from '../hooks/useAutoScroll';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
@@ -41,6 +42,7 @@ export function Calculator(): React.JSX.Element {
   const location = useLocation();
   const prevLocationRef = useRef<string>(location.pathname);
   const {accounts} = useAccounts();
+  const {categories} = useCategories();
   // Order by desc to get newest transactions first, then reverse for display (oldest first, newest at bottom)
   const {transactions, loading: transactionsLoading, refetch: refetchRecentTransactions} = useRecentTransactions(
     MAX_RECENT_TRANSACTIONS,
@@ -98,6 +100,14 @@ export function Calculator(): React.JSX.Element {
     return defaultAccount?.id ?? null;
   }, [accounts]);
 
+  // Get default category ID
+  const defaultCategoryId = useMemo(() => {
+    const defaultCategory = categories.find(
+      (cat) => cat.name === 'Default Category' && cat.type === 'EXPENSE',
+    );
+    return defaultCategory?.id ?? null;
+  }, [categories]);
+
   const handleNumber = useCallback((num: string) => {
     setState((prev) => {
       if (prev.waitingForNewValue) {
@@ -115,7 +125,7 @@ export function Calculator(): React.JSX.Element {
         }
         return {
           ...prev,
-          display: prev.display === '0' ? '0.' : prev.display + '.',
+          display: prev.display === '0' ? '0.' : `${prev.display}.`,
         };
       }
       return {
@@ -226,20 +236,7 @@ export function Calculator(): React.JSX.Element {
     }));
   }, []);
 
-  /**
-   * Scroll history list to bottom with smooth animation
-   * @param smooth - Whether to use smooth scrolling animation (default: true)
-   */
-  const scrollToBottom = useCallback((smooth = true) => {
-    if (historyListRef.current) {
-      historyListRef.current.scrollTo({
-        top: historyListRef.current.scrollHeight,
-        behavior: smooth ? 'smooth' : 'instant',
-      });
-    }
-  }, []);
-
-  const handleEquals = useCallback(async () => {
+  const handleEquals = useCallback(() => {
     setState((prev) => {
       const currentValue = parseFloat(prev.display);
       let result: number;
@@ -279,6 +276,7 @@ export function Calculator(): React.JSX.Element {
           input: {
             value: result,
             accountId: defaultAccountId,
+            categoryId: defaultCategoryId,
             date: new Date().toISOString(),
           },
         },
@@ -304,7 +302,7 @@ export function Calculator(): React.JSX.Element {
         waitingForNewValue: false,
       };
     });
-  }, [defaultAccountId, createTransaction, scrollToBottom]);
+  }, [defaultAccountId, defaultCategoryId, createTransaction]);
 
   /**
    * Handle settings button click - opens context menu
