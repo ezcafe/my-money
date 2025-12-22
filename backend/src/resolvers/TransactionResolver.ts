@@ -467,9 +467,17 @@ export class TransactionResolver {
         || validatedInput.categoryId !== undefined;
 
       if (needsBalanceUpdate) {
+        // Determine if category type changed
+        const oldCategoryType = oldCategory?.type ?? 'EXPENSE';
+        const newCategoryType = newCategory?.type ?? 'EXPENSE';
+        const categoryTypeChanged = oldCategoryType !== newCategoryType;
+
         if (oldAccountId === newAccountId) {
-          // Same account: reverse old delta and apply new delta
-          const totalDelta = newBalanceDelta - oldBalanceDelta;
+          // Same account: reverse old balance change and apply new balance change
+          // Formula: -oldBalanceDelta + newBalanceDelta works for both cases:
+          // - Different types: reverse old completely, then apply new completely
+          // - Same types: reverse old, then apply new
+          const totalDelta = -oldBalanceDelta + newBalanceDelta;
           if (totalDelta !== 0) {
             await incrementAccountBalance(newAccountId, totalDelta, tx);
           }
