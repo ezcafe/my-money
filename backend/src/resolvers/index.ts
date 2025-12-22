@@ -11,7 +11,8 @@ import {PayeeResolver} from './PayeeResolver';
 import {PreferencesResolver} from './PreferencesResolver';
 import {RecurringTransactionResolver} from './RecurringTransactionResolver';
 import {ReportResolver} from './ReportResolver';
-import {uploadPDF, matchImportedTransaction} from './ImportResolver';
+import {ExportResolver} from './ExportResolver';
+import {uploadPDF, matchImportedTransaction, importCSV} from './ImportResolver';
 import type {GraphQLContext} from '../middleware/context';
 
 export const resolvers = {
@@ -87,6 +88,10 @@ export const resolvers = {
         },
         context,
       ),
+
+    // Export queries
+    exportData: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new ExportResolver().exportData(parent, args, context),
   },
   Mutation: {
     // Account mutations
@@ -178,6 +183,20 @@ export const resolvers = {
       ),
     matchImportedTransaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
       matchImportedTransaction(parent, args as {importedId: string; transactionId: string}, context),
+    importCSV: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      importCSV(
+        parent,
+        args as {
+          file: Promise<{
+            filename: string;
+            mimetype?: string;
+            encoding?: string;
+            createReadStream: () => NodeJS.ReadableStream;
+          }>;
+          entityType: string;
+        },
+        context,
+      ),
   },
   Account: {
     balance: async (parent: {id: string}, _: unknown, context: GraphQLContext) => {

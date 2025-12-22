@@ -13,18 +13,58 @@ import {withPrismaErrorHandling} from '../utils/prismaErrors';
 const CreateCategoryInputSchema = z.object({
   name: z.string().min(1).max(255),
   icon: z.string().max(50).optional().nullable(),
+  type: z.enum(['INCOME', 'EXPENSE']),
 });
 
 const UpdateCategoryInputSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   icon: z.string().max(50).optional().nullable(),
+  type: z.enum(['INCOME', 'EXPENSE']).optional(),
 });
 
 export class CategoryResolver {
   /**
+   * Ensure default categories exist
+   * Creates default categories if they don't exist
+   */
+  private async ensureDefaultCategories(context: GraphQLContext): Promise<void> {
+    const defaultCategories = [
+      {name: 'salary', type: 'INCOME' as const},
+      {name: 'food', type: 'EXPENSE' as const},
+    ];
+
+    for (const categoryData of defaultCategories) {
+      const existing = await context.prisma.category.findFirst({
+        where: {
+          name: categoryData.name,
+          isDefault: true,
+          userId: null,
+        },
+      });
+
+      if (!existing) {
+        await withPrismaErrorHandling(
+          async () =>
+            await context.prisma.category.create({
+              data: {
+                name: categoryData.name,
+                type: categoryData.type,
+                isDefault: true,
+                userId: null,
+              },
+            }),
+          {resource: 'Category', operation: 'create'},
+        );
+      }
+    }
+  }
+
+  /**
    * Get all categories (user-specific and default)
    */
   async categories(_: unknown, __: unknown, context: GraphQLContext) {
+    // Ensure default categories exist
+    await this.ensureDefaultCategories(context);
     const categories = await context.prisma.category.findMany({
       where: {
         OR: [
@@ -63,7 +103,7 @@ export class CategoryResolver {
    */
   async createCategory(
     _: unknown,
-    {input}: {input: {name: string; icon?: string | null}},
+    {input}: {input: {name: string; icon?: string | null; type: 'INCOME' | 'EXPENSE'}},
     context: GraphQLContext,
   ) {
     const validatedInput = validate(CreateCategoryInputSchema, input);
@@ -86,6 +126,7 @@ export class CategoryResolver {
           data: {
             name: validatedInput.name,
             icon: validatedInput.icon ?? null,
+            type: validatedInput.type,
             userId: context.userId,
             isDefault: false,
           },
@@ -101,7 +142,7 @@ export class CategoryResolver {
    */
   async updateCategory(
     _: unknown,
-    {id, input}: {id: string; input: {name?: string; icon?: string | null}},
+    {id, input}: {id: string; input: {name?: string; icon?: string | null; type?: 'INCOME' | 'EXPENSE'}},
     context: GraphQLContext,
   ) {
     const validatedInput = validate(UpdateCategoryInputSchema, input);
@@ -139,6 +180,7 @@ export class CategoryResolver {
       data: {
         ...(validatedInput.name !== undefined && {name: validatedInput.name}),
         ...(validatedInput.icon !== undefined && {icon: validatedInput.icon}),
+        ...(validatedInput.type !== undefined && {type: validatedInput.type}),
       },
     });
 

@@ -5,14 +5,81 @@
 
 import React, {useState, useEffect, useRef} from 'react';
 import {useNavigate} from 'react-router';
-import {Box, Typography, Switch, FormControlLabel, List} from '@mui/material';
-import {useQuery, useMutation} from '@apollo/client/react';
+import {Box, Typography, Switch, FormControlLabel, List, ListItem, ListItemButton, ListItemText, Divider} from '@mui/material';
+import {useQuery, useMutation, useLazyQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
-import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
 import {logout} from '../utils/oidc';
-import {GET_PREFERENCES} from '../graphql/queries';
-import {UPDATE_PREFERENCES} from '../graphql/mutations';
+import {GET_PREFERENCES, EXPORT_DATA} from '../graphql/queries';
+import {UPDATE_PREFERENCES, IMPORT_CSV} from '../graphql/mutations';
+import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout} from '@mui/icons-material';
+
+/**
+ * Export data type from GraphQL
+ */
+interface ExportData {
+  accounts: Array<{
+    id: string;
+    name: string;
+    initBalance: string;
+    isDefault: boolean;
+  }>;
+  categories: Array<{
+    id: string;
+    name: string;
+    icon: string | null;
+    isDefault: boolean;
+  }>;
+  payees: Array<{
+    id: string;
+    name: string;
+    icon: string | null;
+    isDefault: boolean;
+  }>;
+  transactions: Array<{
+    id: string;
+    value: string;
+    date: string;
+    accountId: string;
+    categoryId: string | null;
+    payeeId: string | null;
+    note: string | null;
+  }>;
+  recurringTransactions: Array<{
+    id: string;
+    cronExpression: string;
+    value: string;
+    accountId: string;
+    categoryId: string | null;
+    payeeId: string | null;
+    note: string | null;
+    nextRunDate: string;
+  }>;
+  preferences: {
+    id: string;
+    currency: string;
+    useThousandSeparator: boolean;
+  } | null;
+}
+
+/**
+ * Export data query result
+ */
+interface ExportDataQueryResult {
+  exportData: ExportData;
+}
+
+/**
+ * Import CSV mutation result
+ */
+interface ImportCSVResult {
+  importCSV: {
+    success: boolean;
+    created: number;
+    updated: number;
+    errors: string[];
+  };
+}
 
 /**
  * Preferences Page Component
@@ -30,6 +97,13 @@ export function PreferencesPage(): React.JSX.Element {
   const [useThousandSeparator, setUseThousandSeparator] = useState(true);
   const [currency, setCurrency] = useState('USD');
   const currencyUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [exportDataQuery] = useLazyQuery<ExportDataQueryResult>(EXPORT_DATA);
+  const [importCSVMutation] = useMutation<ImportCSVResult>(IMPORT_CSV, {
+    refetchQueries: ['GetAccounts', 'GetCategories', 'GetPayees', 'GetRecentTransactions', 'GetRecurringTransactions'],
+  });
 
   // Initialize state from loaded preferences
   useEffect(() => {
@@ -41,7 +115,7 @@ export function PreferencesPage(): React.JSX.Element {
 
   // Cleanup timeout on unmount
   useEffect(() => {
-    return () => {
+    return (): void => {
       if (currencyUpdateTimeoutRef.current) {
         clearTimeout(currencyUpdateTimeoutRef.current);
       }
@@ -54,7 +128,7 @@ export function PreferencesPage(): React.JSX.Element {
    */
   const handleLogout = (): void => {
     logout();
-    navigate('/login', {replace: true});
+    void navigate('/login', {replace: true});
   };
 
   /**
@@ -97,6 +171,190 @@ export function PreferencesPage(): React.JSX.Element {
     }, 500);
   };
 
+  /**
+   * Convert array of objects to CSV string
+   * @param data - Array of objects to convert
+   * @param headers - Array of header names
+   * @returns CSV string
+   */
+  const convertToCSV = (data: Array<Record<string, unknown>>, headers: string[]): string => {
+    // Escape CSV values (handle quotes and commas)
+    const escapeCSV = (value: unknown): string => {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Create header row
+    const headerRow = headers.map(escapeCSV).join(',');
+
+    // Create data rows
+    const dataRows = data.map((row) => headers.map((header) => escapeCSV(row[header])).join(','));
+
+    return [headerRow, ...dataRows].join('\n');
+  };
+
+  /**
+   * Download CSV file
+   * @param content - CSV content string
+   * @param filename - Filename for download
+   */
+  const downloadCSV = (content: string, filename: string): void => {
+    const blob = new Blob([content], {type: 'text/csv;charset=utf-8;'});
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  /**
+   * Handle export button click
+   * Fetches all user data and generates CSV files for download
+   */
+  const handleExport = async (): Promise<void> => {
+    setExporting(true);
+    try {
+      const {data} = await exportDataQuery();
+      if (!data?.exportData) {
+        return;
+      }
+
+      const exportData = data.exportData;
+
+      // Export accounts
+      if (exportData.accounts && exportData.accounts.length > 0) {
+        const accountsCSV = convertToCSV(exportData.accounts, ['id', 'name', 'initBalance', 'isDefault']);
+        downloadCSV(accountsCSV, 'accounts.csv');
+      }
+
+      // Export categories
+      if (exportData.categories && exportData.categories.length > 0) {
+        const categoriesCSV = convertToCSV(exportData.categories, ['id', 'name', 'icon', 'isDefault']);
+        downloadCSV(categoriesCSV, 'categories.csv');
+      }
+
+      // Export payees
+      if (exportData.payees && exportData.payees.length > 0) {
+        const payeesCSV = convertToCSV(exportData.payees, ['id', 'name', 'icon', 'isDefault']);
+        downloadCSV(payeesCSV, 'payees.csv');
+      }
+
+      // Export transactions
+      if (exportData.transactions && exportData.transactions.length > 0) {
+        const transactionsCSV = convertToCSV(exportData.transactions, [
+          'id',
+          'value',
+          'date',
+          'accountId',
+          'categoryId',
+          'payeeId',
+          'note',
+        ]);
+        downloadCSV(transactionsCSV, 'transactions.csv');
+      }
+
+      // Export recurring transactions
+      if (exportData.recurringTransactions && exportData.recurringTransactions.length > 0) {
+        const recurringCSV = convertToCSV(exportData.recurringTransactions, [
+          'id',
+          'cronExpression',
+          'value',
+          'accountId',
+          'categoryId',
+          'payeeId',
+          'note',
+          'nextRunDate',
+        ]);
+        downloadCSV(recurringCSV, 'recurringTransactions.csv');
+      }
+
+      // Export preferences
+      if (exportData.preferences) {
+        const preferencesCSV = convertToCSV([exportData.preferences], ['id', 'currency', 'useThousandSeparator']);
+        downloadCSV(preferencesCSV, 'preferences.csv');
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /**
+   * Handle import button click
+   * Triggers file input dialog
+   */
+  const handleImportClick = (): void => {
+    fileInputRef.current?.click();
+  };
+
+  /**
+   * Handle file selection for import
+   * Parses filename to determine entity type and calls import mutation
+   */
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    // Determine entity type from filename
+    const filename = file.name.toLowerCase();
+    let entityType: string;
+    if (filename.includes('account')) {
+      entityType = 'accounts';
+    } else if (filename.includes('categor')) {
+      entityType = 'categories';
+    } else if (filename.includes('payee')) {
+      entityType = 'payees';
+    } else if (filename.includes('transaction') && !filename.includes('recurring')) {
+      entityType = 'transactions';
+    } else if (filename.includes('recurring')) {
+      entityType = 'recurringTransactions';
+    } else {
+      // Default to transactions if cannot determine
+      entityType = 'transactions';
+    }
+
+    setImporting(true);
+    try {
+      const result = await importCSVMutation({
+        variables: {
+          file,
+          entityType,
+        },
+      });
+
+      if (result.data?.importCSV) {
+        const {success, created, updated, errors} = result.data.importCSV;
+        if (success) {
+          alert(`Import successful! Created: ${created}, Updated: ${updated}`);
+        } else {
+          alert(`Import completed with errors. Created: ${created}, Updated: ${updated}. Errors: ${errors.join(', ')}`);
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Import failed';
+      alert(`Import failed: ${errorMessage}`);
+    } finally {
+      setImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <Box sx={{width: '100%'}}>
       <Card sx={{p: 2, mb: 2}}>
@@ -124,48 +382,74 @@ export function PreferencesPage(): React.JSX.Element {
         </Box>
       </Card>
 
-      <Card sx={{p: 2, mb: 2}}>
-        <Typography variant="h6" gutterBottom>
-          Categories
-        </Typography>
-        <Button variant="outlined" sx={{mb: 2}}>
-          Add Category
-        </Button>
+      <Card>
         <List>
-          {/* Categories list will be populated from GraphQL */}
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/accounts');
+            }}>
+              <ListItemText primary="Manage Accounts" />
+              <AccountBalance />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/categories');
+            }}>
+              <ListItemText primary="Manage Categories" />
+              <Category />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/payees');
+            }}>
+              <ListItemText primary="Manage Payees" />
+              <Person />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/schedule');
+            }}>
+              <ListItemText primary="Schedule" />
+              <Schedule />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={handleImportClick} disabled={importing}>
+              <ListItemText primary={importing ? 'Importing...' : 'Import'} />
+              <Upload />
+            </ListItemButton>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              style={{display: 'none'}}
+              onChange={handleFileChange}
+            />
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void handleExport();
+            }} disabled={exporting}>
+              <ListItemText primary={exporting ? 'Exporting...' : 'Export'} />
+              <Download />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={handleLogout} sx={{color: 'error.main'}}>
+              <ListItemText primary="Logout" />
+              <Logout />
+            </ListItemButton>
+          </ListItem>
         </List>
-      </Card>
-
-      <Card sx={{p: 2, mb: 2}}>
-        <Typography variant="h6" gutterBottom>
-          Payees
-        </Typography>
-        <Button variant="outlined" sx={{mb: 2}}>
-          Add Payee
-        </Button>
-        <List>
-          {/* Payees list will be populated from GraphQL */}
-        </List>
-      </Card>
-
-      <Card sx={{p: 2, mb: 2}}>
-        <Typography variant="h6" gutterBottom>
-          Schedule
-        </Typography>
-        <Button variant="outlined" onClick={() => window.location.href = '/schedule'}>
-          Manage Recurring Transactions
-        </Button>
-      </Card>
-
-      <Card sx={{p: 2}}>
-        <Button
-          variant="contained"
-          color="error"
-          fullWidth
-          onClick={handleLogout}
-        >
-          Logout
-        </Button>
       </Card>
     </Box>
   );

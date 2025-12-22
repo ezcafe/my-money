@@ -38,6 +38,7 @@ export interface Category {
   id: string;
   name: string;
   icon?: string | null;
+  type: 'INCOME' | 'EXPENSE';
   isDefault: boolean;
   userId?: string | null;
   createdAt: Date;
@@ -98,6 +99,7 @@ export interface ReportFilters {
   startDate?: Date;
   endDate?: Date;
 }
+
 
 
 

@@ -57,6 +57,7 @@ export async function incrementAccountBalance(
 /**
  * Recalculate account balance from scratch
  * Used when initBalance changes or for data integrity verification
+ * Considers category types: Income adds to balance, Expense subtracts from balance
  * @param accountId - Account ID
  * @param tx - Optional Prisma transaction client for atomicity
  * @returns Recalculated balance
@@ -76,15 +77,26 @@ export async function recalculateAccountBalance(
     throw new Error(`Account ${accountId} not found`);
   }
 
-  // Calculate sum of all transactions
-  const balanceResult = await client.transaction.aggregate({
+  // Get all transactions with their categories
+  const transactions = await client.transaction.findMany({
     where: {accountId},
-    _sum: {value: true},
+    include: {
+      category: {
+        select: {type: true},
+      },
+    },
   });
 
-  const transactionSum = balanceResult._sum.value
-    ? Number(balanceResult._sum.value)
-    : 0;
+  // Calculate balance delta from all transactions
+  // Income categories add money, Expense categories (or no category) subtract money
+  let transactionSum = 0;
+  for (const transaction of transactions) {
+    const value = Number(transaction.value);
+    const delta = transaction.category?.type === 'INCOME'
+      ? value
+      : -value;
+    transactionSum += delta;
+  }
 
   const newBalance = Number(account.initBalance) + transactionSum;
 

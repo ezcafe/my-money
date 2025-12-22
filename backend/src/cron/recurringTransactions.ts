@@ -38,6 +38,22 @@ async function processRecurringTransaction(
   };
 
   try {
+    // Fetch category if categoryId exists to determine balance delta
+    let category: {type: 'INCOME' | 'EXPENSE'} | null = null;
+    if (recurring.categoryId) {
+      const foundCategory = await prisma.category.findUnique({
+        where: {id: recurring.categoryId},
+        select: {type: true},
+      });
+      category = foundCategory;
+    }
+
+    // Calculate balance delta based on category type
+    // Income categories add money, Expense categories (or no category) subtract money
+    const balanceDelta = category?.type === 'INCOME'
+      ? recurring.value
+      : -recurring.value;
+
     // Retry the operation with exponential backoff
     await retry(
       async () => {
@@ -57,8 +73,8 @@ async function processRecurringTransaction(
             },
           });
 
-          // Update account balance incrementally
-          await incrementAccountBalance(recurring.accountId, recurring.value, tx);
+          // Update account balance incrementally based on category type
+          await incrementAccountBalance(recurring.accountId, balanceDelta, tx);
 
           // Calculate next run date based on cron expression
           // For simplicity, assuming daily for now

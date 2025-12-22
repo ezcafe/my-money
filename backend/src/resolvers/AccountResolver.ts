@@ -29,7 +29,7 @@ export class AccountResolver {
         async () =>
           await context.prisma.account.create({
             data: {
-              name: 'Default Account',
+              name: 'Cash',
               initBalance: 0,
               balance: 0, // New account has no transactions, balance equals initBalance
               isDefault: true,

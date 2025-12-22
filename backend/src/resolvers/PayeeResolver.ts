@@ -22,9 +22,43 @@ const UpdatePayeeInputSchema = z.object({
 
 export class PayeeResolver {
   /**
+   * Ensure default payees exist
+   * Creates default payees if they don't exist
+   */
+  private async ensureDefaultPayees(context: GraphQLContext): Promise<void> {
+    const defaultPayeeNames = ['Necessities'];
+
+    for (const name of defaultPayeeNames) {
+      const existing = await context.prisma.payee.findFirst({
+        where: {
+          name,
+          isDefault: true,
+          userId: null,
+        },
+      });
+
+      if (!existing) {
+        await withPrismaErrorHandling(
+          async () =>
+            await context.prisma.payee.create({
+              data: {
+                name,
+                isDefault: true,
+                userId: null,
+              },
+            }),
+          {resource: 'Payee', operation: 'create'},
+        );
+      }
+    }
+  }
+
+  /**
    * Get all payees (user-specific and default)
    */
   async payees(_: unknown, __: unknown, context: GraphQLContext) {
+    // Ensure default payees exist
+    await this.ensureDefaultPayees(context);
     const payees = await context.prisma.payee.findMany({
       where: {
         OR: [

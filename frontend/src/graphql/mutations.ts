@@ -94,6 +94,7 @@ export const CREATE_RECURRING_TRANSACTION = gql`
         id
         name
         icon
+        type
       }
       payeeId
       payee {
@@ -106,6 +107,93 @@ export const CREATE_RECURRING_TRANSACTION = gql`
       userId
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const UPDATE_ACCOUNT = gql`
+  mutation UpdateAccount($id: ID!, $input: UpdateAccountInput!) {
+    updateAccount(id: $id, input: $input) {
+      id
+      name
+      initBalance
+      isDefault
+      balance
+    }
+  }
+`;
+
+export const DELETE_ACCOUNT = gql`
+  mutation DeleteAccount($id: ID!) {
+    deleteAccount(id: $id)
+  }
+`;
+
+export const CREATE_CATEGORY = gql`
+  mutation CreateCategory($input: CreateCategoryInput!) {
+    createCategory(input: $input) {
+      id
+      name
+      icon
+      type
+      isDefault
+    }
+  }
+`;
+
+export const UPDATE_CATEGORY = gql`
+  mutation UpdateCategory($id: ID!, $input: UpdateCategoryInput!) {
+    updateCategory(id: $id, input: $input) {
+      id
+      name
+      icon
+      type
+      isDefault
+    }
+  }
+`;
+
+export const DELETE_CATEGORY = gql`
+  mutation DeleteCategory($id: ID!) {
+    deleteCategory(id: $id)
+  }
+`;
+
+export const CREATE_PAYEE = gql`
+  mutation CreatePayee($input: CreatePayeeInput!) {
+    createPayee(input: $input) {
+      id
+      name
+      icon
+      isDefault
+    }
+  }
+`;
+
+export const UPDATE_PAYEE = gql`
+  mutation UpdatePayee($id: ID!, $input: UpdatePayeeInput!) {
+    updatePayee(id: $id, input: $input) {
+      id
+      name
+      icon
+      isDefault
+    }
+  }
+`;
+
+export const DELETE_PAYEE = gql`
+  mutation DeletePayee($id: ID!) {
+    deletePayee(id: $id)
+  }
+`;
+
+export const IMPORT_CSV = gql`
+  mutation ImportCSV($file: Upload!, $entityType: String!) {
+    importCSV(file: $file, entityType: $entityType) {
+      success
+      created
+      updated
+      errors
     }
   }
 `;

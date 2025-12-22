@@ -1,6 +1,6 @@
 /**
- * Account Details Page
- * Shows account details with paginated transactions and charts
+ * Payee Details Page
+ * Shows payee details with paginated transactions
  */
 
 import React, {useState, memo, useCallback, useEffect, useRef} from 'react';
@@ -30,7 +30,7 @@ import {
 import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear} from '@mui/icons-material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
-import {useAccount} from '../hooks/useAccount';
+import {usePayee} from '../hooks/usePayee';
 import {useTransactions, type TransactionOrderInput} from '../hooks/useTransactions';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {ITEMS_PER_PAGE} from '../utils/constants';
@@ -42,9 +42,9 @@ import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 
 /**
- * Account Details Page Component
+ * Payee Details Page Component
  */
-const AccountDetailsPageComponent = (): React.JSX.Element => {
+const PayeeDetailsPageComponent = (): React.JSX.Element => {
   const {id} = useParams<{id: string}>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,38 +81,38 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
       ? {field: sortField, direction: sortDirection}
       : undefined;
 
-  const {account, loading: accountLoading, error: accountError, refetch: refetchAccount} =
-    useAccount(id);
+  const {payee, loading: payeeLoading, error: payeeError, refetch: refetchPayee} =
+    usePayee(id);
   const {
     transactions,
     loading: transactionsLoading,
     error: transactionsError,
     refetch: refetchTransactions,
-  } = useTransactions(id, undefined, undefined, skip, ITEMS_PER_PAGE, orderBy, searchQuery || undefined);
+  } = useTransactions(undefined, undefined, id, skip, ITEMS_PER_PAGE, orderBy, searchQuery || undefined);
 
   // Reset page when search changes
   useEffect(() => {
     setPage(1);
   }, [searchQuery]);
   
-  // Set appbar title when account is loaded
+  // Set appbar title when payee is loaded
   useEffect(() => {
-    if (account) {
-      setTitle(account.name);
+    if (payee) {
+      setTitle(payee.name);
     }
     // Cleanup: clear title when component unmounts
     return (): void => {
       setTitle(undefined);
     };
-  }, [account, setTitle]);
+  }, [payee, setTitle]);
 
   const [deleteTransaction, {loading: deleting}] = useMutation(DELETE_TRANSACTION, {
-    refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetAccount'],
+    refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetPayee'],
     awaitRefetchQueries: true,
     onCompleted: () => {
       setDeletingTransactionId(null);
       void refetchTransactions();
-      void refetchAccount();
+      void refetchPayee();
     },
   });
 
@@ -154,7 +154,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   const handleEdit = useCallback(() => {
     if (menuAnchor && id) {
       const transactionId = menuAnchor.transactionId;
-      const returnTo = `/accounts/${id}`;
+      const returnTo = `/payees/${id}`;
       void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`);
       handleMenuClose();
     }
@@ -186,10 +186,10 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     // If we navigated back from a different path (e.g., from edit page), refetch data
     if (prevLocationRef.current !== location.pathname && prevLocationRef.current.includes('/transactions/')) {
       void refetchTransactions();
-      void refetchAccount();
+      void refetchPayee();
     }
     prevLocationRef.current = location.pathname;
-  }, [location.pathname, refetchTransactions, refetchAccount]);
+  }, [location.pathname, refetchTransactions, refetchPayee]);
 
   /**
    * Get sort icon for column
@@ -201,25 +201,25 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     return sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />;
   };
 
-  // Show full-page loading only when account is loading (initial load)
-  if (accountLoading) {
-    return <LoadingSpinner message="Loading account details..." />;
+  // Show full-page loading only when payee is loading (initial load)
+  if (payeeLoading) {
+    return <LoadingSpinner message="Loading payee details..." />;
   }
 
-  if (accountError) {
+  if (payeeError) {
     return (
       <ErrorAlert
-        title="Error Loading Account"
-        message={accountError?.message ?? 'Error loading account details'}
+        title="Error Loading Payee"
+        message={payeeError?.message ?? 'Error loading payee details'}
       />
     );
   }
 
-  if (!account) {
+  if (!payee) {
     return (
       <ErrorAlert
-        title="Account Not Found"
-        message="The requested account could not be found."
+        title="Payee Not Found"
+        message="The requested payee could not be found."
         severity="warning"
       />
     );
@@ -229,16 +229,6 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   if (transactionsError) {
     return (
       <Box sx={{p: 2, width: '100%'}}>
-        <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              {`Balance`}
-            </Typography>
-            <Typography variant="h2" color="primary" gutterBottom>
-              {formatCurrencyPreserveDecimals(account.balance, currency)}
-            </Typography>
-          </Box>
-        </Box>
         <ErrorAlert
           title="Error Loading Transactions"
           message={transactionsError?.message ?? 'Error loading transactions'}
@@ -251,17 +241,6 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
 
   return (
     <Box sx={{p: 2, width: '100%'}}>
-      <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
-        <Box>
-          <Typography variant="h6" gutterBottom>
-            {`Balance`}
-          </Typography>
-          <Typography variant="h2" color="primary" gutterBottom>
-            {formatCurrencyPreserveDecimals(account.balance)}
-          </Typography>
-        </Box>
-      </Box>
-
       <Card sx={{mt: 3, p: 0}}>
         <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0, pb: 1}}>
           <Typography variant="h6" gutterBottom sx={{mb: 0}}>
@@ -317,6 +296,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
                         Value
                       </TableSortLabel>
                     </TableCell>
+                    <TableCell>Account</TableCell>
                     <TableCell>
                       <TableSortLabel
                         active={sortField === 'category'}
@@ -325,16 +305,6 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
                         IconComponent={() => getSortIcon('category')}
                       >
                         Category
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortField === 'payee'}
-                        direction={sortField === 'payee' ? sortDirection : 'asc'}
-                        onClick={() => handleSort('payee')}
-                        IconComponent={() => getSortIcon('payee')}
-                      >
-                        Payee
                       </TableSortLabel>
                     </TableCell>
                     <TableCell>Note</TableCell>
@@ -353,8 +323,8 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
                       <TableRow key={transaction.id}>
                         <TableCell>{formatDateShort(transaction.date)}</TableCell>
                         <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
+                        <TableCell>{transaction.account?.name ?? '-'}</TableCell>
                         <TableCell>{transaction.category?.name ?? '-'}</TableCell>
-                        <TableCell>{transaction.payee?.name ?? '-'}</TableCell>
                         <TableCell>{transaction.note ?? '-'}</TableCell>
                         <TableCell align="right">
                           <IconButton
@@ -424,6 +394,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   );
 };
 
-AccountDetailsPageComponent.displayName = 'AccountDetailsPage';
+PayeeDetailsPageComponent.displayName = 'PayeeDetailsPage';
 
-export const AccountDetailsPage = memo(AccountDetailsPageComponent);
+export const PayeeDetailsPage = memo(PayeeDetailsPageComponent);
+

@@ -42,6 +42,7 @@ export const GET_RECENT_TRANSACTIONS = gql`
         id
         name
         icon
+        type
       }
       payee {
         id
@@ -54,8 +55,8 @@ export const GET_RECENT_TRANSACTIONS = gql`
 `;
 
 export const GET_TRANSACTIONS = gql`
-  query GetTransactions($accountId: ID, $skip: Int, $take: Int, $orderBy: TransactionOrderInput, $note: String) {
-    transactions(accountId: $accountId, skip: $skip, take: $take, orderBy: $orderBy, note: $note) {
+  query GetTransactions($accountId: ID, $categoryId: ID, $payeeId: ID, $skip: Int, $take: Int, $orderBy: TransactionOrderInput, $note: String) {
+    transactions(accountId: $accountId, categoryId: $categoryId, payeeId: $payeeId, skip: $skip, take: $take, orderBy: $orderBy, note: $note) {
       items {
         id
         value
@@ -114,6 +115,19 @@ export const GET_CATEGORIES = gql`
       id
       name
       icon
+      type
+      isDefault
+    }
+  }
+`;
+
+export const GET_CATEGORY = gql`
+  query GetCategory($id: ID!) {
+    category(id: $id) {
+      id
+      name
+      icon
+      type
       isDefault
     }
   }
@@ -122,6 +136,17 @@ export const GET_CATEGORIES = gql`
 export const GET_PAYEES = gql`
   query GetPayees {
     payees {
+      id
+      name
+      icon
+      isDefault
+    }
+  }
+`;
+
+export const GET_PAYEE = gql`
+  query GetPayee($id: ID!) {
+    payee(id: $id) {
       id
       name
       icon
@@ -144,6 +169,7 @@ export const GET_TRANSACTION = gql`
         id
         name
         icon
+        type
       }
       payee {
         id
@@ -220,6 +246,7 @@ export const GET_RECURRING_TRANSACTIONS = gql`
         id
         name
         icon
+        type
       }
       payeeId
       payee {
@@ -232,6 +259,56 @@ export const GET_RECURRING_TRANSACTIONS = gql`
       userId
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const EXPORT_DATA = gql`
+  query ExportData {
+    exportData {
+      accounts {
+        id
+        name
+        initBalance
+        isDefault
+      }
+      categories {
+        id
+        name
+        icon
+        type
+        isDefault
+      }
+      payees {
+        id
+        name
+        icon
+        isDefault
+      }
+      transactions {
+        id
+        value
+        date
+        accountId
+        categoryId
+        payeeId
+        note
+      }
+      recurringTransactions {
+        id
+        cronExpression
+        value
+        accountId
+        categoryId
+        payeeId
+        note
+        nextRunDate
+      }
+      preferences {
+        id
+        currency
+        useThousandSeparator
+      }
     }
   }
 `;

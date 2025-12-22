@@ -37,6 +37,8 @@ export class TransactionResolver {
     _: unknown,
     {
       accountId,
+      categoryId,
+      payeeId,
       skip,
       take,
       first,
@@ -44,6 +46,8 @@ export class TransactionResolver {
       note,
     }: {
       accountId?: string;
+      categoryId?: string;
+      payeeId?: string;
       skip?: number;
       take?: number;
       first?: number;
@@ -59,6 +63,8 @@ export class TransactionResolver {
     const where: {
       userId: string;
       accountId?: string;
+      categoryId?: string | null;
+      payeeId?: string | null;
       note?: {contains: string; mode: 'insensitive'};
     } = {
       userId: context.userId,
@@ -78,6 +84,44 @@ export class TransactionResolver {
       }
 
       where.accountId = accountId;
+    }
+
+    if (categoryId) {
+      // Verify category exists and is accessible to user (user-specific or default)
+      const category = await context.prisma.category.findFirst({
+        where: {
+          id: categoryId,
+          OR: [
+            {userId: context.userId},
+            {isDefault: true},
+          ],
+        },
+      });
+
+      if (!category) {
+        throw new NotFoundError('Category');
+      }
+
+      where.categoryId = categoryId;
+    }
+
+    if (payeeId) {
+      // Verify payee exists and is accessible to user (user-specific or default)
+      const payee = await context.prisma.payee.findFirst({
+        where: {
+          id: payeeId,
+          OR: [
+            {userId: context.userId},
+            {isDefault: true},
+          ],
+        },
+      });
+
+      if (!payee) {
+        throw new NotFoundError('Payee');
+      }
+
+      where.payeeId = payeeId;
     }
 
     // Add note filtering if provided
@@ -242,18 +286,24 @@ export class TransactionResolver {
       throw new NotFoundError('Account');
     }
 
-    // Verify category if provided
+    // Verify category if provided and fetch it for type checking
+    let category: {type: 'INCOME' | 'EXPENSE'} | null = null;
     if (validatedInput.categoryId) {
-      const category = await context.prisma.category.findFirst({
+      const foundCategory = await context.prisma.category.findFirst({
         where: {
           id: validatedInput.categoryId,
-          userId: context.userId,
+          OR: [
+            {userId: context.userId},
+            {isDefault: true},
+          ],
         },
       });
 
-      if (!category) {
+      if (!foundCategory) {
         throw new NotFoundError('Category');
       }
+
+      category = foundCategory;
     }
 
     // Verify payee if provided
@@ -269,6 +319,12 @@ export class TransactionResolver {
         throw new NotFoundError('Payee');
       }
     }
+
+    // Calculate balance delta based on category type
+    // Income categories add money, Expense categories (or no category) subtract money
+    const balanceDelta = category?.type === 'INCOME'
+      ? validatedInput.value
+      : -validatedInput.value;
 
     // Create transaction and update account balance atomically
     const transaction = await withPrismaErrorHandling(
@@ -287,8 +343,8 @@ export class TransactionResolver {
             },
           });
 
-          // Update account balance incrementally
-          await incrementAccountBalance(validatedInput.accountId, validatedInput.value, tx);
+          // Update account balance incrementally based on category type
+          await incrementAccountBalance(validatedInput.accountId, balanceDelta, tx);
 
           // Return transaction with relations
           return await tx.transaction.findUnique({
@@ -317,11 +373,14 @@ export class TransactionResolver {
     // Validate input
     const validatedInput = validate(UpdateTransactionInputSchema, input);
 
-    // Verify transaction belongs to user
+    // Verify transaction belongs to user and fetch with category
     const existingTransaction = await context.prisma.transaction.findFirst({
       where: {
         id,
         userId: context.userId,
+      },
+      include: {
+        category: true,
       },
     });
 
@@ -343,14 +402,50 @@ export class TransactionResolver {
       }
     }
 
+    // Verify and fetch new category if changed
+    let newCategory: {type: 'INCOME' | 'EXPENSE'} | null = null;
+    if (validatedInput.categoryId !== undefined) {
+      if (validatedInput.categoryId) {
+        const foundCategory = await context.prisma.category.findFirst({
+          where: {
+            id: validatedInput.categoryId,
+            OR: [
+              {userId: context.userId},
+              {isDefault: true},
+            ],
+          },
+        });
+
+        if (!foundCategory) {
+          throw new NotFoundError('Category');
+        }
+
+        newCategory = foundCategory;
+      }
+    } else {
+      // Category not changed, use existing
+      newCategory = existingTransaction.category;
+    }
+
+    // Calculate old balance delta based on old category type
+    const oldCategory = existingTransaction.category;
+    const oldValue = Number(existingTransaction.value);
+    const oldBalanceDelta = oldCategory?.type === 'INCOME'
+      ? oldValue
+      : -oldValue;
+
     // Update transaction and adjust account balances atomically
     const transaction = await context.prisma.$transaction(async (tx) => {
-      const oldValue = Number(existingTransaction.value);
-      const oldAccountId = existingTransaction.accountId;
       const newValue = validatedInput.value !== undefined
         ? validatedInput.value
         : oldValue;
+      const oldAccountId = existingTransaction.accountId;
       const newAccountId = validatedInput.accountId ?? oldAccountId;
+
+      // Calculate new balance delta based on new category type
+      const newBalanceDelta = newCategory?.type === 'INCOME'
+        ? newValue
+        : -newValue;
 
       // Update transaction
       const updatedTransaction = await tx.transaction.update({
@@ -366,17 +461,22 @@ export class TransactionResolver {
       });
 
       // Adjust account balances
-      if (validatedInput.value !== undefined || validatedInput.accountId !== undefined) {
+      // Need to reverse old balance change and apply new balance change
+      const needsBalanceUpdate = validatedInput.value !== undefined
+        || validatedInput.accountId !== undefined
+        || validatedInput.categoryId !== undefined;
+
+      if (needsBalanceUpdate) {
         if (oldAccountId === newAccountId) {
-          // Same account: adjust by difference
-          const delta = newValue - oldValue;
-          if (delta !== 0) {
-            await incrementAccountBalance(newAccountId, delta, tx);
+          // Same account: reverse old delta and apply new delta
+          const totalDelta = newBalanceDelta - oldBalanceDelta;
+          if (totalDelta !== 0) {
+            await incrementAccountBalance(newAccountId, totalDelta, tx);
           }
         } else {
-          // Different accounts: remove from old, add to new
-          await incrementAccountBalance(oldAccountId, -oldValue, tx);
-          await incrementAccountBalance(newAccountId, newValue, tx);
+          // Different accounts: reverse old on old account, apply new on new account
+          await incrementAccountBalance(oldAccountId, -oldBalanceDelta, tx);
+          await incrementAccountBalance(newAccountId, newBalanceDelta, tx);
         }
       }
 
@@ -398,17 +498,26 @@ export class TransactionResolver {
    * Delete transaction
    */
   async deleteTransaction(_: unknown, {id}: {id: string}, context: GraphQLContext) {
-    // Verify transaction belongs to user
+    // Verify transaction belongs to user and fetch with category
     const transaction = await context.prisma.transaction.findFirst({
       where: {
         id,
         userId: context.userId,
+      },
+      include: {
+        category: true,
       },
     });
 
     if (!transaction) {
       throw new NotFoundError('Transaction');
     }
+
+    // Calculate balance delta to reverse based on category type
+    const transactionValue = Number(transaction.value);
+    const balanceDelta = transaction.category?.type === 'INCOME'
+      ? -transactionValue  // Reverse income: subtract
+      : transactionValue;  // Reverse expense: add back
 
     // Delete transaction and update account balance atomically
     await context.prisma.$transaction(async (tx) => {
@@ -417,9 +526,8 @@ export class TransactionResolver {
         where: {id},
       });
 
-      // Decrement account balance
-      const transactionValue = Number(transaction.value);
-      await incrementAccountBalance(transaction.accountId, -transactionValue, tx);
+      // Reverse the balance change
+      await incrementAccountBalance(transaction.accountId, balanceDelta, tx);
     });
 
     return true;

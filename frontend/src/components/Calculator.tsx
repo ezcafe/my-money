@@ -12,9 +12,7 @@ import {HistoryList} from './HistoryList';
 import {
   MoreHorizOutlined as MoreIcon,
   ArrowForward as GoIcon,
-  AccountBalance,
   Assessment,
-  Schedule,
   Upload,
   Settings,
 } from '@mui/icons-material';
@@ -338,15 +336,13 @@ export function Calculator(): React.JSX.Element {
    */
   const handleTransactionClick = useCallback(
     (transaction: {id: string}) => {
-      navigate(`/transactions/${transaction.id}/edit?returnTo=${encodeURIComponent('/')}`);
+      void navigate(`/transactions/${transaction.id}/edit?returnTo=${encodeURIComponent('/')}`);
     },
     [navigate],
   );
 
   const menuItems = [
-    {path: '/accounts', label: 'Accounts', icon: <AccountBalance />},
     {path: '/report', label: 'Report', icon: <Assessment />},
-    {path: '/schedule', label: 'Schedule', icon: <Schedule />},
     {path: '/import', label: 'Import', icon: <Upload />},
     {path: '/preferences', label: 'Preferences', icon: <Settings />},
   ];

@@ -19,6 +19,11 @@ enum TransactionOrderBy {
   payee
 }
 
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
 input TransactionOrderInput {
   field: TransactionOrderBy!
   direction: SortOrder!
@@ -50,6 +55,8 @@ type Query {
   """
   transactions(
     accountId: ID
+    categoryId: ID
+    payeeId: ID
     skip: Int
     take: Int
     first: Int
@@ -117,6 +124,11 @@ type Query {
   Get top 5 most used transaction values from recent transactions
   """
   topUsedValues(days: Int = 90): [TopUsedValue!]!
+
+  """
+  Export all user data for CSV export
+  """
+  exportData: ExportData!
 }
 
 type Mutation {
@@ -209,6 +221,11 @@ type Mutation {
   Match imported transaction
   """
   matchImportedTransaction(importedId: ID!, transactionId: ID!): ImportedTransaction!
+
+  """
+  Import CSV file and merge data
+  """
+  importCSV(file: Upload!, entityType: String!): ImportResult!
 }
 
 type User {
@@ -257,6 +274,7 @@ type Category {
   id: ID!
   name: String!
   icon: String
+  type: CategoryType!
   isDefault: Boolean!
   userId: ID
   createdAt: DateTime!
@@ -330,6 +348,22 @@ type TopUsedValue {
   count: Int!
 }
 
+type ExportData {
+  accounts: [Account!]!
+  categories: [Category!]!
+  payees: [Payee!]!
+  transactions: [Transaction!]!
+  recurringTransactions: [RecurringTransaction!]!
+  preferences: UserPreferences
+}
+
+type ImportResult {
+  success: Boolean!
+  created: Int!
+  updated: Int!
+  errors: [String!]!
+}
+
 input CreateAccountInput {
   name: String!
   initBalance: Decimal
@@ -361,11 +395,13 @@ input UpdateTransactionInput {
 input CreateCategoryInput {
   name: String!
   icon: String
+  type: CategoryType!
 }
 
 input UpdateCategoryInput {
   name: String
   icon: String
+  type: CategoryType
 }
 
 input CreatePayeeInput {

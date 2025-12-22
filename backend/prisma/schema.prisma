@@ -9,6 +9,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
 model User {
   id          String   @id @default(uuid())
   oidcSubject String   @unique
@@ -63,13 +68,14 @@ model Account {
 }
 
 model Category {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   name      String
   icon      String?
-  isDefault Boolean  @default(false)
+  type      CategoryType @default(EXPENSE)
+  isDefault Boolean      @default(false)
   userId    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   user         User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]

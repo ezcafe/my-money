@@ -27,8 +27,9 @@ import {
   ToggleButtonGroup,
   Popover,
   Collapse,
+  Pagination,
 } from '@mui/material';
-import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear, PictureAsPdf, CalendarToday, ExpandMore, ExpandLess} from '@mui/icons-material';
+import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear, PictureAsPdf, CalendarToday, ExpandMore, ExpandLess, ShowChart, BarChart as BarChartIcon} from '@mui/icons-material';
 import {DateCalendar} from '@mui/x-date-pickers/DateCalendar';
 import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
 import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs';
@@ -48,6 +49,7 @@ import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS} fr
 import {DELETE_TRANSACTION} from '../graphql/mutations';
 import {useAccounts} from '../hooks/useAccounts';
 import type {TransactionOrderInput} from '../hooks/useTransactions';
+import {ITEMS_PER_PAGE} from '../utils/constants';
 
 /**
  * Transaction type from report query
@@ -124,6 +126,9 @@ export function ReportPage(): React.JSX.Element {
   // Chart type state
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+
   // Menu state
   const [menuAnchor, setMenuAnchor] = useState<{element: HTMLElement; transactionId: string} | null>(null);
 
@@ -145,6 +150,7 @@ export function ReportPage(): React.JSX.Element {
 
   // Build query variables
   const queryVariables = useMemo(() => {
+    const skip = (page - 1) * ITEMS_PER_PAGE;
     const vars: {
       accountIds?: string[];
       categoryIds?: string[];
@@ -157,7 +163,8 @@ export function ReportPage(): React.JSX.Element {
       take?: number;
     } = {
       orderBy,
-      take: 1000, // Get all results for report
+      skip,
+      take: ITEMS_PER_PAGE,
     };
 
     if (filters.accountIds.length > 0) {
@@ -183,7 +190,7 @@ export function ReportPage(): React.JSX.Element {
     }
 
     return vars;
-  }, [filters, orderBy]);
+  }, [filters, orderBy, page]);
 
   // Check if filters are applied
   const hasFilters = useMemo(() => {
@@ -207,6 +214,7 @@ export function ReportPage(): React.JSX.Element {
   const transactions = data?.reportTransactions?.items ?? [];
   const totalCount = data?.reportTransactions?.totalCount ?? 0;
   const totalAmount = data?.reportTransactions?.totalAmount ?? 0;
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   // Auto-collapse filter panel when data is loaded after filtering
   useEffect(() => {
@@ -214,6 +222,11 @@ export function ReportPage(): React.JSX.Element {
       setFilterPanelExpanded(false);
     }
   }, [hasFilters, loading, transactions.length]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
 
   // Delete mutation
   const [deleteTransaction, {loading: deleting}] = useMutation(DELETE_TRANSACTION, {
@@ -320,6 +333,7 @@ export function ReportPage(): React.JSX.Element {
         setSortField(field);
         setSortDirection('desc');
       }
+      setPage(1); // Reset to first page when sorting changes
     },
     [sortField, sortDirection],
   );
@@ -652,8 +666,12 @@ export function ReportPage(): React.JSX.Element {
               }}
               size="small"
             >
-              <ToggleButton value="line">Line</ToggleButton>
-              <ToggleButton value="bar">Bar</ToggleButton>
+              <ToggleButton value="line" aria-label="Line chart">
+                <ShowChart />
+              </ToggleButton>
+              <ToggleButton value="bar" aria-label="Bar chart">
+                <BarChartIcon />
+              </ToggleButton>
             </ToggleButtonGroup>
           </Box>
           <Box sx={{width: '100%', height: 300}}>
@@ -712,92 +730,103 @@ export function ReportPage(): React.JSX.Element {
             </Typography>
           </Box>
         ) : (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'date'}
-                      direction={sortField === 'date' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('date')}
-                      IconComponent={() => getSortIcon('date')}
-                    >
-                      Date
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'value'}
-                      direction={sortField === 'value' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('value')}
-                      IconComponent={() => getSortIcon('value')}
-                    >
-                      Value
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'account'}
-                      direction={sortField === 'account' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('account')}
-                      IconComponent={() => getSortIcon('account')}
-                    >
-                      Account
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'payee'}
-                      direction={sortField === 'payee' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('payee')}
-                      IconComponent={() => getSortIcon('payee')}
-                    >
-                      Payee
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'category'}
-                      direction={sortField === 'category' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('category')}
-                      IconComponent={() => getSortIcon('category')}
-                    >
-                      Category
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>Note</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {transactions.map((transaction) => (
-                  <TableRow
-                    key={transaction.id}
-                    hover
-                    sx={{cursor: 'pointer'}}
-                    onClick={() => handleRowClick(transaction.id)}
-                  >
-                    <TableCell>{formatDateShort(transaction.date)}</TableCell>
-                    <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
-                    <TableCell>{transaction.account?.name ?? '-'}</TableCell>
-                    <TableCell>{transaction.payee?.name ?? '-'}</TableCell>
-                    <TableCell>{transaction.category?.name ?? '-'}</TableCell>
-                    <TableCell>{transaction.note ?? '-'}</TableCell>
-                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleMenuOpen(e, transaction.id)}
-                        aria-label="More actions"
+          <>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortField === 'date'}
+                        direction={sortField === 'date' ? sortDirection : 'asc'}
+                        onClick={() => handleSort('date')}
+                        IconComponent={() => getSortIcon('date')}
                       >
-                        <MoreVert />
-                      </IconButton>
+                        Date
+                      </TableSortLabel>
                     </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortField === 'value'}
+                        direction={sortField === 'value' ? sortDirection : 'asc'}
+                        onClick={() => handleSort('value')}
+                        IconComponent={() => getSortIcon('value')}
+                      >
+                        Value
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortField === 'account'}
+                        direction={sortField === 'account' ? sortDirection : 'asc'}
+                        onClick={() => handleSort('account')}
+                        IconComponent={() => getSortIcon('account')}
+                      >
+                        Account
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortField === 'payee'}
+                        direction={sortField === 'payee' ? sortDirection : 'asc'}
+                        onClick={() => handleSort('payee')}
+                        IconComponent={() => getSortIcon('payee')}
+                      >
+                        Payee
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortField === 'category'}
+                        direction={sortField === 'category' ? sortDirection : 'asc'}
+                        onClick={() => handleSort('category')}
+                        IconComponent={() => getSortIcon('category')}
+                      >
+                        Category
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>Note</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {transactions.map((transaction) => (
+                    <TableRow
+                      key={transaction.id}
+                      hover
+                      sx={{cursor: 'pointer'}}
+                      onClick={() => handleRowClick(transaction.id)}
+                    >
+                      <TableCell>{formatDateShort(transaction.date)}</TableCell>
+                      <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
+                      <TableCell>{transaction.account?.name ?? '-'}</TableCell>
+                      <TableCell>{transaction.payee?.name ?? '-'}</TableCell>
+                      <TableCell>{transaction.category?.name ?? '-'}</TableCell>
+                      <TableCell>{transaction.note ?? '-'}</TableCell>
+                      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, transaction.id)}
+                          aria-label="More actions"
+                        >
+                          <MoreVert />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {totalPages > 1 && (
+              <Box sx={{display: 'flex', justifyContent: 'center', mt: 2, pb: 2}}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, value) => setPage(value)}
+                />
+              </Box>
+            )}
+          </>
         )}
       </Card>
 

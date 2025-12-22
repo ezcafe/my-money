@@ -120,6 +120,8 @@ interface GetTransactionsData {
 /**
  * Custom hook to fetch paginated transactions
  * @param accountId - Optional account ID to filter by
+ * @param categoryId - Optional category ID to filter by
+ * @param payeeId - Optional payee ID to filter by
  * @param skip - Number of items to skip
  * @param take - Number of items to take
  * @param orderBy - Optional ordering configuration
@@ -128,13 +130,15 @@ interface GetTransactionsData {
  */
 export function useTransactions(
   accountId?: string,
+  categoryId?: string,
+  payeeId?: string,
   skip: number = 0,
   take: number = 20,
   orderBy?: TransactionOrderInput,
   note?: string,
 ): UseTransactionsResult {
   const {data, loading, error, refetch} = useQuery<GetTransactionsData>(GET_TRANSACTIONS, {
-    variables: {accountId, skip, take, orderBy, note},
+    variables: {accountId, categoryId, payeeId, skip, take, orderBy, note},
     errorPolicy: 'all',
   });
 
