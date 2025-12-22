@@ -63,6 +63,7 @@ export function TransactionAddPage(): React.JSX.Element {
   const [alsoCreateNow, setAlsoCreateNow] = useState<boolean>(false);
   const [datePickerAnchor, setDatePickerAnchor] = useState<HTMLElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Set default account if available
   useEffect(() => {
@@ -158,47 +159,83 @@ export function TransactionAddPage(): React.JSX.Element {
    * Handle form submission
    */
   const handleSubmit = async (): Promise<void> => {
+    // Prevent duplicate submissions (e.g., from React StrictMode double-rendering)
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
     setError(null);
 
-    // Validation
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) {
-      setError('Value must be a valid number');
-      return;
-    }
-
-    if (!accountId) {
-      setError('Account is required');
-      return;
-    }
-
-    if (isRecurring) {
-      if (!nextRunDate) {
-        setError('Next run date is required for recurring transactions');
+    try {
+      // Validation
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) {
+        setError('Value must be a valid number');
+        setIsSubmitting(false);
         return;
       }
 
-      try {
-        // Create recurring transaction
-        const cronExpression = getCronExpression(recurringType);
-        const recurringInput = {
-          cronExpression,
-          value: numValue,
-          accountId,
-          categoryId: categoryId || null,
-          payeeId: payeeId || null,
-          note: note || null,
-          nextRunDate: nextRunDate.toISOString(),
-        };
+      if (!accountId) {
+        setError('Account is required');
+        setIsSubmitting(false);
+        return;
+      }
 
-        await createRecurringTransaction({
-          variables: {
-            input: recurringInput,
-          },
-        });
+      if (isRecurring) {
+        if (!nextRunDate) {
+          setError('Next run date is required for recurring transactions');
+          setIsSubmitting(false);
+          return;
+        }
 
-        // Optionally create immediate transaction
-        if (alsoCreateNow) {
+        try {
+          // Create recurring transaction
+          const cronExpression = getCronExpression(recurringType);
+          const recurringInput = {
+            cronExpression,
+            value: numValue,
+            accountId,
+            categoryId: categoryId || null,
+            payeeId: payeeId || null,
+            note: note || null,
+            nextRunDate: nextRunDate.toISOString(),
+          };
+
+          await createRecurringTransaction({
+            variables: {
+              input: recurringInput,
+            },
+          });
+
+          // Optionally create immediate transaction
+          if (alsoCreateNow) {
+            const transactionInput = {
+              value: numValue,
+              date: new Date().toISOString(),
+              accountId,
+              categoryId: categoryId || null,
+              payeeId: payeeId || null,
+              note: note || null,
+            };
+
+            await createTransaction({
+              variables: {
+                input: transactionInput,
+              },
+            });
+          }
+
+          // Navigate back to return URL
+          const validReturnUrl = getValidReturnUrl(returnTo);
+          navigate(validReturnUrl);
+        } catch (err) {
+          // Error already handled by onError callback
+          console.error('Error creating recurring transaction:', err);
+        }
+      } else {
+        // Create regular transaction
+        try {
           const transactionInput = {
             value: numValue,
             date: new Date().toISOString(),
@@ -213,44 +250,21 @@ export function TransactionAddPage(): React.JSX.Element {
               input: transactionInput,
             },
           });
+
+          // Navigate back to return URL
+          const validReturnUrl = getValidReturnUrl(returnTo);
+          navigate(validReturnUrl);
+        } catch (err) {
+          // Error already handled by onError callback
+          console.error('Error creating transaction:', err);
         }
-
-        // Navigate back to return URL
-        const validReturnUrl = getValidReturnUrl(returnTo);
-        navigate(validReturnUrl);
-      } catch (err) {
-        // Error already handled by onError callback
-        console.error('Error creating recurring transaction:', err);
       }
-    } else {
-      // Create regular transaction
-      try {
-        const transactionInput = {
-          value: numValue,
-          date: new Date().toISOString(),
-          accountId,
-          categoryId: categoryId || null,
-          payeeId: payeeId || null,
-          note: note || null,
-        };
-
-        await createTransaction({
-          variables: {
-            input: transactionInput,
-          },
-        });
-
-        // Navigate back to return URL
-        const validReturnUrl = getValidReturnUrl(returnTo);
-        navigate(validReturnUrl);
-      } catch (err) {
-        // Error already handled by onError callback
-        console.error('Error creating transaction:', err);
-      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const loading = creatingTransaction || creatingRecurring;
+  const loading = creatingTransaction || creatingRecurring || isSubmitting;
   const recurringTypeOptions = getRecurringTypeOptions();
 
   return (

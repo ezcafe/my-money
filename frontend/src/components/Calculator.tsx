@@ -341,7 +341,7 @@ export function Calculator(): React.JSX.Element {
 
   const menuItems = [
     {path: '/report', label: 'Report', icon: <Assessment />},
-    {path: '/import', label: 'Import', icon: <Upload />},
+    {path: '/import', label: 'Import Statement', icon: <Upload />},
     {path: '/preferences', label: 'Preferences', icon: <Settings />},
   ];
 
