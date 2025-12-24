@@ -93,14 +93,12 @@ export const CREATE_RECURRING_TRANSACTION = gql`
       category {
         id
         name
-        icon
         type
       }
       payeeId
       payee {
         id
         name
-        icon
       }
       note
       nextRunDate
@@ -131,25 +129,23 @@ export const DELETE_ACCOUNT = gql`
 
 export const CREATE_CATEGORY = gql`
   mutation CreateCategory($input: CreateCategoryInput!) {
-    createCategory(input: $input) {
-      id
-      name
-      icon
-      type
-      isDefault
-    }
+      createCategory(input: $input) {
+        id
+        name
+        type
+        isDefault
+      }
   }
 `;
 
 export const UPDATE_CATEGORY = gql`
   mutation UpdateCategory($id: ID!, $input: UpdateCategoryInput!) {
-    updateCategory(id: $id, input: $input) {
-      id
-      name
-      icon
-      type
-      isDefault
-    }
+      updateCategory(id: $id, input: $input) {
+        id
+        name
+        type
+        isDefault
+      }
   }
 `;
 
@@ -161,23 +157,21 @@ export const DELETE_CATEGORY = gql`
 
 export const CREATE_PAYEE = gql`
   mutation CreatePayee($input: CreatePayeeInput!) {
-    createPayee(input: $input) {
-      id
-      name
-      icon
-      isDefault
-    }
+      createPayee(input: $input) {
+        id
+        name
+        isDefault
+      }
   }
 `;
 
 export const UPDATE_PAYEE = gql`
   mutation UpdatePayee($id: ID!, $input: UpdatePayeeInput!) {
-    updatePayee(id: $id, input: $input) {
-      id
-      name
-      icon
-      isDefault
-    }
+      updatePayee(id: $id, input: $input) {
+        id
+        name
+        isDefault
+      }
   }
 `;
 

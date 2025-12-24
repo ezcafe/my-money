@@ -7,7 +7,7 @@ import * as oidc from 'openid-client';
 import {UnauthorizedError} from '../utils/errors';
 
 // Type aliases for openid-client types
-type TokenSet = any;
+type TokenSet = oidc.UserInfoResponse;
 
 let config: oidc.Configuration | null = null;
 

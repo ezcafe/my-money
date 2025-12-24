@@ -41,13 +41,11 @@ export const GET_RECENT_TRANSACTIONS = gql`
       category {
         id
         name
-        icon
         type
       }
       payee {
         id
         name
-        icon
       }
       note
     }
@@ -68,12 +66,10 @@ export const GET_TRANSACTIONS = gql`
         category {
           id
           name
-          icon
         }
         payee {
           id
           name
-          icon
         }
         note
       }
@@ -111,47 +107,43 @@ export const GET_PREFERENCES = gql`
 
 export const GET_CATEGORIES = gql`
   query GetCategories {
-    categories {
-      id
-      name
-      icon
-      type
-      isDefault
-    }
+      categories {
+        id
+        name
+        type
+        isDefault
+      }
   }
 `;
 
 export const GET_CATEGORY = gql`
   query GetCategory($id: ID!) {
-    category(id: $id) {
-      id
-      name
-      icon
-      type
-      isDefault
-    }
+      category(id: $id) {
+        id
+        name
+        type
+        isDefault
+      }
   }
 `;
 
 export const GET_PAYEES = gql`
   query GetPayees {
-    payees {
-      id
-      name
-      icon
-      isDefault
-    }
+      payees {
+        id
+        name
+        isDefault
+      }
   }
 `;
 
 export const GET_PAYEE = gql`
   query GetPayee($id: ID!) {
-    payee(id: $id) {
-      id
-      name
-      icon
-      isDefault
-    }
+      payee(id: $id) {
+        id
+        name
+        isDefault
+      }
   }
 `;
 
@@ -168,13 +160,11 @@ export const GET_TRANSACTION = gql`
       category {
         id
         name
-        icon
         type
       }
       payee {
         id
         name
-        icon
       }
       note
     }
@@ -215,12 +205,10 @@ export const GET_REPORT_TRANSACTIONS = gql`
         category {
           id
           name
-          icon
         }
         payee {
           id
           name
-          icon
         }
         note
       }
@@ -245,14 +233,12 @@ export const GET_RECURRING_TRANSACTIONS = gql`
       category {
         id
         name
-        icon
         type
       }
       payeeId
       payee {
         id
         name
-        icon
       }
       note
       nextRunDate
@@ -275,14 +261,12 @@ export const EXPORT_DATA = gql`
       categories {
         id
         name
-        icon
         type
         isDefault
       }
       payees {
         id
         name
-        icon
         isDefault
       }
       transactions {

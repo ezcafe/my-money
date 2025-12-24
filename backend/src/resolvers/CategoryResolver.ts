@@ -12,13 +12,11 @@ import {withPrismaErrorHandling} from '../utils/prismaErrors';
 
 const CreateCategoryInputSchema = z.object({
   name: z.string().min(1).max(255),
-  icon: z.string().max(50).optional().nullable(),
   type: z.enum(['INCOME', 'EXPENSE']),
 });
 
 const UpdateCategoryInputSchema = z.object({
   name: z.string().min(1).max(255).optional(),
-  icon: z.string().max(50).optional().nullable(),
   type: z.enum(['INCOME', 'EXPENSE']).optional(),
 });
 
@@ -102,7 +100,7 @@ export class CategoryResolver {
    */
   async createCategory(
     _: unknown,
-    {input}: {input: {name: string; icon?: string | null; type: 'INCOME' | 'EXPENSE'}},
+    {input}: {input: {name: string; type: 'INCOME' | 'EXPENSE'}},
     context: GraphQLContext,
   ) {
     const validatedInput = validate(CreateCategoryInputSchema, input);
@@ -124,7 +122,6 @@ export class CategoryResolver {
         await context.prisma.category.create({
           data: {
             name: validatedInput.name,
-            icon: validatedInput.icon ?? null,
             type: validatedInput.type,
             userId: context.userId,
             isDefault: false,
@@ -141,7 +138,7 @@ export class CategoryResolver {
    */
   async updateCategory(
     _: unknown,
-    {id, input}: {id: string; input: {name?: string; icon?: string | null; type?: 'INCOME' | 'EXPENSE'}},
+    {id, input}: {id: string; input: {name?: string; type?: 'INCOME' | 'EXPENSE'}},
     context: GraphQLContext,
   ) {
     const validatedInput = validate(UpdateCategoryInputSchema, input);
@@ -178,7 +175,6 @@ export class CategoryResolver {
       where: {id},
       data: {
         ...(validatedInput.name !== undefined && {name: validatedInput.name}),
-        ...(validatedInput.icon !== undefined && {icon: validatedInput.icon}),
         ...(validatedInput.type !== undefined && {type: validatedInput.type}),
       },
     });

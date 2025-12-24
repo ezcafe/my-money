@@ -65,12 +65,10 @@ interface ReportTransaction {
   category: {
     id: string;
     name: string;
-    icon?: string | null;
   } | null;
   payee: {
     id: string;
     name: string;
-    icon?: string | null;
   } | null;
   note?: string | null;
 }

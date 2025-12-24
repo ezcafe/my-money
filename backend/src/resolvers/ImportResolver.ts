@@ -529,7 +529,6 @@ async function importCategory(
 
   const data = {
     name: row.name,
-    icon: row.icon || null,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
     userId,
   };
@@ -566,7 +565,6 @@ async function importPayee(
 
   const data = {
     name: row.name,
-    icon: row.icon || null,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
     userId,
   };

@@ -470,7 +470,7 @@ export class TransactionResolver {
         // Determine if category type changed
         const oldCategoryType = oldCategory?.type ?? 'EXPENSE';
         const newCategoryType = newCategory?.type ?? 'EXPENSE';
-        const categoryTypeChanged = oldCategoryType !== newCategoryType;
+        const _categoryTypeChanged = oldCategoryType !== newCategoryType;
 
         if (oldAccountId === newAccountId) {
           // Same account: reverse old balance change and apply new balance change

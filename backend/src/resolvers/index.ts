@@ -112,17 +112,17 @@ export const resolvers = {
 
     // Category mutations
     createCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new CategoryResolver().createCategory(parent, args as {input: {name: string; icon?: string | null}}, context),
+      new CategoryResolver().createCategory(parent, args as {input: {name: string; type: 'INCOME' | 'EXPENSE'}}, context),
     updateCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new CategoryResolver().updateCategory(parent, args as {id: string; input: {name?: string; icon?: string | null}}, context),
+      new CategoryResolver().updateCategory(parent, args as {id: string; input: {name?: string; type?: 'INCOME' | 'EXPENSE'}}, context),
     deleteCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
       new CategoryResolver().deleteCategory(parent, args as {id: string}, context),
 
     // Payee mutations
     createPayee: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PayeeResolver().createPayee(parent, args as {input: {name: string; icon?: string | null}}, context),
+      new PayeeResolver().createPayee(parent, args as {input: {name: string}}, context),
     updatePayee: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PayeeResolver().updatePayee(parent, args as {id: string; input: {name?: string; icon?: string | null}}, context),
+      new PayeeResolver().updatePayee(parent, args as {id: string; input: {name?: string}}, context),
     deletePayee: (parent: unknown, args: unknown, context: GraphQLContext) =>
       new PayeeResolver().deletePayee(parent, args as {id: string}, context),
 

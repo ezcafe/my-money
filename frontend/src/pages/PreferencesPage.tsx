@@ -27,13 +27,11 @@ interface ExportData {
   categories: Array<{
     id: string;
     name: string;
-    icon: string | null;
     isDefault: boolean;
   }>;
   payees: Array<{
     id: string;
     name: string;
-    icon: string | null;
     isDefault: boolean;
   }>;
   transactions: Array<{
@@ -239,13 +237,13 @@ export function PreferencesPage(): React.JSX.Element {
 
       // Export categories
       if (exportData.categories && exportData.categories.length > 0) {
-        const categoriesCSV = convertToCSV(exportData.categories, ['id', 'name', 'icon', 'isDefault']);
+        const categoriesCSV = convertToCSV(exportData.categories, ['id', 'name', 'isDefault']);
         downloadCSV(categoriesCSV, 'categories.csv');
       }
 
       // Export payees
       if (exportData.payees && exportData.payees.length > 0) {
-        const payeesCSV = convertToCSV(exportData.payees, ['id', 'name', 'icon', 'isDefault']);
+        const payeesCSV = convertToCSV(exportData.payees, ['id', 'name', 'isDefault']);
         downloadCSV(payeesCSV, 'payees.csv');
       }
 

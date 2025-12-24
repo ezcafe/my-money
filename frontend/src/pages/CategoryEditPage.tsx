@@ -22,7 +22,6 @@ interface CategoryData {
   category?: {
     id: string;
     name: string;
-    icon: string | null;
     type: 'INCOME' | 'EXPENSE';
     isDefault: boolean;
   } | null;
@@ -51,7 +50,6 @@ export function CategoryEditPage(): React.JSX.Element {
   const category = categoryData?.category;
 
   const [name, setName] = useState('');
-  const [icon, setIcon] = useState('');
   const [categoryType, setCategoryType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
   const [error, setError] = useState<string | null>(null);
 
@@ -68,13 +66,11 @@ export function CategoryEditPage(): React.JSX.Element {
   useEffect(() => {
     if (category) {
       setName(category.name);
-      setIcon(category.icon ?? '');
       setCategoryType(category.type);
       setError(null);
     } else if (!isEditMode) {
       // Reset form for create mode
       setName('');
-      setIcon('');
       setCategoryType('EXPENSE');
       setError(null);
     }
@@ -143,7 +139,6 @@ export function CategoryEditPage(): React.JSX.Element {
           id,
           input: {
             name,
-            icon: icon || null,
             type: categoryType,
           },
         },
@@ -154,7 +149,6 @@ export function CategoryEditPage(): React.JSX.Element {
         variables: {
           input: {
             name,
-            icon: icon || null,
             type: categoryType,
           },
         },
@@ -204,13 +198,6 @@ export function CategoryEditPage(): React.JSX.Element {
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
-          />
-
-          <TextField
-            label="Icon (optional)"
-            value={icon}
-            onChange={(e) => setIcon(e.target.value)}
-            fullWidth
           />
 
           <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>

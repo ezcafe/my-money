@@ -37,7 +37,6 @@ export interface Transaction {
 export interface Category {
   id: string;
   name: string;
-  icon?: string | null;
   type: 'INCOME' | 'EXPENSE';
   isDefault: boolean;
   userId?: string | null;
@@ -48,7 +47,6 @@ export interface Category {
 export interface Payee {
   id: string;
   name: string;
-  icon?: string | null;
   isDefault: boolean;
   userId?: string | null;
   createdAt: Date;

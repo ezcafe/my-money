@@ -273,7 +273,6 @@ type TransactionConnection {
 type Category {
   id: ID!
   name: String!
-  icon: String
   type: CategoryType!
   isDefault: Boolean!
   userId: ID
@@ -284,7 +283,6 @@ type Category {
 type Payee {
   id: ID!
   name: String!
-  icon: String
   isDefault: Boolean!
   userId: ID
   createdAt: DateTime!
@@ -394,24 +392,20 @@ input UpdateTransactionInput {
 
 input CreateCategoryInput {
   name: String!
-  icon: String
   type: CategoryType!
 }
 
 input UpdateCategoryInput {
   name: String
-  icon: String
   type: CategoryType
 }
 
 input CreatePayeeInput {
   name: String!
-  icon: String
 }
 
 input UpdatePayeeInput {
   name: String
-  icon: String
 }
 
 input UpdatePreferencesInput {

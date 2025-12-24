@@ -32,7 +32,6 @@ export function CategoryEditDialog({
   onSuccess,
 }: CategoryEditDialogProps): React.JSX.Element {
   const [name, setName] = useState('');
-  const [icon, setIcon] = useState('');
   const [categoryType, setCategoryType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
   const [error, setError] = useState<string | null>(null);
 
@@ -66,11 +65,9 @@ export function CategoryEditDialog({
   useEffect(() => {
     if (category) {
       setName(category.name);
-      setIcon(category.icon ?? '');
       setCategoryType(category.type);
     } else {
       setName('');
-      setIcon('');
       setCategoryType('EXPENSE');
     }
     setError(null);
@@ -89,7 +86,6 @@ export function CategoryEditDialog({
           id: category.id,
           input: {
             name,
-            icon: icon || null,
             type: categoryType,
           },
         },
@@ -100,7 +96,6 @@ export function CategoryEditDialog({
         variables: {
           input: {
             name,
-            icon: icon || null,
             type: categoryType,
           },
         },
@@ -139,13 +134,6 @@ export function CategoryEditDialog({
           onChange={(e) => setName(e.target.value)}
           fullWidth
           required
-        />
-
-        <TextField
-          label="Icon (optional)"
-          value={icon}
-          onChange={(e) => setIcon(e.target.value)}
-          fullWidth
         />
 
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>

@@ -30,13 +30,11 @@ interface RecurringTransaction {
   category: {
     id: string;
     name: string;
-    icon?: string | null;
   } | null;
   payeeId: string | null;
   payee: {
     id: string;
     name: string;
-    icon?: string | null;
   } | null;
   note: string | null;
   nextRunDate: string;

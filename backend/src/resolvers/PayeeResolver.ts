@@ -12,12 +12,10 @@ import {withPrismaErrorHandling} from '../utils/prismaErrors';
 
 const CreatePayeeInputSchema = z.object({
   name: z.string().min(1).max(255),
-  icon: z.string().max(50).optional().nullable(),
 });
 
 const UpdatePayeeInputSchema = z.object({
   name: z.string().min(1).max(255).optional(),
-  icon: z.string().max(50).optional().nullable(),
 });
 
 export class PayeeResolver {
@@ -97,7 +95,7 @@ export class PayeeResolver {
    */
   async createPayee(
     _: unknown,
-    {input}: {input: {name: string; icon?: string | null}},
+    {input}: {input: {name: string}},
     context: GraphQLContext,
   ) {
     const validatedInput = validate(CreatePayeeInputSchema, input);
@@ -119,7 +117,6 @@ export class PayeeResolver {
         await context.prisma.payee.create({
           data: {
             name: validatedInput.name,
-            icon: validatedInput.icon ?? null,
             userId: context.userId,
             isDefault: false,
           },
@@ -135,7 +132,7 @@ export class PayeeResolver {
    */
   async updatePayee(
     _: unknown,
-    {id, input}: {id: string; input: {name?: string; icon?: string | null}},
+    {id, input}: {id: string; input: {name?: string}},
     context: GraphQLContext,
   ) {
     const validatedInput = validate(UpdatePayeeInputSchema, input);
@@ -172,7 +169,6 @@ export class PayeeResolver {
       where: {id},
       data: {
         ...(validatedInput.name !== undefined && {name: validatedInput.name}),
-        ...(validatedInput.icon !== undefined && {icon: validatedInput.icon}),
       },
     });
 

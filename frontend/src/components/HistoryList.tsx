@@ -15,8 +15,8 @@ interface Transaction {
   value: number;
   date: Date;
   account?: {id: string; name: string} | null;
-  category?: {id: string; name: string; icon?: string | null} | null;
-  payee?: {id: string; name: string; icon?: string | null} | null;
+  category?: {id: string; name: string} | null;
+  payee?: {id: string; name: string} | null;
   note?: string | null;
 }
 

@@ -70,7 +70,6 @@ model Account {
 model Category {
   id        String       @id @default(uuid())
   name      String
-  icon      String?
   type      CategoryType @default(EXPENSE)
   isDefault Boolean      @default(false)
   userId    String?
@@ -90,7 +89,6 @@ model Category {
 model Payee {
   id        String   @id @default(uuid())
   name      String
-  icon      String?
   isDefault Boolean  @default(false)
   userId    String?
   createdAt DateTime @default(now())

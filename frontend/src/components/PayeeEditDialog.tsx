@@ -32,7 +32,6 @@ export function PayeeEditDialog({
   onSuccess,
 }: PayeeEditDialogProps): React.JSX.Element {
   const [name, setName] = useState('');
-  const [icon, setIcon] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const [createPayee, {loading: creating}] = useMutation(CREATE_PAYEE, {
@@ -65,10 +64,8 @@ export function PayeeEditDialog({
   useEffect(() => {
     if (payee) {
       setName(payee.name);
-      setIcon(payee.icon ?? '');
     } else {
       setName('');
-      setIcon('');
     }
     setError(null);
   }, [payee, open]);
@@ -86,7 +83,6 @@ export function PayeeEditDialog({
           id: payee.id,
           input: {
             name,
-            icon: icon || null,
           },
         },
       });
@@ -96,7 +92,6 @@ export function PayeeEditDialog({
         variables: {
           input: {
             name,
-            icon: icon || null,
           },
         },
       });
@@ -134,13 +129,6 @@ export function PayeeEditDialog({
           onChange={(e) => setName(e.target.value)}
           fullWidth
           required
-        />
-
-        <TextField
-          label="Icon (optional)"
-          value={icon}
-          onChange={(e) => setIcon(e.target.value)}
-          fullWidth
         />
       </Box>
     </Dialog>

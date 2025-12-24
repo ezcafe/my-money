@@ -12,7 +12,6 @@ import {GET_PAYEE} from '../graphql/queries';
 export interface Payee {
   id: string;
   name: string;
-  icon?: string | null;
   isDefault: boolean;
 }
 

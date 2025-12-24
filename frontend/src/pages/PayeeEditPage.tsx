@@ -22,7 +22,6 @@ interface PayeeData {
   payee?: {
     id: string;
     name: string;
-    icon: string | null;
     isDefault: boolean;
   } | null;
 }
@@ -50,7 +49,6 @@ export function PayeeEditPage(): React.JSX.Element {
   const payee = payeeData?.payee;
 
   const [name, setName] = useState('');
-  const [icon, setIcon] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // Set appbar title
@@ -66,12 +64,10 @@ export function PayeeEditPage(): React.JSX.Element {
   useEffect(() => {
     if (payee) {
       setName(payee.name);
-      setIcon(payee.icon ?? '');
       setError(null);
     } else if (!isEditMode) {
       // Reset form for create mode
       setName('');
-      setIcon('');
       setError(null);
     }
   }, [payee, isEditMode]);
@@ -139,7 +135,6 @@ export function PayeeEditPage(): React.JSX.Element {
           id,
           input: {
             name,
-            icon: icon || null,
           },
         },
       });
@@ -149,7 +144,6 @@ export function PayeeEditPage(): React.JSX.Element {
         variables: {
           input: {
             name,
-            icon: icon || null,
           },
         },
       });
@@ -198,13 +192,6 @@ export function PayeeEditPage(): React.JSX.Element {
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
-          />
-
-          <TextField
-            label="Icon (optional)"
-            value={icon}
-            onChange={(e) => setIcon(e.target.value)}
-            fullWidth
           />
 
           <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2}}>
