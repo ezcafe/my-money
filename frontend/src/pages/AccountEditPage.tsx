@@ -98,9 +98,10 @@ export function AccountEditPage(): React.JSX.Element {
     },
     onCompleted: () => {
       setError(null);
-      // Navigate back to return URL
+      // Navigate back to return URL, replacing the add page in history
+      // so that clicking back from the list page goes to preferences
       const validReturnUrl = getValidReturnUrl(returnTo);
-      navigate(validReturnUrl);
+      navigate(validReturnUrl, {replace: true});
     },
   });
 
@@ -219,7 +220,8 @@ export function AccountEditPage(): React.JSX.Element {
             <Button
               onClick={() => {
                 const validReturnUrl = getValidReturnUrl(returnTo);
-                navigate(validReturnUrl);
+                // Use replace to maintain clean history
+                navigate(validReturnUrl, {replace: true});
               }}
               disabled={loading}
             >

@@ -207,7 +207,9 @@ function AccountsPageWrapper(): React.JSX.Element {
   const navigate = useNavigate();
 
   const handleAdd = useCallback(() => {
-    void navigate('/accounts/add?returnTo=/accounts');
+    // Use replace to avoid adding the add page to history
+    // This way, when we navigate back after creation, we can replace it
+    void navigate('/accounts/add?returnTo=/accounts', {replace: true});
   }, [navigate]);
 
   return (
@@ -233,7 +235,9 @@ function PayeesPageWrapper(): React.JSX.Element {
   const navigate = useNavigate();
 
   const handleAdd = useCallback(() => {
-    void navigate('/payees/add?returnTo=/payees');
+    // Use replace to avoid adding the add page to history
+    // This way, when we navigate back after creation, we can replace it
+    void navigate('/payees/add?returnTo=/payees', {replace: true});
   }, [navigate]);
 
   return (
@@ -259,7 +263,9 @@ function CategoriesPageWrapper(): React.JSX.Element {
   const navigate = useNavigate();
 
   const handleAdd = useCallback(() => {
-    void navigate('/categories/add?returnTo=/categories');
+    // Use replace to avoid adding the add page to history
+    // This way, when we navigate back after creation, we can replace it
+    void navigate('/categories/add?returnTo=/categories', {replace: true});
   }, [navigate]);
 
   return (
