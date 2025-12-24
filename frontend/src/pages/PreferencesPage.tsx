@@ -5,11 +5,11 @@
 
 import React, {useState, useEffect, useRef} from 'react';
 import {useNavigate} from 'react-router';
-import {Box, Typography, Switch, FormControlLabel, List, ListItem, ListItemButton, ListItemText, Divider} from '@mui/material';
+import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField} from '@mui/material';
 import {useQuery, useMutation, useLazyQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
-import {TextField} from '../components/ui/TextField';
 import {logout} from '../utils/oidc';
+import {CURRENCIES, type Currency} from '../utils/currencies';
 import {GET_PREFERENCES, EXPORT_DATA} from '../graphql/queries';
 import {UPDATE_PREFERENCES, IMPORT_CSV} from '../graphql/mutations';
 import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout} from '@mui/icons-material';
@@ -132,8 +132,13 @@ export function PreferencesPage(): React.JSX.Element {
   /**
    * Handle useThousandSeparator change
    * Saves preference to backend
+   * @param newValue - The new value from ToggleButtonGroup ("000" or ".")
    */
-  const handleUseThousandSeparatorChange = (checked: boolean): void => {
+  const handleUseThousandSeparatorChange = (newValue: string | null): void => {
+    if (newValue === null) {
+      return;
+    }
+    const checked = newValue === '000';
     setUseThousandSeparator(checked);
     void updatePreferences({
       variables: {
@@ -359,23 +364,55 @@ export function PreferencesPage(): React.JSX.Element {
         <Typography variant="h6" gutterBottom>
           Display Settings
         </Typography>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={useThousandSeparator}
-              onChange={(e) => handleUseThousandSeparatorChange(e.target.checked)}
-              disabled={preferencesLoading || updating}
-            />
-          }
-          label="Use 000 separator (instead of decimal)"
-        />
-        <Box sx={{mt: 2}}>
-          <TextField
-            label="Currency"
-            value={currency}
-            onChange={(e) => handleCurrencyChange(e.target.value)}
+        <Box sx={{mb: 2}}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Show on Calculator
+          </Typography>
+          <ToggleButtonGroup
+            value={useThousandSeparator ? '000' : '.'}
+            exclusive
+            onChange={(_, newValue: string | null) => {
+              handleUseThousandSeparatorChange(newValue);
+            }}
+            aria-label="show on calculator"
             fullWidth
             disabled={preferencesLoading || updating}
+          >
+            <ToggleButton value="000" aria-label="thousand separator">
+              000
+            </ToggleButton>
+            <ToggleButton value="." aria-label="decimal separator">
+              .
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        <Box sx={{mt: 2}}>
+          <Autocomplete
+            options={CURRENCIES}
+            getOptionLabel={(option) => `${option.code} - ${option.name}`}
+            value={CURRENCIES.find((c) => c.code === currency) ?? null}
+            onChange={(_event, newValue: Currency | null) => {
+              if (newValue) {
+                handleCurrencyChange(newValue.code);
+              }
+            }}
+            filterOptions={(options, {inputValue}) => {
+              const searchValue = inputValue.toLowerCase();
+              return options.filter(
+                (option) =>
+                  option.code.toLowerCase().includes(searchValue) ||
+                  option.name.toLowerCase().includes(searchValue),
+              );
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Currency"
+                fullWidth
+              />
+            )}
+            disabled={preferencesLoading || updating}
+            fullWidth
           />
         </Box>
       </Card>
