@@ -226,6 +226,11 @@ type Mutation {
   Import CSV file and merge data
   """
   importCSV(file: Upload!, entityType: String!): ImportResult!
+
+  """
+  Reset all user data except default account, category, and payee
+  """
+  resetData: Boolean!
 }
 
 type User {

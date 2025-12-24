@@ -5,14 +5,15 @@
 
 import React, {useState, useEffect, useRef} from 'react';
 import {useNavigate} from 'react-router';
-import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField} from '@mui/material';
+import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button} from '@mui/material';
 import {useQuery, useMutation, useLazyQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
+import {Dialog} from '../components/ui/Dialog';
 import {logout} from '../utils/oidc';
 import {CURRENCIES, type Currency} from '../utils/currencies';
 import {GET_PREFERENCES, EXPORT_DATA} from '../graphql/queries';
-import {UPDATE_PREFERENCES, IMPORT_CSV} from '../graphql/mutations';
-import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout} from '@mui/icons-material';
+import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA} from '../graphql/mutations';
+import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt} from '@mui/icons-material';
 
 /**
  * Export data type from GraphQL
@@ -97,10 +98,15 @@ export function PreferencesPage(): React.JSX.Element {
   const currencyUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetConfirmationText, setResetConfirmationText] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [exportDataQuery] = useLazyQuery<ExportDataQueryResult>(EXPORT_DATA);
   const [importCSVMutation] = useMutation<ImportCSVResult>(IMPORT_CSV, {
     refetchQueries: ['GetAccounts', 'GetCategories', 'GetPayees', 'GetRecentTransactions', 'GetRecurringTransactions'],
+  });
+  const [resetDataMutation, {loading: resetting}] = useMutation(RESET_DATA, {
+    refetchQueries: ['GetAccounts', 'GetCategories', 'GetPayees', 'GetRecentTransactions', 'GetRecurringTransactions', 'GetPreferences'],
   });
 
   // Initialize state from loaded preferences
@@ -127,6 +133,45 @@ export function PreferencesPage(): React.JSX.Element {
   const handleLogout = (): void => {
     logout();
     void navigate('/login', {replace: true});
+  };
+
+  /**
+   * Handle reset data button click
+   * Opens the reset confirmation dialog
+   */
+  const handleResetDataClick = (): void => {
+    setResetDialogOpen(true);
+    setResetConfirmationText('');
+  };
+
+  /**
+   * Handle reset data confirmation
+   * Resets all user data except default entities
+   */
+  const handleResetData = async (): Promise<void> => {
+    try {
+      await resetDataMutation();
+      setResetDialogOpen(false);
+      setResetConfirmationText('');
+      // eslint-disable-next-line no-alert
+      alert('Data reset successfully!');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Reset failed';
+      console.error('Reset failed:', error);
+      // eslint-disable-next-line no-alert
+      alert(`Reset failed: ${errorMessage}`);
+    }
+  };
+
+  /**
+   * Handle reset dialog close
+   * Closes the dialog and resets confirmation text
+   */
+  const handleResetDialogClose = (): void => {
+    if (!resetting) {
+      setResetDialogOpen(false);
+      setResetConfirmationText('');
+    }
   };
 
   /**
@@ -186,11 +231,35 @@ export function PreferencesPage(): React.JSX.Element {
       if (value === null || value === undefined) {
         return '';
       }
-      const str = String(value);
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
+      // Handle objects and arrays by converting to JSON string
+      if (typeof value === 'object') {
+        return JSON.stringify(value);
       }
-      return str;
+      // Handle string type
+      if (typeof value === 'string') {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      }
+      // Handle number type
+      if (typeof value === 'number') {
+        return String(value);
+      }
+      // Handle boolean type
+      if (typeof value === 'boolean') {
+        return String(value);
+      }
+      // Handle symbol type
+      if (typeof value === 'symbol') {
+        return value.toString();
+      }
+      // Handle bigint type
+      if (typeof value === 'bigint') {
+        return value.toString();
+      }
+      // Fallback - should never reach here, but satisfy TypeScript
+      return '';
     };
 
     // Create header row
@@ -341,13 +410,17 @@ export function PreferencesPage(): React.JSX.Element {
       if (result.data?.importCSV) {
         const {success, created, updated, errors} = result.data.importCSV;
         if (success) {
+          // eslint-disable-next-line no-alert
           alert(`Import successful! Created: ${created}, Updated: ${updated}`);
         } else {
+          // eslint-disable-next-line no-alert
           alert(`Import completed with errors. Created: ${created}, Updated: ${updated}. Errors: ${errors.join(', ')}`);
         }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Import failed';
+      console.error('Import failed:', error);
+      // eslint-disable-next-line no-alert
       alert(`Import failed: ${errorMessage}`);
     } finally {
       setImporting(false);
@@ -465,7 +538,9 @@ export function PreferencesPage(): React.JSX.Element {
               type="file"
               accept=".csv"
               style={{display: 'none'}}
-              onChange={handleFileChange}
+              onChange={(e) => {
+                void handleFileChange(e);
+              }}
             />
           </ListItem>
           <Divider />
@@ -479,6 +554,13 @@ export function PreferencesPage(): React.JSX.Element {
           </ListItem>
           <Divider />
           <ListItem disablePadding>
+            <ListItemButton onClick={handleResetDataClick} sx={{color: 'error.main'}}>
+              <ListItemText primary="Reset data" />
+              <RestartAlt />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
             <ListItemButton onClick={handleLogout} sx={{color: 'error.main'}}>
               <ListItemText primary="Logout" />
               <Logout />
@@ -486,6 +568,49 @@ export function PreferencesPage(): React.JSX.Element {
           </ListItem>
         </List>
       </Card>
+
+      {/* Reset Data Confirmation Dialog */}
+      <Dialog
+        open={resetDialogOpen}
+        onClose={handleResetDialogClose}
+        title="Reset Data"
+        actions={
+          <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end'}}>
+            <Button onClick={handleResetDialogClose} disabled={resetting} variant="outlined">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                void handleResetData();
+              }}
+              disabled={resetting || resetConfirmationText !== 'I understand this will delete all my data permanently'}
+              variant="contained"
+              color="error"
+            >
+              {resetting ? 'Resetting...' : 'Reset now'}
+            </Button>
+          </Box>
+        }
+      >
+        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, minWidth: 400}}>
+          <Typography variant="body1">
+            This will permanently delete all your data except the default account, category, and payee.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            To confirm, please type: <strong>I understand this will delete all my data permanently</strong>
+          </Typography>
+          <TextField
+            label="Confirmation"
+            value={resetConfirmationText}
+            onChange={(e) => {
+              setResetConfirmationText(e.target.value);
+            }}
+            fullWidth
+            placeholder="I understand this will delete all my data permanently"
+            disabled={resetting}
+          />
+        </Box>
+      </Dialog>
     </Box>
   );
 }

@@ -192,6 +192,12 @@ export const IMPORT_CSV = gql`
   }
 `;
 
+export const RESET_DATA = gql`
+  mutation ResetData {
+    resetData
+  }
+`;
+
 
 
 

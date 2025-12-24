@@ -12,6 +12,7 @@ import {PreferencesResolver} from './PreferencesResolver';
 import {RecurringTransactionResolver} from './RecurringTransactionResolver';
 import {ReportResolver} from './ReportResolver';
 import {ExportResolver} from './ExportResolver';
+import {ResetDataResolver} from './ResetDataResolver';
 import {uploadPDF, matchImportedTransaction, importCSV} from './ImportResolver';
 import type {GraphQLContext} from '../middleware/context';
 
@@ -197,6 +198,10 @@ export const resolvers = {
         },
         context,
       ),
+
+    // Reset data mutation
+    resetData: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new ResetDataResolver().resetData(parent, args, context),
   },
   Account: {
     balance: async (parent: {id: string}, _: unknown, context: GraphQLContext) => {
