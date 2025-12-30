@@ -33,8 +33,11 @@ export function getCronExpression(type: RecurringType): string {
       return '0 0 1 * *'; // First day of month at midnight
     case 'yearly':
       return '0 0 1 1 *'; // January 1st at midnight
-    default:
-      throw new Error(`Unknown recurring type: ${type}`);
+    default: {
+      // This should never happen due to TypeScript's exhaustive checking
+      const exhaustiveCheck: never = type;
+      throw new Error(`Unknown recurring type: ${String(exhaustiveCheck)}`);
+    }
   }
 }
 

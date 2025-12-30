@@ -24,7 +24,7 @@ export class PayeeResolver {
    * Creates default payees if they don't exist
    */
   private async ensureDefaultPayees(context: GraphQLContext): Promise<void> {
-    const defaultPayeeNames = ['Necessities'];
+    const defaultPayeeNames = ['Default Payee'];
 
     for (const name of defaultPayeeNames) {
       const existing = await context.prisma.payee.findFirst({

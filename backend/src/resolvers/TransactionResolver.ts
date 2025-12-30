@@ -137,7 +137,7 @@ export class TransactionResolver {
     const orderDirection = orderBy?.direction ?? 'desc';
 
     let prismaOrderBy: Record<string, string | Record<string, string>>;
-    
+
     switch (orderField) {
       case 'date':
         prismaOrderBy = {date: orderDirection};
@@ -206,7 +206,7 @@ export class TransactionResolver {
 
     // Build Prisma orderBy based on field type
     let prismaOrderBy: Record<string, string | Record<string, string>>;
-    
+
     switch (orderField) {
       case 'date':
         prismaOrderBy = {date: orderDirection};
@@ -311,7 +311,10 @@ export class TransactionResolver {
       const payee = await context.prisma.payee.findFirst({
         where: {
           id: validatedInput.payeeId,
-          userId: context.userId,
+          OR: [
+            {userId: context.userId},
+            {isDefault: true},
+          ],
         },
       });
 

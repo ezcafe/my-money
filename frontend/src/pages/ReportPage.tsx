@@ -107,8 +107,18 @@ export function ReportPage(): React.JSX.Element {
   const categories = categoriesData?.categories ?? [];
   const payees = payeesData?.payees ?? [];
 
-  // Filter state
+  // Filter state (current input values)
   const [filters, setFilters] = useState({
+    accountIds: [] as string[],
+    categoryIds: [] as string[],
+    payeeIds: [] as string[],
+    startDate: '',
+    endDate: '',
+    note: '',
+  });
+
+  // Applied filters state (used for querying)
+  const [appliedFilters, setAppliedFilters] = useState({
     accountIds: [] as string[],
     categoryIds: [] as string[],
     payeeIds: [] as string[],
@@ -165,42 +175,42 @@ export function ReportPage(): React.JSX.Element {
       take: ITEMS_PER_PAGE,
     };
 
-    if (filters.accountIds.length > 0) {
-      vars.accountIds = filters.accountIds;
+    if (appliedFilters.accountIds.length > 0) {
+      vars.accountIds = appliedFilters.accountIds;
     }
-    if (filters.categoryIds.length > 0) {
-      vars.categoryIds = filters.categoryIds;
+    if (appliedFilters.categoryIds.length > 0) {
+      vars.categoryIds = appliedFilters.categoryIds;
     }
-    if (filters.payeeIds.length > 0) {
-      vars.payeeIds = filters.payeeIds;
+    if (appliedFilters.payeeIds.length > 0) {
+      vars.payeeIds = appliedFilters.payeeIds;
     }
-    if (filters.startDate) {
-      vars.startDate = new Date(filters.startDate).toISOString();
+    if (appliedFilters.startDate) {
+      vars.startDate = new Date(appliedFilters.startDate).toISOString();
     }
-    if (filters.endDate) {
+    if (appliedFilters.endDate) {
       // Set end date to end of day
-      const endDate = new Date(filters.endDate);
+      const endDate = new Date(appliedFilters.endDate);
       endDate.setHours(23, 59, 59, 999);
       vars.endDate = endDate.toISOString();
     }
-    if (filters.note.trim()) {
-      vars.note = filters.note.trim();
+    if (appliedFilters.note.trim()) {
+      vars.note = appliedFilters.note.trim();
     }
 
     return vars;
-  }, [filters, orderBy, page]);
+  }, [appliedFilters, orderBy, page]);
 
   // Check if filters are applied
   const hasFilters = useMemo(() => {
     return (
-      filters.accountIds.length > 0 ||
-      filters.categoryIds.length > 0 ||
-      filters.payeeIds.length > 0 ||
-      filters.startDate !== '' ||
-      filters.endDate !== '' ||
-      filters.note.trim() !== ''
+      appliedFilters.accountIds.length > 0 ||
+      appliedFilters.categoryIds.length > 0 ||
+      appliedFilters.payeeIds.length > 0 ||
+      appliedFilters.startDate !== '' ||
+      appliedFilters.endDate !== '' ||
+      appliedFilters.note.trim() !== ''
     );
-  }, [filters]);
+  }, [appliedFilters]);
 
   // Fetch report data
   const {data, loading, error, refetch} = useQuery<ReportData>(GET_REPORT_TRANSACTIONS, {
@@ -221,10 +231,10 @@ export function ReportPage(): React.JSX.Element {
     }
   }, [hasFilters, loading, transactions.length]);
 
-  // Reset page when filters change
+  // Reset page when applied filters change
   useEffect(() => {
     setPage(1);
-  }, [filters]);
+  }, [appliedFilters]);
 
   // Delete mutation
   const [deleteTransaction, {loading: deleting}] = useMutation(DELETE_TRANSACTION, {
@@ -306,17 +316,37 @@ export function ReportPage(): React.JSX.Element {
   }, [filters.endDate]);
 
   /**
+   * Apply filters - copy current filter inputs to applied filters
+   */
+  const handleApplyFilters = useCallback((): void => {
+    setAppliedFilters({...filters});
+    // Only collapse if there are filter criteria applied
+    const hasFilterCriteria =
+      filters.accountIds.length > 0 ||
+      filters.categoryIds.length > 0 ||
+      filters.payeeIds.length > 0 ||
+      filters.startDate !== '' ||
+      filters.endDate !== '' ||
+      filters.note.trim() !== '';
+    if (hasFilterCriteria) {
+      setFilterPanelExpanded(false);
+    }
+  }, [filters]);
+
+  /**
    * Clear all filters
    */
   const handleClearFilters = useCallback((): void => {
-    setFilters({
-      accountIds: [],
-      categoryIds: [],
-      payeeIds: [],
+    const emptyFilters = {
+      accountIds: [] as string[],
+      categoryIds: [] as string[],
+      payeeIds: [] as string[],
       startDate: '',
       endDate: '',
       note: '',
-    });
+    };
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
     setFilterPanelExpanded(true);
   }, []);
 
@@ -357,7 +387,7 @@ export function ReportPage(): React.JSX.Element {
   const handleEdit = useCallback(() => {
     if (menuAnchor) {
       const transactionId = menuAnchor.transactionId;
-      navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent('/report')}`);
+      void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent('/report')}`);
       handleMenuClose();
     }
   }, [menuAnchor, navigate, handleMenuClose]);
@@ -388,7 +418,7 @@ export function ReportPage(): React.JSX.Element {
    */
   const handleRowClick = useCallback(
     (transactionId: string) => {
-      navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent('/report')}`);
+      void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent('/report')}`);
     },
     [navigate],
   );
@@ -442,37 +472,37 @@ export function ReportPage(): React.JSX.Element {
 
     // Date range
     doc.setFontSize(12);
-    if (filters.startDate || filters.endDate) {
-      const dateRange = `${filters.startDate || 'Start'} to ${filters.endDate || 'End'}`;
+    if (appliedFilters.startDate || appliedFilters.endDate) {
+      const dateRange = `${appliedFilters.startDate || 'Start'} to ${appliedFilters.endDate || 'End'}`;
       doc.text(`Date Range: ${dateRange}`, margin, yPosition);
       yPosition += 8;
     }
 
     // Filters summary
     const filterSummary: string[] = [];
-    if (filters.accountIds.length > 0) {
-      const accountNames = filters.accountIds
+    if (appliedFilters.accountIds.length > 0) {
+      const accountNames = appliedFilters.accountIds
         .map((id) => accounts.find((a) => a.id === id)?.name)
         .filter(Boolean)
         .join(', ');
       filterSummary.push(`Accounts: ${accountNames}`);
     }
-    if (filters.categoryIds.length > 0) {
-      const categoryNames = filters.categoryIds
+    if (appliedFilters.categoryIds.length > 0) {
+      const categoryNames = appliedFilters.categoryIds
         .map((id) => categories.find((c) => c.id === id)?.name)
         .filter(Boolean)
         .join(', ');
       filterSummary.push(`Categories: ${categoryNames}`);
     }
-    if (filters.payeeIds.length > 0) {
-      const payeeNames = filters.payeeIds
+    if (appliedFilters.payeeIds.length > 0) {
+      const payeeNames = appliedFilters.payeeIds
         .map((id) => payees.find((p) => p.id === id)?.name)
         .filter(Boolean)
         .join(', ');
       filterSummary.push(`Payees: ${payeeNames}`);
     }
-    if (filters.note.trim()) {
-      filterSummary.push(`Note: ${filters.note.trim()}`);
+    if (appliedFilters.note.trim()) {
+      filterSummary.push(`Note: ${appliedFilters.note.trim()}`);
     }
 
     if (filterSummary.length > 0) {
@@ -514,7 +544,7 @@ export function ReportPage(): React.JSX.Element {
     // Save PDF
     const filename = `report_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(filename);
-  }, [transactions, filters, accounts, categories, payees, totalCount, totalAmount, currency]);
+  }, [transactions, appliedFilters, accounts, categories, payees, totalCount, totalAmount, currency]);
 
   // Validation error
   const validationError = useMemo(() => {
@@ -626,6 +656,16 @@ export function ReportPage(): React.JSX.Element {
                 placeholder="Search transactions by note..."
                 fullWidth
               />
+
+              {/* Apply Button */}
+              <Button
+                variant="contained"
+                onClick={handleApplyFilters}
+                fullWidth
+                sx={{textTransform: 'none', mt: 1}}
+              >
+                Apply
+              </Button>
             </Box>
           </Box>
         </Collapse>
@@ -635,14 +675,14 @@ export function ReportPage(): React.JSX.Element {
       {(hasFilters || transactions.length > 0) && (
         <Card sx={{p: 2, mb: 3}}>
           <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap'}}>
-            {hasFilters && (
-              <Button variant="outlined" onClick={handleClearFilters} startIcon={<Clear />} sx={{textTransform: 'none'}}>
-                Clear
-              </Button>
-            )}
             {transactions.length > 0 && (
               <Button variant="contained" onClick={handleDownloadPDF} startIcon={<PictureAsPdf />} sx={{textTransform: 'none'}}>
                 Download PDF
+              </Button>
+            )}
+            {hasFilters && (
+              <Button variant="outlined" onClick={handleClearFilters} startIcon={<Clear />} sx={{textTransform: 'none'}}>
+                Clear
               </Button>
             )}
           </Box>
@@ -658,8 +698,8 @@ export function ReportPage(): React.JSX.Element {
               value={chartType}
               exclusive
               onChange={(_, value) => {
-                if (value !== null) {
-                  setChartType(value);
+                if (value !== null && (value === 'line' || value === 'bar')) {
+                  setChartType(value as 'line' | 'bar');
                 }
               }}
               size="small"

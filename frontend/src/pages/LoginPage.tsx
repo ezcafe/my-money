@@ -79,7 +79,9 @@ export function LoginPage(): React.JSX.Element {
         )}
 
         <Button
-          onClick={handleLogin}
+          onClick={() => {
+            void handleLogin();
+          }}
           variant="contained"
           fullWidth
           disabled={loading}

@@ -228,7 +228,7 @@ export function TransactionAddPage(): React.JSX.Element {
 
           // Navigate back to return URL
           const validReturnUrl = getValidReturnUrl(returnTo);
-          navigate(validReturnUrl);
+          void navigate(validReturnUrl);
         } catch (err) {
           // Error already handled by onError callback
           console.error('Error creating recurring transaction:', err);
@@ -253,7 +253,7 @@ export function TransactionAddPage(): React.JSX.Element {
 
           // Navigate back to return URL
           const validReturnUrl = getValidReturnUrl(returnTo);
-          navigate(validReturnUrl);
+          void navigate(validReturnUrl);
         } catch (err) {
           // Error already handled by onError callback
           console.error('Error creating transaction:', err);
@@ -390,13 +390,19 @@ export function TransactionAddPage(): React.JSX.Element {
             <Button
               onClick={() => {
                 const validReturnUrl = getValidReturnUrl(returnTo);
-                navigate(validReturnUrl);
+                void navigate(validReturnUrl);
               }}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button variant="contained" onClick={handleSubmit} disabled={loading}>
+            <Button
+              variant="contained"
+              onClick={() => {
+                void handleSubmit();
+              }}
+              disabled={loading}
+            >
               {loading ? 'Saving...' : 'Save'}
             </Button>
           </Box>

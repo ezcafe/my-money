@@ -17,11 +17,13 @@ import {
   Settings,
 } from '@mui/icons-material';
 import {PlusMinusIcon} from './calculator/PlusMinusIcon';
+import {BackspaceIcon} from './calculator/BackspaceIcon';
 import {CREATE_TRANSACTION} from '../graphql/mutations';
 import {GET_PREFERENCES} from '../graphql/queries';
 import {useRecentTransactions} from '../hooks/useTransactions';
 import {useAccounts} from '../hooks/useAccounts';
 import {useCategories} from '../hooks/useCategories';
+import {usePayees} from '../hooks/usePayees';
 import {useTopUsedValues} from '../hooks/useTopUsedValues';
 import {useAutoScroll} from '../hooks/useAutoScroll';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
@@ -43,6 +45,7 @@ export function Calculator(): React.JSX.Element {
   const prevLocationRef = useRef<string>(location.pathname);
   const {accounts} = useAccounts();
   const {categories} = useCategories();
+  const {payees} = usePayees();
   // Order by desc to get newest transactions first, then reverse for display (oldest first, newest at bottom)
   const {transactions, loading: transactionsLoading, refetch: refetchRecentTransactions} = useRecentTransactions(
     MAX_RECENT_TRANSACTIONS,
@@ -107,6 +110,15 @@ export function Calculator(): React.JSX.Element {
     );
     return defaultCategory?.id ?? null;
   }, [categories]);
+
+  // Get default payee ID
+  const defaultPayeeId = useMemo(() => {
+    if (payees.length === 0) {
+      return null;
+    }
+    const defaultPayee = payees.find((p) => p.isDefault) ?? payees[0];
+    return defaultPayee?.id ?? null;
+  }, [payees]);
 
   const handleNumber = useCallback((num: string) => {
     setState((prev) => {
@@ -271,14 +283,27 @@ export function Calculator(): React.JSX.Element {
       }
 
       // Create transaction asynchronously
+      const transactionInput: {
+        value: number;
+        accountId: string | null;
+        categoryId: string | null;
+        payeeId?: string | null;
+        date: string;
+      } = {
+        value: result,
+        accountId: defaultAccountId,
+        categoryId: defaultCategoryId,
+        date: new Date().toISOString(),
+      };
+
+      // Only include payeeId if it's not null
+      if (defaultPayeeId) {
+        transactionInput.payeeId = defaultPayeeId;
+      }
+
       createTransaction({
         variables: {
-          input: {
-            value: result,
-            accountId: defaultAccountId,
-            categoryId: defaultCategoryId,
-            date: new Date().toISOString(),
-          },
+          input: transactionInput,
         },
       })
         .then(() => {
@@ -302,7 +327,7 @@ export function Calculator(): React.JSX.Element {
         waitingForNewValue: false,
       };
     });
-  }, [defaultAccountId, defaultCategoryId, createTransaction]);
+  }, [defaultAccountId, defaultCategoryId, defaultPayeeId, createTransaction]);
 
   /**
    * Handle settings button click - opens context menu
@@ -487,7 +512,7 @@ export function Calculator(): React.JSX.Element {
           {/* Row 1: Backspace, ±, %, ÷ */}
           <Grid item xs={3}>
             <Button fullWidth variant="outlined" onClick={handleBackspace}>
-              «
+              <BackspaceIcon />
             </Button>
           </Grid>
           <Grid item xs={3}>

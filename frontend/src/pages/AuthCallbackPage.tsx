@@ -32,7 +32,7 @@ export function AuthCallbackPage(): React.JSX.Element {
       const errorDescription = searchParams.get('error_description');
 
       if (errorParam) {
-        const errorMessage = errorDescription || `Authentication failed: ${errorParam}`;
+        const errorMessage = errorDescription ?? `Authentication failed: ${errorParam}`;
         setError(errorMessage);
         setLoading(false);
         return;
@@ -49,7 +49,7 @@ export function AuthCallbackPage(): React.JSX.Element {
 
       if (success) {
         // Redirect to home page
-        navigate('/', {replace: true});
+        void navigate('/', {replace: true});
       } else {
         setError('Failed to exchange authorization code for tokens. Please try again.');
       }
@@ -99,7 +99,7 @@ export function AuthCallbackPage(): React.JSX.Element {
             variant="contained"
             fullWidth
             onClick={() => {
-              navigate('/login');
+              void navigate('/login');
             }}
             sx={{marginTop: 2}}
           >

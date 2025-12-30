@@ -119,7 +119,7 @@ export function TransactionEditPage(): React.JSX.Element {
       setError(null);
       // Navigate back to return URL
       const validReturnUrl = getValidReturnUrl(returnTo);
-      navigate(validReturnUrl);
+      void navigate(validReturnUrl);
     },
   });
 
@@ -294,7 +294,7 @@ export function TransactionEditPage(): React.JSX.Element {
             <Button
               onClick={() => {
                 const validReturnUrl = getValidReturnUrl(returnTo);
-                navigate(validReturnUrl);
+                void navigate(validReturnUrl);
               }}
               disabled={loading}
             >

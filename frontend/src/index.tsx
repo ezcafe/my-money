@@ -27,9 +27,9 @@ if ('serviceWorker' in navigator) {
 
     if (isDevelopment) {
       // In development, unregister any existing service workers to prevent caching issues
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
+      void navigator.serviceWorker.getRegistrations().then((registrations) => {
         for (const registration of registrations) {
-          registration.unregister().then((success) => {
+          void registration.unregister().then((success) => {
             if (success) {
               console.log('Service Worker unregistered for development mode');
             }
@@ -38,7 +38,7 @@ if ('serviceWorker' in navigator) {
       });
       // Clear all caches in development
       if ('caches' in window) {
-        caches.keys().then((cacheNames) => {
+        void caches.keys().then((cacheNames) => {
           return Promise.all(cacheNames.map((name) => caches.delete(name)));
         }).then(() => {
           console.log('All caches cleared for development mode');
@@ -48,7 +48,7 @@ if ('serviceWorker' in navigator) {
     }
 
     // In production, register the service worker
-    fetch('/sw.js', {method: 'HEAD'})
+    void fetch('/sw.js', {method: 'HEAD'})
       .then((response) => {
         if (response.ok) {
           return navigator.serviceWorker.register('/sw.js');
