@@ -198,6 +198,43 @@ export const RESET_DATA = gql`
   }
 `;
 
+export const UPLOAD_PDF = gql`
+  mutation UploadPDF($file: Upload!, $dateFormat: String) {
+    uploadPDF(file: $file, dateFormat: $dateFormat) {
+      success
+      importedCount
+      savedCount
+      unmappedTransactions {
+        id
+        rawDate
+        rawDescription
+        rawDebit
+        rawCredit
+        suggestedAccountId
+        suggestedCategoryId
+        suggestedPayeeId
+        cardNumber
+      }
+    }
+  }
+`;
+
+export const SAVE_IMPORTED_TRANSACTIONS = gql`
+  mutation SaveImportedTransactions($mapping: BulkMappingInput!) {
+    saveImportedTransactions(mapping: $mapping) {
+      success
+      savedCount
+      errors
+    }
+  }
+`;
+
+export const DELETE_UNMAPPED_IMPORTED_TRANSACTIONS = gql`
+  mutation DeleteUnmappedImportedTransactions {
+    deleteUnmappedImportedTransactions
+  }
+`;
+
 
 
 

@@ -20,6 +20,7 @@ import type {GraphQLRequestContext} from '@apollo/server';
 import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,8 +38,10 @@ async function registerSecurityPlugins(): Promise<void> {
       'http://127.0.0.1:3000',
     ],
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
+    // Allow multipart/form-data
+    exposedHeaders: ['Content-Type'],
   });
 
   // Security headers
@@ -111,6 +114,13 @@ fastify.get('/health', (): {status: string; timestamp: string} => {
 
 async function startServer(): Promise<void> {
   try {
+    // Register multipart plugin for file uploads (must be registered before Apollo)
+    await fastify.register(multipart, {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB max file size
+      },
+    });
+
     // Register security plugins
     await registerSecurityPlugins();
 
@@ -180,6 +190,97 @@ async function startServer(): Promise<void> {
 
     await server.start();
 
+    // Add hook to process GraphQL multipart requests (file uploads)
+    // This processes the multipart request and converts it to the format Apollo Server expects
+    fastify.addHook('preHandler', async (request, reply) => {
+      // Only process GraphQL POST requests that are multipart
+      // Skip if already processed or not multipart
+      if (request.url === '/graphql' && request.method === 'POST' && request.isMultipart()) {
+        try {
+          const operations: {query?: string; variables?: Record<string, unknown>} = {};
+          const map: Record<string, string[]> = {};
+          const files: Record<string, {filename: string; mimetype?: string; encoding?: string; createReadStream: () => NodeJS.ReadableStream}> = {};
+
+          const parts = request.parts();
+
+          for await (const part of parts) {
+            if (part.type === 'file') {
+              // Consume file stream into buffer to allow iterator to continue
+              const chunks: Buffer[] = [];
+              for await (const chunk of part.file) {
+                chunks.push(chunk);
+              }
+              const fileBuffer = Buffer.concat(chunks);
+              // Store file data with createReadStream that returns a stream from the buffer
+              const {Readable} = await import('stream');
+              files[part.fieldname] = {
+                filename: part.filename ?? 'unknown',
+                mimetype: part.mimetype,
+                encoding: part.encoding,
+                createReadStream: () => Readable.from(fileBuffer),
+              };
+            } else {
+              // Parse operations and map fields
+              let value: string;
+              // For field parts, check if part has a toBuffer method or value property
+              if (typeof (part as {toBuffer?: () => Promise<Buffer>}).toBuffer === 'function') {
+                const buffer = await (part as {toBuffer: () => Promise<Buffer>}).toBuffer();
+                value = buffer.toString('utf-8');
+              } else if ((part as {value?: string}).value) {
+                value = (part as {value: string}).value;
+              } else {
+                // Fallback: read from part as stream (part itself should be iterable for field parts)
+                const chunks: Buffer[] = [];
+                for await (const chunk of part as AsyncIterable<Buffer>) {
+                  chunks.push(chunk);
+                }
+                value = Buffer.concat(chunks).toString('utf-8');
+              }
+
+              if (part.fieldname === 'operations') {
+                Object.assign(operations, JSON.parse(value));
+              } else if (part.fieldname === 'map') {
+                Object.assign(map, JSON.parse(value));
+              }
+            }
+          }
+
+          // Replace file placeholders in operations.variables with actual file promises
+          if (operations.variables && typeof operations.variables === 'object') {
+            const variables = operations.variables as Record<string, unknown>;
+            for (const [fileKey, filePaths] of Object.entries(map)) {
+              // fileKey is the file part fieldname (e.g., "0"), filePaths is array of variable paths (e.g., ["file"])
+              if (Array.isArray(filePaths) && filePaths.length > 0 && files[fileKey]) {
+                const variablePath = filePaths[0]; // e.g., "file"
+                const pathParts = variablePath.split('.');
+                let current: Record<string, unknown> = variables;
+                for (let i = 0; i < pathParts.length - 1; i++) {
+                  const key = pathParts[i];
+                  if (!current[key] || typeof current[key] !== 'object') {
+                    current[key] = {};
+                  }
+                  current = current[key] as Record<string, unknown>;
+                }
+                const lastKey = pathParts[pathParts.length - 1];
+                current[lastKey] = Promise.resolve(files[fileKey]);
+              }
+            }
+          }
+
+          // Store file promises in request context so they're accessible to resolvers
+          // The file promises are already in operations.variables, so we just need to ensure
+          // the body is set correctly for Apollo Server
+          request.body = operations;
+
+          // Store files in request for potential access
+          (request as {uploadFiles?: typeof files}).uploadFiles = files;
+        } catch (error) {
+          fastify.log.error('Error processing multipart GraphQL request:', error);
+          return reply.code(400).send({errors: [{message: 'Failed to process file upload'}]});
+        }
+      }
+    });
+
     // Register Apollo with Fastify
     // Context is passed as part of the plugin options
     await fastify.register(fastifyApollo(server), {
@@ -219,5 +320,4 @@ process.on('SIGINT', () => {
 });
 
 void startServer();
-
 

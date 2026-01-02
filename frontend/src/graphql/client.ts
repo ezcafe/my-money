@@ -7,6 +7,7 @@ import {ApolloClient, InMemoryCache, HttpLink, from, type ApolloLink} from '@apo
 import {setContext} from '@apollo/client/link/context';
 import {onError} from '@apollo/client/link/error';
 import {ensureValidToken, refreshToken} from '../utils/tokenRefresh';
+import {uploadLink} from './uploadLink';
 
 // Note: Using process.env for Webpack compatibility
 // For ESM 2025, would need DefinePlugin configuration in webpack.config.ts
@@ -22,12 +23,12 @@ const authLink = setContext(async (_request, prevContext) => {
   const headers: Record<string, string> = {...prevHeaders};
   // Get token from storage (will be set after OIDC login)
   let token: string | null = localStorage.getItem('oidc_token');
-  
+
   // Ensure token is valid (refresh if needed)
   if (token) {
     token = await ensureValidToken(token);
   }
-  
+
   return {
     ...prevContext,
     headers: {
@@ -136,7 +137,7 @@ const errorLink = onError((options) => {
  * Configured according to Apollo Client v4 best practices
  */
 export const client = new ApolloClient({
-  link: from([errorLink, authLink, httpLink] as ApolloLink[]),
+  link: from([errorLink, authLink, uploadLink, httpLink] as ApolloLink[]),
   cache: new InMemoryCache({
     typePolicies: {
       Account: {

@@ -305,9 +305,6 @@ export function TransactionAddPage(): React.JSX.Element {
               onChange={(e) => setCategoryId(e.target.value)}
               label="Category"
             >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
               {categories.map((category) => (
                 <MenuItem key={category.id} value={category.id}>
                   {category.name}
@@ -319,9 +316,6 @@ export function TransactionAddPage(): React.JSX.Element {
           <FormControl fullWidth>
             <InputLabel>Payee</InputLabel>
             <Select value={payeeId} onChange={(e) => setPayeeId(e.target.value)} label="Payee">
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
               {payees.map((payee) => (
                 <MenuItem key={payee.id} value={payee.id}>
                   {payee.name}

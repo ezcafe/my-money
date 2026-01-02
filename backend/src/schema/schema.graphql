@@ -215,12 +215,22 @@ type Mutation {
   """
   Upload PDF for import
   """
-  uploadPDF(file: Upload!): PDFUploadResult!
+  uploadPDF(file: Upload!, dateFormat: String): PDFUploadResult!
 
   """
   Match imported transaction
   """
   matchImportedTransaction(importedId: ID!, transactionId: ID!): ImportedTransaction!
+
+  """
+  Save imported transactions with manual mappings
+  """
+  saveImportedTransactions(mapping: BulkMappingInput!): SaveImportedTransactionsResult!
+
+  """
+  Delete all unmapped imported transactions
+  """
+  deleteUnmappedImportedTransactions: Boolean!
 
   """
   Import CSV file and merge data
@@ -337,7 +347,20 @@ type ImportedTransaction {
 type PDFUploadResult {
   success: Boolean!
   importedCount: Int!
-  importedTransactions: [ImportedTransaction!]!
+  savedCount: Int!
+  unmappedTransactions: [UnmappedTransaction!]!
+}
+
+type UnmappedTransaction {
+  id: ID!
+  rawDate: String!
+  rawDescription: String!
+  rawDebit: Decimal
+  rawCredit: Decimal
+  suggestedAccountId: ID
+  suggestedCategoryId: ID
+  suggestedPayeeId: ID
+  cardNumber: String
 }
 
 type ReportTransactionConnection {
@@ -436,6 +459,36 @@ input UpdateRecurringTransactionInput {
   payeeId: ID
   note: String
   nextRunDate: DateTime
+}
+
+input SaveImportedTransactionInput {
+  rawDate: String!
+  rawDescription: String!
+  value: Decimal!
+  date: DateTime!
+  accountId: ID!
+  categoryId: ID
+  payeeId: ID
+  note: String
+}
+
+input DescriptionMappingInput {
+  description: String!
+  accountId: ID!
+  categoryId: ID
+  payeeId: ID
+}
+
+input BulkMappingInput {
+  cardNumber: String
+  cardAccountId: ID
+  descriptionMappings: [DescriptionMappingInput!]!
+}
+
+type SaveImportedTransactionsResult {
+  success: Boolean!
+  savedCount: Int!
+  errors: [String!]!
 }
 
 

@@ -106,7 +106,7 @@ export function Calculator(): React.JSX.Element {
   // Get default category ID
   const defaultCategoryId = useMemo(() => {
     const defaultCategory = categories.find(
-      (cat) => cat.name === 'Default Category' && cat.type === 'EXPENSE',
+      (cat) => cat.name === 'Default Expense Category' && cat.type === 'EXPENSE',
     );
     return defaultCategory?.id ?? null;
   }, [categories]);

@@ -13,7 +13,7 @@ import {RecurringTransactionResolver} from './RecurringTransactionResolver';
 import {ReportResolver} from './ReportResolver';
 import {ExportResolver} from './ExportResolver';
 import {ResetDataResolver} from './ResetDataResolver';
-import {uploadPDF, matchImportedTransaction, importCSV} from './ImportResolver';
+import {uploadPDF, matchImportedTransaction, importCSV, saveImportedTransactions, deleteUnmappedImportedTransactions} from './ImportResolver';
 import type {GraphQLContext} from '../middleware/context';
 
 export const resolvers = {
@@ -179,6 +179,7 @@ export const resolvers = {
             encoding?: string;
             createReadStream: () => NodeJS.ReadableStream;
           }>;
+          dateFormat?: string;
         },
         context,
       ),
@@ -198,6 +199,25 @@ export const resolvers = {
         },
         context,
       ),
+    saveImportedTransactions: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      saveImportedTransactions(
+        parent,
+        args as {
+          mapping: {
+            cardNumber?: string | null;
+            cardAccountId?: string | null;
+            descriptionMappings: Array<{
+              description: string;
+              accountId: string;
+              categoryId?: string | null;
+              payeeId?: string | null;
+            }>;
+          };
+        },
+        context,
+      ),
+    deleteUnmappedImportedTransactions: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      deleteUnmappedImportedTransactions(parent, args, context),
 
     // Reset data mutation
     resetData: (parent: unknown, args: unknown, context: GraphQLContext) =>

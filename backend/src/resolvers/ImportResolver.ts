@@ -14,6 +14,7 @@ import {join} from 'path';
 import {tmpdir} from 'os';
 import {randomUUID} from 'crypto';
 import type {PrismaClient} from '@prisma/client';
+import {incrementAccountBalance} from '../services/AccountBalanceService';
 
 const streamPipeline = promisify(pipeline);
 
@@ -45,17 +46,208 @@ export function sanitizeFilename(filename: string): string {
  * Validate file extension
  */
 export function validateFileExtension(filename: string): boolean {
+  if (!filename || typeof filename !== 'string') {
+    return false;
+  }
   const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
   return ALLOWED_EXTENSIONS.includes(ext);
 }
 
 /**
- * Upload PDF and parse transactions
+ * Match pattern against text
+ * Tries regex first, falls back to case-insensitive string includes
+ * @param text - Text to match against
+ * @param pattern - Pattern to match (regex or string)
+ * @returns True if pattern matches
+ */
+function matchPattern(text: string, pattern: string): boolean {
+  // Try regex first
+  try {
+    const regex = new RegExp(pattern, 'i');
+    if (regex.test(text)) {
+      return true;
+    }
+  } catch {
+    // Not a valid regex, fall through to string matching
+  }
+
+  // Fallback to case-insensitive string includes
+  return text.toLowerCase().includes(pattern.toLowerCase());
+}
+
+/**
+ * Normalize description by taking the first 5 words
+ * When the first 5 words are similar, descriptions are considered the same
+ * Examples:
+ * - "Retail VNM HA NOI Grab* A-8MSUAJMGXDMNAV" -> "Retail VNM HA NOI Grab*"
+ * - "Retail VNM HA NOI Grab* A-8NXKI4DGWERDAV" -> "Retail VNM HA NOI Grab*"
+ * - "Retail VNM HA NOI Grab* A-8K9COKIGWSC6AV" -> "Retail VNM HA NOI Grab*"
+ * @param description - Description to normalize
+ * @returns Normalized description (first 5 words)
+ */
+function normalizeDescription(description: string): string {
+  // Split description into words (split by whitespace)
+  const words = description.trim().split(/\s+/);
+  // Take first 5 words
+  const first5Words = words.slice(0, 5);
+  // Join and return
+  return first5Words.join(' ').trim();
+}
+
+/**
+ * Get default account for user
+ * @param context - GraphQL context
+ * @returns Default account
+ */
+async function getDefaultAccount(context: GraphQLContext) {
+  let account = await context.prisma.account.findFirst({
+    where: {
+      userId: context.userId,
+      isDefault: true,
+    },
+  });
+
+  if (!account) {
+    // Create default account if none exists
+    account = await context.prisma.account.create({
+      data: {
+        name: 'Cash',
+        initBalance: 0,
+        balance: 0,
+        isDefault: true,
+        userId: context.userId,
+      },
+    });
+  }
+
+  return account;
+}
+
+/**
+ * Get default category for user
+ * @param context - GraphQL context
+ * @returns Default category
+ */
+async function getDefaultCategory(context: GraphQLContext) {
+  let category = await context.prisma.category.findFirst({
+    where: {
+      OR: [
+        {userId: context.userId, isDefault: true, name: 'Default Expense Category'},
+        {userId: null, isDefault: true, name: 'Default Expense Category'},
+      ],
+    },
+  });
+
+  if (!category) {
+    // Create default expense category if none exists
+    category = await context.prisma.category.create({
+      data: {
+        name: 'Default Expense Category',
+        type: 'EXPENSE',
+        isDefault: true,
+        userId: null,
+      },
+    });
+  }
+
+  return category;
+}
+
+/**
+ * Get default payee for user
+ * @param context - GraphQL context
+ * @returns Default payee
+ */
+async function getDefaultPayee(context: GraphQLContext) {
+  let payee = await context.prisma.payee.findFirst({
+    where: {
+      OR: [
+        {userId: context.userId, isDefault: true},
+        {userId: null, isDefault: true},
+      ],
+    },
+  });
+
+  if (!payee) {
+    // Create default payee if none exists
+    payee = await context.prisma.payee.create({
+      data: {
+        name: 'Default Payee',
+        isDefault: true,
+        userId: null,
+      },
+    });
+  }
+
+  return payee;
+}
+
+/**
+ * Match card number to account using ImportMatchRules
+ * @param cardNumber - Card number to match
+ * @param rules - ImportMatchRules to search
+ * @returns Account ID if matched, null otherwise
+ */
+function matchAccount(cardNumber: string | null, rules: Array<{pattern: string; accountId: string | null}>): string | null {
+  if (!cardNumber) return null;
+
+  for (const rule of rules) {
+    if (rule.accountId && matchPattern(cardNumber, rule.pattern)) {
+      return rule.accountId;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Match description to category using ImportMatchRules
+ * @param description - Description to match
+ * @param rules - ImportMatchRules to search
+ * @returns Category ID if matched, null otherwise
+ */
+function matchCategory(description: string, rules: Array<{pattern: string; categoryId: string | null}>): string | null {
+  const normalizedDescription = normalizeDescription(description);
+  for (const rule of rules) {
+    if (rule.categoryId) {
+      const normalizedPattern = normalizeDescription(rule.pattern);
+      if (matchPattern(normalizedDescription, normalizedPattern)) {
+        return rule.categoryId;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Match description to payee using ImportMatchRules
+ * @param description - Description to match
+ * @param rules - ImportMatchRules to search
+ * @returns Payee ID if matched, null otherwise
+ */
+function matchPayee(description: string, rules: Array<{pattern: string; payeeId: string | null}>): string | null {
+  const normalizedDescription = normalizeDescription(description);
+  for (const rule of rules) {
+    if (rule.payeeId) {
+      const normalizedPattern = normalizeDescription(rule.pattern);
+      if (matchPattern(normalizedDescription, normalizedPattern)) {
+        return rule.payeeId;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Upload PDF and parse transactions with auto-mapping
  */
 export async function uploadPDF(
   _: unknown,
   {
     file,
+    dateFormat,
   }: {
     file: Promise<{
       filename: string;
@@ -63,26 +255,44 @@ export async function uploadPDF(
       encoding?: string;
       createReadStream: () => NodeJS.ReadableStream;
     }>;
+    dateFormat?: string;
   },
   context: GraphQLContext,
 ): Promise<{
   success: boolean;
   importedCount: number;
-  importedTransactions: Array<{
+  savedCount: number;
+  unmappedTransactions: Array<{
     id: string;
     rawDate: string;
     rawDescription: string;
     rawDebit: number | null;
     rawCredit: number | null;
-    matched: boolean;
-    transactionId: string | null;
-    userId: string;
-    createdAt: Date;
-    updatedAt: Date;
+    suggestedAccountId: string | null;
+    suggestedCategoryId: string | null;
+    suggestedPayeeId: string | null;
+    cardNumber: string | null;
   }>;
-}> {
-  const fileData = await file;
-  const {filename, mimetype, createReadStream: fileStream} = fileData;
+}> {  // Handle file parameter - it might be a Promise or already resolved
+  const fileData = file instanceof Promise ? await file : file;
+  // Check if fileData has the expected structure
+  if (!fileData || typeof fileData !== 'object') {
+    throw new ValidationError('Invalid file upload. File data is missing or invalid.');
+  }
+
+  // Extract file properties - handle both standard and alternative property names
+  const filename = (fileData as {filename?: string; name?: string}).filename ?? (fileData as {filename?: string; name?: string}).name;
+  const mimetype = (fileData as {mimetype?: string; type?: string}).mimetype ?? (fileData as {mimetype?: string; type?: string}).type;
+  const createReadStream = (fileData as {createReadStream?: () => NodeJS.ReadableStream}).createReadStream;
+
+  // Validate that we have required properties
+  if (!filename) {
+    throw new ValidationError('Invalid file upload. Filename is missing. Please ensure the file is uploaded correctly.');
+  }
+
+  if (!createReadStream || typeof createReadStream !== 'function') {
+    throw new ValidationError('Invalid file upload. File stream is missing. Please ensure the file is uploaded correctly.');
+  }
 
   // Validate MIME type
   if (mimetype && !ALLOWED_MIME_TYPES.includes(mimetype)) {
@@ -94,78 +304,550 @@ export async function uploadPDF(
     throw new ValidationError(`Invalid file extension. Only .pdf files are allowed.`);
   }
 
+  const fileStream = createReadStream;
+
   // Sanitize filename to prevent path traversal
   const sanitizedFilename = sanitizeFilename(filename);
   const tempPath = join(tmpdir(), `${randomUUID()}-${sanitizedFilename}`);
 
-  // Stream file with size limit
-  let totalSize = 0;
-  const writeStream = createWriteStream(tempPath);
-  const readStream = fileStream();
-
-  // Monitor file size during upload
-  readStream.on('data', (chunk: Buffer) => {
-    totalSize += chunk.length;
-    if (totalSize > MAX_FILE_SIZE) {
-      if ('destroy' in readStream && typeof readStream.destroy === 'function') {
-        readStream.destroy();
-      }
-      writeStream.destroy();
-      throw new ValidationError(`File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
-    }
-  });
-
   try {
-    await streamPipeline(readStream, writeStream);
-  } catch (error) {
-    // Clean up on error
-    const {unlinkSync} = await import('fs');
+    // Stream file with size limit
+    let totalSize = 0;
+    const writeStream = createWriteStream(tempPath);
+    const readStream = fileStream();
+    // Monitor file size during upload
+    readStream.on('data', (chunk: Buffer) => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_FILE_SIZE) {
+        if ('destroy' in readStream && typeof readStream.destroy === 'function') {
+          readStream.destroy();
+        }
+        writeStream.destroy();
+        throw new ValidationError(`File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+      }
+    });
+
     try {
-      unlinkSync(tempPath);
-    } catch {
-      // Ignore cleanup errors
+      await streamPipeline(readStream, writeStream);
+    } catch (error) {
+      // Clean up on error during stream
+      const {unlinkSync} = await import('fs');
+      try {
+        unlinkSync(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw error;
     }
-    throw error;
-  }
 
-  // Read file buffer
-  const {readFileSync} = await import('fs');
-  const buffer = readFileSync(tempPath);
+    // Read file buffer
+    const {readFileSync} = await import('fs');
+    const buffer: Buffer = readFileSync(tempPath) as Buffer;
+    // Parse PDF with date format (default to DD/MM/YYYY)
+    const parsedData = await parsePDF(buffer, dateFormat ?? 'DD/MM/YYYY');
+    const {cardNumber, transactions} = parsedData;
 
-  // Parse PDF
-  const parsedTransactions = await parsePDF(buffer);
+    // Get defaults and match rules
+    const [defaultAccount, defaultCategory, defaultPayee, matchRules] = await Promise.all([
+      getDefaultAccount(context),
+      getDefaultCategory(context),
+      getDefaultPayee(context),
+      context.prisma.importMatchRule.findMany({
+        where: {userId: context.userId},
+      }),
+    ]);
+    const unmappedTransactions: Array<{
+      id: string;
+      rawDate: string;
+      rawDescription: string;
+      rawDebit: number | null;
+      rawCredit: number | null;
+      suggestedAccountId: string | null;
+      suggestedCategoryId: string | null;
+      suggestedPayeeId: string | null;
+      cardNumber: string | null;
+    }> = [];
 
-  // Create imported transactions
-  const importedTransactions = await Promise.all(
-    parsedTransactions.map(async (parsed) => {
-      const imported = await context.prisma.importedTransaction.create({
-        data: {
+    let savedCount = 0;  // Process each transaction
+    for (const parsed of transactions) {
+      // Calculate value (use absolute value)
+      const value = Math.abs(parsed.debit ?? parsed.credit ?? 0);
+      if (value === 0) continue; // Skip transactions with no value
+
+      // Match account from card number
+      const matchedAccountId = matchAccount(cardNumber, matchRules);
+      const accountId = matchedAccountId ?? defaultAccount.id;
+
+      // Match category and payee from description
+      const matchedCategoryId = matchCategory(parsed.description, matchRules);
+      const matchedPayeeId = matchPayee(parsed.description, matchRules);
+
+      // Check if all mappings are found (account, category, payee)
+      // We consider it fully mapped if account is matched (not default) and category/payee are matched
+      const isFullyMapped = matchedAccountId !== null && matchedCategoryId !== null && matchedPayeeId !== null;
+
+      if (isFullyMapped) {
+        // Save transaction immediately
+        try {
+          // Parse date
+          const date = parseDate(parsed.date);
+
+          // Get category to determine balance delta
+          const category = await context.prisma.category.findUnique({
+            where: {id: matchedCategoryId},
+            select: {type: true},
+          });
+
+          // Calculate balance delta based on category type
+          const balanceDelta = category?.type === 'INCOME' ? value : -value;
+
+          // Create transaction and update balance atomically
+          await context.prisma.$transaction(async (tx) => {
+            await tx.transaction.create({
+              data: {
+                value,
+                date,
+                accountId,
+                categoryId: matchedCategoryId,
+                payeeId: matchedPayeeId,
+                note: parsed.description,
+                userId: context.userId,
+              },
+            });
+
+            await incrementAccountBalance(accountId, balanceDelta, tx);
+          });
+
+          savedCount++;
+        } catch (error) {
+          // If save fails, add to unmapped list
+          const imported = await context.prisma.importedTransaction.create({
+            data: {
+              rawDate: parsed.date,
+              rawDescription: parsed.description,
+              rawDebit: parsed.debit ?? null,
+              rawCredit: parsed.credit ?? null,
+              matched: false,
+              userId: context.userId,
+            },
+          });
+
+          unmappedTransactions.push({
+            id: imported.id,
+            rawDate: parsed.date,
+            rawDescription: parsed.description,
+            rawDebit: parsed.debit ?? null,
+            rawCredit: parsed.credit ?? null,
+            suggestedAccountId: accountId,
+            suggestedCategoryId: matchedCategoryId,
+            suggestedPayeeId: matchedPayeeId,
+            cardNumber,
+          });
+        }
+      } else {
+        // Add to unmapped list
+        const imported = await context.prisma.importedTransaction.create({
+          data: {
+            rawDate: parsed.date,
+            rawDescription: parsed.description,
+            rawDebit: parsed.debit ?? null,
+            rawCredit: parsed.credit ?? null,
+            matched: false,
+            userId: context.userId,
+          },
+        });
+
+        unmappedTransactions.push({
+          id: imported.id,
           rawDate: parsed.date,
           rawDescription: parsed.description,
           rawDebit: parsed.debit ?? null,
           rawCredit: parsed.credit ?? null,
-          matched: false,
+          suggestedAccountId: accountId,
+          suggestedCategoryId: matchedCategoryId,
+          suggestedPayeeId: matchedPayeeId,
+          cardNumber,
+        });
+      }
+    }
+
+    // Deduplicate unmapped transactions by normalized description
+    // Group by normalized description and return only one simplified version per group
+    const normalizedDescriptionMap = new Map<string, {
+      id: string;
+      rawDate: string;
+      rawDescription: string;
+      rawDebit: number | null;
+      rawCredit: number | null;
+      suggestedAccountId: string | null;
+      suggestedCategoryId: string | null;
+      suggestedPayeeId: string | null;
+      cardNumber: string | null;
+    }>();
+
+    for (const unmapped of unmappedTransactions) {
+      const normalizedDesc = normalizeDescription(unmapped.rawDescription);
+      // Use normalized description as key - if not exists, add it with simplified description
+      if (!normalizedDescriptionMap.has(normalizedDesc)) {
+        normalizedDescriptionMap.set(normalizedDesc, {
+          ...unmapped,
+          rawDescription: normalizedDesc, // Use simplified version
+        });
+      }
+    }
+
+    // Convert map values to array
+    const deduplicatedUnmapped = Array.from(normalizedDescriptionMap.values());
+
+    return {
+      success: true,
+      importedCount: transactions.length,
+      savedCount,
+      unmappedTransactions: deduplicatedUnmapped,
+    };
+  } finally {
+    // Clean up temp file - always execute, even if error occurs
+    const {unlinkSync} = await import('fs');
+    try {
+      unlinkSync(tempPath);
+    } catch {
+      // Ignore cleanup errors (file may not exist or already deleted)
+    }
+  }
+}
+
+/**
+ * Parse date string to Date object
+ * Handles various date formats
+ * @param dateStr - Date string to parse
+ * @returns Parsed Date object
+ */
+function parseDate(dateStr: string): Date {
+  // Try various date formats
+  // First, try DD/MM/YYYY or MM/DD/YYYY format (detect by checking if first number > 12)
+  const slashFormat = /(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+  const slashMatch = dateStr.match(slashFormat);
+  if (slashMatch) {
+    const first = parseInt(slashMatch[1] ?? '0', 10);
+    const second = parseInt(slashMatch[2] ?? '0', 10);
+    const year = parseInt(slashMatch[3] ?? '0', 10);
+
+    // If first number > 12, it's DD/MM/YYYY format
+    // If second number > 12, it's MM/DD/YYYY format
+    // If both <= 12, prefer DD/MM/YYYY (common in Vietnamese statements)
+    let day: number;
+    let month: number;
+
+    if (first > 12) {
+      // DD/MM/YYYY
+      day = first;
+      month = second - 1;
+    } else if (second > 12) {
+      // MM/DD/YYYY
+      month = first - 1;
+      day = second;
+    } else {
+      // Both <= 12, assume DD/MM/YYYY (common in Vietnamese statements)
+      day = first;
+      month = second - 1;
+    }
+
+    return new Date(year, month, day);
+  }
+
+  // Try YYYY-MM-DD format
+  const isoFormat = /(\d{4})-(\d{2})-(\d{2})/;
+  const isoMatch = dateStr.match(isoFormat);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1] ?? '0', 10);
+    const month = parseInt(isoMatch[2] ?? '0', 10) - 1;
+    const day = parseInt(isoMatch[3] ?? '0', 10);
+    return new Date(year, month, day);
+  }
+
+  // Try MM-DD-YYYY or DD-MM-YYYY format
+  const dashFormat = /(\d{1,2})-(\d{1,2})-(\d{4})/;
+  const dashMatch = dateStr.match(dashFormat);
+  if (dashMatch) {
+    const first = parseInt(dashMatch[1] ?? '0', 10);
+    const second = parseInt(dashMatch[2] ?? '0', 10);
+    const year = parseInt(dashMatch[3] ?? '0', 10);
+
+    let day: number;
+    let month: number;
+
+    if (first > 12) {
+      // DD-MM-YYYY
+      day = first;
+      month = second - 1;
+    } else if (second > 12) {
+      // MM-DD-YYYY
+      month = first - 1;
+      day = second;
+    } else {
+      // Both <= 12, assume DD-MM-YYYY
+      day = first;
+      month = second - 1;
+    }
+
+    return new Date(year, month, day);
+  }
+
+  // Fallback to Date constructor
+  const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) {
+    return new Date(); // Return current date if parsing fails
+  }
+  return parsed;
+}
+
+/**
+ * Save imported transactions with bulk mappings
+ * Creates ImportMatchRules and applies mappings to all matching ImportedTransaction records
+ */
+export async function saveImportedTransactions(
+  _: unknown,
+  {
+    mapping,
+  }: {
+    mapping: {
+      cardNumber?: string | null;
+      cardAccountId?: string | null;
+      descriptionMappings: Array<{
+        description: string;
+        accountId: string;
+        categoryId?: string | null;
+        payeeId?: string | null;
+      }>;
+    };
+  },
+  context: GraphQLContext,
+): Promise<{
+  success: boolean;
+  savedCount: number;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  let savedCount = 0;
+
+  // Process in a batch transaction
+  await context.prisma.$transaction(async (tx) => {
+    // 1. Create ImportMatchRules for card number if provided
+    if (mapping.cardNumber && mapping.cardAccountId) {
+      // Validate account
+      const account = await tx.account.findFirst({
+        where: {
+          id: mapping.cardAccountId,
           userId: context.userId,
         },
       });
 
-      return imported;
-    }),
-  );
+      if (!account) {
+        errors.push('Card account not found');
+      } else {
+        // Check if rule already exists
+        const existingRule = await tx.importMatchRule.findFirst({
+          where: {
+            userId: context.userId,
+            pattern: mapping.cardNumber,
+            accountId: mapping.cardAccountId,
+          },
+        });
 
-  // Clean up temp file
-  const {unlinkSync} = await import('fs');
-  try {
-    unlinkSync(tempPath);
-  } catch {
-    // Ignore cleanup errors
-  }
+        if (!existingRule) {
+          await tx.importMatchRule.create({
+            data: {
+              pattern: mapping.cardNumber,
+              accountId: mapping.cardAccountId,
+              userId: context.userId,
+            },
+          });
+        }
+      }
+    }
+
+    // 2. Create ImportMatchRules for each description mapping
+    const descriptionPatterns = new Map<string, {accountId: string; categoryId?: string | null; payeeId?: string | null}>();
+    for (const descMapping of mapping.descriptionMappings) {
+      // Validate account
+      const account = await tx.account.findFirst({
+        where: {
+          id: descMapping.accountId,
+          userId: context.userId,
+        },
+      });
+
+      if (!account) {
+        errors.push(`Account not found for description: ${descMapping.description}`);
+        continue;
+      }
+
+      // Validate category if provided
+      if (descMapping.categoryId) {
+        const category = await tx.category.findFirst({
+          where: {
+            id: descMapping.categoryId,
+            OR: [
+              {userId: context.userId},
+              {userId: null, isDefault: true},
+            ],
+          },
+        });
+
+        if (!category) {
+          errors.push(`Category not found for description: ${descMapping.description}`);
+          continue;
+        }
+      }
+
+      // Validate payee if provided
+      if (descMapping.payeeId) {
+        const payee = await tx.payee.findFirst({
+          where: {
+            id: descMapping.payeeId,
+            OR: [
+              {userId: context.userId},
+              {userId: null, isDefault: true},
+            ],
+          },
+        });
+
+        if (!payee) {
+          errors.push(`Payee not found for description: ${descMapping.description}`);
+          continue;
+        }
+      }
+
+      // Normalize description for matching
+      const normalizedDescription = normalizeDescription(descMapping.description);
+
+      // Store pattern for matching (use normalized description as key)
+      descriptionPatterns.set(normalizedDescription, {
+        accountId: descMapping.accountId,
+        categoryId: descMapping.categoryId ?? null,
+        payeeId: descMapping.payeeId ?? null,
+      });
+
+      // Check if rule already exists (use normalized pattern)
+      const existingRule = await tx.importMatchRule.findFirst({
+        where: {
+          userId: context.userId,
+          pattern: normalizedDescription,
+          accountId: descMapping.accountId,
+          categoryId: descMapping.categoryId ?? null,
+          payeeId: descMapping.payeeId ?? null,
+        },
+      });
+
+      if (!existingRule) {
+        await tx.importMatchRule.create({
+          data: {
+            pattern: normalizedDescription,
+            accountId: descMapping.accountId,
+            categoryId: descMapping.categoryId ?? null,
+            payeeId: descMapping.payeeId ?? null,
+            userId: context.userId,
+          },
+        });
+      }
+    }
+
+    // 3. Find all unmapped ImportedTransaction records that match any description pattern
+    const allUnmapped = await tx.importedTransaction.findMany({
+      where: {
+        userId: context.userId,
+        matched: false,
+      },
+    });
+
+    // 4. Match transactions by description and create Transaction records
+    for (const imported of allUnmapped) {
+      // Normalize description before matching
+      const normalizedDescription = normalizeDescription(imported.rawDescription);
+      const descMapping = descriptionPatterns.get(normalizedDescription);
+      if (!descMapping) {
+        continue; // Skip if no mapping for this description
+      }
+
+      try {
+        // Calculate value
+        const value = Math.abs(Number(imported.rawDebit ?? imported.rawCredit ?? 0));
+        if (value === 0) {
+          continue; // Skip zero-value transactions
+        }
+
+        // Parse date
+        const date = parseDate(imported.rawDate);
+
+        // Get category to determine balance delta
+        let category: {type: 'INCOME' | 'EXPENSE'} | null = null;
+        if (descMapping.categoryId) {
+          const foundCategory = await tx.category.findUnique({
+            where: {id: descMapping.categoryId},
+            select: {type: true},
+          });
+          category = foundCategory;
+        }
+
+        // Calculate balance delta based on category type
+        const balanceDelta = category?.type === 'INCOME' ? value : -value;
+
+        // Create transaction
+        const transaction = await tx.transaction.create({
+          data: {
+            value,
+            date,
+            accountId: descMapping.accountId,
+            categoryId: descMapping.categoryId ?? null,
+            payeeId: descMapping.payeeId ?? null,
+            note: imported.rawDescription,
+            userId: context.userId,
+          },
+        });
+
+        // Update account balance
+        await incrementAccountBalance(descMapping.accountId, balanceDelta, tx);
+
+        // Mark ImportedTransaction as matched
+        await tx.importedTransaction.update({
+          where: {id: imported.id},
+          data: {
+            matched: true,
+            transactionId: transaction.id,
+          },
+        });
+
+        savedCount++;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errors.push(`Transaction ${imported.id}: ${errorMessage}`);
+      }
+    }
+  });
 
   return {
-    success: true,
-    importedCount: importedTransactions.length,
-    importedTransactions,
+    success: errors.length === 0,
+    savedCount,
+    errors,
   };
+}
+
+/**
+ * Delete all unmapped imported transactions for the user
+ */
+export async function deleteUnmappedImportedTransactions(
+  _: unknown,
+  __: unknown,
+  context: GraphQLContext,
+): Promise<boolean> {
+  await context.prisma.importedTransaction.deleteMany({
+    where: {
+      userId: context.userId,
+      matched: false,
+    },
+  });
+
+  return true;
 }
 
 /**
@@ -349,58 +1031,51 @@ export async function importCSV(
   const sanitizedFilename = sanitizeFilename(filename);
   const tempPath = join(tmpdir(), `${randomUUID()}-${sanitizedFilename}`);
 
-  // Stream file with size limit
-  let totalSize = 0;
-  const writeStream = createWriteStream(tempPath);
-  const readStream = fileStream();
+  try {
+    // Stream file with size limit
+    let totalSize = 0;
+    const writeStream = createWriteStream(tempPath);
+    const readStream = fileStream();
 
-  // Monitor file size during upload
-  readStream.on('data', (chunk: Buffer) => {
-    totalSize += chunk.length;
-    if (totalSize > MAX_CSV_FILE_SIZE) {
-      if ('destroy' in readStream && typeof readStream.destroy === 'function') {
-        readStream.destroy();
+    // Monitor file size during upload
+    readStream.on('data', (chunk: Buffer) => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_CSV_FILE_SIZE) {
+        if ('destroy' in readStream && typeof readStream.destroy === 'function') {
+          readStream.destroy();
+        }
+        writeStream.destroy();
+        throw new ValidationError(`File size exceeds maximum allowed size of ${MAX_CSV_FILE_SIZE / 1024 / 1024}MB`);
       }
-      writeStream.destroy();
-      throw new ValidationError(`File size exceeds maximum allowed size of ${MAX_CSV_FILE_SIZE / 1024 / 1024}MB`);
-    }
-  });
+    });
 
-  try {
-    await streamPipeline(readStream, writeStream);
-  } catch (error) {
-    // Clean up on error
-    const {unlinkSync} = await import('fs');
     try {
-      unlinkSync(tempPath);
-    } catch {
-      // Ignore cleanup errors
+      await streamPipeline(readStream, writeStream);
+    } catch (error) {
+      // Clean up on error during stream
+      const {unlinkSync} = await import('fs');
+      try {
+        unlinkSync(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw error;
     }
-    throw error;
-  }
 
-  // Read file content
-  const {readFileSync} = await import('fs');
-  const csvContent = readFileSync(tempPath, 'utf-8');
+    // Read file content
+    const {readFileSync} = await import('fs');
+    const csvContent = readFileSync(tempPath, 'utf-8');
 
-  // Parse CSV
-  const rows = parseCSV(csvContent);
+    // Parse CSV
+    const rows = parseCSV(csvContent);
 
-  // Clean up temp file
-  const {unlinkSync} = await import('fs');
-  try {
-    unlinkSync(tempPath);
-  } catch {
-    // Ignore cleanup errors
-  }
+    // Process rows based on entity type
+    let created = 0;
+    let updated = 0;
+    const errors: string[] = [];
 
-  // Process rows based on entity type
-  let created = 0;
-  let updated = 0;
-  const errors: string[] = [];
-
-  // Use transaction to ensure atomicity
-  await context.prisma.$transaction(async (tx) => {
+    // Use transaction to ensure atomicity
+    await context.prisma.$transaction(async (tx) => {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
@@ -468,12 +1143,21 @@ export async function importCSV(
     }
   });
 
-  return {
-    success: errors.length === 0,
-    created,
-    updated,
-    errors,
-  };
+    return {
+      success: errors.length === 0,
+      created,
+      updated,
+      errors,
+    };
+  } finally {
+    // Clean up temp file - always execute, even if error occurs
+    const {unlinkSync} = await import('fs');
+    try {
+      unlinkSync(tempPath);
+    } catch {
+      // Ignore cleanup errors (file may not exist or already deleted)
+    }
+  }
 }
 
 /**

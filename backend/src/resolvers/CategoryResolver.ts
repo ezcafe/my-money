@@ -27,7 +27,8 @@ export class CategoryResolver {
    */
   private async ensureDefaultCategories(context: GraphQLContext): Promise<void> {
     const defaultCategories = [
-      {name: 'Default Category', type: 'EXPENSE' as const},
+      {name: 'Default Expense Category', type: 'EXPENSE' as const},
+      {name: 'Default Income Category', type: 'INCOME' as const},
     ];
 
     for (const categoryData of defaultCategories) {
