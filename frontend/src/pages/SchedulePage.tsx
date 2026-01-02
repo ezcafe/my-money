@@ -103,7 +103,7 @@ export function SchedulePage(): React.JSX.Element {
 
   if (recurringTransactions.length === 0) {
     return (
-      <Box sx={{width: '100%'}}>
+      <Box>
         <Card sx={{p: 2}}>
           <Typography variant="body2" color="text.secondary">
             No recurring transactions. Click the + button to add one.
@@ -136,7 +136,7 @@ export function SchedulePage(): React.JSX.Element {
                   borderColor: 'divider',
                 }}
               >
-                <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
+                <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                   <Box sx={{display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1}}>
                     <Typography variant="body1" fontWeight="medium">
                       {formatCurrencyPreserveDecimals(transaction.value, currency)}

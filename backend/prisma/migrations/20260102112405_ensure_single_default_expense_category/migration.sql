@@ -33,3 +33,4 @@ WHERE NOT EXISTS (
     AND "type" = 'EXPENSE'
 );
 
+

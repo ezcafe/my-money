@@ -116,7 +116,7 @@ export function PayeeEditDialog({
       title={payee ? 'Edit Payee' : 'Create Payee'}
       actions={actions}
     >
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, minWidth: 400}}>
+      <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
         {error && (
           <Typography color="error" variant="body2">
             {error}

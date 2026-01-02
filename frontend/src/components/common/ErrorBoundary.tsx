@@ -47,9 +47,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <Box sx={{p: 2, maxWidth: 600, mx: 'auto', mt: 4}}>
+        <Box sx={{mx: 'auto'}}>
           <Card sx={{p: 3}}>
-            <Typography variant="h5" color="error" gutterBottom>
+            <Typography variant="h5" component="h1" color="error" gutterBottom>
               Something went wrong
             </Typography>
             <Typography variant="body1" sx={{mb: 2}}>

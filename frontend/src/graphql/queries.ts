@@ -101,6 +101,8 @@ export const GET_PREFERENCES = gql`
       id
       currency
       useThousandSeparator
+      colorScheme
+      colorSchemeValue
     }
   }
 `;
@@ -292,6 +294,8 @@ export const EXPORT_DATA = gql`
         id
         currency
         useThousandSeparator
+        colorScheme
+        colorSchemeValue
       }
     }
   }

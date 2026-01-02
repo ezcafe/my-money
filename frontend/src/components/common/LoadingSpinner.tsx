@@ -8,14 +8,13 @@ import {Box, CircularProgress, Typography} from '@mui/material';
 
 interface LoadingSpinnerProps {
   message?: string;
-  fullScreen?: boolean;
 }
 
 /**
  * Loading Spinner Component
  * Displays a loading indicator with optional message
  */
-export function LoadingSpinner({message, fullScreen = false}: LoadingSpinnerProps): React.JSX.Element {
+export function LoadingSpinner({message}: LoadingSpinnerProps): React.JSX.Element {
   const content = (
     <Box
       sx={{
@@ -24,9 +23,6 @@ export function LoadingSpinner({message, fullScreen = false}: LoadingSpinnerProp
         alignItems: 'center',
         justifyContent: 'center',
         gap: 2,
-        ...(fullScreen && {
-          minHeight: '100vh',
-        }),
       }}
     >
       <CircularProgress />

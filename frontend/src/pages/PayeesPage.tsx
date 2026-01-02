@@ -32,7 +32,7 @@ const PayeesPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={{p: 2, width: '100%'}}>
+    <Box sx={{p: 2}}>
       <Card>
         <List>
           {payees.map((payee) => (

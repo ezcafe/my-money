@@ -50,10 +50,6 @@ export function FloatingSearchBox(): React.JSX.Element {
   return (
     <Box
       sx={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
         zIndex: 1300,
         p: 2,
         display: 'flex',
@@ -64,8 +60,6 @@ export function FloatingSearchBox(): React.JSX.Element {
         elevation={8}
         sx={{
           p: 2,
-          width: '100%',
-          maxWidth: 600,
           display: 'flex',
           gap: 1,
           alignItems: 'center',

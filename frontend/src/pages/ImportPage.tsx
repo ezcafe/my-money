@@ -291,13 +291,13 @@ export function ImportPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{p: 2, width: '100%'}}>
-      <Typography variant="h4" gutterBottom>
+    <Box sx={{p: 2}}>
+      <Typography variant="h4" component="h1" gutterBottom>
         Import Transactions
       </Typography>
 
       <Card sx={{p: 2, mb: 2}}>
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" component="h2" gutterBottom>
           Upload Credit Card Statement
         </Typography>
         {error && (
@@ -354,7 +354,7 @@ export function ImportPage(): React.JSX.Element {
 
       {unmappedTransactions.length > 0 && (
         <Card sx={{p: 2, mt: 2}}>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" component="h2" gutterBottom>
             Manual Mapping ({unmappedTransactions.length} transaction(s), {uniqueDescriptions.length} unique description(s))
           </Typography>
 
@@ -404,7 +404,6 @@ export function ImportPage(): React.JSX.Element {
                         border: '1px solid',
                         borderColor: 'divider',
                         borderRadius: 1,
-                        minHeight: '200px', // Higher row for better touch targets
                       }}
                     >
                       <Typography variant="body2" sx={{mb: 2, fontWeight: 'medium'}}>

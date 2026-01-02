@@ -19,7 +19,6 @@ export function BackspaceIcon(props: SvgIconProps): React.JSX.Element {
         x="12"
         y="16"
         textAnchor="middle"
-        fontSize="16"
         fill="currentColor"
         fontFamily="Arial, sans-serif"
         fontWeight="bold"

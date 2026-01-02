@@ -1,11 +1,13 @@
 /**
  * Theme Provider Component
- * Provides theme context and time-based theme updates
+ * Provides theme context with M3 color scheme support
  */
 
 import React, {createContext, useContext, useEffect, useState, useCallback} from 'react';
 import {ThemeProvider as MUIThemeProvider, CssBaseline} from '@mui/material';
-import {createAppTheme, getInitialTheme, shouldUpdateTheme} from './index';
+import {useQuery} from '@apollo/client/react';
+import {createAppTheme, getInitialTheme, shouldUpdateTheme, type ColorSchemeConfig} from './index';
+import {GET_PREFERENCES} from '../graphql/queries';
 import type {Theme} from '@mui/material/styles';
 
 interface ThemeContextType {
@@ -13,6 +15,8 @@ interface ThemeContextType {
   mode: 'dark' | 'light';
   toggleTheme: () => void;
   setTheme: (mode: 'dark' | 'light') => void;
+  colorScheme: ColorSchemeConfig | undefined;
+  updateColorScheme: (scheme: ColorSchemeConfig) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -34,19 +38,41 @@ interface ThemeProviderProps {
 
 /**
  * Theme Provider Component
- * Automatically updates theme based on time (6 AM - 6 PM = light, 6 PM - 6 AM = dark)
+ * Loads color scheme from preferences and applies M3 theme
  */
 export function ThemeProvider({children}: ThemeProviderProps): React.JSX.Element {
   const [mode, setMode] = useState<'dark' | 'light'>(getInitialTheme());
+  const [colorScheme, setColorScheme] = useState<ColorSchemeConfig | undefined>(undefined);
   const [theme, setThemeState] = useState<Theme>(createAppTheme(mode));
-  const [lastCheck, setLastCheck] = useState<Date>(new Date());
 
-  // Update theme when mode changes
+  // Load preferences to get color scheme
+  const {data: preferencesData} = useQuery<{
+    preferences?: {
+      colorScheme: string | null;
+      colorSchemeValue: string | null;
+    };
+  }>(GET_PREFERENCES, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Update color scheme from preferences
   useEffect(() => {
-    setThemeState(createAppTheme(mode));
-  }, [mode]);
+    if (preferencesData?.preferences) {
+      const scheme: ColorSchemeConfig = {
+        type: (preferencesData.preferences.colorScheme as 'dynamic' | 'static' | null) ?? null,
+        value: preferencesData.preferences.colorSchemeValue ?? null,
+      };
+      setColorScheme(scheme);
+    }
+  }, [preferencesData]);
+
+  // Update theme when mode or color scheme changes
+  useEffect(() => {
+    setThemeState(createAppTheme(mode, colorScheme));
+  }, [mode, colorScheme]);
 
   // Check for time-based theme updates every hour
+  const [lastCheck, setLastCheck] = useState<Date>(new Date());
   useEffect(() => {
     const checkTheme = (): void => {
       const now = new Date();
@@ -75,11 +101,17 @@ export function ThemeProvider({children}: ThemeProviderProps): React.JSX.Element
     setMode(newMode);
   }, []);
 
+  const updateColorScheme = useCallback((scheme: ColorSchemeConfig): void => {
+    setColorScheme(scheme);
+  }, []);
+
   const value: ThemeContextType = {
     theme,
     mode,
     toggleTheme,
     setTheme,
+    colorScheme,
+    updateColorScheme,
   };
 
   return (

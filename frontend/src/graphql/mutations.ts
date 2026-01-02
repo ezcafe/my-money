@@ -74,6 +74,8 @@ export const UPDATE_PREFERENCES = gql`
       id
       currency
       useThousandSeparator
+      colorScheme
+      colorSchemeValue
     }
   }
 `;

@@ -67,7 +67,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   // Search state
   const {searchQuery, clearSearch} = useSearch();
   const isSearchMode = Boolean(searchQuery);
-  
+
   // Title state
   const {setTitle} = useTitle();
 
@@ -94,7 +94,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   useEffect(() => {
     setPage(1);
   }, [searchQuery]);
-  
+
   // Set appbar title when account is loaded
   useEffect(() => {
     if (account) {
@@ -228,13 +228,13 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   // Show transaction error if any
   if (transactionsError) {
     return (
-      <Box sx={{p: 2, width: '100%'}}>
+      <Box sx={{p: 2}}>
         <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
           <Box>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" component="h2" gutterBottom>
               {`Balance`}
             </Typography>
-            <Typography variant="h2" color="primary" gutterBottom>
+            <Typography variant="h2" component="div" color="primary" gutterBottom>
               {formatCurrencyPreserveDecimals(account.balance, currency)}
             </Typography>
           </Box>
@@ -250,13 +250,13 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   const totalPages = Math.ceil(transactions.totalCount / ITEMS_PER_PAGE);
 
   return (
-    <Box sx={{p: 2, width: '100%'}}>
+    <Box sx={{p: 2}}>
       <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
         <Box>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" component="h2" gutterBottom>
             {`Balance`}
           </Typography>
-          <Typography variant="h2" color="primary" gutterBottom>
+          <Typography variant="h2" component="div" color="primary" gutterBottom>
             {formatCurrencyPreserveDecimals(account.balance)}
           </Typography>
         </Box>
@@ -264,7 +264,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
 
       <Card sx={{mt: 3, p: 0}}>
         <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0, pb: 1}}>
-          <Typography variant="h6" gutterBottom sx={{mb: 0}}>
+          <Typography variant="h6" component="h2" gutterBottom sx={{mb: 0}}>
             {isSearchMode ? `Search Results (${transactions.totalCount})` : 'Transactions'}
           </Typography>
           {isSearchMode && (
@@ -285,7 +285,6 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              minHeight: 200,
               py: 4,
             }}
           >

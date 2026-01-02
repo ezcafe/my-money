@@ -67,7 +67,7 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
   // Search state
   const {searchQuery, clearSearch} = useSearch();
   const isSearchMode = Boolean(searchQuery);
-  
+
   // Title state
   const {setTitle} = useTitle();
 
@@ -94,7 +94,7 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
   useEffect(() => {
     setPage(1);
   }, [searchQuery]);
-  
+
   // Set appbar title when payee is loaded
   useEffect(() => {
     if (payee) {
@@ -228,7 +228,7 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
   // Show transaction error if any
   if (transactionsError) {
     return (
-      <Box sx={{p: 2, width: '100%'}}>
+      <Box sx={{p: 2}}>
         <ErrorAlert
           title="Error Loading Transactions"
           message={transactionsError?.message ?? 'Error loading transactions'}
@@ -243,7 +243,7 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
     <Box sx={{p: 2, width: '100%'}}>
       <Card sx={{mt: 3, p: 0}}>
         <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0, pb: 1}}>
-          <Typography variant="h6" gutterBottom sx={{mb: 0}}>
+          <Typography variant="h6" component="h2" gutterBottom sx={{mb: 0}}>
             {isSearchMode ? `Search Results (${transactions.totalCount})` : 'Transactions'}
           </Typography>
           {isSearchMode && (
@@ -264,7 +264,6 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              minHeight: 200,
               py: 4,
             }}
           >

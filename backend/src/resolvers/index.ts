@@ -129,7 +129,7 @@ export const resolvers = {
 
     // Preferences mutations
     updatePreferences: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PreferencesResolver().updatePreferences(parent, args as {input: {currency?: string; useThousandSeparator?: boolean}}, context),
+      new PreferencesResolver().updatePreferences(parent, args as {input: {currency?: string; useThousandSeparator?: boolean; colorScheme?: string | null; colorSchemeValue?: string | null}}, context),
 
     // Recurring transaction mutations
     createRecurringTransaction: (parent: unknown, args: unknown, context: GraphQLContext) =>

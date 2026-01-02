@@ -81,9 +81,41 @@ export function Calculator(): React.JSX.Element {
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const historyListRef = useRef<HTMLDivElement>(null);
+  const calculatorRef = useRef<HTMLDivElement>(null);
+  const [calculatorHeight, setCalculatorHeight] = useState<number>(0);
 
   // Auto-scroll to bottom when transactions are loaded or new ones are added
   useAutoScroll(historyListRef, transactions, transactionsLoading);
+
+  // Measure calculator height dynamically
+  useEffect(() => {
+    const updateCalculatorHeight = (): void => {
+      if (calculatorRef.current) {
+        const height = calculatorRef.current.offsetHeight;
+        setCalculatorHeight(height);
+      }
+    };
+
+    // Initial measurement
+    updateCalculatorHeight();
+
+    // Use ResizeObserver to detect height changes
+    const resizeObserver = new ResizeObserver(() => {
+      updateCalculatorHeight();
+    });
+
+    if (calculatorRef.current) {
+      resizeObserver.observe(calculatorRef.current);
+    }
+
+    // Update on window resize as fallback
+    window.addEventListener('resize', updateCalculatorHeight);
+
+    return (): void => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateCalculatorHeight);
+    };
+  }, []); // Only run once on mount, ResizeObserver handles updates
 
   // Refetch transactions when returning from edit page
   useEffect(() => {
@@ -379,7 +411,7 @@ export function Calculator(): React.JSX.Element {
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        minHeight: 0,
+        minHeight: 0, // Allows flex child to shrink below content size
         position: 'relative',
       }}
     >
@@ -388,12 +420,10 @@ export function Calculator(): React.JSX.Element {
           severity="error"
           sx={{
             mb: 2,
+            zIndex: 1,
+            mx: 'auto',
             position: 'sticky',
             top: 0,
-            zIndex: 1,
-            maxWidth: 400,
-            mx: 'auto',
-            px: 2,
           }}
           onClose={() => setError(null)}
         >
@@ -404,26 +434,15 @@ export function Calculator(): React.JSX.Element {
       <Box
         ref={historyListRef}
         sx={{
-          flex: 1,
-          minHeight: 0,
+          height: calculatorHeight > 0
+            ? {
+                xs: `calc(100vh - ${calculatorHeight}px - 16px)`, // Subtract calculator height + margin (2 theme units = 16px)
+                sm: `calc(100vh - ${calculatorHeight}px - 24px)`, // Subtract calculator height + margin (3 theme units = 24px)
+              }
+            : '100vh',
           overflowY: 'auto',
           overflowX: 'hidden',
-          width: '100%',
-          maxWidth: '100vw',
-          // Padding at bottom to prevent content from being hidden behind fixed calculator
-          pb: '340px',
-          '&::-webkit-scrollbar': {
-            width: '8px',
-          },
-          '&::-webkit-scrollbar-track': {
-          },
-          '&::-webkit-scrollbar-thumb': {
-            backgroundColor: 'action.disabled',
-            borderRadius: '4px',
-            '&:hover': {
-              backgroundColor: 'action.disabledBackground',
-            },
-          },
+          mb: {xs: 2, sm: 3}, // Space between list and calculator, matching Layout horizontal padding
         }}
       >
         <HistoryList
@@ -436,32 +455,34 @@ export function Calculator(): React.JSX.Element {
       </Box>
 
       <Box
+        ref={calculatorRef}
         sx={{
-          maxWidth: 400,
-          mx: 'auto',
-          width: '100%',
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          zIndex: 10,
+          backgroundColor: 'background.default',
+          px: {xs: 2, sm: 3},
+          pb: {xs: 2, sm: 3},
         }}
       >
         <Paper
           sx={{
             p: 2,
-            position: 'fixed',
-            bottom: 0,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '100%',
-            maxWidth: 400,
-            zIndex: 10,
             backgroundColor: 'background.paper',
+            width: '100%',
+            maxWidth: '600px',
           }}
         >
         <Typography
           variant="h4"
+          component="div"
           sx={{
             textAlign: 'right',
-            fontSize: '2rem',
             mb: 2,
-            minHeight: '3rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
@@ -481,19 +502,6 @@ export function Calculator(): React.JSX.Element {
               mb: 1,
               overflowX: 'auto',
               overflowY: 'hidden',
-              scrollbarWidth: 'thin',
-              '&::-webkit-scrollbar': {
-                height: '6px',
-              },
-              '&::-webkit-scrollbar-track': {
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: 'action.disabled',
-                borderRadius: '3px',
-                '&:hover': {
-                  backgroundColor: 'action.disabledBackground',
-                },
-              },
             }}
           >
             {topUsedValues.slice(0, 5).map((item, index) => (

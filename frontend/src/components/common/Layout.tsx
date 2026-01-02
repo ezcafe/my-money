@@ -38,7 +38,7 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
   const {openSearch} = useSearch();
   const {title: contextTitle} = useTitle();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-  
+
   // Use context title if available, otherwise fall back to prop title
   const displayTitle = contextTitle ?? title;
 
@@ -95,39 +95,36 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        width: '100%',
-        maxWidth: '100vw',
-        margin: 0,
         overflow: 'hidden',
       }}
     >
       {!isHomePage && (
         <AppBar
           position="static"
+          elevation={1}
         >
-          <Toolbar>
-            <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back">
+          <Toolbar sx={{minHeight: 56}}>
+            <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back" sx={{mr: 1}}>
               <ArrowBack />
             </IconButton>
             {displayTitle && (
-              <Typography variant="h6" sx={{ml: 1, flexGrow: 1}}>
+              <Typography variant="h6" component="h1" sx={{flexGrow: 1}}>
                 {displayTitle}
               </Typography>
             )}
             {!displayTitle && <Box sx={{flexGrow: 1}} />}
             {!hideSearch && (
-              <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
+              <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search" sx={{ml: 1}}>
                 <SearchIcon />
               </IconButton>
             )}
             {contextMenu && (
-              <IconButton edge="end" color="inherit" onClick={handleContextMenuOpen} aria-label="More options">
+              <IconButton edge="end" color="inherit" onClick={handleContextMenuOpen} aria-label="More options" sx={{ml: 1}}>
                 <MoreVert />
               </IconButton>
             )}
             {!contextMenu && actionButton && (
-              <IconButton edge="end" color="inherit" onClick={actionButton.onClick} aria-label={actionButton.ariaLabel}>
+              <IconButton edge="end" color="inherit" onClick={actionButton.onClick} aria-label={actionButton.ariaLabel} sx={{ml: 1}}>
                 {actionButton.icon}
               </IconButton>
             )}
@@ -154,14 +151,11 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
         component="main"
         sx={{
           flexGrow: 1,
-          p: 2,
+          p: {xs: 2, sm: 3},
           display: 'flex',
           flexDirection: 'column',
-          minHeight: 0,
-          width: '100%',
-          maxWidth: '100vw',
-          margin: 0,
           overflowY: 'auto',
+          backgroundColor: 'background.default',
         }}
       >
         {children}

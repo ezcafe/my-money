@@ -4,7 +4,7 @@
  */
 
 import React, {memo} from 'react';
-import {Box, Typography, List, ListItemButton, ListItemText} from '@mui/material';
+import {Box, Typography, List, ListItemButton, ListItemText, Divider} from '@mui/material';
 import {Card} from '../components/ui/Card';
 import {useNavigate} from 'react-router';
 import {useAccounts} from '../hooks/useAccounts';
@@ -33,39 +33,39 @@ const AccountsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={{p: 2, width: '100%'}}>
-      <Card>
-        <List>
-          {accounts.map((account) => (
-            <ListItemButton
-              key={account.id}
-              onClick={(): void => {
-                void navigate(`/accounts/${account.id}`);
-              }}
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                },
-              }}
-            >
-              <ListItemText
-                primary={account.name}
-                sx={{flex: '0 1 auto'}}
-              />
-              <Typography
-                variant="body1"
+    <Box>
+      <Card elevation={1}>
+        <List disablePadding>
+          {accounts.map((account, index) => (
+            <React.Fragment key={account.id}>
+              {index > 0 && <Divider />}
+              <ListItemButton
+                onClick={(): void => {
+                  void navigate(`/accounts/${account.id}`);
+                }}
                 sx={{
-                  flexShrink: 0,
-                  ml: 2,
-                  textAlign: 'right',
+                  py: 2,
+                  px: 3,
                 }}
               >
-                {formatCurrencyPreserveDecimals(account.balance)}
-              </Typography>
-            </ListItemButton>
+                <ListItemText
+                  primary={account.name}
+                  primaryTypographyProps={{
+                    variant: 'body1',
+                    fontWeight: 500,
+                  }}
+                />
+                <Typography
+                  variant="body1"
+                  sx={{
+                    ml: 2,
+                    fontWeight: 500,
+                  }}
+                >
+                  {formatCurrencyPreserveDecimals(account.balance)}
+                </Typography>
+              </ListItemButton>
+            </React.Fragment>
           ))}
         </List>
       </Card>

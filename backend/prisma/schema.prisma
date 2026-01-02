@@ -39,6 +39,8 @@ model UserPreferences {
   userId    String   @unique
   currency  String   @default("USD")
   useThousandSeparator Boolean @default(true)
+  colorScheme String?
+  colorSchemeValue String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

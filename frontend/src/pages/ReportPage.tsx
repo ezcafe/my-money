@@ -571,7 +571,7 @@ export function ReportPage(): React.JSX.Element {
   );
 
   return (
-    <Box sx={{p: 2, width: '100%'}}>
+    <Box sx={{p: 2}}>
       {/* Filters Section */}
       <Card sx={{p: 2, mb: 3}}>
         <Box
@@ -583,7 +583,7 @@ export function ReportPage(): React.JSX.Element {
           }}
           onClick={() => setFilterPanelExpanded(!filterPanelExpanded)}
         >
-          <Typography variant="h6">Filters</Typography>
+          <Typography variant="h6" component="h2">Filters</Typography>
           <IconButton size="small" onClick={(e) => {
             e.stopPropagation();
             setFilterPanelExpanded(!filterPanelExpanded);
@@ -693,7 +693,7 @@ export function ReportPage(): React.JSX.Element {
       {transactions.length > 0 && chartData.length > 0 && (
         <Card sx={{p: 2, mb: 3}}>
           <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
-            <Typography variant="h6">Chart</Typography>
+            <Typography variant="h6" component="h2">Chart</Typography>
             <ToggleButtonGroup
               value={chartType}
               exclusive
@@ -712,7 +712,7 @@ export function ReportPage(): React.JSX.Element {
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
-          <Box sx={{width: '100%', height: 300}}>
+          <Box>
             <ResponsiveContainer>
               {chartType === 'line' ? (
                 <LineChart data={chartData}>
@@ -741,7 +741,7 @@ export function ReportPage(): React.JSX.Element {
       {/* Results Section */}
       <Card sx={{p: 2}}>
         <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
-          <Typography variant="h6">
+          <Typography variant="h6" component="h2">
             Results {totalCount > 0 && `(${totalCount})`}
           </Typography>
           {totalCount > 0 && (

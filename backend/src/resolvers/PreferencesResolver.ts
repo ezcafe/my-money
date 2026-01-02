@@ -11,6 +11,8 @@ import {validate} from '../utils/validation';
 const UpdatePreferencesInputSchema = z.object({
   currency: z.string().length(3).optional(),
   useThousandSeparator: z.boolean().optional(),
+  colorScheme: z.string().nullable().optional(),
+  colorSchemeValue: z.string().nullable().optional(),
 });
 
 export class PreferencesResolver {
@@ -41,7 +43,7 @@ export class PreferencesResolver {
    */
   async updatePreferences(
     _: unknown,
-    {input}: {input: {currency?: string; useThousandSeparator?: boolean}},
+    {input}: {input: {currency?: string; useThousandSeparator?: boolean; colorScheme?: string | null; colorSchemeValue?: string | null}},
     context: GraphQLContext,
   ) {
     const validatedInput = validate(UpdatePreferencesInputSchema, input);
@@ -54,11 +56,15 @@ export class PreferencesResolver {
         ...(validatedInput.useThousandSeparator !== undefined && {
           useThousandSeparator: validatedInput.useThousandSeparator,
         }),
+        ...(validatedInput.colorScheme !== undefined && {colorScheme: validatedInput.colorScheme}),
+        ...(validatedInput.colorSchemeValue !== undefined && {colorSchemeValue: validatedInput.colorSchemeValue}),
       },
       create: {
         userId: context.userId,
         currency: validatedInput.currency ?? 'USD',
         useThousandSeparator: validatedInput.useThousandSeparator ?? true,
+        colorScheme: validatedInput.colorScheme ?? null,
+        colorSchemeValue: validatedInput.colorSchemeValue ?? null,
       },
     });
 

@@ -9,6 +9,7 @@ import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListIt
 import {useQuery, useMutation, useLazyQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Dialog} from '../components/ui/Dialog';
+import {ColorSchemePicker} from '../components/ui/ColorSchemePicker';
 import {logout} from '../utils/oidc';
 import {CURRENCIES, type Currency} from '../utils/currencies';
 import {GET_PREFERENCES, EXPORT_DATA} from '../graphql/queries';
@@ -432,9 +433,9 @@ export function PreferencesPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{width: '100%'}}>
+    <Box>
       <Card sx={{p: 2, mb: 2}}>
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" component="h2" gutterBottom>
           Display Settings
         </Typography>
         <Box sx={{mb: 2}}>
@@ -487,6 +488,9 @@ export function PreferencesPage(): React.JSX.Element {
             disabled={preferencesLoading || updating}
             fullWidth
           />
+        </Box>
+        <Box sx={{mt: 3}}>
+          <ColorSchemePicker />
         </Box>
       </Card>
 

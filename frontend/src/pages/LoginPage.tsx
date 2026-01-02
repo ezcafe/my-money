@@ -42,21 +42,10 @@ export function LoginPage(): React.JSX.Element {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '100vh',
-        padding: 2,
         backgroundColor: 'background.default',
-        width: '100%',
-        maxWidth: '100vw',
-        margin: 0,
       }}
     >
-      <Card
-        sx={{
-          maxWidth: 400,
-          width: '100%',
-          padding: 4,
-        }}
-      >
+      <Card>
         <Typography variant="h4" component="h1" align="center" gutterBottom>
           My Money
         </Typography>
@@ -64,7 +53,7 @@ export function LoginPage(): React.JSX.Element {
           variant="body1"
           align="center"
           color="text.secondary"
-          sx={{marginBottom: 3}}
+          gutterBottom
         >
           Sign in to manage your expenses
         </Typography>
@@ -85,7 +74,6 @@ export function LoginPage(): React.JSX.Element {
           variant="contained"
           fullWidth
           disabled={loading}
-          sx={{marginTop: 2}}
         >
           {loading ? 'Signing in...' : 'Sign In'}
         </Button>

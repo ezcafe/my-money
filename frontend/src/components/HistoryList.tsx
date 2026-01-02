@@ -45,7 +45,7 @@ const HistoryListComponent = ({
 
     for (const transaction of transactions) {
       const dateKey = getDateKey(transaction.date);
-      
+
       if (!seenDates.has(dateKey)) {
         seenDates.add(dateKey);
         orderedKeys.push(dateKey);
@@ -72,8 +72,6 @@ const HistoryListComponent = ({
                     px: 2,
                     py: 1,
                     backgroundColor: 'background.default',
-                    position: 'sticky',
-                    top: 0,
                     zIndex: 1,
                     display: 'flex',
                     alignItems: 'center',
@@ -89,7 +87,6 @@ const HistoryListComponent = ({
                     sx={{
                       ml: '10px',
                       flex: 1,
-                      height: '1px',
                       backgroundColor: 'divider',
                     }}
                   />
@@ -99,7 +96,6 @@ const HistoryListComponent = ({
                     key={transaction.id}
                     onClick={() => onTransactionClick?.(transaction)}
                     sx={{
-                      minHeight: 72,
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',

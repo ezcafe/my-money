@@ -183,9 +183,25 @@ export function CategoryEditPage(): React.JSX.Element {
   }
 
   return (
-    <Box sx={{width: '100%', maxWidth: 600, mx: 'auto'}}>
-      <Card sx={{p: 3}}>
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
+    <Box
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        width: {xs: '100%', sm: '100%'},
+        maxWidth: {xs: '100%', sm: '400px'},
+        mx: {xs: 0, sm: 'auto'},
+      }}
+    >
+      <Card
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          p: 3,
+        }}
+      >
+        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
           {error && (
             <Typography color="error" variant="body2">
               {error}
@@ -224,7 +240,7 @@ export function CategoryEditPage(): React.JSX.Element {
             </ToggleButtonGroup>
           </Box>
 
-          <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2}}>
+          <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto'}}>
             <Button
               onClick={() => {
                 const validReturnUrl = getValidReturnUrl(returnTo);

@@ -309,6 +309,8 @@ type UserPreferences {
   userId: ID!
   currency: String!
   useThousandSeparator: Boolean!
+  colorScheme: String
+  colorSchemeValue: String
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -439,6 +441,8 @@ input UpdatePayeeInput {
 input UpdatePreferencesInput {
   currency: String
   useThousandSeparator: Boolean
+  colorScheme: String
+  colorSchemeValue: String
 }
 
 input CreateRecurringTransactionInput {

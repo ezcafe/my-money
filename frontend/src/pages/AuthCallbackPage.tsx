@@ -65,10 +65,6 @@ export function AuthCallbackPage(): React.JSX.Element {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh',
-          width: '100%',
-          maxWidth: '100vw',
-          margin: 0,
         }}
       >
         <LoadingSpinner message="Completing authentication..." />
@@ -83,14 +79,9 @@ export function AuthCallbackPage(): React.JSX.Element {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh',
-          padding: 2,
-          width: '100%',
-          maxWidth: '100vw',
-          margin: 0,
         }}
       >
-        <Box sx={{width: '100%', maxWidth: 500}}>
+        <Box>
           <Typography variant="h5" component="h2" gutterBottom>
             Authentication Error
           </Typography>
@@ -101,7 +92,6 @@ export function AuthCallbackPage(): React.JSX.Element {
             onClick={() => {
               void navigate('/login');
             }}
-            sx={{marginTop: 2}}
           >
             Return to Login
           </Button>
@@ -117,7 +107,6 @@ export function AuthCallbackPage(): React.JSX.Element {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '100vh',
       }}
     >
       <LoadingSpinner message="Redirecting..." />
