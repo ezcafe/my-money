@@ -21,6 +21,8 @@ import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
+import {startRecurringTransactionsCron} from './cron/recurringTransactions';
+import {startBudgetResetCron} from './cron/budgetReset';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -290,6 +292,10 @@ async function startServer(): Promise<void> {
         return (context ?? {}) as GraphQLContext | Record<string, never>;
       },
     } as Parameters<typeof fastify.register>[1]);
+
+    // Start cron jobs
+    startRecurringTransactionsCron();
+    startBudgetResetCron();
 
     // Start server
     const port = Number(process.env.PORT) || 4000;

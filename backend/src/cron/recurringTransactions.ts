@@ -10,6 +10,7 @@ import {prisma} from '../utils/prisma';
 import {retry, isRetryableError} from '../utils/retry';
 import {logInfo, logError, logWarn} from '../utils/logger';
 import {incrementAccountBalance} from '../services/AccountBalanceService';
+import {updateBudgetForTransaction} from '../services/BudgetService';
 
 /**
  * Process a single recurring transaction with retry logic
@@ -61,7 +62,7 @@ async function processRecurringTransaction(
         // Transaction creation, balance update, and recurring transaction update must succeed together
         await prisma.$transaction(async (tx): Promise<void> => {
           // Create transaction
-          await tx.transaction.create({
+          const newTransaction = await tx.transaction.create({
             data: {
               value: recurring.value,
               date: new Date(),
@@ -75,6 +76,23 @@ async function processRecurringTransaction(
 
           // Update account balance incrementally based on category type
           await incrementAccountBalance(recurring.accountId, balanceDelta, tx);
+
+          // Update budgets for this transaction
+          await updateBudgetForTransaction(
+            {
+              id: newTransaction.id,
+              accountId: newTransaction.accountId,
+              categoryId: newTransaction.categoryId,
+              payeeId: newTransaction.payeeId,
+              userId: newTransaction.userId,
+              value: newTransaction.value,
+              date: newTransaction.date,
+              categoryType: category?.type ?? null,
+            },
+            'create',
+            undefined,
+            tx,
+          );
 
           // Calculate next run date based on cron expression
           // For simplicity, assuming daily for now
@@ -218,7 +236,7 @@ export function startRecurringTransactionsCron(): void {
       logError('Cron job failed with unexpected error', {
         jobName: 'recurringTransactions',
       }, errorObj);
-      
+
       // In production, this could trigger alerts to monitoring systems
       // For now, we log the error and continue
     }

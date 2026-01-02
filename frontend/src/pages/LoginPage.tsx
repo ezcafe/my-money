@@ -4,7 +4,8 @@
  */
 
 import React, {useState} from 'react';
-import {Box, Typography} from '@mui/material';
+import {Box, Typography, CardContent} from '@mui/material';
+import {AccountBalance} from '@mui/icons-material';
 import {Button} from '../components/ui/Button';
 import {Card} from '../components/ui/Card';
 import {initiateLogin} from '../utils/oidc';
@@ -42,41 +43,97 @@ export function LoginPage(): React.JSX.Element {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
+        minHeight: '100vh',
         backgroundColor: 'background.default',
+        padding: 2,
       }}
     >
-      <Card>
-        <Typography variant="h4" component="h1" align="center" gutterBottom>
-          My Money
-        </Typography>
-        <Typography
-          variant="body1"
-          align="center"
-          color="text.secondary"
-          gutterBottom
-        >
-          Sign in to manage your expenses
-        </Typography>
-
-        {error && (
-          <ErrorAlert
-            message={error}
-            onClose={() => {
-              setError(null);
-            }}
-          />
-        )}
-
-        <Button
-          onClick={() => {
-            void handleLogin();
+      <Card
+        sx={{
+          width: '100%',
+          maxWidth: 420,
+          boxShadow: 3,
+          borderRadius: 3,
+        }}
+      >
+        <CardContent
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: 4,
+            gap: 3,
           }}
-          variant="contained"
-          fullWidth
-          disabled={loading}
         >
-          {loading ? 'Signing in...' : 'Sign In'}
-        </Button>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              backgroundColor: 'primary.main',
+              color: 'primary.contrastText',
+              marginBottom: 1,
+            }}
+          >
+            <AccountBalance sx={{fontSize: 48}} />
+          </Box>
+
+          <Typography
+            variant="h4"
+            component="h1"
+            align="center"
+            sx={{
+              fontWeight: 600,
+              color: 'text.primary',
+            }}
+          >
+            My Money
+          </Typography>
+
+          <Typography
+            variant="body1"
+            align="center"
+            color="text.secondary"
+            sx={{
+              marginBottom: 1,
+            }}
+          >
+            Sign in to manage your expenses
+          </Typography>
+
+          {error && (
+            <Box sx={{width: '100%'}}>
+              <ErrorAlert
+                message={error}
+                onClose={() => {
+                  setError(null);
+                }}
+              />
+            </Box>
+          )}
+
+          <Button
+            onClick={() => {
+              void handleLogin();
+            }}
+            variant="contained"
+            fullWidth
+            disabled={loading}
+            size="large"
+            sx={{
+              marginTop: 2,
+              padding: 1.5,
+              fontSize: '1rem',
+              fontWeight: 500,
+              textTransform: 'none',
+            }}
+          >
+            {loading ? 'Signing in...' : 'Sign In'}
+          </Button>
+        </CardContent>
       </Card>
     </Box>
   );

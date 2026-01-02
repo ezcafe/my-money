@@ -21,28 +21,30 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  accounts            Account[]
-  categories          Category[]
-  payees              Payee[]
-  transactions        Transaction[]
+  accounts              Account[]
+  categories            Category[]
+  payees                Payee[]
+  transactions          Transaction[]
   recurringTransactions RecurringTransaction[]
-  importMatchRules    ImportMatchRule[]
-  importedTransactions ImportedTransaction[]
-  preferences         UserPreferences?
+  importMatchRules      ImportMatchRule[]
+  importedTransactions  ImportedTransaction[]
+  preferences           UserPreferences?
+  budgets               Budget[]
+  budgetNotifications   BudgetNotification[]
 
   @@index([oidcSubject])
   @@index([email])
 }
 
 model UserPreferences {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  currency  String   @default("USD")
-  useThousandSeparator Boolean @default(true)
-  colorScheme String?
-  colorSchemeValue String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  currency             String   @default("USD")
+  useThousandSeparator Boolean  @default(true)
+  colorScheme          String?
+  colorSchemeValue     String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -50,19 +52,20 @@ model UserPreferences {
 }
 
 model Account {
-  id         String   @id @default(uuid())
-  name       String
+  id          String   @id @default(uuid())
+  name        String
   initBalance Decimal  @default(0) @db.Decimal(15, 2)
-  balance    Decimal  @default(0) @db.Decimal(15, 2)
-  isDefault  Boolean  @default(false)
-  userId     String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  balance     Decimal  @default(0) @db.Decimal(15, 2)
+  isDefault   Boolean  @default(false)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions          Transaction[]
   recurringTransactions RecurringTransaction[]
-  importMatchRules ImportMatchRule[]
+  importMatchRules      ImportMatchRule[]
+  budgets               Budget[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -78,10 +81,11 @@ model Category {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  user         User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  user                  User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions          Transaction[]
   recurringTransactions RecurringTransaction[]
-  importMatchRules ImportMatchRule[]
+  importMatchRules      ImportMatchRule[]
+  budgets               Budget[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -96,10 +100,11 @@ model Payee {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  user                  User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions          Transaction[]
   recurringTransactions RecurringTransaction[]
-  importMatchRules ImportMatchRule[]
+  importMatchRules      ImportMatchRule[]
+  budgets               Budget[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -118,10 +123,10 @@ model Transaction {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account  Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  payee    Payee?    @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account              Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category             Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  payee                Payee?                @relation(fields: [payeeId], references: [id], onDelete: SetNull)
   importedTransactions ImportedTransaction[]
 
   @@index([userId])
@@ -133,20 +138,20 @@ model Transaction {
 }
 
 model RecurringTransaction {
-  id         String   @id @default(uuid())
+  id             String   @id @default(uuid())
   cronExpression String
-  value      Decimal  @db.Decimal(15, 2)
-  accountId  String
-  categoryId String?
-  payeeId    String?
-  note       String?
-  nextRunDate DateTime
-  userId     String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  value          Decimal  @db.Decimal(15, 2)
+  accountId      String
+  categoryId     String?
+  payeeId        String?
+  note           String?
+  nextRunDate    DateTime
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account  Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   payee    Payee?    @relation(fields: [payeeId], references: [id], onDelete: SetNull)
 
@@ -165,8 +170,8 @@ model ImportMatchRule {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   payee    Payee?    @relation(fields: [payeeId], references: [id], onDelete: Cascade)
 
@@ -175,18 +180,18 @@ model ImportMatchRule {
 }
 
 model ImportedTransaction {
-  id            String   @id @default(uuid())
-  rawDate       String
+  id             String   @id @default(uuid())
+  rawDate        String
   rawDescription String
-  rawDebit      Decimal? @db.Decimal(15, 2)
-  rawCredit     Decimal? @db.Decimal(15, 2)
-  matched       Boolean  @default(false)
-  transactionId String?
-  userId        String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  rawDebit       Decimal? @db.Decimal(15, 2)
+  rawCredit      Decimal? @db.Decimal(15, 2)
+  matched        Boolean  @default(false)
+  transactionId  String?
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([userId])
@@ -195,4 +200,45 @@ model ImportedTransaction {
   @@index([userId, matched, createdAt])
 }
 
+model Budget {
+  id            String   @id @default(uuid())
+  userId        String
+  amount        Decimal  @db.Decimal(15, 2)
+  currentSpent  Decimal  @default(0) @db.Decimal(15, 2)
+  accountId     String?
+  categoryId    String?
+  payeeId       String?
+  lastResetDate DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       Account?             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category      Category?            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  payee         Payee?               @relation(fields: [payeeId], references: [id], onDelete: Cascade)
+  notifications BudgetNotification[]
+
+  @@unique([userId, accountId, categoryId, payeeId])
+  @@index([userId])
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([payeeId])
+}
+
+model BudgetNotification {
+  id        String   @id @default(uuid())
+  userId    String
+  budgetId  String
+  threshold Float
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([budgetId])
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}

@@ -13,6 +13,7 @@ import {RecurringTransactionResolver} from './RecurringTransactionResolver';
 import {ReportResolver} from './ReportResolver';
 import {ExportResolver} from './ExportResolver';
 import {ResetDataResolver} from './ResetDataResolver';
+import {BudgetResolver} from './BudgetResolver';
 import {uploadPDF, matchImportedTransaction, importCSV, saveImportedTransactions, deleteUnmappedImportedTransactions} from './ImportResolver';
 import type {GraphQLContext} from '../middleware/context';
 
@@ -93,6 +94,14 @@ export const resolvers = {
     // Export queries
     exportData: (parent: unknown, args: unknown, context: GraphQLContext) =>
       new ExportResolver().exportData(parent, args, context),
+
+    // Budget queries
+    budgets: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new BudgetResolver().budgets(parent, args, context),
+    budget: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new BudgetResolver().budget(parent, args as {id: string}, context),
+    budgetNotifications: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new BudgetResolver().budgetNotifications(parent, args, context),
   },
   Mutation: {
     // Account mutations
@@ -222,6 +231,16 @@ export const resolvers = {
     // Reset data mutation
     resetData: (parent: unknown, args: unknown, context: GraphQLContext) =>
       new ResetDataResolver().resetData(parent, args, context),
+
+    // Budget mutations
+    createBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new BudgetResolver().createBudget(parent, args as {input: unknown}, context),
+    updateBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new BudgetResolver().updateBudget(parent, args as {id: string; input: unknown}, context),
+    deleteBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new BudgetResolver().deleteBudget(parent, args as {id: string}, context),
+    markBudgetNotificationRead: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new BudgetResolver().markBudgetNotificationRead(parent, args as {id: string}, context),
   },
   Account: {
     balance: async (parent: {id: string}, _: unknown, context: GraphQLContext) => {
@@ -252,6 +271,14 @@ export const resolvers = {
     },
     account: async (parent: {accountId: string}, _: unknown, context: GraphQLContext) => {
       return context.accountLoader.load(parent.accountId);
+    },
+  },
+  Budget: {
+    percentageUsed: (parent: {amount: number | string; currentSpent: number | string}) => {
+      const amount = typeof parent.amount === 'string' ? parseFloat(parent.amount) : parent.amount;
+      const spent = typeof parent.currentSpent === 'string' ? parseFloat(parent.currentSpent) : parent.currentSpent;
+      if (amount === 0) return 0;
+      return (spent / amount) * 100;
     },
   },
 };

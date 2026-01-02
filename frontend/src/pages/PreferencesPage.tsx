@@ -14,7 +14,7 @@ import {logout} from '../utils/oidc';
 import {CURRENCIES, type Currency} from '../utils/currencies';
 import {GET_PREFERENCES, EXPORT_DATA} from '../graphql/queries';
 import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA} from '../graphql/mutations';
-import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt} from '@mui/icons-material';
+import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt, AttachMoney} from '@mui/icons-material';
 
 /**
  * Export data type from GraphQL
@@ -525,6 +525,15 @@ export function PreferencesPage(): React.JSX.Element {
           <Divider />
           <ListItem disablePadding>
             <ListItemButton onClick={() => {
+              void navigate('/budgets');
+            }}>
+              <ListItemText primary="Manage Budgets" />
+              <AttachMoney />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
               void navigate('/schedule');
             }}>
               <ListItemText primary="Schedule" />
@@ -618,5 +627,4 @@ export function PreferencesPage(): React.JSX.Element {
     </Box>
   );
 }
-
 

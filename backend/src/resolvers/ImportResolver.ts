@@ -15,6 +15,7 @@ import {tmpdir} from 'os';
 import {randomUUID} from 'crypto';
 import type {PrismaClient} from '@prisma/client';
 import {incrementAccountBalance} from '../services/AccountBalanceService';
+import {updateBudgetForTransaction} from '../services/BudgetService';
 
 const streamPipeline = promisify(pipeline);
 
@@ -348,7 +349,7 @@ export async function uploadPDF(
     const {cardNumber, transactions} = parsedData;
 
     // Get defaults and match rules
-    const [defaultAccount, defaultCategory, defaultPayee, matchRules] = await Promise.all([
+    const [defaultAccount, _defaultCategory, _defaultPayee, matchRules] = await Promise.all([
       getDefaultAccount(context),
       getDefaultCategory(context),
       getDefaultPayee(context),
@@ -403,7 +404,7 @@ export async function uploadPDF(
 
           // Create transaction and update balance atomically
           await context.prisma.$transaction(async (tx) => {
-            await tx.transaction.create({
+            const newTransaction = await tx.transaction.create({
               data: {
                 value,
                 date,
@@ -416,10 +417,27 @@ export async function uploadPDF(
             });
 
             await incrementAccountBalance(accountId, balanceDelta, tx);
+
+            // Update budgets for this transaction
+            await updateBudgetForTransaction(
+              {
+                id: newTransaction.id,
+                accountId: newTransaction.accountId,
+                categoryId: newTransaction.categoryId,
+                payeeId: newTransaction.payeeId,
+                userId: newTransaction.userId,
+                value: newTransaction.value,
+                date: newTransaction.date,
+                categoryType: category?.type ?? null,
+              },
+              'create',
+              undefined,
+              tx,
+            );
           });
 
           savedCount++;
-        } catch (error) {
+        } catch {
           // If save fails, add to unmapped list
           const imported = await context.prisma.importedTransaction.create({
             data: {

@@ -129,6 +129,21 @@ type Query {
   Export all user data for CSV export
   """
   exportData: ExportData!
+
+  """
+  Get all budgets for current user
+  """
+  budgets: [Budget!]!
+
+  """
+  Get budget by ID
+  """
+  budget(id: ID!): Budget
+
+  """
+  Get budget notifications for current user
+  """
+  budgetNotifications: [BudgetNotification!]!
 }
 
 type Mutation {
@@ -241,6 +256,26 @@ type Mutation {
   Reset all user data except default account, category, and payee
   """
   resetData: Boolean!
+
+  """
+  Create a new budget
+  """
+  createBudget(input: CreateBudgetInput!): Budget!
+
+  """
+  Update budget
+  """
+  updateBudget(id: ID!, input: UpdateBudgetInput!): Budget!
+
+  """
+  Delete budget
+  """
+  deleteBudget(id: ID!): Boolean!
+
+  """
+  Mark budget notification as read
+  """
+  markBudgetNotificationRead(id: ID!): Boolean!
 }
 
 type User {
@@ -385,6 +420,33 @@ type ExportData {
   preferences: UserPreferences
 }
 
+type Budget {
+  id: ID!
+  userId: ID!
+  amount: Decimal!
+  currentSpent: Decimal!
+  accountId: ID
+  categoryId: ID
+  payeeId: ID
+  account: Account
+  category: Category
+  payee: Payee
+  percentageUsed: Float!
+  lastResetDate: DateTime!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type BudgetNotification {
+  id: ID!
+  userId: ID!
+  budgetId: ID!
+  budget: Budget
+  threshold: Float!
+  message: String!
+  createdAt: DateTime!
+}
+
 type ImportResult {
   success: Boolean!
   created: Int!
@@ -495,9 +557,16 @@ type SaveImportedTransactionsResult {
   errors: [String!]!
 }
 
+input CreateBudgetInput {
+  amount: Decimal!
+  accountId: ID
+  categoryId: ID
+  payeeId: ID
+}
 
-
-
+input UpdateBudgetInput {
+  amount: Decimal
+}
 
 
 

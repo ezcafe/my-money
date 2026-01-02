@@ -8,6 +8,7 @@ import {BrowserRouter, Routes, Route, Navigate} from 'react-router';
 import {ApolloProvider} from '@apollo/client/react';
 import {Add} from '@mui/icons-material';
 import {ThemeProvider} from './theme/ThemeProvider';
+import {NotificationProvider} from './contexts/NotificationContext';
 import {ErrorBoundary} from './components/common/ErrorBoundary';
 import {Layout} from './components/common/Layout';
 import {ProtectedRoute} from './components/common/ProtectedRoute';
@@ -30,12 +31,16 @@ import {ReportPage} from './pages/ReportPage';
 import {ImportPage} from './pages/ImportPage';
 import {SchedulePage} from './pages/SchedulePage';
 import {PreferencesPage} from './pages/PreferencesPage';
+import {BudgetsPage} from './pages/BudgetsPage';
+import {BudgetAddPage} from './pages/BudgetAddPage';
+import {BudgetDetailsPage} from './pages/BudgetDetailsPage';
+import {BudgetEditPage} from './pages/BudgetEditPage';
 import {LoginPage} from './pages/LoginPage';
 import {AuthCallbackPage} from './pages/AuthCallbackPage';
 import {useNavigate, useParams} from 'react-router';
 import {useState, useCallback} from 'react';
 import {useMutation} from '@apollo/client/react';
-import {DELETE_ACCOUNT, DELETE_CATEGORY, DELETE_PAYEE} from './graphql/mutations';
+import {DELETE_ACCOUNT, DELETE_CATEGORY, DELETE_PAYEE, DELETE_BUDGET} from './graphql/mutations';
 import {
   Dialog,
   DialogTitle,
@@ -67,6 +72,29 @@ function SchedulePageWrapper(): React.JSX.Element {
       }}
     >
       <SchedulePage />
+    </Layout>
+  );
+}
+
+/**
+ * Budgets Page Wrapper
+ * Wraps BudgetsPage with navigation functionality
+ */
+function BudgetsPageWrapper(): React.JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <Layout
+      title="Budgets"
+      hideSearch
+      actionButton={{
+        icon: <Add />,
+        onClick: () => {
+          void navigate('/budgets/add?returnTo=/budgets');
+        },
+        ariaLabel: 'Create Budget',
+      }}
+    >
+      <BudgetsPage />
     </Layout>
   );
 }
@@ -348,6 +376,68 @@ function PayeeDetailsPageWrapper(): React.JSX.Element {
 }
 
 /**
+ * Budget Details Page Wrapper
+ * Wraps BudgetDetailsPage with context menu for edit/delete
+ */
+function BudgetDetailsPageWrapper(): React.JSX.Element {
+  const {id} = useParams<{id: string}>();
+  const navigate = useNavigate();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteBudget, {loading: deleting}] = useMutation(DELETE_BUDGET, {
+    refetchQueries: ['GetBudgets'],
+    awaitRefetchQueries: true,
+    onCompleted: () => {
+      void navigate('/budgets');
+    },
+  });
+
+  const handleEdit = useCallback(() => {
+    if (id) {
+      void navigate(`/budgets/${id}/edit?returnTo=/budgets/${id}`);
+    }
+  }, [id, navigate]);
+
+  const handleDelete = useCallback(() => {
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (id) {
+      void deleteBudget({variables: {id}});
+    }
+  }, [id, deleteBudget]);
+
+  return (
+    <>
+      <Layout
+        contextMenu={{
+          onEdit: handleEdit,
+          onDelete: handleDelete,
+        }}
+      >
+        <BudgetDetailsPage />
+      </Layout>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Budget</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this budget? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting}>
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
+/**
  * Main App Component
  * Provides routing, theme, and error handling
  */
@@ -356,9 +446,10 @@ function App(): React.JSX.Element {
     <ErrorBoundary>
       <ApolloProvider client={client}>
         <ThemeProvider>
-          <SearchProvider>
-            <TitleProvider>
-              <BrowserRouter>
+          <NotificationProvider>
+            <SearchProvider>
+              <TitleProvider>
+                <BrowserRouter>
               <Routes>
               {/* Public routes - no authentication required */}
               <Route path="/login" element={<LoginPage />} />
@@ -484,6 +575,42 @@ function App(): React.JSX.Element {
                 }
               />
               <Route
+                path="/budgets"
+                element={
+                  <ProtectedRoute>
+                    <BudgetsPageWrapper />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/budgets/add"
+                element={
+                  <ProtectedRoute>
+                    <Layout hideSearch>
+                      <BudgetAddPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/budgets/:id"
+                element={
+                  <ProtectedRoute>
+                    <BudgetDetailsPageWrapper />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/budgets/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <Layout hideSearch>
+                      <BudgetEditPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/transactions/:id/edit"
                 element={
                   <ProtectedRoute>
@@ -546,6 +673,7 @@ function App(): React.JSX.Element {
             </BrowserRouter>
             </TitleProvider>
           </SearchProvider>
+          </NotificationProvider>
         </ThemeProvider>
       </ApolloProvider>
     </ErrorBoundary>

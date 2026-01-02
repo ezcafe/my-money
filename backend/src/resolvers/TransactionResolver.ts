@@ -10,6 +10,7 @@ import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {incrementAccountBalance} from '../services/AccountBalanceService';
+import {updateBudgetForTransaction} from '../services/BudgetService';
 
 const CreateTransactionInputSchema = z.object({
   value: z.number().finite(),
@@ -350,7 +351,7 @@ export class TransactionResolver {
           await incrementAccountBalance(validatedInput.accountId, balanceDelta, tx);
 
           // Return transaction with relations
-          return await tx.transaction.findUnique({
+          const transactionWithRelations = await tx.transaction.findUnique({
             where: {id: newTransaction.id},
             include: {
               account: true,
@@ -358,6 +359,27 @@ export class TransactionResolver {
               payee: true,
             },
           });
+
+          // Update budgets for this transaction
+          if (transactionWithRelations) {
+            await updateBudgetForTransaction(
+              {
+                id: transactionWithRelations.id,
+                accountId: transactionWithRelations.accountId,
+                categoryId: transactionWithRelations.categoryId,
+                payeeId: transactionWithRelations.payeeId,
+                userId: transactionWithRelations.userId,
+                value: transactionWithRelations.value,
+                date: transactionWithRelations.date,
+                categoryType: category?.type ?? null,
+              },
+              'create',
+              undefined,
+              tx,
+            );
+          }
+
+          return transactionWithRelations;
         }),
       {resource: 'Transaction', operation: 'create'},
     );
@@ -532,6 +554,23 @@ export class TransactionResolver {
 
     // Delete transaction and update account balance atomically
     await context.prisma.$transaction(async (tx) => {
+      // Update budgets before deleting (need transaction data)
+      await updateBudgetForTransaction(
+        {
+          id: transaction.id,
+          accountId: transaction.accountId,
+          categoryId: transaction.categoryId,
+          payeeId: transaction.payeeId,
+          userId: transaction.userId,
+          value: transaction.value,
+          date: transaction.date,
+          categoryType: transaction.category?.type ?? null,
+        },
+        'delete',
+        undefined,
+        tx,
+      );
+
       // Delete transaction
       await tx.transaction.delete({
         where: {id},

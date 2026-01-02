@@ -166,9 +166,9 @@ export function generateDynamicPalette(sourceColor: string, isDark: boolean): Co
   const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
 
   // Adjust hue for primary color
-  let primaryHue = hsl.h;
-  let primarySaturation = Math.min(hsl.s, 40);
-  let primaryLightness = isDark ? 80 : 50;
+  const primaryHue = hsl.h;
+  const primarySaturation = Math.min(hsl.s, 40);
+  const primaryLightness = isDark ? 80 : 50;
 
   // Generate primary color
   const primaryRgb = hslToRgb(primaryHue, primarySaturation, primaryLightness);

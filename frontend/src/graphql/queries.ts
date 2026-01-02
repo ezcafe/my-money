@@ -301,6 +301,99 @@ export const EXPORT_DATA = gql`
   }
 `;
 
+export const GET_BUDGETS = gql`
+  query GetBudgets {
+    budgets {
+      id
+      userId
+      amount
+      currentSpent
+      accountId
+      categoryId
+      payeeId
+      account {
+        id
+        name
+      }
+      category {
+        id
+        name
+        type
+      }
+      payee {
+        id
+        name
+      }
+      percentageUsed
+      lastResetDate
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const GET_BUDGET = gql`
+  query GetBudget($id: ID!) {
+    budget(id: $id) {
+      id
+      userId
+      amount
+      currentSpent
+      accountId
+      categoryId
+      payeeId
+      account {
+        id
+        name
+      }
+      category {
+        id
+        name
+        type
+      }
+      payee {
+        id
+        name
+      }
+      percentageUsed
+      lastResetDate
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const GET_BUDGET_NOTIFICATIONS = gql`
+  query GetBudgetNotifications {
+    budgetNotifications {
+      id
+      userId
+      budgetId
+      budget {
+        id
+        amount
+        currentSpent
+        account {
+          id
+          name
+        }
+        category {
+          id
+          name
+        }
+        payee {
+          id
+          name
+        }
+        percentageUsed
+      }
+      threshold
+      message
+      createdAt
+    }
+  }
+`;
+
 
 
 

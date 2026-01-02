@@ -237,6 +237,80 @@ export const DELETE_UNMAPPED_IMPORTED_TRANSACTIONS = gql`
   }
 `;
 
+export const CREATE_BUDGET = gql`
+  mutation CreateBudget($input: CreateBudgetInput!) {
+    createBudget(input: $input) {
+      id
+      userId
+      amount
+      currentSpent
+      accountId
+      categoryId
+      payeeId
+      account {
+        id
+        name
+      }
+      category {
+        id
+        name
+        type
+      }
+      payee {
+        id
+        name
+      }
+      percentageUsed
+      lastResetDate
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_BUDGET = gql`
+  mutation UpdateBudget($id: ID!, $input: UpdateBudgetInput!) {
+    updateBudget(id: $id, input: $input) {
+      id
+      userId
+      amount
+      currentSpent
+      accountId
+      categoryId
+      payeeId
+      account {
+        id
+        name
+      }
+      category {
+        id
+        name
+        type
+      }
+      payee {
+        id
+        name
+      }
+      percentageUsed
+      lastResetDate
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_BUDGET = gql`
+  mutation DeleteBudget($id: ID!) {
+    deleteBudget(id: $id)
+  }
+`;
+
+export const MARK_BUDGET_NOTIFICATION_READ = gql`
+  mutation MarkBudgetNotificationRead($id: ID!) {
+    markBudgetNotificationRead(id: $id)
+  }
+`;
+
 
 
 
