@@ -242,6 +242,64 @@ function matchPayee(description: string, rules: Array<{pattern: string; payeeId:
 }
 
 /**
+ * Find or create an ImportedTransaction record
+ * Checks for existing unmapped transaction with same normalized description, date, and amount
+ * to prevent duplicates when the same PDF is uploaded multiple times
+ * @param parsed - Parsed transaction data
+ * @param context - GraphQL context
+ * @returns ImportedTransaction record (existing or newly created)
+ */
+async function findOrCreateImportedTransaction(
+  parsed: {date: string; description: string; debit?: number | null; credit?: number | null},
+  context: GraphQLContext,
+): Promise<{
+  id: string;
+  rawDate: string;
+  rawDescription: string;
+  rawDebit: number | null;
+  rawCredit: number | null;
+  matched: boolean;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}> {
+  // Normalize description for matching
+  const normalizedDescription = normalizeDescription(parsed.description);
+
+  // Find candidates: unmapped transactions with same date and amount
+  const candidates = await context.prisma.importedTransaction.findMany({
+    where: {
+      userId: context.userId,
+      matched: false,
+      rawDate: parsed.date,
+      rawDebit: parsed.debit ?? null,
+      rawCredit: parsed.credit ?? null,
+    },
+  });
+
+  // Check if any candidate has matching normalized description
+  for (const candidate of candidates) {
+    const candidateNormalized = normalizeDescription(candidate.rawDescription);
+    if (candidateNormalized === normalizedDescription) {
+      return candidate;
+    }
+  }
+
+  // Create new record
+  const imported = await context.prisma.importedTransaction.create({
+    data: {
+      rawDate: parsed.date,
+      rawDescription: parsed.description,
+      rawDebit: parsed.debit ?? null,
+      rawCredit: parsed.credit ?? null,
+      matched: false,
+      userId: context.userId,
+    },
+  });
+  return imported;
+}
+
+/**
  * Upload PDF and parse transactions with auto-mapping
  */
 export async function uploadPDF(
@@ -439,16 +497,7 @@ export async function uploadPDF(
           savedCount++;
         } catch {
           // If save fails, add to unmapped list
-          const imported = await context.prisma.importedTransaction.create({
-            data: {
-              rawDate: parsed.date,
-              rawDescription: parsed.description,
-              rawDebit: parsed.debit ?? null,
-              rawCredit: parsed.credit ?? null,
-              matched: false,
-              userId: context.userId,
-            },
-          });
+          const imported = await findOrCreateImportedTransaction(parsed, context);
 
           unmappedTransactions.push({
             id: imported.id,
@@ -463,17 +512,8 @@ export async function uploadPDF(
           });
         }
       } else {
-        // Add to unmapped list
-        const imported = await context.prisma.importedTransaction.create({
-          data: {
-            rawDate: parsed.date,
-            rawDescription: parsed.description,
-            rawDebit: parsed.debit ?? null,
-            rawCredit: parsed.credit ?? null,
-            matched: false,
-            userId: context.userId,
-          },
-        });
+        // Add to unmapped list - use findOrCreate to prevent duplicates
+        const imported = await findOrCreateImportedTransaction(parsed, context);
 
         unmappedTransactions.push({
           id: imported.id,
