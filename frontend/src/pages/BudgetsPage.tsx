@@ -5,9 +5,8 @@
 
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router';
-import {Box, Typography, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, LinearProgress, Chip, ToggleButtonGroup, ToggleButton} from '@mui/material';
+import {Box, Typography, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, LinearProgress, Chip, ToggleButtonGroup, ToggleButton, Card, Stack} from '@mui/material';
 import {useQuery, useMutation} from '@apollo/client/react';
-import {Card} from '../components/ui/Card';
 import {Dialog} from '../components/ui/Dialog';
 import {GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
 import {CREATE_BUDGET, UPDATE_BUDGET, DELETE_BUDGET} from '../graphql/mutations';
@@ -170,17 +169,19 @@ export function BudgetsPage(): React.JSX.Element {
   if (budgets.length === 0) {
     return (
       <Box>
-        <Card sx={{p: 2}}>
-          <Typography variant="body2" color="text.secondary">
-            No budgets. Click the + button to add one.
-          </Typography>
+        <Card>
+          <Box sx={{p: 2}}>
+            <Typography variant="body2" color="text.secondary">
+              No budgets. Click the + button to add one.
+            </Typography>
+          </Box>
         </Card>
       </Box>
     );
   }
 
   return (
-    <Box sx={{width: '100%'}}>
+    <Box>
       <Card>
         <List>
           {budgets.map((budget, index) => {
@@ -205,9 +206,7 @@ export function BudgetsPage(): React.JSX.Element {
             const total = parseFloat(safeBudget.amount);
             return (
               <React.Fragment key={safeBudget.id}>
-                <ListItem
-                  disablePadding
-                >
+                <ListItem disablePadding>
                   <ListItemButton
                     onClick={() => {
                       void navigate(`/budgets/${safeBudget.id}`);
@@ -215,29 +214,29 @@ export function BudgetsPage(): React.JSX.Element {
                   >
                     <ListItemText
                       primary={
-                        <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                        <Stack direction="row" spacing={1} alignItems="center">
                           <AttachMoney fontSize="small" />
                           <Typography variant="body1" fontWeight="medium">
                             {getBudgetName(safeBudget)}
                           </Typography>
                           <Chip label={getBudgetTypeLabel(safeBudget)} size="small" variant="outlined" />
-                        </Box>
+                        </Stack>
                       }
                       secondary={
                         <Box sx={{mt: 1}}>
-                          <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 0.5}}>
+                          <Stack direction="row" justifyContent="space-between" sx={{mb: 0.5}}>
                             <Typography variant="caption" color="text.secondary">
                               {spent.toFixed(2)} / {total.toFixed(2)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" fontWeight="medium">
                               {percentage.toFixed(1)}%
                             </Typography>
-                          </Box>
+                          </Stack>
                           <LinearProgress
                             variant="determinate"
                             value={Math.min(percentage, 100)}
                             color={getProgressColor(percentage)}
-                            sx={{height: 8, borderRadius: 1}}
+                            sx={{height: 8}}
                           />
                         </Box>
                       }
@@ -260,7 +259,7 @@ export function BudgetsPage(): React.JSX.Element {
           }}
           title={editingBudget ? 'Edit Budget' : 'Create Budget'}
           actions={
-            <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end'}}>
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button
                 onClick={() => {
                   setBudgetDialogOpen(false);
@@ -281,10 +280,10 @@ export function BudgetsPage(): React.JSX.Element {
               >
                 {editingBudget ? 'Update' : 'Create'}
               </Button>
-            </Box>
+            </Stack>
           }
         >
-          <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, minWidth: 400}}>
+          <Stack spacing={2} sx={{minWidth: 400}}>
             {!editingBudget && (
               <>
                 <Typography variant="body2" color="text.secondary">
@@ -364,7 +363,7 @@ export function BudgetsPage(): React.JSX.Element {
               required
               fullWidth
             />
-          </Box>
+          </Stack>
         </Dialog>
 
         <Dialog
@@ -375,7 +374,7 @@ export function BudgetsPage(): React.JSX.Element {
           }}
           title="Delete Budget"
           actions={
-            <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end'}}>
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button
                 onClick={() => {
                   setDeleteDialogOpen(false);
@@ -394,7 +393,7 @@ export function BudgetsPage(): React.JSX.Element {
               >
                 Delete
               </Button>
-            </Box>
+            </Stack>
           }
         >
           <Typography variant="body1">

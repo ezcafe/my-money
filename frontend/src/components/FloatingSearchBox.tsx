@@ -57,7 +57,7 @@ export function FloatingSearchBox(): React.JSX.Element {
       }}
     >
       <Paper
-        elevation={8}
+        elevation={0}
         sx={{
           p: 2,
           display: 'flex',
@@ -66,9 +66,8 @@ export function FloatingSearchBox(): React.JSX.Element {
           backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#ffffff',
           border: '1px solid',
           borderColor: 'divider',
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0px 5px 5px -3px rgba(0,0,0,0.2), 0px 8px 10px 1px rgba(0,0,0,0.14), 0px 3px 14px 2px rgba(0,0,0,0.12)'
-            : '0px 5px 5px -3px rgba(0,0,0,0.2), 0px 8px 10px 1px rgba(0,0,0,0.14), 0px 3px 14px 2px rgba(0,0,0,0.12)',
+          boxShadow: 'none', // Flat style: no shadows
+          borderRadius: 0, // Flat style: no rounded corners
         }}
       >
         <TextField

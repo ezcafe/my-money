@@ -156,7 +156,7 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={{p: 2, width: '100%'}}>
+    <Box>
       <TransactionList
         transactions={transactions}
         loading={transactionsLoading}

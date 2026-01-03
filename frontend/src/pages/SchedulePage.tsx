@@ -5,9 +5,8 @@
 
 import React, {useEffect} from 'react';
 import {useLocation} from 'react-router';
-import {Box, Typography, List, ListItem, Chip} from '@mui/material';
+import {Box, Typography, List, ListItem, Chip, Card, Stack, Divider} from '@mui/material';
 import {useQuery} from '@apollo/client/react';
-import {Card} from '../components/ui/Card';
 import {GET_RECURRING_TRANSACTIONS, GET_PREFERENCES} from '../graphql/queries';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
@@ -104,72 +103,66 @@ export function SchedulePage(): React.JSX.Element {
   if (recurringTransactions.length === 0) {
     return (
       <Box>
-        <Card sx={{p: 2}}>
-          <Typography variant="body2" color="text.secondary">
-            No recurring transactions. Click the + button to add one.
-          </Typography>
+        <Card>
+          <Box sx={{p: 2}}>
+            <Typography variant="body2" color="text.secondary">
+              No recurring transactions. Click the + button to add one.
+            </Typography>
+          </Box>
         </Card>
       </Box>
     );
   }
 
   return (
-    <Box sx={{width: '100%'}}>
+    <Box>
       <Card>
         <List>
-          {recurringTransactions.map((transaction) => {
+          {recurringTransactions.map((transaction, index) => {
             const recurringType = getRecurringTypeFromCron(transaction.cronExpression);
             const typeLabel = recurringType
               ? getRecurringTypeOptions().find((opt) => opt.value === recurringType)?.label ?? 'Custom'
               : 'Custom';
 
             return (
-              <ListItem
-                key={transaction.id}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'stretch',
-                  gap: 1,
-                  py: 2,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <Box sx={{display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1}}>
-                    <Typography variant="body1" fontWeight="medium">
-                      {formatCurrencyPreserveDecimals(transaction.value, currency)}
-                    </Typography>
-                    {transaction.account && (
-                      <Typography variant="body2" color="text.secondary">
-                        Account: {transaction.account.name}
+              <React.Fragment key={transaction.id}>
+                {index > 0 && <Divider />}
+                <ListItem>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{width: '100%'}}>
+                    <Stack spacing={0.5} sx={{flex: 1}}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {formatCurrencyPreserveDecimals(transaction.value, currency)}
                       </Typography>
-                    )}
-                    {transaction.category && (
+                      {transaction.account && (
+                        <Typography variant="body2" color="text.secondary">
+                          Account: {transaction.account.name}
+                        </Typography>
+                      )}
+                      {transaction.category && (
+                        <Typography variant="body2" color="text.secondary">
+                          Category: {transaction.category.name}
+                        </Typography>
+                      )}
+                      {transaction.payee && (
+                        <Typography variant="body2" color="text.secondary">
+                          Payee: {transaction.payee.name}
+                        </Typography>
+                      )}
+                      {transaction.note && (
+                        <Typography variant="body2" color="text.secondary">
+                          Note: {transaction.note}
+                        </Typography>
+                      )}
+                    </Stack>
+                    <Stack spacing={1} alignItems="flex-end">
+                      <Chip label={typeLabel} size="small" color="primary" />
                       <Typography variant="body2" color="text.secondary">
-                        Category: {transaction.category.name}
+                        Next: {formatDateShort(transaction.nextRunDate)}
                       </Typography>
-                    )}
-                    {transaction.payee && (
-                      <Typography variant="body2" color="text.secondary">
-                        Payee: {transaction.payee.name}
-                      </Typography>
-                    )}
-                    {transaction.note && (
-                      <Typography variant="body2" color="text.secondary">
-                        Note: {transaction.note}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1}}>
-                    <Chip label={typeLabel} size="small" color="primary" />
-                    <Typography variant="body2" color="text.secondary">
-                      Next: {formatDateShort(transaction.nextRunDate)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </ListItem>
+                    </Stack>
+                  </Stack>
+                </ListItem>
+              </React.Fragment>
             );
           })}
         </List>

@@ -57,7 +57,7 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
     loading: transactionsLoading,
     error: transactionsError,
     refetch: refetchTransactions,
-  } = useTransactions(undefined, id, undefined, skip, ITEMS_PER_PAGE, orderBy, searchQuery || undefined);
+  } = useTransactions(undefined, id, undefined, skip, ITEMS_PER_PAGE, orderBy, searchQuery || undefined, !id);
 
   // Reset page when search changes
   useEffect(() => {
@@ -156,7 +156,7 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={{p: 2, width: '100%'}}>
+    <Box>
       <TransactionList
         transactions={transactions}
         loading={transactionsLoading}

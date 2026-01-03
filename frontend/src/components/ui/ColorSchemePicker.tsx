@@ -48,15 +48,16 @@ function ColorSchemePreview({
   return (
     <Tooltip title={name.charAt(0).toUpperCase() + name.slice(1)}>
       <Paper
-        elevation={isSelected ? 3 : 1}
+        elevation={0}
         sx={{
           p: 1,
           cursor: 'pointer',
-          border: isSelected ? 2 : 0,
-          borderColor: 'primary.main',
-          '&:hover': {
-            elevation: 2,
-          },
+          border: 2,
+          borderColor: isSelected ? 'primary.main' : 'divider',
+          borderRadius: 0, // Flat style: no rounded corners
+          boxShadow: 'none', // Flat style: no shadows
+          boxSizing: 'border-box',
+          position: 'relative',
         }}
         onClick={onClick}
       >
@@ -69,8 +70,9 @@ function ColorSchemePreview({
         >
           <Box
             sx={{
+              height: 40,
               backgroundColor: primaryColor,
-              borderRadius: 1,
+              borderRadius: 0, // Flat style: no rounded corners
             }}
           />
           <Box
@@ -82,15 +84,17 @@ function ColorSchemePreview({
             <Box
               sx={{
                 flex: 1,
+                height: 20,
                 backgroundColor: secondaryColor,
-                borderRadius: 0.5,
+                borderRadius: 0, // Flat style: no rounded corners
               }}
             />
             <Box
               sx={{
                 flex: 1,
+                height: 20,
                 backgroundColor: tertiaryColor,
-                borderRadius: 0.5,
+                borderRadius: 0, // Flat style: no rounded corners
               }}
             />
           </Box>
@@ -99,6 +103,10 @@ function ColorSchemePreview({
           <CheckCircle
             sx={{
               color: 'primary.main',
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              fontSize: '1.2rem',
             }}
           />
         )}
@@ -220,13 +228,16 @@ export function ColorSchemePicker(): React.JSX.Element {
 
   const staticSchemes = getStaticColorSchemeNames();
 
+  // Ensure schemeType is never null for ToggleButtonGroup (default to 'static')
+  const displaySchemeType: 'dynamic' | 'static' = schemeType ?? 'static';
+
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" gutterBottom sx={{mb: 2}}>
         Color Scheme
       </Typography>
       <ToggleButtonGroup
-        value={schemeType}
+        value={displaySchemeType}
         exclusive
         onChange={handleSchemeTypeChange}
         aria-label="color scheme type"
@@ -241,7 +252,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         </ToggleButton>
       </ToggleButtonGroup>
 
-      {schemeType === 'dynamic' && (
+      {displaySchemeType === 'dynamic' && (
         <Box>
           <Typography variant="body2" color="text.secondary" gutterBottom sx={{mb: 1}}>
             Choose a source color
@@ -258,7 +269,7 @@ export function ColorSchemePicker(): React.JSX.Element {
               value={dynamicColor}
               onChange={handleDynamicColorChange}
               style={{
-                borderRadius: 8,
+                borderRadius: 0, // Flat style: no rounded corners
                 border: 'none',
                 cursor: 'pointer',
               }}
@@ -274,7 +285,7 @@ export function ColorSchemePicker(): React.JSX.Element {
               <Box
                 sx={{
                   backgroundColor: dynamicColor,
-                  borderRadius: 1,
+                  borderRadius: 0, // Flat style: no rounded corners
                   border: '1px solid',
                   borderColor: 'divider',
                 }}
@@ -287,7 +298,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         </Box>
       )}
 
-      {schemeType === 'static' && (
+      {displaySchemeType === 'static' && (
         <Box>
           <Typography variant="body2" color="text.secondary" gutterBottom sx={{mb: 2}}>
             Choose a color scheme

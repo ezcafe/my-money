@@ -3,7 +3,7 @@
  * PDF upload and bulk mapping UI
  */
 
-import React, {useState, useMemo} from 'react';
+import React, {useState, useMemo, useCallback} from 'react';
 import {
   Box,
   Typography,
@@ -21,7 +21,11 @@ import {
   Paper,
   useMediaQuery,
   useTheme,
+  LinearProgress,
+  Chip,
+  Divider,
 } from '@mui/material';
+import {Upload as UploadIcon, Description as DescriptionIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon} from '@mui/icons-material';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {validateFileType, validateFileSize} from '../utils/validation';
@@ -69,6 +73,7 @@ export function ImportPage(): React.JSX.Element {
   const [cardAccountId, setCardAccountId] = useState<string>('');
   const [descriptionMappings, setDescriptionMappings] = useState<Map<string, DescriptionMapping>>(new Map());
   const [dateFormat, setDateFormat] = useState<string>('DD/MM/YYYY');
+  const [isDragging, setIsDragging] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // 600px breakpoint
@@ -189,25 +194,66 @@ export function ImportPage(): React.JSX.Element {
     },
   });
 
-  const handleFileChange = (e: {target: {files?: FileList | null} | null}): void => {
+  /**
+   * Process and validate a file
+   */
+  const processFile = useCallback((selectedFile: File): void => {
     setError(null);
     setSuccessMessage(null);
+
+    if (!validateFileType(selectedFile, ALLOWED_FILE_TYPES)) {
+      setError('Please select a PDF file');
+      return;
+    }
+
+    if (!validateFileSize(selectedFile, MAX_FILE_SIZE_BYTES)) {
+      setError(`File size must be less than ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB`);
+      return;
+    }
+
+    setFile(selectedFile);
+  }, []);
+
+  /**
+   * Handle file input change
+   */
+  const handleFileChange = (e: {target: {files?: FileList | null} | null}): void => {
     if (e.target?.files?.[0]) {
-      const selectedFile = e.target.files[0];
-
-      if (!validateFileType(selectedFile, ALLOWED_FILE_TYPES)) {
-        setError('Please select a PDF file');
-        return;
-      }
-
-      if (!validateFileSize(selectedFile, MAX_FILE_SIZE_BYTES)) {
-        setError(`File size must be less than ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB`);
-        return;
-      }
-
-      setFile(selectedFile);
+      processFile(e.target.files[0]);
     }
   };
+
+  /**
+   * Handle drag over event
+   */
+  const handleDragOver = useCallback((e: React.DragEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  /**
+   * Handle drag leave event
+   */
+  const handleDragLeave = useCallback((e: React.DragEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  /**
+   * Handle drop event
+   */
+  const handleDrop = useCallback((e: React.DragEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      processFile(droppedFile);
+    }
+  }, [processFile]);
 
   const handleUpload = async (): Promise<void> => {
     if (!file) {
@@ -290,16 +336,28 @@ export function ImportPage(): React.JSX.Element {
     }
   };
 
-  return (
-    <Box sx={{p: 2}}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Import Transactions
-      </Typography>
+  /**
+   * Format file size for display
+   */
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
-      <Card sx={{p: 2, mb: 2}}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          Upload Credit Card Statement
-        </Typography>
+  return (
+    <Box sx={{display: 'flex', flexDirection: 'column', gap: 3, maxWidth: {xs: '100%', md: '900px'}, mx: 'auto'}}>
+      {/* Upload Section */}
+      <Card sx={{p: 3}}>
+        <Box sx={{mb: 3}}>
+          <Typography variant="h6" component="h2" gutterBottom>
+            Upload Credit Card Statement
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Upload a PDF statement from your credit card provider. The system will automatically extract and categorize transactions.
+          </Typography>
+        </Box>
+
         {error && (
           <Alert severity="error" sx={{mb: 2}} onClose={() => setError(null)}>
             {error}
@@ -310,12 +368,14 @@ export function ImportPage(): React.JSX.Element {
             {successMessage}
           </Alert>
         )}
-        <Box sx={{mb: 2}}>
-          <FormControl fullWidth sx={{mb: 2}}>
-            <InputLabel>Date Format</InputLabel>
+
+        {/* Date Format Selection */}
+        <Box sx={{mb: 3}}>
+          <FormControl fullWidth>
+            <InputLabel>Date Format in PDF</InputLabel>
             <Select
               value={dateFormat}
-              label="Date Format"
+              label="Date Format in PDF"
               onChange={(e): void => {
                 setDateFormat(e.target.value);
               }}
@@ -326,7 +386,31 @@ export function ImportPage(): React.JSX.Element {
               <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
               <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
             </Select>
+            <Typography variant="caption" color="text.secondary" sx={{mt: 1, display: 'block'}}>
+              Select the date format used in your PDF statement
+            </Typography>
           </FormControl>
+        </Box>
+
+        {/* File Upload Area */}
+        <Box
+          onDragOver={!isMobile ? handleDragOver : undefined}
+          onDragLeave={!isMobile ? handleDragLeave : undefined}
+          onDrop={!isMobile ? handleDrop : undefined}
+          sx={{
+            border: `2px dashed ${isDragging && !isMobile ? theme.palette.primary.main : theme.palette.divider}`,
+            borderRadius: 0, // Flat style: no rounded corners
+            p: 4,
+            textAlign: 'center',
+            backgroundColor: isDragging && !isMobile ? theme.palette.action.hover : 'transparent',
+            transition: 'all 0.2s ease-in-out',
+            cursor: 'pointer',
+            mb: 2,
+          }}
+          onClick={(): void => {
+            document.getElementById('pdf-upload-input')?.click();
+          }}
+        >
           <input
             type="file"
             accept=".pdf"
@@ -334,38 +418,115 @@ export function ImportPage(): React.JSX.Element {
             style={{display: 'none'}}
             id="pdf-upload-input"
           />
-          <label htmlFor="pdf-upload-input">
-            <Button variant="outlined" component="span" sx={{mr: 2}}>
-              Select PDF File
-            </Button>
-          </label>
-          {file && <Typography variant="body2" sx={{mt: 1}}>Selected: {file.name}</Typography>}
+          {file ? (
+            <Box>
+              <CheckCircleIcon color="success" sx={{fontSize: 48, mb: 1}} />
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  px: 1,
+                }}
+                title={file.name}
+              >
+                {file.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+                {formatFileSize(file.size)}
+              </Typography>
+              <Button
+                variant="outlined"
+                startIcon={<CancelIcon />}
+                onClick={(e): void => {
+                  e.stopPropagation();
+                  setFile(null);
+                  setError(null);
+                  setSuccessMessage(null);
+                }}
+              >
+                Remove File
+              </Button>
+            </Box>
+          ) : (
+            <Box>
+              <UploadIcon sx={{fontSize: 48, color: 'text.secondary', mb: 2}} />
+              <Typography variant="h6" gutterBottom>
+                {!isMobile && isDragging
+                  ? 'Drop PDF file here'
+                  : !isMobile
+                    ? 'Drag and drop PDF file here'
+                    : 'Select PDF File'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+                {!isMobile ? 'or click to browse' : 'Tap to browse files'}
+              </Typography>
+              <Button variant="outlined" startIcon={<UploadIcon />} component="span">
+                Select PDF File
+              </Button>
+              <Typography variant="caption" color="text.secondary" sx={{mt: 2, display: 'block'}}>
+                Maximum file size: {MAX_FILE_SIZE_BYTES / 1024 / 1024}MB
+              </Typography>
+            </Box>
+          )}
         </Box>
-        <Button
-          variant="contained"
-          onClick={(): void => {
-            void handleUpload();
-          }}
-          disabled={!file || uploading}
-        >
-          {uploading ? 'Uploading...' : 'Upload and Parse'}
-        </Button>
+
+        {/* Upload Button */}
+        {file && (
+          <Box>
+            {uploading && <LinearProgress sx={{mb: 2}} />}
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              onClick={(): void => {
+                void handleUpload();
+              }}
+              disabled={!file || uploading}
+              startIcon={uploading ? undefined : <DescriptionIcon />}
+            >
+              {uploading ? 'Uploading and Parsing...' : 'Upload and Parse Statement'}
+            </Button>
+          </Box>
+        )}
       </Card>
 
+      {/* Mapping Section */}
       {unmappedTransactions.length > 0 && (
-        <Card sx={{p: 2, mt: 2}}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            Manual Mapping ({unmappedTransactions.length} transaction(s), {uniqueDescriptions.length} unique description(s))
-          </Typography>
+        <Card sx={{p: 3}}>
+          <Box sx={{mb: 3}}>
+            <Box sx={{display: 'flex', alignItems: 'center', gap: 2, mb: 1, flexWrap: 'wrap'}}>
+              <Typography variant="h6" component="h2">
+                Map Transactions
+              </Typography>
+              <Chip label={`${unmappedTransactions.length} transaction${unmappedTransactions.length !== 1 ? 's' : ''}`} size="small" color="primary" />
+              <Chip label={`${uniqueDescriptions.length} unique description${uniqueDescriptions.length !== 1 ? 's' : ''}`} size="small" />
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              Some transactions need manual mapping. Please assign an account, category, and payee for each unique transaction description.
+            </Typography>
+          </Box>
 
           {/* Card number mapping */}
           {cardNumber && (
-            <Box sx={{mb: 3, mt: 2}}>
+            <Box sx={{mb: 3, p: 2, backgroundColor: 'action.hover', borderRadius: 0}}>
+              <Typography variant="subtitle2" gutterBottom>
+                Card Number Mapping
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{mb: 2, display: 'block'}}>
+                Card Number: <strong>{cardNumber}</strong>
+              </Typography>
               <FormControl fullWidth>
-                <InputLabel>Map Card Number to Account</InputLabel>
+                <InputLabel>Select Account</InputLabel>
                 <Select
                   value={cardAccountId}
-                  label="Map Card Number to Account"
+                  label="Select Account"
                   onChange={(e): void => {
                     setCardAccountId(e.target.value);
                   }}
@@ -376,18 +537,25 @@ export function ImportPage(): React.JSX.Element {
                     </MenuItem>
                   ))}
                 </Select>
-                <Typography variant="caption" sx={{mt: 1, color: 'text.secondary'}}>
-                  Card Number: {cardNumber}
-                </Typography>
               </FormControl>
             </Box>
           )}
 
+          <Divider sx={{my: 3}} />
+
           {/* Description mappings table */}
-          <TableContainer component={Paper} sx={{mt: 2}}>
+          <Box sx={{mb: 2}}>
+            <Typography variant="subtitle1" gutterBottom>
+              Transaction Descriptions
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Map each unique description to an account (required), category, and payee
+            </Typography>
+          </Box>
+          <TableContainer component={Paper} sx={{mb: 3}}>
             {isMobile ? (
               // Mobile view: vertical stacking
-              <Box>
+              <Box sx={{p: 1}}>
                 {uniqueDescriptions.map((desc) => {
                   const mapping = descriptionMappings.get(desc);
                   if (!mapping) return null;
@@ -399,25 +567,27 @@ export function ImportPage(): React.JSX.Element {
                     <Box
                       key={desc}
                       sx={{
-                        p: 2,
+                        p: 2.5,
                         mb: 2,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 1,
+                        // border: '1px solid',
+                        // borderColor: 'divider',
+                        // borderRadius: 0, // Flat style: no rounded corners
+                        backgroundColor: 'background.paper',
+                        boxShadow: 'none', // Flat style: no shadows
                       }}
                     >
-                      <Typography variant="body2" sx={{mb: 2, fontWeight: 'medium'}}>
-                        {desc}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{mb: 2, display: 'block'}}>
-                        ({count} transaction{count !== 1 ? 's' : ''})
-                      </Typography>
+                      <Box sx={{mb: 2, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider'}}>
+                        <Typography variant="body1" sx={{fontWeight: 'medium', mb: 0.5}}>
+                          {desc}
+                        </Typography>
+                        <Chip label={`${count} transaction${count !== 1 ? 's' : ''}`} size="small" variant="outlined" />
+                      </Box>
                       <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
                         <FormControl fullWidth required>
-                          <InputLabel>Account</InputLabel>
+                          <InputLabel>Account *</InputLabel>
                           <Select
                             value={mapping.accountId}
-                            label="Account"
+                            label="Account *"
                             onChange={(e): void => {
                               handleDescriptionMappingChange(desc, 'accountId', e.target.value);
                             }}
@@ -521,7 +691,6 @@ export function ImportPage(): React.JSX.Element {
                                 handleDescriptionMappingChange(desc, 'categoryId', e.target.value);
                               }}
                             >
-                              <MenuItem value="">None</MenuItem>
                               {categories.map((category) => (
                                 <MenuItem key={category.id} value={category.id}>
                                   {category.name}
@@ -540,7 +709,6 @@ export function ImportPage(): React.JSX.Element {
                                 handleDescriptionMappingChange(desc, 'payeeId', e.target.value);
                               }}
                             >
-                              <MenuItem value="">None</MenuItem>
                               {payees.map((payee) => (
                                 <MenuItem key={payee.id} value={payee.id}>
                                   {payee.name}
@@ -556,14 +724,29 @@ export function ImportPage(): React.JSX.Element {
               </Table>
             )}
           </TableContainer>
-          <Box sx={{mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 2}}>
-            <Button variant="outlined" onClick={(): void => void handleIgnore()} disabled={deleting}>
-              {deleting ? 'Ignoring...' : 'Ignore'}
+          <Divider sx={{my: 3}} />
+
+          {/* Action Buttons */}
+          <Box sx={{display: 'flex', flexDirection: {xs: 'column', sm: 'row'}, gap: 2, justifyContent: 'flex-end'}}>
+            <Button
+              variant="outlined"
+              onClick={(): void => void handleIgnore()}
+              disabled={deleting || saving}
+              fullWidth={isMobile}
+            >
+              {deleting ? 'Ignoring...' : 'Ignore All'}
             </Button>
-            <Button variant="contained" onClick={(): void => void handleSave()} disabled={saving}>
-              {saving ? 'Saving...' : 'Save Transactions'}
+            <Button
+              variant="contained"
+              onClick={(): void => void handleSave()}
+              disabled={saving || deleting}
+              fullWidth={isMobile}
+              size="large"
+            >
+              {saving ? 'Saving Transactions...' : 'Save All Transactions'}
             </Button>
           </Box>
+          {saving && <LinearProgress sx={{mt: 2}} />}
         </Card>
       )}
     </Box>

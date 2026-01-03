@@ -6,7 +6,7 @@
 import {createTheme} from '@mui/material/styles';
 import type {Theme} from '@mui/material/styles';
 import {getThemeByTime} from './palettes';
-import {m3Typography, m3Elevation, m3Shape, m3Breakpoints} from './tokens';
+import {m3Typography, m3Breakpoints, m3Shape, m3Elevation} from './tokens';
 import {getColorPalette, type ColorSchemeType} from './colorSchemes';
 
 /**
@@ -28,6 +28,7 @@ export function createAppTheme(
   colorScheme?: ColorSchemeConfig,
 ): Theme {
   const palette = getColorPalette(colorScheme?.type ?? null, colorScheme?.value ?? null, mode === 'dark');
+  const isDark = mode === 'dark';
 
   return createTheme({
     palette: {
@@ -65,34 +66,34 @@ export function createAppTheme(
     },
     spacing: (factor: number) => `${factor * 4}px`, // 4dp grid system
     shape: {
-      borderRadius: Number.parseInt(m3Shape.medium, 10),
+      borderRadius: parseFloat(m3Shape.small), // Default to small (8px) for M3
     },
     shadows: [
-      'none',
-      m3Elevation[1][mode],
-      m3Elevation[2][mode],
-      m3Elevation[3][mode],
-      m3Elevation[4][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
-      m3Elevation[5][mode],
+      m3Elevation[0][isDark ? 'dark' : 'light'],
+      m3Elevation[1][isDark ? 'dark' : 'light'],
+      m3Elevation[2][isDark ? 'dark' : 'light'],
+      m3Elevation[3][isDark ? 'dark' : 'light'],
+      m3Elevation[4][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
+      m3Elevation[5][isDark ? 'dark' : 'light'],
     ] as Theme['shadows'],
     breakpoints: {
       values: m3Breakpoints,
@@ -101,27 +102,16 @@ export function createAppTheme(
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: m3Shape.medium,
+            borderRadius: parseFloat(m3Shape.small), // 8px for buttons
             textTransform: 'none',
             fontWeight: m3Typography.fontWeight.medium,
-            boxShadow: 'none',
-            '&:hover': {
-              boxShadow: 'none',
-            },
-          },
-          contained: {
-            boxShadow: 'none',
-            '&:hover': {
-              boxShadow: m3Elevation[1][mode],
-            },
           },
         },
       },
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: m3Shape.medium,
-            boxShadow: m3Elevation[1][mode],
+            borderRadius: parseFloat(m3Shape.medium), // 12px for cards
             backgroundColor: palette.surface,
             color: palette.onSurface,
           },
@@ -133,28 +123,13 @@ export function createAppTheme(
             backgroundColor: palette.surface,
             color: palette.onSurface,
           },
-          elevation1: {
-            boxShadow: m3Elevation[1][mode],
-          },
-          elevation2: {
-            boxShadow: m3Elevation[2][mode],
-          },
-          elevation3: {
-            boxShadow: m3Elevation[3][mode],
-          },
-          elevation4: {
-            boxShadow: m3Elevation[4][mode],
-          },
-          elevation5: {
-            boxShadow: m3Elevation[5][mode],
-          },
         },
       },
       MuiTextField: {
         styleOverrides: {
           root: {
             '& .MuiOutlinedInput-root': {
-              borderRadius: m3Shape.small,
+              borderRadius: parseFloat(m3Shape.small), // 8px for text fields
               '& fieldset': {
                 borderColor: palette.outline,
               },
@@ -173,17 +148,58 @@ export function createAppTheme(
           root: {
             backgroundColor: palette.surface,
             color: palette.onSurface,
-            boxShadow: m3Elevation[1][mode],
           },
         },
       },
       MuiListItemButton: {
         styleOverrides: {
           root: {
-            borderRadius: m3Shape.small,
+            borderRadius: parseFloat(m3Shape.small), // 8px for list items
             '&:hover': {
               backgroundColor: palette.surfaceVariant,
             },
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            borderRadius: parseFloat(m3Shape.full), // Pill shape for chips
+          },
+        },
+      },
+      MuiLinearProgress: {
+        styleOverrides: {
+          root: {
+            borderRadius: parseFloat(m3Shape.full), // Pill shape for progress bars
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            borderRadius: parseFloat(m3Shape.large), // 16px for dialogs
+          },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            borderRadius: parseFloat(m3Shape.small), // 8px for menus
+          },
+        },
+      },
+      MuiPopover: {
+        styleOverrides: {
+          paper: {
+            borderRadius: parseFloat(m3Shape.small), // 8px for popovers
+          },
+        },
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            borderRadius: parseFloat(m3Shape.small), // 8px for tooltips
           },
         },
       },

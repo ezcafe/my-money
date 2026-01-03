@@ -713,7 +713,7 @@ export function ReportPage(): React.JSX.Element {
             </ToggleButtonGroup>
           </Box>
           <Box>
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={400}>
               {chartType === 'line' ? (
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />

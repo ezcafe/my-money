@@ -4,7 +4,7 @@
  */
 
 import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
-import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText, Chip} from '@mui/material';
+import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText, Chip, Stack} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useNavigate, useLocation} from 'react-router';
 import {Button} from './ui/Button';
@@ -406,12 +406,11 @@ export function Calculator(): React.JSX.Element {
   // then reversed for display (oldest first, newest at bottom)
 
   return (
-    <Box
+    <Stack
+      direction="column"
       sx={{
         flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 0, // Allows flex child to shrink below content size
+        minHeight: 0,
         position: 'relative',
       }}
     >
@@ -436,13 +435,13 @@ export function Calculator(): React.JSX.Element {
         sx={{
           height: calculatorHeight > 0
             ? {
-                xs: `calc(100vh - ${calculatorHeight}px - 16px)`, // Subtract calculator height + margin (2 theme units = 16px)
-                sm: `calc(100vh - ${calculatorHeight}px - 24px)`, // Subtract calculator height + margin (3 theme units = 24px)
+                xs: `calc(100vh - ${calculatorHeight}px - 16px)`,
+                sm: `calc(100vh - ${calculatorHeight}px - 24px)`,
               }
             : '100vh',
           overflowY: 'auto',
           overflowX: 'hidden',
-          mb: {xs: 2, sm: 3}, // Space between list and calculator, matching Layout horizontal padding
+          mb: {xs: 2, sm: 3},
         }}
       >
         <HistoryList
@@ -464,57 +463,50 @@ export function Calculator(): React.JSX.Element {
           display: 'flex',
           justifyContent: 'center',
           zIndex: 10,
-          backgroundColor: 'background.default',
+          bgcolor: 'background.default',
           px: {xs: 2, sm: 3},
           pb: {xs: 2, sm: 3},
         }}
       >
-        <Paper
-          sx={{
-            p: 2,
-            backgroundColor: 'background.paper',
-            width: '100%',
-            maxWidth: '600px',
-          }}
-        >
-        <Typography
-          variant="h4"
-          component="div"
-          sx={{
-            textAlign: 'right',
-            mb: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-          }}
-        >
-          {state.previousValue !== null && state.operation
-            ? `${state.previousValue} ${state.operation} ${state.waitingForNewValue ? '' : state.display}`
-            : state.display}
-        </Typography>
-
-        {/* Top 5 Most Used Values Row */}
-        {topUsedValues.length > 0 && (
-          <Box
+        <Paper sx={{p: 2, width: '100%', maxWidth: '600px'}}>
+          <Typography
+            variant="h4"
+            component="div"
             sx={{
+              textAlign: 'right',
+              mb: 2,
               display: 'flex',
-              gap: 1,
-              mb: 1,
-              overflowX: 'auto',
-              overflowY: 'hidden',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
             }}
           >
-            {topUsedValues.slice(0, 5).map((item, index) => (
-              <Chip
-                key={`${item.value}-${index}`}
-                label={formatCurrencyPreserveDecimals(item.value, currency)}
-                variant="outlined"
-                onClick={() => handleTopUsedValueClick(Number(item.value))}
-                sx={{cursor: 'pointer'}}
-              />
-            ))}
-          </Box>
-        )}
+            {state.previousValue !== null && state.operation
+              ? `${state.previousValue} ${state.operation} ${state.waitingForNewValue ? '' : state.display}`
+              : state.display}
+          </Typography>
+
+          {/* Top 5 Most Used Values Row */}
+          {topUsedValues.length > 0 && (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                mb: 1,
+                overflowX: 'auto',
+                overflowY: 'hidden',
+              }}
+            >
+              {topUsedValues.slice(0, 5).map((item, index) => (
+                <Chip
+                  key={`${item.value}-${index}`}
+                  label={formatCurrencyPreserveDecimals(item.value, currency)}
+                  variant="outlined"
+                  onClick={() => handleTopUsedValueClick(Number(item.value))}
+                  sx={{cursor: 'pointer'}}
+                />
+              ))}
+            </Stack>
+          )}
 
         <Grid container spacing={1}>
           {/* Row 1: Backspace, ±, %, ÷ */}
@@ -664,7 +656,7 @@ export function Calculator(): React.JSX.Element {
           </MenuItem>
         ))}
       </Menu>
-    </Box>
+    </Stack>
   );
 }
 

@@ -5,7 +5,7 @@
 
 import React, {useEffect, useState} from 'react';
 import {useNavigate, useSearchParams} from 'react-router';
-import {Box, Typography} from '@mui/material';
+import {Typography, Stack} from '@mui/material';
 import {handleCallback} from '../utils/oidc';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
@@ -60,29 +60,17 @@ export function AuthCallbackPage(): React.JSX.Element {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
+      <Stack justifyContent="center" alignItems="center" sx={{minHeight: '100vh'}}>
         <LoadingSpinner message="Completing authentication..." />
-      </Box>
+      </Stack>
     );
   }
 
   if (error) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant="h5" component="h2" gutterBottom>
+      <Stack justifyContent="center" alignItems="center" sx={{minHeight: '100vh'}}>
+        <Stack spacing={2}>
+          <Typography variant="h5" component="h2">
             Authentication Error
           </Typography>
           <ErrorAlert message={error} />
@@ -95,22 +83,16 @@ export function AuthCallbackPage(): React.JSX.Element {
           >
             Return to Login
           </Button>
-        </Box>
-      </Box>
+        </Stack>
+      </Stack>
     );
   }
 
   // This should not be reached, but return a loading state just in case
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
+    <Stack justifyContent="center" alignItems="center" sx={{minHeight: '100vh'}}>
       <LoadingSpinner message="Redirecting..." />
-    </Box>
+    </Stack>
   );
 }
 

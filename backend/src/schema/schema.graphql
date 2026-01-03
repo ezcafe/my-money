@@ -258,6 +258,12 @@ type Mutation {
   resetData: Boolean!
 
   """
+  Development login with username and password
+  Returns a JWT token for authentication
+  """
+  devLogin(username: String!, password: String!): String!
+
+  """
   Create a new budget
   """
   createBudget(input: CreateBudgetInput!): Budget!

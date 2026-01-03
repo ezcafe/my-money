@@ -157,16 +157,14 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={{p: 2}}>
-      <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
-        <Box>
-          <Typography variant="h6" component="h2" gutterBottom>
-            {`Balance`}
-          </Typography>
-          <Typography variant="h2" component="div" color="primary" gutterBottom>
-            {formatCurrencyPreserveDecimals(account.balance, currency)}
-          </Typography>
-        </Box>
+    <Box>
+      <Box sx={{mb: 2}}>
+        <Typography variant="h6" component="h2" gutterBottom>
+          {`Balance`}
+        </Typography>
+        <Typography variant="h2" component="div" color="primary" gutterBottom>
+          {formatCurrencyPreserveDecimals(account.balance, currency)}
+        </Typography>
       </Box>
 
       <TransactionList

@@ -4,8 +4,7 @@
  */
 
 import React, {memo} from 'react';
-import {Box, List, ListItemButton, ListItemText} from '@mui/material';
-import {Card} from '../components/ui/Card';
+import {Box, List, ListItemButton, ListItemText, Card} from '@mui/material';
 import {useNavigate} from 'react-router';
 import {usePayees} from '../hooks/usePayees';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
@@ -32,7 +31,7 @@ const PayeesPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={{p: 2}}>
+    <Box>
       <Card>
         <List>
           {payees.map((payee) => (
@@ -41,19 +40,8 @@ const PayeesPageComponent = (): React.JSX.Element => {
               onClick={(): void => {
                 void navigate(`/payees/${payee.id}`);
               }}
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                },
-              }}
             >
-              <ListItemText
-                primary={payee.name}
-                sx={{flex: '0 1 auto'}}
-              />
+              <ListItemText primary={payee.name} />
             </ListItemButton>
           ))}
         </List>

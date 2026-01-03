@@ -124,6 +124,7 @@ interface GetTransactionsData {
  * @param take - Number of items to take
  * @param orderBy - Optional ordering configuration
  * @param note - Optional note filter for searching
+ * @param querySkip - Whether to skip the query (e.g., when required filter is missing)
  * @returns Paginated transactions with loading and error states
  */
 export function useTransactions(
@@ -134,14 +135,16 @@ export function useTransactions(
   take: number = 20,
   orderBy?: TransactionOrderInput,
   note?: string,
+  querySkip?: boolean,
 ): UseTransactionsResult {
   const {data, loading, error, refetch} = useQuery<GetTransactionsData>(GET_TRANSACTIONS, {
     variables: {accountId, categoryId, payeeId, skip, take, orderBy, note},
     errorPolicy: 'all',
+    skip: querySkip ?? false,
   });
 
   const transactionsData = data?.transactions;
-  
+
   let errorResult: Error | undefined;
   if (error) {
     if (error instanceof Error) {

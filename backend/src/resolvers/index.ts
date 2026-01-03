@@ -14,6 +14,7 @@ import {ReportResolver} from './ReportResolver';
 import {ExportResolver} from './ExportResolver';
 import {ResetDataResolver} from './ResetDataResolver';
 import {BudgetResolver} from './BudgetResolver';
+import {DevLoginResolver} from './DevLoginResolver';
 import {uploadPDF, matchImportedTransaction, importCSV, saveImportedTransactions, deleteUnmappedImportedTransactions} from './ImportResolver';
 import type {GraphQLContext} from '../middleware/context';
 
@@ -231,6 +232,10 @@ export const resolvers = {
     // Reset data mutation
     resetData: (parent: unknown, args: unknown, context: GraphQLContext) =>
       new ResetDataResolver().resetData(parent, args, context),
+
+    // Dev login mutation
+    devLogin: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      new DevLoginResolver().devLogin(parent, args as {username: string; password: string}, context),
 
     // Budget mutations
     createBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>

@@ -4,7 +4,7 @@
  */
 
 import React, {useState, useCallback} from 'react';
-import {Box, AppBar, Toolbar, IconButton, Typography, Menu, MenuItem} from '@mui/material';
+import {Box, AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Stack} from '@mui/material';
 import {ArrowBack, Search as SearchIcon, MoreVert, Edit, Delete} from '@mui/icons-material';
 import {useNavigate, useLocation} from 'react-router';
 import {useSearch} from '../../contexts/SearchContext';
@@ -91,20 +91,11 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
   }, [contextMenu, handleContextMenuClose]);
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
+    <Stack direction="column" sx={{height: '100vh', overflow: 'hidden'}}>
       {!isHomePage && (
-        <AppBar
-          position="static"
-          elevation={1}
-        >
-          <Toolbar sx={{minHeight: 56}}>
-            <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back" sx={{mr: 1}}>
+        <AppBar position="static" elevation={0}>
+          <Toolbar>
+            <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back">
               <ArrowBack />
             </IconButton>
             {displayTitle && (
@@ -114,17 +105,17 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
             )}
             {!displayTitle && <Box sx={{flexGrow: 1}} />}
             {!hideSearch && (
-              <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search" sx={{ml: 1}}>
+              <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
                 <SearchIcon />
               </IconButton>
             )}
             {contextMenu && (
-              <IconButton edge="end" color="inherit" onClick={handleContextMenuOpen} aria-label="More options" sx={{ml: 1}}>
+              <IconButton edge="end" color="inherit" onClick={handleContextMenuOpen} aria-label="More options">
                 <MoreVert />
               </IconButton>
             )}
             {!contextMenu && actionButton && (
-              <IconButton edge="end" color="inherit" onClick={actionButton.onClick} aria-label={actionButton.ariaLabel} sx={{ml: 1}}>
+              <IconButton edge="end" color="inherit" onClick={actionButton.onClick} aria-label={actionButton.ariaLabel}>
                 {actionButton.icon}
               </IconButton>
             )}
@@ -138,11 +129,13 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
           onClose={handleContextMenuClose}
         >
           <MenuItem onClick={handleEdit}>
-            <Edit fontSize="small" sx={{mr: 1}} />
+            <Edit fontSize="small" />
+            <Box component="span" sx={{ml: 1}} />
             Edit
           </MenuItem>
           <MenuItem onClick={handleDelete} disabled={contextMenu.disableDelete}>
-            <Delete fontSize="small" sx={{mr: 1}} />
+            <Delete fontSize="small" />
+            <Box component="span" sx={{ml: 1}} />
             Delete
           </MenuItem>
         </Menu>
@@ -152,16 +145,13 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
         sx={{
           flexGrow: 1,
           p: {xs: 2, sm: 3},
-          display: 'flex',
-          flexDirection: 'column',
           overflowY: 'auto',
-          backgroundColor: 'background.default',
         }}
       >
         {children}
       </Box>
       <FloatingSearchBox />
-    </Box>
+    </Stack>
   );
 }
 

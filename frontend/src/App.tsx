@@ -644,7 +644,7 @@ function App(): React.JSX.Element {
                 path="/import"
                 element={
                   <ProtectedRoute>
-                    <Layout>
+                    <Layout title="Import Transactions" hideSearch>
                       <ImportPage />
                     </Layout>
                   </ProtectedRoute>

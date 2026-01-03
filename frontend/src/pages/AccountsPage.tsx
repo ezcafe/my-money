@@ -4,8 +4,7 @@
  */
 
 import React, {memo} from 'react';
-import {Box, Typography, List, ListItemButton, ListItemText, Divider} from '@mui/material';
-import {Card} from '../components/ui/Card';
+import {Box, Typography, List, ListItemButton, ListItemText, Divider, Card} from '@mui/material';
 import {useNavigate} from 'react-router';
 import {useAccounts} from '../hooks/useAccounts';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
@@ -34,7 +33,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
 
   return (
     <Box>
-      <Card elevation={1}>
+      <Card>
         <List disablePadding>
           {accounts.map((account, index) => (
             <React.Fragment key={account.id}>
@@ -42,10 +41,6 @@ const AccountsPageComponent = (): React.JSX.Element => {
               <ListItemButton
                 onClick={(): void => {
                   void navigate(`/accounts/${account.id}`);
-                }}
-                sx={{
-                  py: 2,
-                  px: 3,
                 }}
               >
                 <ListItemText
@@ -55,13 +50,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
                     fontWeight: 500,
                   }}
                 />
-                <Typography
-                  variant="body1"
-                  sx={{
-                    ml: 2,
-                    fontWeight: 500,
-                  }}
-                >
+                <Typography variant="body1" fontWeight={500}>
                   {formatCurrencyPreserveDecimals(account.balance)}
                 </Typography>
               </ListItemButton>
