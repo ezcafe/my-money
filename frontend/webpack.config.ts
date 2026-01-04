@@ -99,15 +99,6 @@ const config: Configuration = {
       'process.env.REACT_APP_OPENID_CLIENT_SECRET': JSON.stringify(
         process.env.REACT_APP_OPENID_CLIENT_SECRET,
       ),
-      'process.env.REACT_APP_ENABLE_DEV_LOGIN': JSON.stringify(
-        process.env.REACT_APP_ENABLE_DEV_LOGIN === 'true',
-      ),
-      'process.env.REACT_APP_DEV_USERNAME': JSON.stringify(
-        process.env.REACT_APP_DEV_USERNAME ?? '',
-      ),
-      'process.env.REACT_APP_DEV_PASSWORD': JSON.stringify(
-        process.env.REACT_APP_DEV_PASSWORD ?? '',
-      ),
     }),
   ],
   optimization: {

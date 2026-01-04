@@ -18,42 +18,9 @@ export interface GraphQLContext extends DataLoaderContext {
 
 /**
  * Create GraphQL context from request
- * Requires authentication for all operations except devLogin
+ * Requires authentication for all operations
  */
 export async function createContext(req: FastifyRequest): Promise<GraphQLContext | null> {
-  // Check if this is a devLogin mutation (doesn't require auth)
-  // Handle both parsed JSON body and raw string body
-  let isDevLogin = false;
-  if (req.body) {
-    if (typeof req.body === 'string') {
-      // Try to parse if it's a string
-      try {
-        const parsed = JSON.parse(req.body) as {query?: string; operationName?: string};
-        isDevLogin = (parsed.query?.includes('devLogin') ?? false) || parsed.operationName === 'devLogin';
-      } catch {
-        // If parsing fails, check raw string
-        isDevLogin = req.body.includes('devLogin');
-      }
-    } else {
-      const body = req.body as {query?: string; operationName?: string};
-      isDevLogin = (body.query?.includes('devLogin') ?? false) || body.operationName === 'devLogin';
-    }
-  }
-
-  // Allow devLogin to proceed without authentication
-  // Skip token verification for devLogin even if authorization header is present
-  // The devLogin mutation itself will handle authentication
-  if (isDevLogin) {
-    // Return minimal context with just prisma for devLogin
-    const dataLoaders = createDataLoaders();
-    return {
-      userId: '', // Will be set after login
-      userEmail: undefined,
-      prisma,
-      ...dataLoaders,
-    } as GraphQLContext;
-  }
-
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -65,7 +32,6 @@ export async function createContext(req: FastifyRequest): Promise<GraphQLContext
 
   // Find or create user in database using upsert to prevent race conditions
   // If two requests come in simultaneously for a new user, upsert ensures only one is created
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   const user = await prisma.user.upsert({
     where: {oidcSubject: userInfo.sub},
     update: {
@@ -81,11 +47,8 @@ export async function createContext(req: FastifyRequest): Promise<GraphQLContext
   const dataLoaders = createDataLoaders();
 
   return {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     userId: user.id,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     userEmail: user.email,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     prisma,
     ...dataLoaders,
   };

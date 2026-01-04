@@ -5,7 +5,6 @@
 
 import * as oidc from 'openid-client';
 import {UnauthorizedError} from '../utils/errors';
-import {isDevToken, getUserFromDevToken} from '../utils/devAuth';
 
 // Type aliases for openid-client types
 type TokenSet = oidc.UserInfoResponse;
@@ -121,28 +120,13 @@ export async function verifyToken(token: string): Promise<TokenSet> {
 
 /**
  * Get user info from token
- * Supports both dev tokens and OIDC tokens
+ * Validates OIDC token and returns user information
  */
 export async function getUserFromToken(token: string): Promise<{sub: string; email?: string}> {
-  // Check if it's a dev token first
-  if (isDevToken(token)) {
-    try {
-      return getUserFromDevToken(token);
-    } catch (error) {
-      throw new UnauthorizedError(
-        error instanceof Error ? error.message : 'Invalid dev token',
-      );
-    }
-  }
-
-  // Otherwise, treat as OIDC token
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const tokenSet = await verifyToken(token);
   return {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     sub: tokenSet.sub ?? '',
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    email: tokenSet.email as string | undefined,
+    email: tokenSet.email,
   };
 }
 

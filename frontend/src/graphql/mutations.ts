@@ -311,12 +311,6 @@ export const MARK_BUDGET_NOTIFICATION_READ = gql`
   }
 `;
 
-export const DEV_LOGIN = gql`
-  mutation DevLogin($username: String!, $password: String!) {
-    devLogin(username: $username, password: $password)
-  }
-`;
-
 
 
 
