@@ -7,36 +7,36 @@ import React, {useState, useCallback, useMemo, useEffect} from 'react';
 import {
   Box,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
-  Menu,
-  MenuItem,
-  TableSortLabel,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  DialogContentText,
-  CircularProgress,
   ToggleButton,
   ToggleButtonGroup,
   Popover,
   Collapse,
-  Pagination,
+  Chip,
+  Grid,
+  CircularProgress,
 } from '@mui/material';
-import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear, PictureAsPdf, CalendarToday, ExpandMore, ExpandLess, ShowChart, BarChart as BarChartIcon} from '@mui/icons-material';
+import {
+  Clear,
+  PictureAsPdf,
+  CalendarToday,
+  ExpandMore,
+  ExpandLess,
+  ShowChart,
+  BarChart as BarChartIcon,
+  TrendingUp,
+  TrendingDown,
+  Receipt,
+  AttachMoney,
+  AccountTree,
+} from '@mui/icons-material';
 import {DateCalendar} from '@mui/x-date-pickers/DateCalendar';
 import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
 import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, {type Dayjs} from 'dayjs';
 import {useQuery, useMutation} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
-import {LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer} from 'recharts';
+import {LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, type TooltipProps} from 'recharts';
 import {jsPDF} from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {Card} from '../components/ui/Card';
@@ -48,8 +48,10 @@ import {validateDateRange} from '../utils/validation';
 import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS} from '../graphql/queries';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
 import {useAccounts} from '../hooks/useAccounts';
-import type {TransactionOrderInput} from '../hooks/useTransactions';
+import type {TransactionOrderInput, TransactionOrderByField} from '../hooks/useTransactions';
 import {ITEMS_PER_PAGE} from '../utils/constants';
+import {TransactionList} from '../components/TransactionList';
+import {SankeyChart} from '../components/SankeyChart';
 
 /**
  * Transaction type from report query
@@ -65,6 +67,7 @@ interface ReportTransaction {
   category: {
     id: string;
     name: string;
+    type?: string;
   } | null;
   payee: {
     id: string;
@@ -93,6 +96,84 @@ interface ChartDataPoint {
 }
 
 /**
+ * Preset date range type
+ */
+type DatePreset = 'today' | 'thisWeek' | 'thisMonth' | 'thisYear' | 'lastMonth' | 'last30Days' | 'last90Days' | 'custom';
+
+/**
+ * Date preset configuration
+ */
+interface DatePresetConfig {
+  label: string;
+  getDates: () => {startDate: string; endDate: string};
+}
+
+/**
+ * Get date presets configuration
+ */
+function getDatePresets(): Record<DatePreset, DatePresetConfig> {
+  const today = dayjs();
+  return {
+    today: {
+      label: 'Today',
+      getDates: () => ({
+        startDate: today.format('YYYY-MM-DD'),
+        endDate: today.format('YYYY-MM-DD'),
+      }),
+    },
+    thisWeek: {
+      label: 'This Week',
+      getDates: () => ({
+        startDate: today.startOf('week').format('YYYY-MM-DD'),
+        endDate: today.endOf('week').format('YYYY-MM-DD'),
+      }),
+    },
+    thisMonth: {
+      label: 'This Month',
+      getDates: () => ({
+        startDate: today.startOf('month').format('YYYY-MM-DD'),
+        endDate: today.endOf('month').format('YYYY-MM-DD'),
+      }),
+    },
+    thisYear: {
+      label: 'This Year',
+      getDates: () => ({
+        startDate: today.startOf('year').format('YYYY-MM-DD'),
+        endDate: today.endOf('year').format('YYYY-MM-DD'),
+      }),
+    },
+    lastMonth: {
+      label: 'Last Month',
+      getDates: () => ({
+        startDate: today.subtract(1, 'month').startOf('month').format('YYYY-MM-DD'),
+        endDate: today.subtract(1, 'month').endOf('month').format('YYYY-MM-DD'),
+      }),
+    },
+    last30Days: {
+      label: 'Last 30 Days',
+      getDates: () => ({
+        startDate: today.subtract(30, 'day').format('YYYY-MM-DD'),
+        endDate: today.format('YYYY-MM-DD'),
+      }),
+    },
+    last90Days: {
+      label: 'Last 90 Days',
+      getDates: () => ({
+        startDate: today.subtract(90, 'day').format('YYYY-MM-DD'),
+        endDate: today.format('YYYY-MM-DD'),
+      }),
+    },
+    custom: {
+      label: 'Custom',
+      getDates: () => ({
+        startDate: '',
+        endDate: '',
+      }),
+    },
+  };
+}
+
+/**
  * Report Page Component
  */
 export function ReportPage(): React.JSX.Element {
@@ -104,8 +185,8 @@ export function ReportPage(): React.JSX.Element {
   const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string}>}>(GET_CATEGORIES);
   const {data: payeesData} = useQuery<{payees?: Array<{id: string; name: string}>}>(GET_PAYEES);
 
-  const categories = categoriesData?.categories ?? [];
-  const payees = payeesData?.payees ?? [];
+  const categories = useMemo(() => categoriesData?.categories ?? [], [categoriesData?.categories]);
+  const payees = useMemo(() => payeesData?.payees ?? [], [payeesData?.payees]);
 
   // Filter state (current input values)
   const [filters, setFilters] = useState({
@@ -128,20 +209,15 @@ export function ReportPage(): React.JSX.Element {
   });
 
   // Sorting state
-  const [sortField, setSortField] = useState<'date' | 'value' | 'account' | 'payee' | 'category'>('date');
+  const [sortField, setSortField] = useState<TransactionOrderByField>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Chart type state
-  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [chartType, setChartType] = useState<'line' | 'bar' | 'sankey'>('line');
 
   // Pagination state
   const [page, setPage] = useState(1);
 
-  // Menu state
-  const [menuAnchor, setMenuAnchor] = useState<{element: HTMLElement; transactionId: string} | null>(null);
-
-  // Delete state
-  const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
 
   // Date picker popover state
   const [datePickerAnchor, setDatePickerAnchor] = useState<HTMLElement | null>(null);
@@ -150,15 +226,20 @@ export function ReportPage(): React.JSX.Element {
   // Filter panel collapse state
   const [filterPanelExpanded, setFilterPanelExpanded] = useState<boolean>(true);
 
-  // Build orderBy object
-  const orderBy: TransactionOrderInput = {
-    field: sortField,
-    direction: sortDirection,
-  };
+  // Date preset state
+  const [datePreset, setDatePreset] = useState<DatePreset | null>(null);
+
+  // Date picker visibility state
+  const [showDatePickers, setShowDatePickers] = useState<boolean>(false);
 
   // Build query variables
   const queryVariables = useMemo(() => {
     const skip = (page - 1) * ITEMS_PER_PAGE;
+    // Build orderBy object inside useMemo
+    const orderBy: TransactionOrderInput = {
+      field: sortField,
+      direction: sortDirection,
+    };
     const vars: {
       accountIds?: string[];
       categoryIds?: string[];
@@ -198,7 +279,7 @@ export function ReportPage(): React.JSX.Element {
     }
 
     return vars;
-  }, [appliedFilters, orderBy, page]);
+  }, [appliedFilters, sortField, sortDirection, page]);
 
   // Check if filters are applied
   const hasFilters = useMemo(() => {
@@ -219,10 +300,16 @@ export function ReportPage(): React.JSX.Element {
     errorPolicy: 'all',
   });
 
-  const transactions = data?.reportTransactions?.items ?? [];
+  const transactions = useMemo(() => data?.reportTransactions?.items ?? [], [data?.reportTransactions?.items]);
   const totalCount = data?.reportTransactions?.totalCount ?? 0;
   const totalAmount = data?.reportTransactions?.totalAmount ?? 0;
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  // Map to PaginatedTransactions format
+  const paginatedTransactions = useMemo(() => ({
+    items: transactions,
+    totalCount,
+    hasMore: false,
+  }), [transactions, totalCount]);
 
   // Auto-collapse filter panel when data is loaded after filtering
   useEffect(() => {
@@ -237,11 +324,10 @@ export function ReportPage(): React.JSX.Element {
   }, [appliedFilters]);
 
   // Delete mutation
-  const [deleteTransaction, {loading: deleting}] = useMutation(DELETE_TRANSACTION, {
+  const [deleteTransaction] = useMutation(DELETE_TRANSACTION, {
     refetchQueries: ['GetReportTransactions', 'GetRecentTransactions'],
     awaitRefetchQueries: true,
     onCompleted: () => {
-      setDeletingTransactionId(null);
       void refetch();
     },
   });
@@ -279,6 +365,8 @@ export function ReportPage(): React.JSX.Element {
       } else {
         handleFilterChange('startDate', '');
       }
+      setDatePreset('custom');
+      setShowDatePickers(true);
       handleDatePickerClose();
     },
     [handleFilterChange, handleDatePickerClose],
@@ -294,6 +382,8 @@ export function ReportPage(): React.JSX.Element {
       } else {
         handleFilterChange('endDate', '');
       }
+      setDatePreset('custom');
+      setShowDatePickers(true);
       handleDatePickerClose();
     },
     [handleFilterChange, handleDatePickerClose],
@@ -314,6 +404,29 @@ export function ReportPage(): React.JSX.Element {
     const text = filters.endDate || 'End Date';
     return text.charAt(0).toUpperCase() + text.slice(1);
   }, [filters.endDate]);
+
+  /**
+   * Apply preset date range
+   */
+  const handlePresetDateRange = useCallback((preset: DatePreset) => {
+    if (preset === 'custom') {
+      setShowDatePickers(true);
+      setDatePreset('custom');
+    } else {
+      const presets = getDatePresets();
+      const presetConfig = presets[preset];
+      if (presetConfig) {
+        const dates = presetConfig.getDates();
+        setFilters((prev) => ({
+          ...prev,
+          startDate: dates.startDate,
+          endDate: dates.endDate,
+        }));
+        setDatePreset(preset);
+        setShowDatePickers(false);
+      }
+    }
+  }, []);
 
   /**
    * Apply filters - copy current filter inputs to applied filters
@@ -347,71 +460,183 @@ export function ReportPage(): React.JSX.Element {
     };
     setFilters(emptyFilters);
     setAppliedFilters(emptyFilters);
+    setDatePreset(null);
+    setShowDatePickers(false);
     setFilterPanelExpanded(true);
   }, []);
 
   /**
-   * Handle sort column click
+   * Calculate summary statistics
    */
-  const handleSort = useCallback(
-    (field: 'date' | 'value' | 'account' | 'payee' | 'category') => {
-      if (sortField === field) {
-        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-      } else {
-        setSortField(field);
-        setSortDirection('desc');
+  const summaryStats = useMemo(() => {
+    if (transactions.length === 0) {
+      return {
+        totalAmount: 0,
+        transactionCount: 0,
+        averageAmount: 0,
+        income: 0,
+        expense: 0,
+      };
+    }
+
+    const amounts = transactions.map((t) => Number(t.value));
+    const totalAmount = amounts.reduce((sum, val) => sum + val, 0);
+    const income = amounts.filter((val) => val > 0).reduce((sum, val) => sum + val, 0);
+    const expense = Math.abs(amounts.filter((val) => val < 0).reduce((sum, val) => sum + val, 0));
+    const averageAmount = totalAmount / transactions.length;
+
+    return {
+      totalAmount,
+      transactionCount: totalCount,
+      averageAmount,
+      income,
+      expense,
+    };
+  }, [transactions, totalCount]);
+
+  /**
+   * Get active filter chips
+   */
+  const activeFilters = useMemo(() => {
+    const chips: Array<{label: string; onDelete: () => void}> = [];
+
+    if (appliedFilters.startDate && appliedFilters.endDate) {
+      chips.push({
+        label: `${formatDateShort(appliedFilters.startDate)} - ${formatDateShort(appliedFilters.endDate)}`,
+        onDelete: () => {
+          setFilters((prev) => ({...prev, startDate: '', endDate: ''}));
+          setAppliedFilters((prev) => ({...prev, startDate: '', endDate: ''}));
+          setDatePreset(null);
+          setShowDatePickers(false);
+        },
+      });
+    }
+
+    appliedFilters.accountIds.forEach((id) => {
+      const account = accounts.find((a) => a.id === id);
+      if (account) {
+        chips.push({
+          label: `Account: ${account.name}`,
+          onDelete: () => {
+            const newIds = appliedFilters.accountIds.filter((aid) => aid !== id);
+            setFilters((prev) => ({...prev, accountIds: newIds}));
+            setAppliedFilters((prev) => ({...prev, accountIds: newIds}));
+          },
+        });
       }
-      setPage(1); // Reset to first page when sorting changes
+    });
+
+    appliedFilters.categoryIds.forEach((id) => {
+      const category = categories.find((c) => c.id === id);
+      if (category) {
+        chips.push({
+          label: `Category: ${category.name}`,
+          onDelete: () => {
+            const newIds = appliedFilters.categoryIds.filter((cid) => cid !== id);
+            setFilters((prev) => ({...prev, categoryIds: newIds}));
+            setAppliedFilters((prev) => ({...prev, categoryIds: newIds}));
+          },
+        });
+      }
+    });
+
+    appliedFilters.payeeIds.forEach((id) => {
+      const payee = payees.find((p) => p.id === id);
+      if (payee) {
+        chips.push({
+          label: `Payee: ${payee.name}`,
+          onDelete: () => {
+            const newIds = appliedFilters.payeeIds.filter((pid) => pid !== id);
+            setFilters((prev) => ({...prev, payeeIds: newIds}));
+            setAppliedFilters((prev) => ({...prev, payeeIds: newIds}));
+          },
+        });
+      }
+    });
+
+    if (appliedFilters.note.trim()) {
+      chips.push({
+        label: `Note: ${appliedFilters.note.trim()}`,
+        onDelete: () => {
+          setFilters((prev) => ({...prev, note: ''}));
+          setAppliedFilters((prev) => ({...prev, note: ''}));
+        },
+      });
+    }
+
+    return chips;
+  }, [appliedFilters, accounts, categories, payees]);
+
+  /**
+   * Custom chart tooltip formatter
+   */
+  const CustomTooltip = useCallback(
+    ({active, payload}: TooltipProps<number, string>) => {
+      if (active && payload && payload.length > 0) {
+        const data = payload[0];
+        if (!data) {
+          return null;
+        }
+        const payloadData = data.payload as ChartDataPoint | undefined;
+        const date = payloadData?.date ?? '';
+        return (
+          <Box
+            sx={{
+              backgroundColor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              p: 1.5,
+              boxShadow: 2,
+            }}
+          >
+            <Typography variant="body2" sx={{mb: 0.5}}>
+              <strong>{date}</strong>
+            </Typography>
+            <Typography variant="body2" color="primary">
+              {formatCurrencyPreserveDecimals(data.value ?? 0, currency)}
+            </Typography>
+          </Box>
+        );
+      }
+      return null;
     },
-    [sortField, sortDirection],
+    [currency],
   );
 
   /**
-   * Handle menu open
+   * Handle sort change
    */
-  const handleMenuOpen = useCallback((event: React.MouseEvent<HTMLElement>, transactionId: string) => {
-    event.stopPropagation();
-    setMenuAnchor({element: event.currentTarget, transactionId});
-  }, []);
-
-  /**
-   * Handle menu close
-   */
-  const handleMenuClose = useCallback(() => {
-    setMenuAnchor(null);
-  }, []);
+  const handleSortChange = useCallback(
+    (field: TransactionOrderByField, direction: 'asc' | 'desc') => {
+      setSortField(field);
+      setSortDirection(direction);
+      setPage(1); // Reset to first page when sorting changes
+    },
+    [],
+  );
 
   /**
    * Handle edit click - navigate to edit page
    */
-  const handleEdit = useCallback(() => {
-    if (menuAnchor) {
-      const transactionId = menuAnchor.transactionId;
+  const handleEdit = useCallback(
+    (transactionId: string) => {
       void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent('/report')}`);
-      handleMenuClose();
-    }
-  }, [menuAnchor, navigate, handleMenuClose]);
+    },
+    [navigate],
+  );
 
   /**
    * Handle delete click
    */
-  const handleDeleteClick = useCallback(() => {
-    if (menuAnchor) {
-      setDeletingTransactionId(menuAnchor.transactionId);
-      handleMenuClose();
-    }
-  }, [menuAnchor, handleMenuClose]);
-
-  /**
-   * Handle delete confirmation
-   */
-  const handleDeleteConfirm = useCallback(() => {
-    if (deletingTransactionId) {
+  const handleDelete = useCallback(
+    (transactionId: string) => {
       void deleteTransaction({
-        variables: {id: deletingTransactionId},
+        variables: {id: transactionId},
       });
-    }
-  }, [deletingTransactionId, deleteTransaction]);
+    },
+    [deleteTransaction],
+  );
 
   /**
    * Handle row click - navigate to edit page
@@ -422,16 +647,6 @@ export function ReportPage(): React.JSX.Element {
     },
     [navigate],
   );
-
-  /**
-   * Get sort icon for column
-   */
-  const getSortIcon = (field: 'date' | 'value' | 'account' | 'payee' | 'category') => {
-    if (sortField !== field) {
-      return null;
-    }
-    return sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />;
-  };
 
   /**
    * Prepare chart data
@@ -456,6 +671,221 @@ export function ReportPage(): React.JSX.Element {
 
     return dataPoints;
   }, [transactions]);
+
+  /**
+   * Format Y-axis tick values with abbreviation
+   */
+  const formatYAxisTick = useCallback((value: unknown): string => {
+    const numValue = typeof value === 'number' ? value : Number(value);
+    if (typeof numValue !== 'number' || Number.isNaN(numValue) || !Number.isFinite(numValue)) {
+      return '';
+    }
+    const absValue = Math.abs(numValue);
+    const sign = numValue < 0 ? '-' : '';
+    if (absValue >= 1_000_000_000) {
+      return `${sign}${(absValue / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+    }
+    if (absValue >= 1_000_000) {
+      return `${sign}${(absValue / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    }
+    if (absValue >= 1_000) {
+      return `${sign}${(absValue / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+    }
+    return String(numValue);
+  }, []);
+
+  /**
+   * Prepare Sankey diagram data
+   */
+  const sankeyData = useMemo(() => {
+    if (transactions.length === 0) {
+      return null;
+    }
+
+    // Separate income and expense transactions
+    const incomeTransactions = transactions.filter(
+      (t) => t.category?.type === 'INCOME',
+    );
+    const expenseTransactions = transactions.filter(
+      (t) => !t.category || t.category.type === 'EXPENSE',
+    );
+
+    // Build node map and links
+    const nodeMap = new Map<string, number>();
+    const links: Array<{source: string; target: string; value: number}> = [];
+
+    // Process income: Account -> Payee -> Budget
+    const incomeByAccountPayee = new Map<string, Map<string, number>>();
+    let totalIncome = 0;
+
+    for (const transaction of incomeTransactions) {
+      const accountName = transaction.account?.name ?? 'Unknown Account';
+      const payeeName = transaction.payee?.name ?? 'Others';
+      const value = Number(transaction.value);
+
+      if (!incomeByAccountPayee.has(accountName)) {
+        incomeByAccountPayee.set(accountName, new Map());
+      }
+      const payeeMap = incomeByAccountPayee.get(accountName)!;
+      payeeMap.set(payeeName, (payeeMap.get(payeeName) ?? 0) + value);
+      totalIncome += value;
+    }
+
+    // Create nodes and links for income flow
+    for (const [accountName, payeeMap] of incomeByAccountPayee.entries()) {
+      const accountNodeId = `account_${accountName}`;
+      nodeMap.set(accountNodeId, (nodeMap.get(accountNodeId) ?? 0) + Array.from(payeeMap.values()).reduce((sum, val) => sum + val, 0));
+
+      for (const [payeeName, value] of payeeMap.entries()) {
+        const payeeNodeId = `payee_income_${accountName}_${payeeName}`;
+        nodeMap.set(payeeNodeId, (nodeMap.get(payeeNodeId) ?? 0) + value);
+
+        // Link: Account -> Payee
+        links.push({
+          source: accountNodeId,
+          target: payeeNodeId,
+          value,
+        });
+
+        // Link: Payee -> Budget
+        links.push({
+          source: payeeNodeId,
+          target: 'budget',
+          value,
+        });
+      }
+    }
+
+    // Budget node
+    nodeMap.set('budget', totalIncome);
+
+    // Process expenses: Budget -> Category -> Payee
+    const expenseByCategoryPayee = new Map<string, Map<string, number>>();
+
+    for (const transaction of expenseTransactions) {
+      const categoryName = transaction.category?.name ?? 'Uncategorized';
+      const payeeName = transaction.payee?.name ?? 'Others';
+      const value = Math.abs(Number(transaction.value));
+
+      if (!expenseByCategoryPayee.has(categoryName)) {
+        expenseByCategoryPayee.set(categoryName, new Map());
+      }
+      const payeeMap = expenseByCategoryPayee.get(categoryName)!;
+      payeeMap.set(payeeName, (payeeMap.get(payeeName) ?? 0) + value);
+    }
+
+    // Create nodes and links for expense flow
+    for (const [categoryName, payeeMap] of expenseByCategoryPayee.entries()) {
+      const categoryNodeId = `category_${categoryName}`;
+      const categoryTotal = Array.from(payeeMap.values()).reduce((sum, val) => sum + val, 0);
+      nodeMap.set(categoryNodeId, (nodeMap.get(categoryNodeId) ?? 0) + categoryTotal);
+
+      // Link: Budget -> Category
+      links.push({
+        source: 'budget',
+        target: categoryNodeId,
+        value: categoryTotal,
+      });
+
+      for (const [payeeName, value] of payeeMap.entries()) {
+        const payeeNodeId = `payee_expense_${categoryName}_${payeeName}`;
+        nodeMap.set(payeeNodeId, (nodeMap.get(payeeNodeId) ?? 0) + value);
+
+        // Link: Category -> Payee
+        links.push({
+          source: categoryNodeId,
+          target: payeeNodeId,
+          value,
+        });
+      }
+    }
+
+    // Convert node map to array with labels
+    const nodeLabels: string[] = [];
+    const nodeValues: number[] = [];
+    const nodeIdToIndex = new Map<string, number>();
+
+    // Add nodes in order: Earnings (Account -> Payee), Budget, Categories, Spendings
+    let nodeIndex = 0;
+
+    // Earnings: Accounts
+    for (const [accountName] of incomeByAccountPayee.entries()) {
+      const nodeId = `account_${accountName}`;
+      nodeIdToIndex.set(nodeId, nodeIndex);
+      nodeLabels.push(accountName);
+      nodeValues.push(nodeMap.get(nodeId) ?? 0);
+      nodeIndex++;
+    }
+
+    // Earnings: Payees
+    for (const [accountName, payeeMap] of incomeByAccountPayee.entries()) {
+      for (const [payeeName] of payeeMap.entries()) {
+        const nodeId = `payee_income_${accountName}_${payeeName}`;
+        nodeIdToIndex.set(nodeId, nodeIndex);
+        nodeLabels.push(payeeName);
+        nodeValues.push(nodeMap.get(nodeId) ?? 0);
+        nodeIndex++;
+      }
+    }
+
+    // Budget
+    nodeIdToIndex.set('budget', nodeIndex);
+    nodeLabels.push(`Budget (${formatCurrencyPreserveDecimals(totalIncome, currency)})`);
+    nodeValues.push(totalIncome);
+    nodeIndex++;
+
+    // Categories
+    for (const [categoryName] of expenseByCategoryPayee.entries()) {
+      const nodeId = `category_${categoryName}`;
+      nodeIdToIndex.set(nodeId, nodeIndex);
+      nodeLabels.push(categoryName);
+      nodeValues.push(nodeMap.get(nodeId) ?? 0);
+      nodeIndex++;
+    }
+
+    // Spendings: Payees
+    for (const [categoryName, payeeMap] of expenseByCategoryPayee.entries()) {
+      for (const [payeeName] of payeeMap.entries()) {
+        const nodeId = `payee_expense_${categoryName}_${payeeName}`;
+        nodeIdToIndex.set(nodeId, nodeIndex);
+        nodeLabels.push(payeeName);
+        nodeValues.push(nodeMap.get(nodeId) ?? 0);
+        nodeIndex++;
+      }
+    }
+
+    // Convert links to indices
+    const linkSources: number[] = [];
+    const linkTargets: number[] = [];
+    const linkValues: number[] = [];
+
+    for (const link of links) {
+      const sourceIdx = nodeIdToIndex.get(link.source);
+      const targetIdx = nodeIdToIndex.get(link.target);
+      if (sourceIdx !== undefined && targetIdx !== undefined) {
+        linkSources.push(sourceIdx);
+        linkTargets.push(targetIdx);
+        linkValues.push(link.value);
+      }
+    }
+
+    return {
+      node: {
+        label: nodeLabels,
+        pad: 15,
+        thickness: 20,
+        line: {
+          color: 'black',
+          width: 0.5,
+        },
+      },
+      link: {
+        source: linkSources,
+        target: linkTargets,
+        value: linkValues,
+      },
+    };
+  }, [transactions, currency]);
 
   /**
    * Generate and download PDF
@@ -570,8 +1000,10 @@ export function ReportPage(): React.JSX.Element {
     [payees],
   );
 
+  const datePresets = getDatePresets();
+
   return (
-    <Box sx={{p: 2}}>
+    <Box sx={{p: {xs: 1, sm: 2}, maxWidth: '1400px', mx: 'auto'}}>
       {/* Filters Section */}
       <Card sx={{p: 2, mb: 3}}>
         <Box
@@ -584,10 +1016,13 @@ export function ReportPage(): React.JSX.Element {
           onClick={() => setFilterPanelExpanded(!filterPanelExpanded)}
         >
           <Typography variant="h6" component="h2">Filters</Typography>
-          <IconButton size="small" onClick={(e) => {
-            e.stopPropagation();
-            setFilterPanelExpanded(!filterPanelExpanded);
-          }}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFilterPanelExpanded(!filterPanelExpanded);
+            }}
+          >
             {filterPanelExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Box>
@@ -607,26 +1042,55 @@ export function ReportPage(): React.JSX.Element {
                 </Typography>
               </Box>
             )}
+
+            {/* Quick Date Presets */}
+            <Box sx={{mb: 3}}>
+              <Typography variant="subtitle2" sx={{mb: 1, color: 'text.secondary'}}>
+                Quick Date Ranges
+              </Typography>
+              <Box sx={{display: 'flex', gap: 1, flexWrap: 'wrap'}}>
+                {(['today', 'thisWeek', 'thisMonth', 'thisYear', 'lastMonth', 'last30Days', 'last90Days', 'custom'] as DatePreset[]).map((preset) => (
+                  <Button
+                    key={preset}
+                    variant={datePreset === preset ? 'contained' : 'outlined'}
+                    size="small"
+                    onClick={() => handlePresetDateRange(preset)}
+                    sx={{textTransform: 'none'}}
+                  >
+                    {datePresets[preset].label}
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+
             <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
               {/* Date Range - Two Separate Buttons */}
-              <Box sx={{display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap'}}>
-                <Button
-                  variant="outlined"
-                  onClick={(e) => handleDatePickerOpen(e, 'start')}
-                  startIcon={<CalendarToday />}
-                  sx={{flex: 1, justifyContent: 'flex-start', textTransform: 'none'}}
-                >
-                  {startDateText}
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={(e) => handleDatePickerOpen(e, 'end')}
-                  startIcon={<CalendarToday />}
-                  sx={{flex: 1, justifyContent: 'flex-start', textTransform: 'none'}}
-                >
-                  {endDateText}
-                </Button>
-              </Box>
+              {showDatePickers && (
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Button
+                      variant="outlined"
+                      onClick={(e) => handleDatePickerOpen(e, 'start')}
+                      startIcon={<CalendarToday />}
+                      fullWidth
+                      sx={{justifyContent: 'flex-start', textTransform: 'none'}}
+                    >
+                      {startDateText}
+                    </Button>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Button
+                      variant="outlined"
+                      onClick={(e) => handleDatePickerOpen(e, 'end')}
+                      startIcon={<CalendarToday />}
+                      fullWidth
+                      sx={{justifyContent: 'flex-start', textTransform: 'none'}}
+                    >
+                      {endDateText}
+                    </Button>
+                  </Grid>
+                </Grid>
+              )}
 
               {/* Multi-select Filters */}
               <MultiSelect
@@ -664,42 +1128,124 @@ export function ReportPage(): React.JSX.Element {
                 fullWidth
                 sx={{textTransform: 'none', mt: 1}}
               >
-                Apply
+                Apply Filters
               </Button>
             </Box>
           </Box>
         </Collapse>
       </Card>
 
-      {/* Actions Card */}
-      {(hasFilters || transactions.length > 0) && (
+      {/* Active Filters */}
+      {activeFilters.length > 0 && (
         <Card sx={{p: 2, mb: 3}}>
-          <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap'}}>
-            {transactions.length > 0 && (
-              <Button variant="contained" onClick={handleDownloadPDF} startIcon={<PictureAsPdf />} sx={{textTransform: 'none'}}>
-                Download PDF
-              </Button>
-            )}
-            {hasFilters && (
-              <Button variant="outlined" onClick={handleClearFilters} startIcon={<Clear />} sx={{textTransform: 'none'}}>
-                Clear
-              </Button>
-            )}
+          <Box sx={{display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap'}}>
+            <Typography variant="subtitle2" sx={{mr: 1, color: 'text.secondary'}}>
+              Active Filters:
+            </Typography>
+            {activeFilters.map((filter, index) => (
+              <Chip
+                key={index}
+                label={filter.label}
+                onDelete={filter.onDelete}
+                size="small"
+                sx={{textTransform: 'none'}}
+              />
+            ))}
+            <Button
+              variant="text"
+              size="small"
+              onClick={handleClearFilters}
+              startIcon={<Clear />}
+              sx={{textTransform: 'none', ml: 'auto'}}
+            >
+              Clear All
+            </Button>
+          </Box>
+        </Card>
+      )}
+
+      {/* Summary Cards */}
+      {hasFilters && totalCount > 0 && (
+        <Grid container spacing={2} sx={{mb: 3}}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{p: 2, height: '100%'}}>
+              <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+                <AttachMoney color="primary" />
+                <Typography variant="subtitle2" color="text.secondary">
+                  Total Amount
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{fontWeight: 'bold'}}>
+                {formatCurrencyPreserveDecimals(summaryStats.totalAmount, currency)}
+              </Typography>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{p: 2, height: '100%'}}>
+              <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+                <TrendingUp sx={{color: 'success.main'}} />
+                <Typography variant="subtitle2" color="text.secondary">
+                  Income
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{fontWeight: 'bold', color: 'success.main'}}>
+                {formatCurrencyPreserveDecimals(summaryStats.income, currency)}
+              </Typography>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{p: 2, height: '100%'}}>
+              <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+                <TrendingDown sx={{color: 'error.main'}} />
+                <Typography variant="subtitle2" color="text.secondary">
+                  Expenses
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{fontWeight: 'bold', color: 'error.main'}}>
+                {formatCurrencyPreserveDecimals(summaryStats.expense, currency)}
+              </Typography>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{p: 2, height: '100%'}}>
+              <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+                <Receipt color="primary" />
+                <Typography variant="subtitle2" color="text.secondary">
+                  Transactions
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{fontWeight: 'bold'}}>
+                {summaryStats.transactionCount.toLocaleString()}
+              </Typography>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Actions Card */}
+      {hasFilters && transactions.length > 0 && (
+        <Card sx={{p: 2, mb: 3}}>
+          <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
+            <Button variant="contained" onClick={handleDownloadPDF} startIcon={<PictureAsPdf />} sx={{textTransform: 'none'}}>
+              Download PDF
+            </Button>
           </Box>
         </Card>
       )}
 
       {/* Chart Section */}
-      {transactions.length > 0 && chartData.length > 0 && (
+      {hasFilters && !loading && transactions.length > 0 && ((chartType !== 'sankey' && chartData.length > 0) || (chartType === 'sankey' && sankeyData !== null)) && (
         <Card sx={{p: 2, mb: 3}}>
           <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
-            <Typography variant="h6" component="h2">Chart</Typography>
+            <Typography variant="h6" component="h2">
+              {chartType === 'sankey' ? 'Cash Flow' : 'Transaction Trends'}
+            </Typography>
             <ToggleButtonGroup
               value={chartType}
               exclusive
               onChange={(_, value) => {
-                if (value !== null && (value === 'line' || value === 'bar')) {
-                  setChartType(value as 'line' | 'bar');
+                if (value !== null && (value === 'line' || value === 'bar' || value === 'sankey')) {
+                  setChartType(value as 'line' | 'bar' | 'sankey');
                 }
               }}
               size="small"
@@ -710,200 +1256,99 @@ export function ReportPage(): React.JSX.Element {
               <ToggleButton value="bar" aria-label="Bar chart">
                 <BarChartIcon />
               </ToggleButton>
+              <ToggleButton value="sankey" aria-label="Cash flow chart">
+                <AccountTree />
+              </ToggleButton>
             </ToggleButtonGroup>
           </Box>
           <Box>
-            <ResponsiveContainer width="100%" height={400}>
-              {chartType === 'line' ? (
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="amount" stroke="#8884d8" name="Amount" />
-                </LineChart>
-              ) : (
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="amount" fill="#8884d8" name="Amount" />
-                </BarChart>
-              )}
-            </ResponsiveContainer>
+            {chartType === 'sankey' ? (
+              sankeyData && (
+                <SankeyChart data={sankeyData} width={800} height={400} currency={currency} />
+              )
+            ) : (
+              <Box sx={{width: '100%', height: 400, overflow: 'auto'}}>
+                {chartType === 'line' ? (
+                  <LineChart width={800} height={400} data={chartData} style={{minWidth: 800}}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis tickFormatter={formatYAxisTick} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line type="monotone" dataKey="amount" stroke="#8884d8" name="Amount" strokeWidth={2} />
+                  </LineChart>
+                ) : (
+                  <BarChart width={800} height={400} data={chartData} style={{minWidth: 800}}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis tickFormatter={formatYAxisTick} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="amount" fill="#8884d8" name="Amount" />
+                  </BarChart>
+                )}
+              </Box>
+            )}
           </Box>
         </Card>
       )}
 
       {/* Results Section */}
-      <Card sx={{p: 2}}>
-        <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
-          <Typography variant="h6" component="h2">
-            Results {totalCount > 0 && `(${totalCount})`}
-          </Typography>
-          {totalCount > 0 && (
-            <Typography variant="body2" color="text.secondary">
-              Total: {formatCurrencyPreserveDecimals(totalAmount, currency)}
-            </Typography>
-          )}
-        </Box>
-
-        {loading ? (
-          <Box sx={{display: 'flex', justifyContent: 'center', py: 4}}>
-            <CircularProgress />
-          </Box>
-        ) : !hasFilters ? (
+      {!hasFilters ? (
+        <Card sx={{p: 4}}>
           <Box sx={{py: 4, textAlign: 'center'}}>
-            <Typography variant="body2" color="text.secondary">
-              Apply filters to generate report
+            <Receipt sx={{fontSize: 64, color: 'text.secondary', mb: 2, opacity: 0.5}} />
+            <Typography variant="h6" sx={{mb: 1}}>
+              Get Started with Reports
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{maxWidth: '500px', mx: 'auto'}}>
+              Select a date range and apply filters to generate a comprehensive report of your transactions. You can filter by accounts, categories, payees, and search by notes.
             </Typography>
           </Box>
-        ) : transactions.length === 0 ? (
+        </Card>
+      ) : loading ? (
+        <Card sx={{p: 4}}>
           <Box sx={{py: 4, textAlign: 'center'}}>
+            <CircularProgress sx={{mb: 2}} />
             <Typography variant="body2" color="text.secondary">
-              No transactions found matching your filters
+              Loading transactions...
             </Typography>
           </Box>
-        ) : (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortField === 'date'}
-                        direction={sortField === 'date' ? sortDirection : 'asc'}
-                        onClick={() => handleSort('date')}
-                        IconComponent={() => getSortIcon('date')}
-                      >
-                        Date
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortField === 'value'}
-                        direction={sortField === 'value' ? sortDirection : 'asc'}
-                        onClick={() => handleSort('value')}
-                        IconComponent={() => getSortIcon('value')}
-                      >
-                        Value
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortField === 'account'}
-                        direction={sortField === 'account' ? sortDirection : 'asc'}
-                        onClick={() => handleSort('account')}
-                        IconComponent={() => getSortIcon('account')}
-                      >
-                        Account
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortField === 'payee'}
-                        direction={sortField === 'payee' ? sortDirection : 'asc'}
-                        onClick={() => handleSort('payee')}
-                        IconComponent={() => getSortIcon('payee')}
-                      >
-                        Payee
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortField === 'category'}
-                        direction={sortField === 'category' ? sortDirection : 'asc'}
-                        onClick={() => handleSort('category')}
-                        IconComponent={() => getSortIcon('category')}
-                      >
-                        Category
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>Note</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {transactions.map((transaction) => (
-                    <TableRow
-                      key={transaction.id}
-                      hover
-                      sx={{cursor: 'pointer'}}
-                      onClick={() => handleRowClick(transaction.id)}
-                    >
-                      <TableCell>{formatDateShort(transaction.date)}</TableCell>
-                      <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
-                      <TableCell>{transaction.account?.name ?? '-'}</TableCell>
-                      <TableCell>{transaction.payee?.name ?? '-'}</TableCell>
-                      <TableCell>{transaction.category?.name ?? '-'}</TableCell>
-                      <TableCell>{transaction.note ?? '-'}</TableCell>
-                      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleMenuOpen(e, transaction.id)}
-                          aria-label="More actions"
-                        >
-                          <MoreVert />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            {totalPages > 1 && (
-              <Box sx={{display: 'flex', justifyContent: 'center', mt: 2, pb: 2}}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, value) => setPage(value)}
-                />
-              </Box>
-            )}
-          </>
-        )}
-      </Card>
-
-      {/* Action Menu */}
-      <Menu
-        anchorEl={menuAnchor?.element ?? null}
-        open={Boolean(menuAnchor)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handleEdit}>
-          <Edit fontSize="small" sx={{mr: 1}} />
-          Edit
-        </MenuItem>
-        <MenuItem onClick={handleDeleteClick}>
-          <Delete fontSize="small" sx={{mr: 1}} />
-          Delete
-        </MenuItem>
-      </Menu>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={Boolean(deletingTransactionId)}
-        onClose={() => setDeletingTransactionId(null)}
-      >
-        <DialogTitle>Delete Transaction</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this transaction? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeletingTransactionId(null)} disabled={deleting} sx={{textTransform: 'none'}}>
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting} sx={{textTransform: 'none'}}>
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Card>
+      ) : totalCount === 0 ? (
+        <Card sx={{p: 4}}>
+          <Box sx={{py: 4, textAlign: 'center'}}>
+            <Receipt sx={{fontSize: 64, color: 'text.secondary', mb: 2, opacity: 0.5}} />
+            <Typography variant="h6" sx={{mb: 1}}>
+              No Transactions Found
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
+              No transactions match your current filters. Try adjusting your date range or filter criteria.
+            </Typography>
+            <Button variant="outlined" onClick={handleClearFilters} startIcon={<Clear />} sx={{textTransform: 'none'}}>
+              Clear Filters
+            </Button>
+          </Box>
+        </Card>
+      ) : (
+        <TransactionList
+          transactions={paginatedTransactions}
+          loading={loading}
+          error={error}
+          currency={currency}
+          page={page}
+          onPageChange={setPage}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          isSearchMode={false}
+          showAccountColumn={true}
+          showCategoryColumn={true}
+          showPayeeColumn={true}
+          sortableFields={['date', 'value', 'account', 'category', 'payee']}
+          onRowClick={handleRowClick}
+        />
+      )}
 
       {/* Date Picker Popover */}
       <Popover

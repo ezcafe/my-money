@@ -207,6 +207,7 @@ export const GET_REPORT_TRANSACTIONS = gql`
         category {
           id
           name
+          type
         }
         payee {
           id

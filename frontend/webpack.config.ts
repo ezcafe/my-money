@@ -28,6 +28,10 @@ const config: Configuration = {
       path.resolve(__dirname, '../node_modules'),
       'node_modules',
     ],
+    fallback: {
+      fs: false,
+      path: false,
+    },
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@components': path.resolve(__dirname, 'src/components'),

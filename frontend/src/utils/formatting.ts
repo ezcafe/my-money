@@ -58,22 +58,22 @@ export function formatDateShort(date: Date | string): string {
  */
 export function formatCurrencyPreserveDecimals(value: number | string, currency: string = 'USD'): string {
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  
+
   // Convert to string to check decimal places from original value
   const valueStr = typeof value === 'string' ? value : String(value);
-  
+
   // Check if original string representation has .00 or .0
-  const hasExplicitZeroDecimals = typeof value === 'string' && 
-    valueStr.includes('.') && 
+  const hasExplicitZeroDecimals = typeof value === 'string' &&
+    valueStr.includes('.') &&
     (valueStr.endsWith('.00') || valueStr.endsWith('.0'));
-  
+
   // Check if value is a whole number (no decimal part)
   const isWholeNumber = Number.isInteger(numValue) || (numValue % 1 === 0);
-  
+
   // Determine minimum and maximum fraction digits
   let minFractionDigits = 0;
   let maxFractionDigits = 0;
-  
+
   if (hasExplicitZeroDecimals) {
     // If original value has .00, show 2 decimal places
     minFractionDigits = 2;
@@ -86,7 +86,7 @@ export function formatCurrencyPreserveDecimals(value: number | string, currency:
     maxFractionDigits = decimalLength;
   }
   // If it's a whole number without explicit .00, show no decimals (minFractionDigits = 0)
-  
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
@@ -164,5 +164,27 @@ export function formatDateHeader(date: Date | string): string {
   }
 
   return formatDate(dateObj);
+}
+
+/**
+ * Format a number with abbreviation (K, M, B, etc.)
+ * Examples: 1000 -> 1K, 32000000 -> 32M, 1500000000 -> 1.5B
+ * @param value - The numeric value to format
+ * @returns Formatted number string with abbreviation
+ */
+export function formatNumberAbbreviation(value: number): string {
+  const absValue = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+
+  if (absValue >= 1_000_000_000) {
+    return `${sign}${(absValue / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+  }
+  if (absValue >= 1_000_000) {
+    return `${sign}${(absValue / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (absValue >= 1_000) {
+    return `${sign}${(absValue / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  }
+  return String(value);
 }
 

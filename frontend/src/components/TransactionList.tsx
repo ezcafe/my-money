@@ -74,6 +74,8 @@ export interface TransactionListProps {
   showPayeeColumn?: boolean;
   /** Array of sortable fields (defaults to all fields) */
   sortableFields?: TransactionOrderByField[];
+  /** Optional callback when row is clicked */
+  onRowClick?: (transactionId: string) => void;
 }
 
 /**
@@ -98,6 +100,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
   showCategoryColumn = true,
   showPayeeColumn = true,
   sortableFields = ['date', 'value', 'account', 'category', 'payee'],
+  onRowClick,
 }) => {
   // Menu state
   const [menuAnchor, setMenuAnchor] = useState<{element: HTMLElement; transactionId: string} | null>(
@@ -336,17 +339,25 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                   </TableRow>
                 ) : (
                   transactions.items.map((transaction) => (
-                    <TableRow key={transaction.id}>
+                    <TableRow
+                      key={transaction.id}
+                      hover={Boolean(onRowClick)}
+                      sx={onRowClick ? {cursor: 'pointer'} : undefined}
+                      onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
+                    >
                       <TableCell>{formatDateShort(transaction.date)}</TableCell>
                       <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
                       {showAccountColumn && <TableCell>{transaction.account?.name ?? '-'}</TableCell>}
                       {showCategoryColumn && <TableCell>{transaction.category?.name ?? '-'}</TableCell>}
                       {showPayeeColumn && <TableCell>{transaction.payee?.name ?? '-'}</TableCell>}
                       <TableCell>{transaction.note ?? '-'}</TableCell>
-                      <TableCell align="right">
+                      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                         <IconButton
                           size="small"
-                          onClick={(e) => handleMenuOpen(e, transaction.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMenuOpen(e, transaction.id);
+                          }}
                           aria-label="More actions"
                         >
                           <MoreVert />
