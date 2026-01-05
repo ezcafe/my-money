@@ -10,7 +10,9 @@ import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {incrementAccountBalance} from '../services/AccountBalanceService';
+import {updateTransactionWithBalance} from '../services/TransactionService';
 import {updateBudgetForTransaction} from '../services/BudgetService';
+import {sanitizeUserInput} from '../utils/sanitization';
 
 const CreateTransactionInputSchema = z.object({
   value: z.number().finite(),
@@ -72,18 +74,8 @@ export class TransactionResolver {
     };
 
     if (accountId) {
-      // Verify account belongs to user
-      const account = await context.prisma.account.findFirst({
-        where: {
-          id: accountId,
-          userId: context.userId,
-        },
-      });
-
-      if (!account) {
-        throw new NotFoundError('Account');
-      }
-
+      // userId in where clause already prevents unauthorized access
+      // No need for separate verification query
       where.accountId = accountId;
     }
 
@@ -165,11 +157,8 @@ export class TransactionResolver {
         skip: offset,
         take: limit + 1, // Fetch one extra to determine hasMore
         orderBy: prismaOrderBy,
-        include: {
-          account: true,
-          category: true,
-          payee: true,
-        },
+        // Relations are loaded via DataLoaders in GraphQL field resolvers
+        // This prevents N+1 query problems
       }),
       context.prisma.transaction.count({where}),
     ]);
@@ -229,15 +218,12 @@ export class TransactionResolver {
     }
 
     // Get transactions with ordering
+    // Relations are loaded via DataLoaders in GraphQL field resolvers
+    // This prevents N+1 query problems and reduces memory usage
     const transactions = await context.prisma.transaction.findMany({
       where: {userId: context.userId},
       take: limit,
       orderBy: prismaOrderBy,
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
     });
 
     return transactions;
@@ -287,41 +273,42 @@ export class TransactionResolver {
       throw new NotFoundError('Account');
     }
 
-    // Verify category if provided and fetch it for type checking
+    // Verify category and payee in parallel if both are provided
+    // This reduces database round-trips from 2 to 1 when both are present
     let category: {type: 'INCOME' | 'EXPENSE'} | null = null;
-    if (validatedInput.categoryId) {
-      const foundCategory = await context.prisma.category.findFirst({
-        where: {
-          id: validatedInput.categoryId,
-          OR: [
-            {userId: context.userId},
-            {isDefault: true},
-          ],
-        },
-      });
 
-      if (!foundCategory) {
-        throw new NotFoundError('Category');
-      }
+    const [foundCategory, foundPayee] = await Promise.all([
+      validatedInput.categoryId
+        ? context.prisma.category.findFirst({
+            where: {
+              id: validatedInput.categoryId,
+              OR: [
+                {userId: context.userId},
+                {isDefault: true},
+              ],
+            },
+          })
+        : Promise.resolve(null),
+      validatedInput.payeeId
+        ? context.prisma.payee.findFirst({
+            where: {
+              id: validatedInput.payeeId,
+              OR: [
+                {userId: context.userId},
+                {isDefault: true},
+              ],
+            },
+          })
+        : Promise.resolve(null),
+    ]);
 
-      category = foundCategory;
+    if (validatedInput.categoryId && !foundCategory) {
+      throw new NotFoundError('Category');
     }
+    category = foundCategory;
 
-    // Verify payee if provided
-    if (validatedInput.payeeId) {
-      const payee = await context.prisma.payee.findFirst({
-        where: {
-          id: validatedInput.payeeId,
-          OR: [
-            {userId: context.userId},
-            {isDefault: true},
-          ],
-        },
-      });
-
-      if (!payee) {
-        throw new NotFoundError('Payee');
-      }
+    if (validatedInput.payeeId && !foundPayee) {
+      throw new NotFoundError('Payee');
     }
 
     // Calculate balance delta based on category type
@@ -342,7 +329,7 @@ export class TransactionResolver {
               accountId: validatedInput.accountId,
               categoryId: validatedInput.categoryId,
               payeeId: validatedInput.payeeId,
-              note: validatedInput.note,
+              note: validatedInput.note ? sanitizeUserInput(validatedInput.note) : null,
               userId: context.userId,
             },
           });
@@ -369,7 +356,7 @@ export class TransactionResolver {
                 categoryId: transactionWithRelations.categoryId,
                 payeeId: transactionWithRelations.payeeId,
                 userId: transactionWithRelations.userId,
-                value: transactionWithRelations.value,
+                value: Number(transactionWithRelations.value),
                 date: transactionWithRelations.date,
                 categoryType: category?.type ?? null,
               },
@@ -452,76 +439,22 @@ export class TransactionResolver {
       newCategory = existingTransaction.category;
     }
 
-    // Calculate old balance delta based on old category type
-    const oldCategory = existingTransaction.category;
-    const oldValue = Number(existingTransaction.value);
-    const oldBalanceDelta = oldCategory?.type === 'INCOME'
-      ? oldValue
-      : -oldValue;
-
-    // Update transaction and adjust account balances atomically
+    // Use service layer for complex business logic
     const transaction = await context.prisma.$transaction(async (tx) => {
-      const newValue = validatedInput.value !== undefined
-        ? validatedInput.value
-        : oldValue;
-      const oldAccountId = existingTransaction.accountId;
-      const newAccountId = validatedInput.accountId ?? oldAccountId;
-
-      // Calculate new balance delta based on new category type
-      const newBalanceDelta = newCategory?.type === 'INCOME'
-        ? newValue
-        : -newValue;
-
-      // Update transaction
-      const updatedTransaction = await tx.transaction.update({
-        where: {id},
-        data: {
-          ...(validatedInput.value !== undefined && {value: validatedInput.value}),
-          ...(validatedInput.date !== undefined && {date: validatedInput.date}),
-          ...(validatedInput.accountId !== undefined && {accountId: validatedInput.accountId}),
-          ...(validatedInput.categoryId !== undefined && {categoryId: validatedInput.categoryId}),
-          ...(validatedInput.payeeId !== undefined && {payeeId: validatedInput.payeeId}),
-          ...(validatedInput.note !== undefined && {note: validatedInput.note}),
+      return await updateTransactionWithBalance(
+        id,
+        validatedInput,
+        {
+          value: Number(existingTransaction.value),
+          accountId: existingTransaction.accountId,
+          categoryId: existingTransaction.categoryId,
+          category: existingTransaction.category,
+          date: existingTransaction.date,
         },
-      });
-
-      // Adjust account balances
-      // Need to reverse old balance change and apply new balance change
-      const needsBalanceUpdate = validatedInput.value !== undefined
-        || validatedInput.accountId !== undefined
-        || validatedInput.categoryId !== undefined;
-
-      if (needsBalanceUpdate) {
-        // Determine if category type changed
-        const oldCategoryType = oldCategory?.type ?? 'EXPENSE';
-        const newCategoryType = newCategory?.type ?? 'EXPENSE';
-        const _categoryTypeChanged = oldCategoryType !== newCategoryType;
-
-        if (oldAccountId === newAccountId) {
-          // Same account: reverse old balance change and apply new balance change
-          // Formula: -oldBalanceDelta + newBalanceDelta works for both cases:
-          // - Different types: reverse old completely, then apply new completely
-          // - Same types: reverse old, then apply new
-          const totalDelta = -oldBalanceDelta + newBalanceDelta;
-          if (totalDelta !== 0) {
-            await incrementAccountBalance(newAccountId, totalDelta, tx);
-          }
-        } else {
-          // Different accounts: reverse old on old account, apply new on new account
-          await incrementAccountBalance(oldAccountId, -oldBalanceDelta, tx);
-          await incrementAccountBalance(newAccountId, newBalanceDelta, tx);
-        }
-      }
-
-      // Return transaction with relations
-      return await tx.transaction.findUnique({
-        where: {id: updatedTransaction.id},
-        include: {
-          account: true,
-          category: true,
-          payee: true,
-        },
-      });
+        newCategory,
+        context.userId,
+        tx,
+      );
     });
 
     return transaction;
@@ -562,7 +495,7 @@ export class TransactionResolver {
           categoryId: transaction.categoryId,
           payeeId: transaction.payeeId,
           userId: transaction.userId,
-          value: transaction.value,
+          value: Number(transaction.value),
           date: transaction.date,
           categoryType: transaction.category?.type ?? null,
         },

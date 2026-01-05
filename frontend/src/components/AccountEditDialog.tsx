@@ -68,7 +68,7 @@ export function AccountEditDialog({
       setInitBalance(String(account.initBalance));
     } else {
       setName('');
-      setInitBalance('0');
+      setInitBalance('');
     }
     setError(null);
   }, [account, open]);
@@ -78,10 +78,16 @@ export function AccountEditDialog({
    */
   const handleSave = (): void => {
     setError(null);
-    const balance = parseFloat(initBalance);
-    if (isNaN(balance)) {
-      setError('Initial balance must be a valid number');
-      return;
+
+    // Handle optional initBalance - default to 0 if empty or invalid
+    let balance: number | undefined = undefined;
+    if (initBalance && initBalance.trim() !== '') {
+      const parsed = parseFloat(initBalance);
+      if (isNaN(parsed)) {
+        setError('Initial balance must be a valid number');
+        return;
+      }
+      balance = parsed;
     }
 
     if (account) {
@@ -91,7 +97,7 @@ export function AccountEditDialog({
           id: account.id,
           input: {
             name,
-            initBalance: balance,
+            ...(balance !== undefined ? {initBalance: balance} : {}),
           },
         },
       });
@@ -101,7 +107,7 @@ export function AccountEditDialog({
         variables: {
           input: {
             name,
-            initBalance: balance,
+            ...(balance !== undefined ? {initBalance: balance} : {}),
           },
         },
       });
@@ -147,7 +153,7 @@ export function AccountEditDialog({
           value={initBalance}
           onChange={(e) => setInitBalance(e.target.value)}
           fullWidth
-          required
+          required={false}
           inputProps={{step: '0.01'}}
         />
       </Box>

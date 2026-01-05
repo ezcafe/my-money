@@ -9,6 +9,7 @@ import {getUserFromToken} from './auth';
 import {UnauthorizedError} from '../utils/errors';
 import {createDataLoaders} from '../utils/dataloaders';
 import type {DataLoaderContext} from '../utils/dataloaders';
+import {logAuthFailure} from '../utils/securityLogger';
 
 export interface GraphQLContext extends DataLoaderContext {
   userId: string;
@@ -24,11 +25,25 @@ export async function createContext(req: FastifyRequest): Promise<GraphQLContext
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
+    logAuthFailure('No authorization header provided', {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
     throw new UnauthorizedError('No authorization header provided');
   }
 
   const token = authHeader.replace('Bearer ', '');
-  const userInfo = await getUserFromToken(token);
+  let userInfo: {sub: string; email?: string};
+  try {
+    userInfo = await getUserFromToken(token);
+  } catch (error) {
+    logAuthFailure('Token validation failed', {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
 
   // Find or create user in database using upsert to prevent race conditions
   // If two requests come in simultaneously for a new user, upsert ensures only one is created
@@ -43,6 +58,11 @@ export async function createContext(req: FastifyRequest): Promise<GraphQLContext
       email: userInfo.email ?? '',
     },
   });
+
+  // Validate that userId exists (should always be true after upsert, but explicit check for safety)
+  if (!user.id) {
+    throw new UnauthorizedError('User ID not found after authentication');
+  }
 
   const dataLoaders = createDataLoaders();
 

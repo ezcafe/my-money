@@ -6,6 +6,9 @@
 import {ApolloLink, Observable} from '@apollo/client';
 import type {FetchResult, Operation} from '@apollo/client';
 import {print} from 'graphql';
+import {getEncryptedToken} from '../utils/tokenEncryption';
+import {ensureValidToken} from '../utils/tokenRefresh';
+import {API_CONFIG} from '../config/api';
 
 /**
  * Check if a value is a File object
@@ -114,53 +117,56 @@ export const uploadLink = new ApolloLink((operation, forward) => {
   // Has files, convert to multipart/form-data
   return new Observable<FetchResult>((observer) => {
     // Get auth token and URI from context
-    const token = localStorage.getItem('oidc_token');
-    const uri: string = (operation.getContext().uri as string | undefined) ?? process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql';
+    const uri: string = (operation.getContext().uri as string | undefined) ?? API_CONFIG.graphqlUrl;
 
-    try {
-      const formData = createFormData(operation);
-      const headers: Record<string, string> = {};
-
-      // Add auth token if available
-      if (token) {
-        headers.authorization = `Bearer ${token}`;
-      }
-
-      // Add Apollo CSRF protection header for multipart requests
-      // Apollo Server requires x-apollo-operation-name or apollo-require-preflight for multipart/form-data
-      const operationName = operation.operationName ?? 'UploadPDF';
-      headers['x-apollo-operation-name'] = operationName;
-
-      // Don't set Content-Type - browser will set it with boundary for multipart/form-data
-      // Copy other headers from context (excluding Content-Type)
-      const contextHeaders = (operation.getContext().headers as Record<string, unknown> | undefined) ?? {};
-      for (const [key, value] of Object.entries(contextHeaders)) {
-        if (key.toLowerCase() !== 'content-type' && typeof value === 'string') {
-          headers[key] = value;
+    // Async token retrieval and upload
+    void (async (): Promise<void> => {
+      try {
+        // Get encrypted token and ensure it's valid (refresh if needed)
+        let token: string | null = await getEncryptedToken('oidc_token');
+        if (token) {
+          token = await ensureValidToken(token);
         }
-      }
 
-      fetch(uri, {
-        method: 'POST',
-        headers,
-        body: formData as BodyInit,
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const formData = createFormData(operation);
+        const headers: Record<string, string> = {};
+
+        // Add auth token if available
+        if (token) {
+          headers.authorization = `Bearer ${token}`;
+        }
+
+        // Add Apollo CSRF protection header for multipart requests
+        // Apollo Server requires x-apollo-operation-name or apollo-require-preflight for multipart/form-data
+        const operationName = operation.operationName ?? 'UploadPDF';
+        headers['x-apollo-operation-name'] = operationName;
+
+        // Don't set Content-Type - browser will set it with boundary for multipart/form-data
+        // Copy other headers from context (excluding Content-Type)
+        const contextHeaders = (operation.getContext().headers as Record<string, unknown> | undefined) ?? {};
+        for (const [key, value] of Object.entries(contextHeaders)) {
+          if (key.toLowerCase() !== 'content-type' && typeof value === 'string') {
+            headers[key] = value;
           }
-          return response.json() as Promise<FetchResult>;
-        })
-        .then((data: FetchResult) => {
-          observer.next(data);
-          observer.complete();
-        })
-        .catch((error: unknown) => {
-          observer.error(error);
+        }
+
+        const response = await fetch(uri, {
+          method: 'POST',
+          headers,
+          body: formData as BodyInit,
         });
-    } catch (error: unknown) {
-      observer.error(error);
-    }
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = (await response.json()) as FetchResult;
+        observer.next(data);
+        observer.complete();
+      } catch (error: unknown) {
+        observer.error(error);
+      }
+    })();
   });
 });
 

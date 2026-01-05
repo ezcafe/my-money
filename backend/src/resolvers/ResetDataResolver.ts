@@ -11,7 +11,7 @@ export class ResetDataResolver {
   /**
    * Reset all user data except default account, category, and payee
    * Deletes all transactions, recurring transactions, imported transactions,
-   * import match rules, and non-default accounts/categories/payees
+   * import match rules, budgets, budget notifications, and non-default accounts/categories/payees
    * Resets default account balance to initBalance
    * @param _ - Parent resolver (unused)
    * @param __ - Arguments (unused)
@@ -45,6 +45,20 @@ export class ResetDataResolver {
 
           // Delete all import match rules for the user
           await tx.importMatchRule.deleteMany({
+            where: {
+              userId: context.userId,
+            },
+          });
+
+          // Delete all budget notifications for the user
+          await tx.budgetNotification.deleteMany({
+            where: {
+              userId: context.userId,
+            },
+          });
+
+          // Delete all budgets for the user
+          await tx.budget.deleteMany({
             where: {
               userId: context.userId,
             },

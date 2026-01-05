@@ -92,6 +92,7 @@ async function findAffectedBudgets(
 
 /**
  * Check budget thresholds and create notifications if needed
+ * Only creates notification for the highest threshold reached
  * @param budget - Budget data
  * @param userId - User ID
  * @param tx - Prisma transaction client
@@ -103,29 +104,154 @@ async function checkBudgetThresholds(
 ): Promise<void> {
   const percentage = (budget.currentSpent / budget.amount) * 100;
 
-  // Check thresholds: 50%, 80%, 100%
-  const thresholds = [50, 80, 100];
+  // Check thresholds: 50%, 80%, 100% (in descending order to find highest reached)
+  const thresholds = [100, 80, 50];
+
+  // Find the highest threshold that has been reached
+  let highestThresholdReached: number | null = null;
   for (const threshold of thresholds) {
     if (percentage >= threshold) {
-      // Check if we've already notified for this threshold this month
-      const monthStart = getCurrentMonthStart();
-      const existingNotification = await tx.budgetNotification.findFirst({
-        where: {
-          userId,
-          budgetId: budget.id,
-          threshold,
-          createdAt: {
-            gte: monthStart,
-          },
-        },
-      });
-
-      if (!existingNotification) {
-        // Create notification
-        await createBudgetNotification(userId, budget.id, threshold, tx);
-      }
+      highestThresholdReached = threshold;
+      break;
     }
   }
+
+  // Only create notification for the highest threshold reached
+  if (highestThresholdReached !== null) {
+    // Check if we've already notified for this threshold this month
+    const monthStart = getCurrentMonthStart();
+    const existingNotification = await tx.budgetNotification.findFirst({
+      where: {
+        userId,
+        budgetId: budget.id,
+        threshold: highestThresholdReached,
+        createdAt: {
+          gte: monthStart,
+        },
+      },
+    });
+
+    if (!existingNotification) {
+      // Create notification only for the highest threshold
+      await createBudgetNotification(userId, budget.id, highestThresholdReached, tx);
+    }
+  }
+}
+
+/**
+ * Recalculate budget balance from scratch for current period
+ * Sums all EXPENSE transactions in the current month that match the budget criteria
+ * @param budgetId - Budget ID
+ * @param userId - User ID
+ * @param tx - Optional Prisma transaction client
+ * @returns Recalculated currentSpent amount
+ */
+export async function recalculateBudgetBalance(
+  budgetId: string,
+  userId: string,
+  tx?: PrismaTransaction | PrismaClient,
+): Promise<number> {
+  const client = tx ?? prisma;
+
+  // Get budget with its criteria
+  const budget = await client.budget.findFirst({
+    where: {
+      id: budgetId,
+      userId,
+    },
+    select: {
+      accountId: true,
+      categoryId: true,
+      payeeId: true,
+    },
+  });
+
+  if (!budget) {
+    throw new Error(`Budget ${budgetId} not found`);
+  }
+
+  // Build query to find matching transactions
+  const monthStart = getCurrentMonthStart();
+  const monthEnd = new Date(
+    monthStart.getFullYear(),
+    monthStart.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999,
+  );
+
+  // Build OR conditions based on budget type
+  const orConditions: Array<{
+    accountId?: string;
+    categoryId?: string;
+    payeeId?: string;
+  }> = [];
+
+  if (budget.accountId) {
+    orConditions.push({accountId: budget.accountId});
+  }
+  if (budget.categoryId) {
+    orConditions.push({categoryId: budget.categoryId});
+  }
+  if (budget.payeeId) {
+    orConditions.push({payeeId: budget.payeeId});
+  }
+
+  // Get all matching transactions with their categories
+  // Filter by: userId, date range, category type EXPENSE, and budget criteria
+  const transactions = await client.transaction.findMany({
+    where: {
+      userId,
+      date: {
+        gte: monthStart,
+        lte: monthEnd,
+      },
+      category: {
+        type: 'EXPENSE',
+      },
+      ...(orConditions.length > 0 && {OR: orConditions}),
+    },
+    include: {
+      category: {
+        select: {type: true},
+      },
+    },
+  });
+
+  // Calculate total spending (only EXPENSE transactions in current month)
+  let totalSpent = 0;
+  for (const transaction of transactions) {
+    // Double-check category type (should already be filtered, but be safe)
+    if (transaction.category?.type === 'EXPENSE' && isCurrentMonth(transaction.date)) {
+      const value = Number(transaction.value);
+      totalSpent += Math.abs(value);
+    }
+  }
+
+  // Update budget with recalculated amount
+  await client.budget.update({
+    where: {id: budgetId},
+    data: {currentSpent: totalSpent},
+  });
+
+  // Check thresholds with updated budget
+  const budgetAmount = await client.budget.findUnique({
+    where: {id: budgetId},
+    select: {amount: true},
+  });
+
+  if (budgetAmount) {
+    const updatedBudget = {
+      id: budgetId,
+      amount: Number(budgetAmount.amount),
+      currentSpent: totalSpent,
+    };
+    await checkBudgetThresholds(updatedBudget, userId, client);
+  }
+
+  return totalSpent;
 }
 
 /**

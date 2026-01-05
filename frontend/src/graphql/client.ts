@@ -3,14 +3,92 @@
  * Apollo Client v4 - Following migration guide: https://www.apollographql.com/docs/react/migrating/apollo-client-4-migration
  */
 
-import {ApolloClient, InMemoryCache, HttpLink, from, type ApolloLink} from '@apollo/client';
+import {ApolloClient, InMemoryCache, HttpLink, from, type ApolloLink, type FetchResult, Observable} from '@apollo/client';
 import {setContext} from '@apollo/client/link/context';
 import {onError} from '@apollo/client/link/error';
+import {ApolloLink as ApolloLinkClass} from '@apollo/client';
 import {ensureValidToken, refreshToken} from '../utils/tokenRefresh';
 import {getEncryptedToken} from '../utils/tokenEncryption';
 import {uploadLink} from './uploadLink';
-import {CONNECTION_ERROR_THROTTLE_MS, APOLLO_CACHE_MAX_SIZE} from '../utils/constants';
+import {CONNECTION_ERROR_THROTTLE_MS, APOLLO_CACHE_MAX_SIZE, CIRCUIT_BREAKER_FAILURE_THRESHOLD, CIRCUIT_BREAKER_COOLDOWN_MS} from '../utils/constants';
 import {showErrorNotification, getUserFriendlyErrorMessage} from '../utils/errorNotification';
+import {API_CONFIG} from '../config/api';
+
+/**
+ * Custom fetch function with timeout support
+ * @param input - Request URL or RequestInfo
+ * @param options - Fetch options
+ * @returns Promise<Response>
+ */
+function fetchWithTimeout(input: RequestInfo | URL, options: RequestInit = {}): Promise<Response> {
+  const timeout = API_CONFIG.requestTimeoutMs;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeout);
+
+  return fetch(input, {
+    ...options,
+    signal: controller.signal,
+  })
+    .then((response) => {
+      clearTimeout(timeoutId);
+      return response;
+    })
+    .catch((error: unknown) => {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${timeout}ms`);
+      }
+      throw error;
+    });
+}
+
+// Circuit breaker state for connection errors
+let consecutiveFailures = 0;
+let circuitOpenUntil = 0;
+
+/**
+ * Check if circuit breaker is open (blocking requests)
+ * @returns true if circuit is open and requests should be blocked
+ */
+function isCircuitOpen(): boolean {
+  const now = Date.now();
+  // If cooldown period has passed, reset
+  if (now >= circuitOpenUntil && circuitOpenUntil > 0) {
+    consecutiveFailures = 0;
+    circuitOpenUntil = 0;
+    return false;
+  }
+  // If circuit is in cooldown, it's open
+  if (now < circuitOpenUntil) {
+    return true;
+  }
+  // If failures exceed threshold, open circuit
+  if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
+    circuitOpenUntil = now + CIRCUIT_BREAKER_COOLDOWN_MS;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Record a connection failure
+ */
+function recordFailure(): void {
+  consecutiveFailures++;
+  if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
+    circuitOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+  }
+}
+
+/**
+ * Record a successful connection (reset circuit breaker)
+ */
+function recordSuccess(): void {
+  consecutiveFailures = 0;
+  circuitOpenUntil = 0;
+}
 
 // Note: Using process.env for Webpack compatibility
 // For ESM 2025, would need DefinePlugin configuration in webpack.config.ts
@@ -21,7 +99,9 @@ import {showErrorNotification, getUserFriendlyErrorMessage} from '../utils/error
 // consider using Apollo Client's query batching feature or implement a custom link.
 // The current implementation benefits from automatic deduplication.
 const httpLink = new HttpLink({
-  uri: process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql',
+  uri: API_CONFIG.graphqlUrl,
+  // Use custom fetch with timeout support
+  fetch: fetchWithTimeout,
   // Apollo Client v4 automatically deduplicates requests
   // Additional batching can be configured here if needed
 });
@@ -51,6 +131,17 @@ const authLink = setContext(async (_request, prevContext) => {
 // Error link with enhanced error handling and token refresh
 const errorLink = onError((options) => {
   const {graphQLErrors, networkError} = options as {graphQLErrors?: Array<{message: string; locations?: unknown; path?: unknown; extensions?: unknown}>; networkError?: Error & {statusCode?: number}};
+
+  // Check circuit breaker before processing errors
+  if (networkError && isCircuitOpen()) {
+    const errorMessage = networkError instanceof Error ? networkError.message : String(networkError);
+    if (errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('Failed to fetch')) {
+      const userMessage = 'Server is temporarily unavailable. Please try again in a moment.';
+      showErrorNotification(userMessage, {originalError: errorMessage, circuitOpen: true});
+      return;
+    }
+  }
+
   // Handle GraphQL errors
   if (graphQLErrors) {
     for (const {message, locations, path, extensions} of graphQLErrors) {
@@ -128,7 +219,12 @@ const errorLink = onError((options) => {
     } else {
       // Handle connection errors more gracefully
       const errorMessage = networkError instanceof Error ? networkError.message : String(networkError);
-      if (errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('Failed to fetch')) {
+      const isConnectionError = errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('Failed to fetch');
+
+      if (isConnectionError) {
+        // Record failure for circuit breaker
+        recordFailure();
+
         // Backend is not running - show user-friendly error message
         // Only show once to avoid spam
         const lastConnectionError = sessionStorage.getItem('last_connection_error');
@@ -145,6 +241,94 @@ const errorLink = onError((options) => {
       }
     }
   }
+});
+
+// Logging link for development mode
+const loggingLink = new ApolloLinkClass((operation, forward) => {
+  // Only log in development mode
+  if (process.env.NODE_ENV === 'development') {
+    const operationName = operation.operationName ?? 'Unknown';
+    const variables = operation.variables;
+
+    // Sanitize variables for logging (remove sensitive data)
+    const sanitizedVariables: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(variables)) {
+      // Don't log file objects or sensitive fields
+      if (value instanceof File) {
+        sanitizedVariables[key] = `[File: ${value.name}, ${value.size} bytes]`;
+      } else if (key.toLowerCase().includes('password') || key.toLowerCase().includes('token') || key.toLowerCase().includes('secret')) {
+        sanitizedVariables[key] = '[REDACTED]';
+      } else {
+        sanitizedVariables[key] = value;
+      }
+    }
+
+    // Try to get query string for logging
+    let queryPreview = 'N/A';
+    try {
+      if (operation.query.loc?.source?.body) {
+        const body = operation.query.loc.source.body;
+        queryPreview = `${body.substring(0, 200)}...`;
+      }
+    } catch {
+      // Ignore errors when accessing query location
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(`[GraphQL Request] ${operationName}`, {
+      operation: operationName,
+      variables: sanitizedVariables,
+      query: queryPreview,
+    });
+
+    return new Observable<FetchResult>((observer) => {
+      const subscription = forward(operation).subscribe({
+        next: (response: FetchResult) => {
+          // eslint-disable-next-line no-console
+          console.log(`[GraphQL Response] ${operationName}`, {
+            operation: operationName,
+            data: response.data,
+            errors: response.errors,
+          });
+          observer.next(response);
+        },
+        error: (error: unknown) => {
+          observer.error(error);
+        },
+        complete: () => {
+          observer.complete();
+        },
+      });
+      return (): void => {
+        subscription.unsubscribe();
+      };
+    });
+  }
+
+  // In production, just forward without logging
+  return forward(operation);
+});
+
+// Success tracking link to reset circuit breaker on successful requests
+const successTrackingLink = new ApolloLinkClass((operation, forward) => {
+  return new Observable<FetchResult>((observer) => {
+    const subscription = forward(operation).subscribe({
+      next: (response: FetchResult) => {
+        // Record success to reset circuit breaker
+        recordSuccess();
+        observer.next(response);
+      },
+      error: (error: unknown) => {
+        observer.error(error);
+      },
+      complete: () => {
+        observer.complete();
+      },
+    });
+    return (): void => {
+      subscription.unsubscribe();
+    };
+  });
 });
 
 /**
@@ -283,7 +467,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const client = new ApolloClient({
-  link: from([errorLink, authLink, uploadLink, httpLink] as ApolloLink[]),
+  link: from([loggingLink, errorLink, authLink, uploadLink, successTrackingLink, httpLink] as ApolloLink[]),
   cache,
   defaultOptions: {
     // Use cache-first for watchQuery to avoid unnecessary network requests

@@ -9,6 +9,9 @@ import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {NotFoundError, ValidationError} from '../utils/errors';
 import {getBudgetNotifications, markNotificationRead} from '../services/NotificationService';
+import {recalculateBudgetBalance} from '../services/BudgetService';
+import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {validateContext} from '../utils/baseResolver';
 
 const CreateBudgetInputSchema = z.object({
   amount: z.number().positive(),
@@ -35,40 +38,52 @@ export class BudgetResolver {
    * Get all budgets for current user
    */
   async budgets(_: unknown, __: unknown, context: GraphQLContext) {
-    const budgets = await context.prisma.budget.findMany({
-      where: {userId: context.userId},
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
-      orderBy: {createdAt: 'desc'},
-    });
+    validateContext(context);
+    return await withPrismaErrorHandling(
+      async () => {
+        const budgets = await context.prisma.budget.findMany({
+          where: {userId: context.userId},
+          include: {
+            account: true,
+            category: true,
+            payee: true,
+          },
+          orderBy: {createdAt: 'desc'},
+        });
 
-    return budgets;
+        return budgets;
+      },
+      {resource: 'Budget', operation: 'read'},
+    );
   }
 
   /**
    * Get budget by ID
    */
   async budget(_: unknown, {id}: {id: string}, context: GraphQLContext) {
-    const budget = await context.prisma.budget.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
-    });
+    validateContext(context);
+    return await withPrismaErrorHandling(
+      async () => {
+        const budget = await context.prisma.budget.findFirst({
+          where: {
+            id,
+            userId: context.userId,
+          },
+          include: {
+            account: true,
+            category: true,
+            payee: true,
+          },
+        });
 
-    if (!budget) {
-      throw new NotFoundError('Budget');
-    }
+        if (!budget) {
+          throw new NotFoundError('Budget');
+        }
 
-    return budget;
+        return budget;
+      },
+      {resource: 'Budget', operation: 'read'},
+    );
   }
 
   /**
@@ -181,7 +196,24 @@ export class BudgetResolver {
       },
     });
 
-    return budget;
+    // Recalculate budget balance for current period
+    await recalculateBudgetBalance(budget.id, context.userId, context.prisma);
+
+    // Fetch updated budget with recalculated currentSpent
+    const updatedBudget = await context.prisma.budget.findUnique({
+      where: {id: budget.id},
+      include: {
+        account: true,
+        category: true,
+        payee: true,
+      },
+    });
+
+    if (!updatedBudget) {
+      throw new Error('Budget not found after creation');
+    }
+
+    return updatedBudget;
   }
 
   /**

@@ -47,7 +47,9 @@ export function BudgetsPage(): React.JSX.Element {
       payee: {id: string; name: string} | null;
       percentageUsed: number;
     }>;
-  }>(GET_BUDGETS);
+  }>(GET_BUDGETS, {
+    fetchPolicy: 'cache-and-network',
+  });
 
   const {data: accountsData} = useQuery<{accounts: Array<{id: string; name: string}>}>(GET_ACCOUNTS);
   const {data: categoriesData} = useQuery<{categories: Array<{id: string; name: string; type: string}>}>(GET_CATEGORIES);

@@ -4,9 +4,9 @@
  * Follows Material Design 3 patterns
  */
 
-import React, {memo} from 'react';
+import React, {memo, useEffect} from 'react';
 import {Box, List, ListItemButton, ListItemText, Divider} from '@mui/material';
-import {useNavigate} from 'react-router';
+import {useNavigate, useLocation} from 'react-router';
 import {Person} from '@mui/icons-material';
 import {usePayees} from '../hooks/usePayees';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
@@ -18,8 +18,16 @@ import {Card} from '../components/ui/Card';
  * Payees Page Component
  */
 const PayeesPageComponent = (): React.JSX.Element => {
-  const {payees, loading, error} = usePayees();
+  const location = useLocation();
+  const {payees, loading, error, refetch} = usePayees();
   const navigate = useNavigate();
+
+  // Refetch when returning from create page
+  useEffect(() => {
+    if (location.pathname === '/payees') {
+      void refetch();
+    }
+  }, [location.pathname, refetch]);
 
   if (loading) {
     return <LoadingSpinner useSkeleton skeletonVariant="list" skeletonCount={5} />;

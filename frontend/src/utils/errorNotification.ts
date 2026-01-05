@@ -1,27 +1,35 @@
 /**
  * Error Notification Utility
  * Provides a way to show user-friendly error messages
- * Can be extended to integrate with notification system
+ *
+ * This utility integrates with the NotificationContext via a custom event system.
+ * The NotificationProvider listens for 'app-error' events and displays them
+ * using Material-UI Snackbar/Alert components.
+ *
+ * @see NotificationContext - Listens to 'app-error' events and displays notifications
  */
 
 /**
  * Show a user-friendly error message
- * Currently logs to console, but can be extended to show UI notifications
+ * Dispatches a custom 'app-error' event that is handled by NotificationContext,
+ * which displays the error in a Snackbar/Alert component.
+ *
  * @param message - Error message to display
- * @param details - Optional error details
+ * @param details - Optional error details (logged but not displayed to user)
+ *
+ * @example
+ * ```typescript
+ * showErrorNotification('Failed to save transaction');
+ * showErrorNotification('Network error', {status: 500});
+ * ```
  */
 export function showErrorNotification(message: string, details?: unknown): void {
   // Log error for debugging
   console.error('Error notification:', message, details);
 
-  // TODO: Integrate with notification system
-  // For now, we rely on error boundaries and component-level error handling
-  // To integrate with NotificationContext, we would need to:
-  // 1. Create a global error notification store/event system
-  // 2. Have NotificationProvider listen to error events
-  // 3. Display errors via Snackbar/Alert component
-
-  // Dispatch custom event that can be listened to by React components
+  // Dispatch custom event that NotificationContext listens to
+  // The NotificationProvider (in NotificationContext.tsx) listens for 'app-error' events
+  // and displays them using Material-UI Snackbar/Alert components
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('app-error', {

@@ -32,9 +32,11 @@ import {validateFileType, validateFileSize} from '../utils/validation';
 import {ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES} from '../utils/constants';
 import {useMutation} from '@apollo/client/react';
 import {UPLOAD_PDF, SAVE_IMPORTED_TRANSACTIONS, DELETE_UNMAPPED_IMPORTED_TRANSACTIONS} from '../graphql/mutations';
+import {GET_RECENT_TRANSACTIONS} from '../graphql/queries';
 import {useAccounts} from '../hooks/useAccounts';
 import {useCategories} from '../hooks/useCategories';
 import {usePayees} from '../hooks/usePayees';
+import {MAX_RECENT_TRANSACTIONS} from '../utils/constants';
 
 /**
  * Unmapped transaction type
@@ -133,6 +135,18 @@ export function ImportPage(): React.JSX.Element {
       unmappedTransactions: UnmappedTransaction[];
     };
   }>(UPLOAD_PDF, {
+    refetchQueries: [
+      'GetTransactions',
+      {
+        query: GET_RECENT_TRANSACTIONS,
+        variables: {
+          limit: MAX_RECENT_TRANSACTIONS,
+          orderBy: {field: 'date', direction: 'desc'},
+        },
+      },
+      'GetAccount',
+    ],
+    awaitRefetchQueries: true,
     onCompleted: (data: {uploadPDF?: {savedCount: number; unmappedTransactions: UnmappedTransaction[]}}) => {
       if (data.uploadPDF) {
         const {savedCount, unmappedTransactions: unmapped} = data.uploadPDF;
@@ -156,7 +170,17 @@ export function ImportPage(): React.JSX.Element {
       errors: string[];
     };
   }>(SAVE_IMPORTED_TRANSACTIONS, {
-    refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetAccount'],
+    refetchQueries: [
+      'GetTransactions',
+      {
+        query: GET_RECENT_TRANSACTIONS,
+        variables: {
+          limit: MAX_RECENT_TRANSACTIONS,
+          orderBy: {field: 'date', direction: 'desc'},
+        },
+      },
+      'GetAccount',
+    ],
     awaitRefetchQueries: true,
     onCompleted: (data: {saveImportedTransactions?: {savedCount: number; errors: string[]}}) => {
       if (data.saveImportedTransactions) {

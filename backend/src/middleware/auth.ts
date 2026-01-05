@@ -12,6 +12,34 @@ type TokenSet = oidc.UserInfoResponse;
 let config: oidc.Configuration | null = null;
 
 /**
+ * Token cache entry
+ */
+interface TokenCacheEntry {
+  userInfo: {sub: string; email?: string};
+  expiresAt: number;
+}
+
+/**
+ * In-memory token cache with TTL
+ * Cache tokens for 5 minutes to reduce external OIDC provider calls
+ */
+const tokenCache = new Map<string, TokenCacheEntry>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Clean up expired cache entries periodically
+ */
+setInterval(() => {
+  const now = Date.now();
+  const entries = Array.from(tokenCache.entries());
+  for (const [token, entry] of entries) {
+    if (entry.expiresAt < now) {
+      tokenCache.delete(token);
+    }
+  }
+}, 60000); // Clean up every minute
+
+/**
  * Initialize OIDC client
  * Authentication is required - the server will not start without proper OIDC configuration
  */
@@ -121,13 +149,29 @@ export async function verifyToken(token: string): Promise<TokenSet> {
 /**
  * Get user info from token
  * Validates OIDC token and returns user information
+ * Uses caching to reduce external OIDC provider calls
  */
 export async function getUserFromToken(token: string): Promise<{sub: string; email?: string}> {
+  // Check cache first
+  const cached = tokenCache.get(token);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.userInfo;
+  }
+
+  // Validate token with OIDC provider
   const tokenSet = await verifyToken(token);
-  return {
+  const userInfo = {
     sub: tokenSet.sub ?? '',
     email: tokenSet.email,
   };
+
+  // Cache the result
+  tokenCache.set(token, {
+    userInfo,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+
+  return userInfo;
 }
 
 /**

@@ -6,7 +6,7 @@
 import React, {useState, useEffect, type ReactNode} from 'react';
 import {useNavigate, useSearchParams} from 'react-router';
 import {Box, Typography, Button} from '@mui/material';
-import {useMutation, useQuery} from '@apollo/client/react';
+import {useMutation, useQuery, useApolloClient} from '@apollo/client/react';
 import type {DocumentNode} from '@apollo/client';
 import {Card} from '../ui/Card';
 import {TextField} from '../ui/TextField';
@@ -51,8 +51,8 @@ export interface EntityEditFormConfig<TData = unknown, TInput = unknown> {
   createMutation: DocumentNode;
   /** GraphQL mutation for updating entity */
   updateMutation: DocumentNode;
-  /** Queries to refetch after mutation */
-  refetchQueries?: string[];
+  /** Queries to refetch after mutation (can be query names, DocumentNode objects, or objects with query and variables) */
+  refetchQueries?: Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> | ((isEdit: boolean) => Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}>);
   /** Form fields configuration */
   fields: FormFieldConfig[];
   /** Extract entity from query data */
@@ -87,6 +87,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   const [searchParams] = useSearchParams();
   const returnTo = validateReturnUrl(searchParams.get('returnTo'), config.defaultReturnUrl);
   const {setTitle} = useTitle();
+  const client = useApolloClient();
   const isEditMode = Boolean(id);
 
   // Initialize form state from field configs
@@ -141,9 +142,31 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
     }
   }, [entity, isEditMode, config.fields]);
 
+  // Get refetch queries for create - support function for conditional queries
+  const getCreateRefetchQueries = (): Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> => {
+    if (!config.refetchQueries) {
+      return [];
+    }
+    if (typeof config.refetchQueries === 'function') {
+      return config.refetchQueries(false);
+    }
+    return config.refetchQueries;
+  };
+
+  // Get refetch queries for update - support function for conditional queries
+  const getUpdateRefetchQueries = (): Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> => {
+    if (!config.refetchQueries) {
+      return [];
+    }
+    if (typeof config.refetchQueries === 'function') {
+      return config.refetchQueries(true);
+    }
+    return config.refetchQueries;
+  };
+
   // Create mutation with optimistic updates
   const [createEntity, {loading: creating}] = useMutation(config.createMutation, {
-    refetchQueries: config.refetchQueries ?? [],
+    refetchQueries: getCreateRefetchQueries(),
     awaitRefetchQueries: true,
     optimisticResponse: config.getOptimisticResponse
       ? (variables: {input?: TInput; id?: string}): unknown => {
@@ -154,15 +177,40 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
     },
-    onCompleted: () => {
+    onCompleted: async () => {
       setError(null);
+      // Manually refetch queries to ensure data is updated
+      const queriesToRefetch = getCreateRefetchQueries();
+      if (queriesToRefetch.length > 0) {
+        try {
+          for (const query of queriesToRefetch) {
+            if (typeof query === 'string') {
+              await client.refetchQueries({include: [query]});
+            } else if ('query' in query) {
+              await client.query({
+                query: query.query,
+                variables: query.variables,
+                fetchPolicy: 'network-only',
+              });
+            } else {
+              await client.query({
+                query,
+                fetchPolicy: 'network-only',
+              });
+            }
+          }
+        } catch (refetchError) {
+          // Silently handle refetch errors
+          console.warn('Error refetching queries:', refetchError);
+        }
+      }
       void navigate(returnTo, {replace: true});
     },
   });
 
   // Update mutation with optimistic updates
   const [updateEntity, {loading: updating}] = useMutation(config.updateMutation, {
-    refetchQueries: config.refetchQueries ?? [],
+    refetchQueries: getUpdateRefetchQueries(),
     awaitRefetchQueries: true,
     optimisticResponse: config.getOptimisticResponse
       ? (variables: {input?: TInput; id?: string}): unknown => {

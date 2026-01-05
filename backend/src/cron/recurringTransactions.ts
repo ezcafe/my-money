@@ -11,6 +11,7 @@ import {retry, isRetryableError} from '../utils/retry';
 import {logInfo, logError, logWarn} from '../utils/logger';
 import {incrementAccountBalance} from '../services/AccountBalanceService';
 import {updateBudgetForTransaction} from '../services/BudgetService';
+import {RECURRING_TRANSACTION_CONCURRENCY_LIMIT} from '../utils/constants';
 
 /**
  * Process a single recurring transaction with retry logic
@@ -85,7 +86,7 @@ async function processRecurringTransaction(
               categoryId: newTransaction.categoryId,
               payeeId: newTransaction.payeeId,
               userId: newTransaction.userId,
-              value: newTransaction.value,
+              value: Number(newTransaction.value),
               date: newTransaction.date,
               categoryType: category?.type ?? null,
             },
@@ -180,26 +181,35 @@ export async function processRecurringTransactions(): Promise<{
   let successful = 0;
   let failed = 0;
 
-  // Process each transaction with retry logic
-  for (const recurring of dueTransactions) {
-    const success = await processRecurringTransaction(
-      {
-        id: recurring.id,
-        value: Number(recurring.value),
-        accountId: recurring.accountId,
-        categoryId: recurring.categoryId,
-        payeeId: recurring.payeeId,
-        note: recurring.note,
-        userId: recurring.userId,
-        nextRunDate: recurring.nextRunDate,
-      },
-      today,
+  // Process transactions in batches with concurrency limits to avoid memory issues
+  for (let i = 0; i < dueTransactions.length; i += RECURRING_TRANSACTION_CONCURRENCY_LIMIT) {
+    const batch = dueTransactions.slice(i, i + RECURRING_TRANSACTION_CONCURRENCY_LIMIT);
+
+    const batchResults = await Promise.all(
+      batch.map(async (recurring) => {
+        const success = await processRecurringTransaction(
+          {
+            id: recurring.id,
+            value: Number(recurring.value),
+            accountId: recurring.accountId,
+            categoryId: recurring.categoryId,
+            payeeId: recurring.payeeId,
+            note: recurring.note,
+            userId: recurring.userId,
+            nextRunDate: recurring.nextRunDate,
+          },
+          today,
+        );
+        return success;
+      }),
     );
 
-    if (success) {
-      successful++;
-    } else {
-      failed++;
+    for (const success of batchResults) {
+      if (success) {
+        successful++;
+      } else {
+        failed++;
+      }
     }
   }
 

@@ -20,7 +20,7 @@ import {useMutation, useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {CREATE_BUDGET} from '../graphql/mutations';
-import {GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
+import {GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
 import {useTitle} from '../contexts/TitleContext';
 
 /**
@@ -71,7 +71,7 @@ export function BudgetAddPage(): React.JSX.Element {
   };
 
   const [createBudget, {loading: creating}] = useMutation(CREATE_BUDGET, {
-    refetchQueries: ['GetBudgets'],
+    refetchQueries: [{query: GET_BUDGETS}],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);

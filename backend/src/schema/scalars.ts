@@ -79,7 +79,7 @@ export const Upload = new GraphQLScalarType({
     // Otherwise, return the value as-is (will be handled by validation)
     return value;
   },
-  serialize(value: unknown): unknown {
+  serialize(_value: unknown): unknown {
     // Upload scalar is input-only, should not serialize
     throw new Error('Upload scalar cannot be serialized');
   },

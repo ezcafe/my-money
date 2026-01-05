@@ -8,6 +8,8 @@ import type {GraphQLContext} from '../middleware/context';
 import {NotFoundError, ForbiddenError} from '../utils/errors';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {recalculateAccountBalance} from '../services/AccountBalanceService';
+import {sanitizeUserInput} from '../utils/sanitization';
+import {DEFAULT_ACCOUNT_NAME} from '../utils/constants';
 
 export class AccountResolver {
   /**
@@ -29,7 +31,7 @@ export class AccountResolver {
         async () =>
           await context.prisma.account.create({
             data: {
-              name: 'Cash',
+              name: DEFAULT_ACCOUNT_NAME,
               initBalance: 0,
               balance: 0, // New account has no transactions, balance equals initBalance
               isDefault: true,
@@ -119,7 +121,7 @@ export class AccountResolver {
       async () =>
         await context.prisma.account.create({
           data: {
-            name: input.name,
+            name: sanitizeUserInput(input.name),
             initBalance,
             balance: initBalance, // New account has no transactions, balance equals initBalance
             userId: context.userId,
@@ -160,7 +162,7 @@ export class AccountResolver {
       const updatedAccount = await tx.account.update({
         where: {id},
         data: {
-          ...(input.name !== undefined && {name: input.name}),
+          ...(input.name !== undefined && {name: sanitizeUserInput(input.name)}),
           ...(input.initBalance !== undefined && {initBalance: input.initBalance}),
         },
       });

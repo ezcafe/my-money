@@ -9,6 +9,7 @@ import {NotFoundError, ValidationError} from '../utils/errors';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {sanitizeUserInput} from '../utils/sanitization';
 
 const CreatePayeeInputSchema = z.object({
   name: z.string().min(1).max(255),
@@ -116,7 +117,7 @@ export class PayeeResolver {
       async () =>
         await context.prisma.payee.create({
           data: {
-            name: validatedInput.name,
+            name: sanitizeUserInput(validatedInput.name),
             userId: context.userId,
             isDefault: false,
           },
@@ -168,7 +169,7 @@ export class PayeeResolver {
     const payee = await context.prisma.payee.update({
       where: {id},
       data: {
-        ...(validatedInput.name !== undefined && {name: validatedInput.name}),
+        ...(validatedInput.name !== undefined && {name: sanitizeUserInput(validatedInput.name)}),
       },
     });
 

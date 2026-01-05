@@ -38,6 +38,7 @@ interface GetAccountsData {
 export function useAccounts(): UseAccountsResult {
   const {data, loading, error, refetch} = useQuery<GetAccountsData>(GET_ACCOUNTS, {
     errorPolicy: 'all',
+    notifyOnNetworkStatusChange: true,
   });
 
   let errorResult: Error | undefined;

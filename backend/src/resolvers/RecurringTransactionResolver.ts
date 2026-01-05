@@ -9,6 +9,8 @@ import {NotFoundError} from '../utils/errors';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
 import cronValidator from 'cron-validator';
+import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {validateContext} from '../utils/baseResolver';
 
 /**
  * Validate cron expression
@@ -57,17 +59,23 @@ export class RecurringTransactionResolver {
    * Get all recurring transactions for current user
    */
   async recurringTransactions(_: unknown, __: unknown, context: GraphQLContext) {
-    const recurringTransactions = await context.prisma.recurringTransaction.findMany({
-      where: {userId: context.userId},
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
-      orderBy: {nextRunDate: 'asc'},
-    });
+    validateContext(context);
+    return await withPrismaErrorHandling(
+      async () => {
+        const recurringTransactions = await context.prisma.recurringTransaction.findMany({
+          where: {userId: context.userId},
+          include: {
+            account: true,
+            category: true,
+            payee: true,
+          },
+          orderBy: {nextRunDate: 'asc'},
+        });
 
-    return recurringTransactions;
+        return recurringTransactions;
+      },
+      {resource: 'RecurringTransaction', operation: 'read'},
+    );
   }
 
   /**

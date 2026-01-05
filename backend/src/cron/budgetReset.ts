@@ -7,6 +7,7 @@ import cron from 'node-cron';
 import {prisma} from '../utils/prisma';
 import {logInfo, logError, logWarn} from '../utils/logger';
 import {getCurrentMonthStart} from '../services/BudgetService';
+import {BUDGET_BATCH_SIZE, BUDGET_CONCURRENCY_LIMIT} from '../utils/constants';
 
 /**
  * Process budget resets for all users
@@ -38,23 +39,36 @@ export async function processBudgetResets(): Promise<{
 
   let reset = 0;
 
-  // Reset each budget
-  for (const budget of budgetsToReset) {
-    try {
-      await prisma.budget.update({
-        where: {id: budget.id},
-        data: {
-          currentSpent: 0,
-          lastResetDate: monthStart,
-        },
+  // Process budgets in batches to avoid loading all into memory at once
+  for (let i = 0; i < budgetsToReset.length; i += BUDGET_BATCH_SIZE) {
+    const batch = budgetsToReset.slice(i, i + BUDGET_BATCH_SIZE);
+
+    // Process batch in parallel with concurrency limit
+    const batchPromises: Array<Promise<void>> = [];
+
+      for (let j = 0; j < batch.length; j += BUDGET_CONCURRENCY_LIMIT) {
+        const concurrentBatch = batch.slice(j, j + BUDGET_CONCURRENCY_LIMIT);
+      const promises = concurrentBatch.map(async (budget) => {
+        try {
+          await prisma.budget.update({
+            where: {id: budget.id},
+            data: {
+              currentSpent: 0,
+              lastResetDate: monthStart,
+            },
+          });
+          reset++;
+        } catch (error) {
+          const errorObj = error instanceof Error ? error : new Error(String(error));
+          logError('Failed to reset budget', {
+            budgetId: budget.id,
+            userId: budget.userId,
+          }, errorObj);
+        }
       });
-      reset++;
-    } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Failed to reset budget', {
-        budgetId: budget.id,
-        userId: budget.userId,
-      }, errorObj);
+      batchPromises.push(...promises);
+      // Wait for this concurrent batch to complete before starting next
+      await Promise.all(promises);
     }
   }
 

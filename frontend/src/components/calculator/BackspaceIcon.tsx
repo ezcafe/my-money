@@ -17,7 +17,7 @@ export function BackspaceIcon(props: SvgIconProps): React.JSX.Element {
       {/* Left-pointing double angle quotation mark « */}
       <text
         x="12"
-        y="16"
+        y="18"
         textAnchor="middle"
         fill="currentColor"
         fontFamily="Arial, sans-serif"

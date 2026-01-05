@@ -7,6 +7,9 @@
 import type {GraphQLContext} from '../middleware/context';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
+import {ValidationError} from '../utils/errors';
+import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {validateContext} from '../utils/baseResolver';
 
 const ReportTransactionsInputSchema = z.object({
   accountIds: z.array(z.string().uuid()).optional(),
@@ -48,6 +51,9 @@ export class ReportResolver {
     },
     context: GraphQLContext,
   ) {
+    validateContext(context);
+    return await withPrismaErrorHandling(
+      async () => {
     const validatedInput = validate(ReportTransactionsInputSchema, {
       accountIds,
       categoryIds,
@@ -65,7 +71,7 @@ export class ReportResolver {
       categoryId?: {in: string[]} | null;
       payeeId?: {in: string[]} | null;
       date?: {gte?: Date; lte?: Date};
-      note?: {contains: string; mode: string};
+      note?: {contains: string; mode: 'insensitive'};
     } = {
       userId: context.userId,
     };
@@ -89,11 +95,41 @@ export class ReportResolver {
 
     // Filter by categories
     if (validatedInput.categoryIds && validatedInput.categoryIds.length > 0) {
+      // Verify all categories belong to user or are default categories
+      const categories = await context.prisma.category.findMany({
+        where: {
+          id: {in: validatedInput.categoryIds},
+          OR: [
+            {userId: context.userId},
+            {isDefault: true},
+          ],
+        },
+      });
+
+      if (categories.length !== validatedInput.categoryIds.length) {
+        throw new ValidationError('One or more categories not found or not accessible');
+      }
+
       where.categoryId = {in: validatedInput.categoryIds};
     }
 
     // Filter by payees
     if (validatedInput.payeeIds && validatedInput.payeeIds.length > 0) {
+      // Verify all payees belong to user or are default payees
+      const payees = await context.prisma.payee.findMany({
+        where: {
+          id: {in: validatedInput.payeeIds},
+          OR: [
+            {userId: context.userId},
+            {isDefault: true},
+          ],
+        },
+      });
+
+      if (payees.length !== validatedInput.payeeIds.length) {
+        throw new ValidationError('One or more payees not found or not accessible');
+      }
+
       where.payeeId = {in: validatedInput.payeeIds};
     }
 
@@ -121,7 +157,7 @@ export class ReportResolver {
     const orderDirection = orderBy?.direction ?? 'desc';
 
     let prismaOrderBy: Record<string, string | Record<string, string>>;
-    
+
     switch (orderField) {
       case 'date':
         prismaOrderBy = {date: orderDirection};
@@ -145,38 +181,37 @@ export class ReportResolver {
     const limit = validatedInput.take ?? 100;
     const offset = validatedInput.skip ?? 0;
 
-    const [items, totalCount] = await Promise.all([
+    // Run all queries in parallel to minimize database round-trips
+    const [items, totalCount, totalAmountResult] = await Promise.all([
       context.prisma.transaction.findMany({
         where,
         skip: offset,
         take: limit,
         orderBy: prismaOrderBy,
-        include: {
-          account: true,
-          category: true,
-          payee: true,
-        },
+        // Relations are loaded via DataLoaders in GraphQL field resolvers
+        // This prevents N+1 query problems and reduces memory usage
       }),
       context.prisma.transaction.count({where}),
+      context.prisma.transaction.aggregate({
+        where,
+        _sum: {
+          value: true,
+        },
+      }),
     ]);
-
-    // Calculate total amount
-    const totalAmountResult = await context.prisma.transaction.aggregate({
-      where,
-      _sum: {
-        value: true,
-      },
-    });
 
     const totalAmount = totalAmountResult._sum.value
       ? Number(totalAmountResult._sum.value)
       : 0;
 
-    return {
-      items,
-      totalCount,
-      totalAmount,
-    };
+        return {
+          items,
+          totalCount,
+          totalAmount,
+        };
+      },
+      {resource: 'Report', operation: 'read'},
+    );
   }
 }
 

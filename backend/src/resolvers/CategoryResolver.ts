@@ -9,6 +9,7 @@ import {NotFoundError, ValidationError} from '../utils/errors';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {sanitizeUserInput} from '../utils/sanitization';
 
 const CreateCategoryInputSchema = z.object({
   name: z.string().min(1).max(255),
@@ -122,7 +123,7 @@ export class CategoryResolver {
       async () =>
         await context.prisma.category.create({
           data: {
-            name: validatedInput.name,
+            name: sanitizeUserInput(validatedInput.name),
             type: validatedInput.type,
             userId: context.userId,
             isDefault: false,
@@ -175,7 +176,7 @@ export class CategoryResolver {
     const category = await context.prisma.category.update({
       where: {id},
       data: {
-        ...(validatedInput.name !== undefined && {name: validatedInput.name}),
+        ...(validatedInput.name !== undefined && {name: sanitizeUserInput(validatedInput.name)}),
         ...(validatedInput.type !== undefined && {type: validatedInput.type}),
       },
     });

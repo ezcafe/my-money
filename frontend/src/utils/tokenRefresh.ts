@@ -12,7 +12,7 @@
  * Current implementation uses localStorage for simplicity, but should be enhanced for production use.
  */
 
-import {TOKEN_EXPIRATION_BUFFER_SECONDS} from './constants';
+import {TOKEN_EXPIRATION_BUFFER_SECONDS, TOKEN_REFRESH_MAX_RETRY_ATTEMPTS, TOKEN_REFRESH_INITIAL_RETRY_DELAY_MS} from './constants';
 import {storeEncryptedToken, getEncryptedToken} from './tokenEncryption';
 
 /**
@@ -87,8 +87,37 @@ export function getTokenExpiration(token: string): number | null {
 }
 
 /**
+ * Check if an error is retryable (network errors, timeouts, etc.)
+ * @param error - Error to check
+ * @returns true if error is retryable
+ */
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    // Retry on network errors, timeouts, and connection issues
+    const retryablePatterns = [
+      /failed to fetch/i,
+      /networkerror/i,
+      /timeout/i,
+      /econnrefused/i,
+      /etimedout/i,
+      /enotfound/i,
+      /connection/i,
+    ];
+    return retryablePatterns.some((pattern) => pattern.test(message));
+  }
+  // For non-Error objects, check if it's a network-related error
+  if (typeof error === 'string') {
+    return /network|timeout|connection|fetch/i.test(error.toLowerCase());
+  }
+  return false;
+}
+
+/**
  * Internal function to perform the actual token refresh
- * @returns New token string or null if refresh failed
+ * Throws errors for retryable failures, returns null for non-retryable failures
+ * @returns New token string or null if refresh failed (non-retryable)
+ * @throws Error for retryable failures (network errors, timeouts)
  */
 async function performTokenRefresh(): Promise<string | null> {
   try {
@@ -132,11 +161,16 @@ async function performTokenRefresh(): Promise<string | null> {
       const discoveryResponse = await fetch(discoveryUrl ?? '');
       if (!discoveryResponse.ok) {
         console.error('Failed to fetch OIDC discovery document:', discoveryResponse.status);
-        return null;
+        // Network errors are retryable, HTTP errors are not
+        throw new Error(`Failed to fetch OIDC discovery document: ${discoveryResponse.status}`);
       }
       discovery = (await discoveryResponse.json()) as {token_endpoint?: string};
     } catch (error: unknown) {
       console.error('Error fetching OIDC discovery document:', error);
+      // Re-throw retryable errors, return null for non-retryable
+      if (isRetryableError(error)) {
+        throw error;
+      }
       return null;
     }
 
@@ -151,18 +185,29 @@ async function performTokenRefresh(): Promise<string | null> {
       console.error('Token endpoint not found in discovery document');
       return null;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const response = await fetch(tokenEndpoint as string, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshTokenValue,
-        client_id: clientId,
-      }),
-    });
+
+    let response: Response;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      response = await fetch(tokenEndpoint as string, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshTokenValue,
+          client_id: clientId,
+        }),
+      });
+    } catch (error: unknown) {
+      // Network errors are retryable
+      if (isRetryableError(error)) {
+        throw error;
+      }
+      console.error('Unexpected error during token refresh:', error);
+      return null;
+    }
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
@@ -198,6 +243,11 @@ async function performTokenRefresh(): Promise<string | null> {
         }
       }
 
+      // 5xx errors might be retryable (server errors)
+      if (response.status >= 500 && response.status < 600) {
+        throw new Error(`Token refresh server error: ${response.status}`);
+      }
+
       return null;
     }
 
@@ -216,7 +266,33 @@ async function performTokenRefresh(): Promise<string | null> {
 
     return tokenData?.access_token ?? null;
   } catch (error) {
+    // Re-throw retryable errors
+    if (isRetryableError(error)) {
+      throw error;
+    }
     console.error('Error refreshing token:', error);
+    return null;
+  }
+}
+
+/**
+ * Perform token refresh with exponential backoff retry logic
+ * @param attempt - Current retry attempt (starts at 1)
+ * @returns New token string or null if refresh failed after all retries
+ */
+async function performTokenRefreshWithRetry(attempt = 1): Promise<string | null> {
+  try {
+    return await performTokenRefresh();
+  } catch (error) {
+    // Only retry if error is retryable and we haven't exceeded max attempts
+    if (attempt < TOKEN_REFRESH_MAX_RETRY_ATTEMPTS && isRetryableError(error)) {
+      const delay = TOKEN_REFRESH_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+      console.warn(`Token refresh attempt ${attempt} failed, retrying in ${delay}ms...`, error);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return performTokenRefreshWithRetry(attempt + 1);
+    }
+    // All retries exhausted or non-retryable error
+    console.error(`Token refresh failed after ${attempt} attempt(s):`, error);
     return null;
   }
 }
@@ -224,6 +300,7 @@ async function performTokenRefresh(): Promise<string | null> {
 /**
  * Attempt to refresh the token using OIDC client
  * This function prevents concurrent refresh attempts by queuing requests
+ * Implements exponential backoff retry logic for retryable errors
  * @returns New token string or null if refresh failed
  */
 export async function refreshToken(): Promise<string | null> {
@@ -232,8 +309,8 @@ export async function refreshToken(): Promise<string | null> {
     return refreshPromise;
   }
 
-  // Start a new refresh
-  refreshPromise = performTokenRefresh()
+  // Start a new refresh with retry logic
+  refreshPromise = performTokenRefreshWithRetry()
     .finally(() => {
       // Clear the promise when done so future refreshes can proceed
       refreshPromise = null;

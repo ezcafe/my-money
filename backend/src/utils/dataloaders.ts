@@ -9,12 +9,40 @@ import {prisma} from './prisma';
 import type {Account, Category, Payee, User} from '@prisma/client';
 
 /**
+ * Create a cache map with size limit to prevent unbounded memory growth
+ * Uses LRU-like eviction when cache exceeds max size
+ */
+class LimitedCacheMap<K, V> extends Map<K, V> {
+  private readonly maxSize: number;
+
+  constructor(maxSize: number) {
+    super();
+    this.maxSize = maxSize;
+  }
+
+  set(key: K, value: V): this {
+    // If cache is full, remove oldest entry (first in map)
+    if (this.size >= this.maxSize && !this.has(key)) {
+      const firstKey = this.keys().next().value;
+      if (firstKey !== undefined) {
+        this.delete(firstKey);
+      }
+    }
+    return super.set(key, value);
+  }
+}
+
+// Cache size limits to prevent unbounded memory growth
+const CACHE_SIZE_LIMIT = 1000; // Maximum number of items to cache per DataLoader
+
+/**
  * Create a DataLoader for account balance lookups
  * Batches multiple account balance queries by reading from stored balance column
  * O(1) read performance - no aggregation needed
  */
 export function createAccountBalanceLoader(): DataLoader<string, number> {
-  return new DataLoader<string, number>(async (accountIds: readonly string[]): Promise<number[]> => {
+  return new DataLoader<string, number>(
+    async (accountIds: readonly string[]): Promise<number[]> => {
     // Fetch accounts with balance column
     const accounts = await prisma.account.findMany({
       where: {id: {in: [...accountIds]}},
@@ -28,7 +56,12 @@ export function createAccountBalanceLoader(): DataLoader<string, number> {
 
     // Return balance for each account ID, defaulting to 0 if not found
     return accountIds.map((id) => accountMap.get(id) ?? 0);
-  });
+    },
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cacheMap: new LimitedCacheMap<string, number>(CACHE_SIZE_LIMIT) as any,
+    },
+  );
 }
 
 /**
@@ -45,6 +78,10 @@ export function createCategoryLoader(): DataLoader<string, Category | null> {
         categories.map((cat) => [cat.id, cat]),
       );
       return categoryIds.map((id) => categoryMap.get(id) ?? null);
+    },
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cacheMap: new LimitedCacheMap<string, Category | null>(CACHE_SIZE_LIMIT) as any,
     },
   );
 }
@@ -64,6 +101,10 @@ export function createPayeeLoader(): DataLoader<string, Payee | null> {
       );
       return payeeIds.map((id) => payeeMap.get(id) ?? null);
     },
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cacheMap: new LimitedCacheMap<string, Payee | null>(CACHE_SIZE_LIMIT) as any,
+    },
   );
 }
 
@@ -82,6 +123,10 @@ export function createAccountLoader(): DataLoader<string, Account | null> {
       );
       return accountIds.map((id) => accountMap.get(id) ?? null);
     },
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cacheMap: new LimitedCacheMap<string, Account | null>(CACHE_SIZE_LIMIT) as any,
+    },
   );
 }
 
@@ -99,6 +144,10 @@ export function createUserLoader(): DataLoader<string, User | null> {
         users.map((user) => [user.id, user]),
       );
       return userIds.map((id) => userMap.get(id) ?? null);
+    },
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cacheMap: new LimitedCacheMap<string, User | null>(CACHE_SIZE_LIMIT) as any,
     },
   );
 }

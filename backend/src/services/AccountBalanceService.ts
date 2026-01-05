@@ -5,7 +5,10 @@
  */
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+import type {PrismaClient} from '@prisma/client';
 import {prisma} from '../utils/prisma';
+
+type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
 /**
  * Get account balance from stored column
@@ -37,7 +40,7 @@ export async function getAccountBalance(accountId: string): Promise<number> {
 export async function incrementAccountBalance(
   accountId: string,
   delta: number,
-  tx?: typeof prisma,
+  tx?: PrismaTransaction | PrismaClient,
 ): Promise<number> {
   const client = tx ?? prisma;
 
@@ -64,7 +67,7 @@ export async function incrementAccountBalance(
  */
 export async function recalculateAccountBalance(
   accountId: string,
-  tx?: typeof prisma,
+  tx?: PrismaTransaction | PrismaClient,
 ): Promise<number> {
   const client = tx ?? prisma;
 

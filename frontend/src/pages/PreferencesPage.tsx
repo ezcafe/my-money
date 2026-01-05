@@ -115,7 +115,25 @@ export function PreferencesPage(): React.JSX.Element {
     refetchQueries: ['GetAccounts', 'GetCategories', 'GetPayees', 'GetRecentTransactions', 'GetRecurringTransactions'],
   });
   const [resetDataMutation, {loading: resetting}] = useMutation(RESET_DATA, {
-    refetchQueries: ['GetAccounts', 'GetCategories', 'GetPayees', 'GetRecentTransactions', 'GetRecurringTransactions', 'GetPreferences'],
+    refetchQueries: ['GetAccounts', 'GetCategories', 'GetPayees', 'GetRecentTransactions', 'GetRecurringTransactions', 'GetPreferences', 'GetBudgets', 'GetBudgetNotifications', 'GetTransactions', 'GetReportTransactions'],
+    awaitRefetchQueries: true,
+    update: (cache) => {
+      // Explicitly clear recentTransactions cache for all variable combinations
+      // This ensures the home page shows empty data immediately
+      try {
+        // Evict all recentTransactions queries from cache
+        cache.evict({fieldName: 'recentTransactions'});
+        // Also evict transactions queries
+        cache.evict({fieldName: 'transactions'});
+        // Evict reportTransactions
+        cache.evict({fieldName: 'reportTransactions'});
+        // Garbage collect to remove orphaned references
+        cache.gc();
+      } catch (error) {
+        // Silently handle cache eviction errors
+        console.warn('Cache eviction failed during reset:', error);
+      }
+    },
   });
 
   // Initialize state from loaded preferences

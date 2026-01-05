@@ -58,3 +58,20 @@ export const APOLLO_CACHE_MAX_SIZE = 1000;
  */
 export const SERVICE_WORKER_CACHE_MAX_SIZE_MB = 50;
 
+/**
+ * Token refresh retry configuration
+ */
+export const TOKEN_REFRESH_MAX_RETRY_ATTEMPTS = 3;
+export const TOKEN_REFRESH_INITIAL_RETRY_DELAY_MS = 1000;
+
+/**
+ * Circuit breaker configuration for connection errors
+ */
+export const CIRCUIT_BREAKER_FAILURE_THRESHOLD = 3;
+export const CIRCUIT_BREAKER_COOLDOWN_MS = 30000; // 30 seconds
+
+/**
+ * GraphQL request timeout in milliseconds (30 seconds)
+ */
+export const GRAPHQL_REQUEST_TIMEOUT_MS = 30000;
+

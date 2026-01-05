@@ -5,21 +5,30 @@
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import type {GraphQLContext} from '../middleware/context';
+import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {validateContext} from '../utils/baseResolver';
+import {NotFoundError} from '../utils/errors';
 
 export class UserResolver {
   /**
    * Get current user information
    */
   async me(_: unknown, __: unknown, context: GraphQLContext): Promise<{id: string; oidcSubject: string; email: string; createdAt: Date; updatedAt: Date}> {
-    const user = await context.prisma.user.findUnique({
-      where: {id: context.userId},
-    });
+    validateContext(context);
+    return await withPrismaErrorHandling(
+      async () => {
+        const user = await context.prisma.user.findUnique({
+          where: {id: context.userId},
+        });
 
-    if (!user) {
-      throw new Error('User not found');
-    }
+        if (!user) {
+          throw new NotFoundError('User');
+        }
 
-    return user;
+        return user;
+      },
+      {resource: 'User', operation: 'read'},
+    );
   }
 }
 

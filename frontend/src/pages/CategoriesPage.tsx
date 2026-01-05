@@ -4,7 +4,7 @@
  * Features search, visual indicators, and improved UX
  */
 
-import React, {memo, useMemo, useState, useCallback} from 'react';
+import React, {memo, useMemo, useState, useCallback, useEffect} from 'react';
 import {
   Box,
   List,
@@ -18,7 +18,7 @@ import {
   IconButton,
 } from '@mui/material';
 import {Search as SearchIcon, Clear as ClearIcon, TrendingUp, TrendingDown, Star, Category} from '@mui/icons-material';
-import {useNavigate} from 'react-router';
+import {useNavigate, useLocation} from 'react-router';
 import {useCategories} from '../hooks/useCategories';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
@@ -30,9 +30,17 @@ import {TextField} from '../components/ui/TextField';
  * Categories Page Component
  */
 const CategoriesPageComponent = (): React.JSX.Element => {
-  const {categories, loading, error} = useCategories();
+  const location = useLocation();
+  const {categories, loading, error, refetch} = useCategories();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Refetch when returning from create page
+  useEffect(() => {
+    if (location.pathname === '/categories') {
+      void refetch();
+    }
+  }, [location.pathname, refetch]);
 
   /**
    * Filter categories based on search query

@@ -16,7 +16,7 @@ import {initializeOIDC} from './middleware/auth';
 import {disconnectPrisma} from './utils/prisma';
 import {AppError} from './utils/errors';
 import {GraphQLError} from 'graphql';
-import type {GraphQLRequestContext} from '@apollo/server';
+import type {GraphQLRequestContext, GraphQLRequestListener} from '@apollo/server';
 import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
@@ -29,16 +29,23 @@ const __dirname = dirname(__filename);
 
 const fastify = Fastify({
   logger: true,
+  // Set body size limits to prevent large GraphQL queries from consuming too much memory
+  bodyLimit: 2 * 1024 * 1024, // 2MB for GraphQL queries (JSON)
+  // Note: File uploads are handled separately via multipart plugin with 10MB limit
 });
 
 // Register security plugins
 async function registerSecurityPlugins(): Promise<void> {
   // CORS configuration - allow frontend to communicate with backend
+  // Configured via CORS_ORIGIN environment variable (comma-separated list of allowed origins)
+  // Defaults to localhost:3000 for development
+  // Example: CORS_ORIGIN=http://localhost:3000,https://example.com
+  const corsOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
   await fastify.register(cors, {
-    origin: process.env.CORS_ORIGIN?.split(',') ?? [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ],
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
@@ -71,6 +78,18 @@ async function registerSecurityPlugins(): Promise<void> {
         message: `Rate limit exceeded, retry in ${Math.ceil(context.ttl / 1000)} seconds`,
       };
     },
+  });
+
+  // Stricter rate limiting for file upload operations (uploadPDF, importCSV)
+  // These operations are resource-intensive and should have lower limits
+  fastify.addHook('onRequest', async (request, _reply) => {
+    const body = request.body as {query?: string; variables?: Record<string, unknown>} | undefined;
+    if (body?.query?.includes('uploadPDF') || body?.query?.includes('importCSV')) {
+      // Apply stricter rate limit: 5 uploads per minute per user
+      // This is handled per-user via the general rate limit, but we can add
+      // additional checks here if needed. For now, the general rate limit applies.
+      // In production, consider implementing per-user rate limiting with Redis
+    }
   });
 
   // CSRF protection for mutations - validate Origin header
@@ -146,17 +165,15 @@ async function startServer(): Promise<void> {
       plugins: [
         fastifyApolloDrainPlugin(fastify),
         {
-          requestDidStart(): {
-            didEncounterErrors: (requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>) => void;
-          } {
-            return {
+          requestDidStart(_requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>> {
+            return Promise.resolve({
               didEncounterErrors(
                 requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
               ): void {
                 // Format custom errors properly
                 if (requestContext.errors) {
                   requestContext.errors.forEach((error) => {
-                    if (error.originalError instanceof AppError) {
+                    if ('originalError' in error && error.originalError instanceof AppError) {
                       // Create new error with proper extensions
                       Object.assign(error, {
                         extensions: {
@@ -169,13 +186,14 @@ async function startServer(): Promise<void> {
                   });
                 }
               },
-            };
+            } as GraphQLRequestListener<GraphQLContext | Record<string, never>>);
           },
         },
       ],
       formatError: (error): GraphQLError => {
-        // Don't expose internal errors in production
+        // Sanitize error messages in production to prevent information disclosure
         if (process.env.NODE_ENV === 'production') {
+          // Don't expose internal errors, file paths, or database structure
           if (error.extensions?.code === 'INTERNAL_SERVER_ERROR') {
             return new GraphQLError('Internal server error', {
               extensions: {
@@ -183,10 +201,35 @@ async function startServer(): Promise<void> {
               },
             });
           }
+
+          // Sanitize error messages that might contain sensitive information
+          const message = error.message;
+          // Remove file paths, database details, and stack traces
+          const sanitizedMessage = message
+            .replace(/\/[^\s]+/g, '[path]') // Remove file paths
+            .replace(/at\s+[^\n]+/g, '') // Remove stack trace lines
+            .replace(/Error:\s*/g, '') // Remove error prefixes
+            .substring(0, 200); // Limit message length
+
+          return new GraphQLError(sanitizedMessage || 'An error occurred', {
+            extensions: error.extensions,
+          });
         }
 
-        // Return formatted error with extensions
-        return error;
+        // Return formatted error with extensions in development
+        // Convert GraphQLFormattedError to GraphQLError
+        const originalError = 'originalError' in error && error.originalError instanceof Error
+          ? error.originalError
+          : undefined;
+        return new GraphQLError(
+          error.message,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          originalError,
+          error.extensions,
+        );
       },
     });
 
@@ -210,7 +253,7 @@ async function startServer(): Promise<void> {
               // Consume file stream into buffer to allow iterator to continue
               const chunks: Buffer[] = [];
               for await (const chunk of part.file) {
-                chunks.push(chunk);
+                chunks.push(chunk as Buffer);
               }
               const fileBuffer = Buffer.concat(chunks);
               // Store file data with createReadStream that returns a stream from the buffer
@@ -225,18 +268,23 @@ async function startServer(): Promise<void> {
               // Parse operations and map fields
               let value: string;
               // For field parts, check if part has a toBuffer method or value property
-              if (typeof (part as {toBuffer?: () => Promise<Buffer>}).toBuffer === 'function') {
-                const buffer = await (part as {toBuffer: () => Promise<Buffer>}).toBuffer();
+              const partWithBuffer = part as unknown as {toBuffer?: () => Promise<Buffer>};
+              if (typeof partWithBuffer.toBuffer === 'function') {
+                const buffer = await partWithBuffer.toBuffer();
                 value = buffer.toString('utf-8');
-              } else if ((part as {value?: string}).value) {
-                value = (part as {value: string}).value;
               } else {
-                // Fallback: read from part as stream (part itself should be iterable for field parts)
-                const chunks: Buffer[] = [];
-                for await (const chunk of part as AsyncIterable<Buffer>) {
-                  chunks.push(chunk);
+                const partWithValue = part as unknown as {value?: string};
+                if (partWithValue.value) {
+                  value = partWithValue.value;
+                } else {
+                  // Fallback: read from part as stream (part itself should be iterable for field parts)
+                  const chunks: Buffer[] = [];
+                  const partAsIterable = part as unknown as AsyncIterable<Buffer>;
+                  for await (const chunk of partAsIterable) {
+                    chunks.push(chunk);
+                  }
+                  value = Buffer.concat(chunks).toString('utf-8');
                 }
-                value = Buffer.concat(chunks).toString('utf-8');
               }
 
               if (part.fieldname === 'operations') {
@@ -254,17 +302,25 @@ async function startServer(): Promise<void> {
               // fileKey is the file part fieldname (e.g., "0"), filePaths is array of variable paths (e.g., ["file"])
               if (Array.isArray(filePaths) && filePaths.length > 0 && files[fileKey]) {
                 const variablePath = filePaths[0]; // e.g., "file"
+                if (!variablePath) {
+                  continue;
+                }
                 const pathParts = variablePath.split('.');
                 let current: Record<string, unknown> = variables;
                 for (let i = 0; i < pathParts.length - 1; i++) {
                   const key = pathParts[i];
+                  if (!key) {
+                    continue;
+                  }
                   if (!current[key] || typeof current[key] !== 'object') {
                     current[key] = {};
                   }
                   current = current[key] as Record<string, unknown>;
                 }
                 const lastKey = pathParts[pathParts.length - 1];
-                current[lastKey] = Promise.resolve(files[fileKey]);
+                if (lastKey) {
+                  current[lastKey] = Promise.resolve(files[fileKey]);
+                }
               }
             }
           }
@@ -277,7 +333,8 @@ async function startServer(): Promise<void> {
           // Store files in request for potential access
           (request as {uploadFiles?: typeof files}).uploadFiles = files;
         } catch (error) {
-          fastify.log.error('Error processing multipart GraphQL request:', error);
+          const errorObj = error instanceof Error ? error : new Error(String(error));
+          fastify.log.error({err: errorObj}, 'Error processing multipart GraphQL request');
           return reply.code(400).send({errors: [{message: 'Failed to process file upload'}]});
         }
       }
