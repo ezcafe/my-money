@@ -18,17 +18,22 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  TableSortLabel,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   DialogContentText,
   Button,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  useMediaQuery,
+  useTheme,
+  Stack,
 } from '@mui/material';
 import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear} from '@mui/icons-material';
 import {Card} from './ui/Card';
-import {SkeletonLoader} from './common/SkeletonLoader';
 import type {
   PaginatedTransactions,
   TransactionOrderByField,
@@ -102,6 +107,9 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
   sortableFields = ['date', 'value', 'account', 'category', 'payee'],
   onRowClick,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   // Menu state
   const [menuAnchor, setMenuAnchor] = useState<{element: HTMLElement; transactionId: string} | null>(
     null,
@@ -155,36 +163,34 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
   }, [deletingTransactionId, onDelete]);
 
   /**
-   * Handle sort column click
+   * Handle sort field change
    */
-  const handleSort = useCallback(
+  const handleSortFieldChange = useCallback(
     (field: TransactionOrderByField) => {
-      if (sortField === field) {
-        // Toggle direction if same field
-        onSortChange(field, sortDirection === 'asc' ? 'desc' : 'asc');
-      } else {
-        // Set new field with default direction
-        onSortChange(field, 'desc');
-      }
+      onSortChange(field, sortDirection);
     },
-    [sortField, sortDirection, onSortChange],
+    [sortDirection, onSortChange],
   );
 
   /**
-   * Get sort icon for column
+   * Handle sort direction toggle
    */
-  const getSortIcon = (field: TransactionOrderByField): React.ReactNode => {
-    if (sortField !== field) {
-      return null;
-    }
-    return sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />;
-  };
+  const handleSortDirectionToggle = useCallback(() => {
+    onSortChange(sortField, sortDirection === 'asc' ? 'desc' : 'asc');
+  }, [sortField, sortDirection, onSortChange]);
 
   /**
-   * Check if field is sortable
+   * Get field label for display
    */
-  const isSortable = (field: TransactionOrderByField): boolean => {
-    return sortableFields.includes(field);
+  const getFieldLabel = (field: TransactionOrderByField): string => {
+    const labels: Record<TransactionOrderByField, string> = {
+      date: 'Date',
+      value: 'Value',
+      account: 'Account',
+      category: 'Category',
+      payee: 'Payee',
+    };
+    return labels[field];
   };
 
   /**
@@ -202,6 +208,137 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
     if (showPayeeColumn) count++;
     count += 2; // Note and Actions
     return count;
+  };
+
+  /**
+   * Render sort controls
+   */
+  const renderSortControls = (): React.ReactNode => {
+    const availableFields = sortableFields.filter((field) => {
+      if (field === 'account' && !showAccountColumn) return false;
+      if (field === 'category' && !showCategoryColumn) return false;
+      if (field === 'payee' && !showPayeeColumn) return false;
+      return true;
+    });
+
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          alignItems: 'center',
+          p: 2,
+          pb: isMobile ? 1 : 2,
+          borderBottom: isMobile ? 1 : 0,
+          borderColor: 'divider',
+        }}
+      >
+        <FormControl size="small" sx={{minWidth: 120}}>
+          <InputLabel>Sort by</InputLabel>
+          <Select
+            value={sortField}
+            label="Sort by"
+            onChange={(e) => handleSortFieldChange(e.target.value as TransactionOrderByField)}
+          >
+            {availableFields.map((field) => (
+              <MenuItem key={field} value={field}>
+                {getFieldLabel(field)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <IconButton
+          size="small"
+          onClick={handleSortDirectionToggle}
+          aria-label={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+        >
+          {sortDirection === 'asc' ? <ArrowUpward /> : <ArrowDownward />}
+        </IconButton>
+      </Box>
+    );
+  };
+
+  /**
+   * Render card-based layout for mobile
+   */
+  const renderCardLayout = (): React.ReactNode => {
+    if (transactions.items.length === 0) {
+      return (
+        <Box sx={{p: 3, textAlign: 'center'}}>
+          <Typography variant="body2" color="text.secondary">
+            {isSearchMode ? 'No transactions found matching your search.' : 'No transactions found.'}
+          </Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <Box sx={{display: 'flex', flexDirection: 'column', gap: 1, p: 1}}>
+        {transactions.items.map((transaction) => (
+          <Box
+            key={transaction.id}
+            onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
+            sx={{
+              p: 1.5,
+              borderRadius: 1,
+              border: 1,
+              borderColor: 'divider',
+              backgroundColor: 'background.paper',
+              cursor: onRowClick ? 'pointer' : 'default',
+              '&:hover': onRowClick
+                ? {
+                    backgroundColor: 'action.hover',
+                  }
+                : {},
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5}}>
+              <Box sx={{flex: 1}}>
+                <Typography variant="body2" color="text.secondary" sx={{mb: 0.5}}>
+                  {formatDateShort(transaction.date)}
+                </Typography>
+                <Typography variant="h6" sx={{fontWeight: 600, mb: 1}}>
+                  {formatCurrencyPreserveDecimals(transaction.value, currency)}
+                </Typography>
+              </Box>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMenuOpen(e, transaction.id);
+                }}
+                aria-label="More actions"
+              >
+                <MoreVert fontSize="small" />
+              </IconButton>
+            </Box>
+            <Stack spacing={0.5} sx={{mt: 1}}>
+              {showAccountColumn && transaction.account && (
+                <Typography variant="caption" color="text.secondary">
+                  Account: {transaction.account.name}
+                </Typography>
+              )}
+              {showCategoryColumn && transaction.category && (
+                <Typography variant="caption" color="text.secondary">
+                  Category: {transaction.category.name}
+                </Typography>
+              )}
+              {showPayeeColumn && transaction.payee && (
+                <Typography variant="caption" color="text.secondary">
+                  Payee: {transaction.payee.name}
+                </Typography>
+              )}
+              {transaction.note && (
+                <Typography variant="caption" color="text.secondary" sx={{mt: 0.5}}>
+                  Note: {transaction.note}
+                </Typography>
+              )}
+            </Stack>
+          </Box>
+        ))}
+      </Box>
+    );
   };
 
   // Show error if any
@@ -232,155 +369,77 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
           </Button>
         )}
       </Box>
+      {renderSortControls()}
       {loading ? (
-        <Box sx={{p: 2}}>
-          <SkeletonLoader variant="table" count={5} />
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            py: 4,
+          }}
+        >
+          <CircularProgress />
         </Box>
       ) : (
         <>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>
-                    {isSortable('date') ? (
-                      <TableSortLabel
-                        active={sortField === 'date'}
-                        direction={sortField === 'date' ? sortDirection : 'asc'}
-                        onClick={() => handleSort('date')}
-                        IconComponent={() => getSortIcon('date')}
-                      >
-                        Date
-                      </TableSortLabel>
-                    ) : (
-                      'Date'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {isSortable('value') ? (
-                      <TableSortLabel
-                        active={sortField === 'value'}
-                        direction={sortField === 'value' ? sortDirection : 'asc'}
-                        onClick={() => handleSort('value')}
-                        IconComponent={() => getSortIcon('value')}
-                      >
-                        Value
-                      </TableSortLabel>
-                    ) : (
-                      'Value'
-                    )}
-                  </TableCell>
-                  {showAccountColumn && (
-                    <TableCell>
-                      {isSortable('account') ? (
-                        <TableSortLabel
-                          active={sortField === 'account'}
-                          direction={sortField === 'account' ? sortDirection : 'asc'}
-                          onClick={() => handleSort('account')}
-                          IconComponent={() => getSortIcon('account')}
-                        >
-                          Account
-                        </TableSortLabel>
-                      ) : (
-                        'Account'
-                      )}
-                    </TableCell>
-                  )}
-                  {showCategoryColumn && (
-                    <TableCell>
-                      {isSortable('category') ? (
-                        <TableSortLabel
-                          active={sortField === 'category'}
-                          direction={sortField === 'category' ? sortDirection : 'asc'}
-                          onClick={() => handleSort('category')}
-                          IconComponent={() => getSortIcon('category')}
-                        >
-                          Category
-                        </TableSortLabel>
-                      ) : (
-                        'Category'
-                      )}
-                    </TableCell>
-                  )}
-                  {showPayeeColumn && (
-                    <TableCell>
-                      {isSortable('payee') ? (
-                        <TableSortLabel
-                          active={sortField === 'payee'}
-                          direction={sortField === 'payee' ? sortDirection : 'asc'}
-                          onClick={() => handleSort('payee')}
-                          IconComponent={() => getSortIcon('payee')}
-                        >
-                          Payee
-                        </TableSortLabel>
-                      ) : (
-                        'Payee'
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell>Note</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {transactions.items.length === 0 ? (
+          {isMobile ? (
+            renderCardLayout()
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={getEmptyStateColSpan()} align="center" sx={{py: 6}}>
-                      <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1}}>
-                        <Typography variant="body1" color="text.secondary" sx={{mb: 1}}>
-                          {isSearchMode ? 'No transactions found matching your search.' : 'No transactions found.'}
-                        </Typography>
-                        {isSearchMode && onClearSearch && (
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={onClearSearch}
-                            sx={{textTransform: 'none', mt: 1}}
-                          >
-                            Clear Search
-                          </Button>
-                        )}
-                      </Box>
-                    </TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Value</TableCell>
+                    {showAccountColumn && <TableCell>Account</TableCell>}
+                    {showCategoryColumn && <TableCell>Category</TableCell>}
+                    {showPayeeColumn && <TableCell>Payee</TableCell>}
+                    <TableCell>Note</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
-                ) : (
-                  transactions.items.map((transaction) => (
-                    <TableRow
-                      key={transaction.id}
-                      hover={Boolean(onRowClick)}
-                      sx={{
-                        ...(onRowClick ? {cursor: 'pointer'} : {}),
-                        transition: 'background-color 0.15s ease',
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
-                        },
-                      }}
-                      onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
-                    >
-                      <TableCell>{formatDateShort(transaction.date)}</TableCell>
-                      <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
-                      {showAccountColumn && <TableCell>{transaction.account?.name ?? '-'}</TableCell>}
-                      {showCategoryColumn && <TableCell>{transaction.category?.name ?? '-'}</TableCell>}
-                      {showPayeeColumn && <TableCell>{transaction.payee?.name ?? '-'}</TableCell>}
-                      <TableCell>{transaction.note ?? '-'}</TableCell>
-                      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMenuOpen(e, transaction.id);
-                          }}
-                          aria-label="More actions"
-                        >
-                          <MoreVert />
-                        </IconButton>
+                </TableHead>
+                <TableBody>
+                  {transactions.items.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={getEmptyStateColSpan()} align="center">
+                        {isSearchMode ? 'No transactions found matching your search.' : 'No transactions found.'}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  ) : (
+                    transactions.items.map((transaction) => (
+                      <TableRow
+                        key={transaction.id}
+                        hover={Boolean(onRowClick)}
+                        sx={onRowClick ? {cursor: 'pointer'} : undefined}
+                        onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
+                      >
+                        <TableCell>{formatDateShort(transaction.date)}</TableCell>
+                        <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
+                        {showAccountColumn && <TableCell>{transaction.account?.name ?? '-'}</TableCell>}
+                        {showCategoryColumn && <TableCell>{transaction.category?.name ?? '-'}</TableCell>}
+                        {showPayeeColumn && <TableCell>{transaction.payee?.name ?? '-'}</TableCell>}
+                        <TableCell>{transaction.note ?? '-'}</TableCell>
+                        <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMenuOpen(e, transaction.id);
+                            }}
+                            aria-label="More actions"
+                          >
+                            <MoreVert />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
           {totalPages > 1 && (
             <Box sx={{display: 'flex', justifyContent: 'center', mt: 2, pb: 2}}>
               <Pagination

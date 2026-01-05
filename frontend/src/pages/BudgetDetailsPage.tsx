@@ -5,8 +5,10 @@
 
 import React, {useState, memo, useCallback, useEffect, useRef, useMemo} from 'react';
 import {useParams, useNavigate, useLocation} from 'react-router';
-import {Box, Typography} from '@mui/material';
+import {Box, Typography, LinearProgress, Chip, Stack, Grid, useTheme} from '@mui/material';
+import {alpha} from '@mui/material/styles';
 import {useMutation, useQuery} from '@apollo/client/react';
+import {AccountBalance, Category, Person, AttachMoney, TrendingUp, TrendingDown, CheckCircle, Warning, Error as ErrorIcon} from '@mui/icons-material';
 import {Card} from '../components/ui/Card';
 import {useBudget} from '../hooks/useBudget';
 import type {TransactionOrderInput, TransactionOrderByField} from '../hooks/useTransactions';
@@ -45,6 +47,9 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   // Get currency preference
   const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
   const currency = preferencesData?.preferences?.currency ?? 'USD';
+
+  // Theme hook (must be called before early returns)
+  const theme = useTheme();
 
   const {budget, loading: budgetLoading, error: budgetError, refetch: refetchBudget} =
     useBudget(id);
@@ -259,31 +264,221 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
     );
   }
 
-  const budgetName = budget.account?.name ?? budget.category?.name ?? budget.payee?.name ?? 'Budget';
   const budgetType = budget.accountId ? 'Account' : budget.categoryId ? 'Category' : 'Payee';
+
+  /**
+   * Get progress color based on usage percentage
+   */
+  const getProgressColor = (percentage: number): 'success' | 'warning' | 'error' => {
+    if (percentage < 50) return 'success';
+    if (percentage < 80) return 'warning';
+    return 'error';
+  };
+
+  /**
+   * Get status icon based on usage percentage
+   */
+  const getStatusIcon = (percentage: number): React.JSX.Element => {
+    if (percentage < 50) {
+      return <CheckCircle sx={{color: 'success.main', fontSize: 20}} />;
+    }
+    if (percentage < 80) {
+      return <Warning sx={{color: 'warning.main', fontSize: 20}} />;
+    }
+    return <ErrorIcon sx={{color: 'error.main', fontSize: 20}} />;
+  };
+
+  /**
+   * Get budget type icon
+   */
+  const getBudgetTypeIcon = (): React.JSX.Element => {
+    if (budget.accountId) {
+      return <AccountBalance sx={{fontSize: 18, mr: 0.5}} />;
+    }
+    if (budget.categoryId) {
+      return <Category sx={{fontSize: 18, mr: 0.5}} />;
+    }
+    return <Person sx={{fontSize: 18, mr: 0.5}} />;
+  };
+
+  const percentage = budget.percentageUsed;
+  const spent = parseFloat(budget.currentSpent);
+  const total = parseFloat(budget.amount);
+  const remaining = total - spent;
+  const progressColor = getProgressColor(percentage);
+  const isOverBudget = percentage >= 100;
 
   return (
     <Box sx={{p: 2, width: '100%'}}>
       {/* Budget Summary Card */}
-      <Card sx={{mt: 3, p: 2, mb: 2}}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          {budgetName}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Type: {budgetType}
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          Budget: {formatCurrencyPreserveDecimals(parseFloat(budget.amount), currency)}
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          Spent: {formatCurrencyPreserveDecimals(parseFloat(budget.currentSpent), currency)}
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          Remaining: {formatCurrencyPreserveDecimals(parseFloat(budget.amount) - parseFloat(budget.currentSpent), currency)}
-        </Typography>
-        <Typography variant="body1" fontWeight="medium">
-          Usage: {budget.percentageUsed.toFixed(1)}%
-        </Typography>
+      <Card
+        sx={{
+          mt: 3,
+          p: 3,
+          mb: 2,
+        }}
+      >
+        {/* Header Section */}
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{mb: 2}}>
+          <Chip
+            icon={getBudgetTypeIcon()}
+            label={budgetType}
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            icon={getStatusIcon(percentage)}
+            label={`${percentage.toFixed(1)}% Used`}
+            color={progressColor}
+            variant={isOverBudget ? 'filled' : 'outlined'}
+            sx={{fontWeight: 'medium'}}
+          />
+        </Stack>
+
+        {/* Progress Bar */}
+        <Box sx={{mb: 3}}>
+          <LinearProgress
+            variant="determinate"
+            value={Math.min(percentage, 100)}
+            color={progressColor}
+            sx={{
+              height: 12,
+              borderRadius: 1,
+              backgroundColor: theme.palette.action.hover,
+              '& .MuiLinearProgress-bar': {
+                borderRadius: 1,
+              },
+            }}
+          />
+        </Box>
+
+        {/* Financial Metrics Grid */}
+        <Grid container spacing={2}>
+          {/* Budget Amount */}
+          <Grid item xs={12} sm={4}>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1} sx={{mb: 0.5}}>
+                <AttachMoney sx={{fontSize: 18, color: 'primary.main'}} />
+                <Typography variant="caption" color="text.secondary" fontWeight="medium">
+                  Budget
+                </Typography>
+              </Stack>
+              <Typography variant="h6" fontWeight="bold" color="primary.main">
+                {formatCurrencyPreserveDecimals(total, currency)}
+              </Typography>
+            </Box>
+          </Grid>
+
+          {/* Spent Amount */}
+          <Grid item xs={12} sm={4}>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                backgroundColor: isOverBudget
+                  ? theme.palette.error.light
+                  : percentage >= 80
+                    ? alpha(theme.palette.warning.main, 0.12)
+                    : theme.palette.action.hover,
+                border: `1px solid ${
+                  isOverBudget
+                    ? theme.palette.error.main
+                    : percentage >= 80
+                      ? theme.palette.warning.main
+                      : theme.palette.divider
+                }`,
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1} sx={{mb: 0.5}}>
+                <TrendingUp
+                  sx={{
+                    fontSize: 18,
+                    color: isOverBudget
+                      ? 'error.main'
+                      : percentage >= 80
+                        ? 'warning.main'
+                        : 'text.secondary',
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  color={
+                    isOverBudget
+                      ? 'error.main'
+                      : percentage >= 80
+                        ? 'warning.main'
+                        : 'text.secondary'
+                  }
+                  fontWeight="medium"
+                >
+                  Spent
+                </Typography>
+              </Stack>
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                color={
+                  isOverBudget
+                    ? 'error.main'
+                    : percentage >= 80
+                      ? 'warning.main'
+                      : 'text.primary'
+                }
+              >
+                {formatCurrencyPreserveDecimals(spent, currency)}
+              </Typography>
+            </Box>
+          </Grid>
+
+          {/* Remaining Amount */}
+          <Grid item xs={12} sm={4}>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                backgroundColor:
+                  remaining >= 0
+                    ? alpha(theme.palette.success.main, 0.12)
+                    : theme.palette.error.light,
+                border: `1px solid ${
+                  remaining >= 0
+                    ? theme.palette.success.main
+                    : theme.palette.error.main
+                }`,
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1} sx={{mb: 0.5}}>
+                <TrendingDown
+                  sx={{
+                    fontSize: 18,
+                    color: remaining >= 0 ? 'success.main' : 'error.main',
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  color={remaining >= 0 ? 'success.main' : 'error.main'}
+                  fontWeight="medium"
+                >
+                  Remaining
+                </Typography>
+              </Stack>
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                color={remaining >= 0 ? 'success.main' : 'error.main'}
+              >
+                {formatCurrencyPreserveDecimals(remaining, currency)}
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
       </Card>
 
       <TransactionList
