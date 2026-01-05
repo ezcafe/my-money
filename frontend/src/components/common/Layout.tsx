@@ -10,6 +10,7 @@ import {useNavigate, useLocation} from 'react-router';
 import {useSearch} from '../../contexts/SearchContext';
 import {useTitle} from '../../contexts/TitleContext';
 import {FloatingSearchBox} from '../FloatingSearchBox';
+import {useKeyboardShortcuts} from '../../hooks/useKeyboardShortcuts';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -35,12 +36,39 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
   const navigate = useNavigate();
   const location = useLocation();
   const isHomePage = location.pathname === '/';
-  const {openSearch} = useSearch();
+  const {openSearch, closeSearch, isSearchOpen} = useSearch();
   const {title: contextTitle} = useTitle();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   // Use context title if available, otherwise fall back to prop title
   const displayTitle = contextTitle ?? title;
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'ctrl+k',
+      handler: (): void => {
+        if (!hideSearch) {
+          if (isSearchOpen) {
+            closeSearch();
+          } else {
+            openSearch();
+          }
+        }
+      },
+      enabled: !hideSearch,
+    },
+    {
+      key: 'escape',
+      handler: (): void => {
+        if (isSearchOpen) {
+          closeSearch();
+        } else if (menuAnchor) {
+          setMenuAnchor(null);
+        }
+      },
+    },
+  ]);
 
   /**
    * Handle back button click - navigates to previous page
@@ -146,6 +174,15 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
           flexGrow: 1,
           p: {xs: 2, sm: 3},
           overflowY: 'auto',
+          animation: 'fadeIn 0.3s ease-in',
+          '@keyframes fadeIn': {
+            from: {
+              opacity: 0,
+            },
+            to: {
+              opacity: 1,
+            },
+          },
         }}
       >
         {children}

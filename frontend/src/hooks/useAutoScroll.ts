@@ -51,7 +51,7 @@ export function useAutoScroll<T extends ItemWithId>(
    */
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    
+
     if (!isLoading && items.length > 0 && !hasScrolledOnLoad.current) {
       // Mark that we've done the initial scroll
       hasScrolledOnLoad.current = true;
@@ -67,8 +67,8 @@ export function useAutoScroll<T extends ItemWithId>(
         }
       }, scrollDelay);
     }
-    
-    return () => {
+
+    return (): void => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
@@ -82,7 +82,7 @@ export function useAutoScroll<T extends ItemWithId>(
    */
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    
+
     // Skip if this is the initial load (before first scroll)
     if (!hasScrolledOnLoad.current) {
       previousItemsLength.current = items.length;
@@ -99,7 +99,7 @@ export function useAutoScroll<T extends ItemWithId>(
 
     // Get the newest item ID (first item since ordered with newest first)
     const newestItemId = items.length > 0 ? items[0]?.id ?? null : null;
-    
+
     // When loading starts, store the current state for comparison later
     if (isLoading && !itemsBeforeLoading.current) {
       itemsBeforeLoading.current = {
@@ -107,12 +107,12 @@ export function useAutoScroll<T extends ItemWithId>(
         newestId: previousNewestItemId.current,
       };
     }
-    
+
     // When loading finishes, check if items changed during the load
     if (!isLoading && itemsBeforeLoading.current) {
       const itemsChangedDuringLoad = items.length !== itemsBeforeLoading.current.length ||
                                      newestItemId !== itemsBeforeLoading.current.newestId;
-      
+
       if (itemsChangedDuringLoad) {
         timeoutId = setTimeout(() => {
           if (scrollRef.current) {
@@ -124,15 +124,15 @@ export function useAutoScroll<T extends ItemWithId>(
           }
         }, scrollDelay);
       }
-      
+
       // Clear the stored state
       itemsBeforeLoading.current = null;
     }
-    
+
     // Check for changes when not loading (for cases where loading state doesn't change)
     if (!isLoading && !itemsBeforeLoading.current) {
       const itemCountIncreased = items.length > previousItemsLength.current;
-      const newItemAdded = newestItemId !== null && 
+      const newItemAdded = newestItemId !== null &&
                           newestItemId !== previousNewestItemId.current;
 
       if (newItemAdded || itemCountIncreased) {
@@ -147,14 +147,14 @@ export function useAutoScroll<T extends ItemWithId>(
         }, scrollDelay);
       }
     }
-    
+
     // Update refs for next comparison (only when not loading to avoid updating during refetch)
     if (!isLoading) {
       previousItemsLength.current = items.length;
       previousNewestItemId.current = newestItemId;
     }
-    
-    return () => {
+
+    return (): void => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }

@@ -21,7 +21,7 @@ root.render(
 // Register service worker for PWA (only in production)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const isDevelopment = window.location.hostname === 'localhost' || 
+    const isDevelopment = window.location.hostname === 'localhost' ||
                          window.location.hostname === '127.0.0.1' ||
                          window.location.port === '3000';
 
@@ -31,6 +31,7 @@ if ('serviceWorker' in navigator) {
         for (const registration of registrations) {
           void registration.unregister().then((success) => {
             if (success) {
+              // eslint-disable-next-line no-console
               console.log('Service Worker unregistered for development mode');
             }
           });
@@ -41,6 +42,7 @@ if ('serviceWorker' in navigator) {
         void caches.keys().then((cacheNames) => {
           return Promise.all(cacheNames.map((name) => caches.delete(name)));
         }).then(() => {
+          // eslint-disable-next-line no-console
           console.log('All caches cleared for development mode');
         });
       }
@@ -57,6 +59,7 @@ if ('serviceWorker' in navigator) {
       })
       .then((registration) => {
         if (registration) {
+          // eslint-disable-next-line no-console
           console.log('Service Worker registered:', registration.scope);
         }
       })

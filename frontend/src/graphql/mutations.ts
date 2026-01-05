@@ -1,5 +1,23 @@
 /**
  * GraphQL Mutations
+ *
+ * NOTE: For better UX, consider adding optimistic updates to mutations.
+ * See frontend/src/utils/optimisticUpdates.ts for helper functions.
+ *
+ * Example:
+ * ```typescript
+ * import {createOptimisticResponse} from '../utils/optimisticUpdates';
+ *
+ * const [createTransaction] = useMutation(CREATE_TRANSACTION, {
+ *   optimisticResponse: createOptimisticResponse('createTransaction', {
+ *     id: 'temp-' + Date.now(),
+ *     value: input.value,
+ *     date: input.date,
+ *     account: {id: input.accountId, name: '...'},
+ *     // ... other fields
+ *   }),
+ * });
+ * ```
  */
 
 import {gql} from '@apollo/client';

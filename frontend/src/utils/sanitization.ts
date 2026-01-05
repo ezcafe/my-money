@@ -1,0 +1,56 @@
+/**
+ * Input Sanitization Utility
+ * Sanitizes user inputs to prevent XSS attacks
+ */
+
+import DOMPurify from 'dompurify';
+
+/**
+ * Sanitize a string input to prevent XSS attacks
+ * @param input - String input to sanitize
+ * @returns Sanitized string
+ */
+export function sanitizeString(input: string): string {
+  if (typeof input !== 'string') {
+    return String(input);
+  }
+  // DOMPurify sanitizes HTML/script tags and dangerous content
+  return DOMPurify.sanitize(input, {ALLOWED_TAGS: [], ALLOWED_ATTR: []});
+}
+
+/**
+ * Sanitize an object's string properties recursively
+ * @param obj - Object to sanitize
+ * @returns Sanitized object
+ */
+export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
+  const sanitized = {...obj};
+  for (const [key, value] of Object.entries(sanitized)) {
+    if (typeof value === 'string') {
+      (sanitized as Record<string, unknown>)[key] = sanitizeString(value);
+    } else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      (sanitized as Record<string, unknown>)[key] = sanitizeObject(value as Record<string, unknown>);
+    } else if (Array.isArray(value)) {
+      (sanitized as Record<string, unknown>)[key] = value.map((item: unknown) => {
+        if (typeof item === 'string') {
+          return sanitizeString(item);
+        }
+        if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+          return sanitizeObject(item as Record<string, unknown>);
+        }
+        return item;
+      });
+    }
+  }
+  return sanitized;
+}
+
+/**
+ * Sanitize form input values before sending to backend
+ * @param input - Form input object
+ * @returns Sanitized input
+ */
+export function sanitizeFormInput<T extends Record<string, unknown>>(input: T): T {
+  return sanitizeObject(input);
+}
+

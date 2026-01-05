@@ -3,10 +3,11 @@
  * Displays a floating search box at the bottom of the page
  */
 
-import React, {useState, type KeyboardEvent} from 'react';
+import React, {useState, useEffect, useCallback, useMemo, type KeyboardEvent} from 'react';
 import {Box, Paper, TextField, IconButton, InputAdornment, useTheme} from '@mui/material';
 import {Search as SearchIcon, Close as CloseIcon} from '@mui/icons-material';
 import {useSearch} from '../contexts/SearchContext';
+import {debounce} from '../utils/rateLimiting';
 
 /**
  * Floating Search Box Component
@@ -15,6 +16,28 @@ export function FloatingSearchBox(): React.JSX.Element {
   const theme = useTheme();
   const {isSearchOpen, closeSearch, performSearch} = useSearch();
   const [inputValue, setInputValue] = useState('');
+
+  // Debounced search function (300ms delay)
+  const debouncedSearch = useCallback(
+    (query: string): void => {
+      if (query.trim()) {
+        performSearch(query.trim());
+      }
+    },
+    [performSearch],
+  );
+
+  const debouncedSearchFn = useMemo(
+    () => debounce(debouncedSearch as (...args: unknown[]) => unknown, 300) as (query: string) => void,
+    [debouncedSearch],
+  );
+
+  // Trigger debounced search when input changes
+  useEffect(() => {
+    if (inputValue.trim()) {
+      debouncedSearchFn(inputValue);
+    }
+  }, [inputValue, debouncedSearchFn]);
 
   /**
    * Handle search button click
@@ -50,14 +73,29 @@ export function FloatingSearchBox(): React.JSX.Element {
   return (
     <Box
       sx={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
         zIndex: 1300,
         p: 2,
         display: 'flex',
         justifyContent: 'center',
+        animation: 'slideUp 0.3s ease-out',
+        '@keyframes slideUp': {
+          from: {
+            transform: 'translateY(100%)',
+            opacity: 0,
+          },
+          to: {
+            transform: 'translateY(0)',
+            opacity: 1,
+          },
+        },
       }}
     >
       <Paper
-        elevation={0}
+        elevation={4}
         sx={{
           p: 2,
           display: 'flex',
@@ -66,13 +104,18 @@ export function FloatingSearchBox(): React.JSX.Element {
           backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#ffffff',
           border: '1px solid',
           borderColor: 'divider',
-          boxShadow: 'none', // Flat style: no shadows
-          borderRadius: 0, // Flat style: no rounded corners
+          borderRadius: 2,
+          maxWidth: 600,
+          width: '100%',
+          transition: 'box-shadow 0.2s ease',
+          '&:focus-within': {
+            boxShadow: theme.shadows[8],
+          },
         }}
       >
         <TextField
           fullWidth
-          placeholder="Search transactions by note..."
+          placeholder="Search transactions by note... (Press Ctrl+K to open)"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
@@ -83,6 +126,11 @@ export function FloatingSearchBox(): React.JSX.Element {
                 <SearchIcon />
               </InputAdornment>
             ),
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              transition: 'all 0.2s ease',
+            },
           }}
         />
         <IconButton color="primary" onClick={handleSearch} disabled={!inputValue.trim()}>

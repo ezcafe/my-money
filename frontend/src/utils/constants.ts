@@ -28,3 +28,33 @@ export const ITEMS_PER_PAGE = 20;
  */
 export const MAX_RECENT_TRANSACTIONS = 30;
 
+/**
+ * Notification polling interval in milliseconds (60 seconds)
+ */
+export const NOTIFICATION_POLL_INTERVAL_MS = 60 * 1000;
+
+/**
+ * Token expiration buffer time in seconds (refresh token before it expires)
+ */
+export const TOKEN_EXPIRATION_BUFFER_SECONDS = 60;
+
+/**
+ * Auto-dismiss timeout for notifications in milliseconds (5 seconds)
+ */
+export const NOTIFICATION_AUTO_DISMISS_MS = 5000;
+
+/**
+ * Connection error logging throttle interval in milliseconds (5 seconds)
+ */
+export const CONNECTION_ERROR_THROTTLE_MS = 5000;
+
+/**
+ * Apollo cache maximum size (number of objects)
+ */
+export const APOLLO_CACHE_MAX_SIZE = 1000;
+
+/**
+ * Service worker cache maximum size in MB
+ */
+export const SERVICE_WORKER_CACHE_MAX_SIZE_MB = 50;
+

@@ -4,7 +4,7 @@
  */
 
 import React, {memo} from 'react';
-import {Box, List, ListItemButton, ListItemText, Card} from '@mui/material';
+import {Box, List, ListItemButton, ListItemText, Card, Typography, Divider} from '@mui/material';
 import {useNavigate} from 'react-router';
 import {useCategories} from '../hooks/useCategories';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
@@ -18,7 +18,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
   const navigate = useNavigate();
 
   if (loading) {
-    return <LoadingSpinner message="Loading categories..." />;
+    return <LoadingSpinner useSkeleton skeletonVariant="list" skeletonCount={5} />;
   }
 
   if (error) {
@@ -26,23 +26,57 @@ const CategoriesPageComponent = (): React.JSX.Element => {
       <ErrorAlert
         title="Error Loading Categories"
         message={error.message}
+        onRetry={() => {
+          window.location.reload();
+        }}
       />
+    );
+  }
+
+  if (categories.length === 0) {
+    return (
+      <Box>
+        <Card sx={{p: 4}}>
+          <Box sx={{textAlign: 'center', py: 4}}>
+            <Typography variant="h6" color="text.secondary" sx={{mb: 1}}>
+              No Categories Yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Categories help you organize your transactions. Create one to get started.
+            </Typography>
+          </Box>
+        </Card>
+      </Box>
     );
   }
 
   return (
     <Box>
       <Card>
-        <List>
-          {categories.map((category) => (
-            <ListItemButton
-              key={category.id}
-              onClick={(): void => {
-                void navigate(`/categories/${category.id}`);
-              }}
-            >
-              <ListItemText primary={category.name} />
-            </ListItemButton>
+        <List disablePadding>
+          {categories.map((category, index) => (
+            <React.Fragment key={category.id}>
+              {index > 0 && <Divider />}
+              <ListItemButton
+                onClick={(): void => {
+                  void navigate(`/categories/${category.id}`);
+                }}
+                sx={{
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                <ListItemText
+                  primary={category.name}
+                  primaryTypographyProps={{
+                    variant: 'body1',
+                    fontWeight: 500,
+                  }}
+                />
+              </ListItemButton>
+            </React.Fragment>
           ))}
         </List>
       </Card>

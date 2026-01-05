@@ -12,9 +12,9 @@ import {
   DialogActions,
 } from '@mui/material';
 
-export interface DialogProps extends Omit<MUIDialogProps, 'ref'> {
+export interface DialogProps extends Omit<MUIDialogProps, 'ref' | 'title'> {
   children: React.ReactNode;
-  title?: string;
+  title?: React.ReactNode;
   actions?: React.ReactNode;
 }
 
@@ -33,6 +33,7 @@ export const Dialog: React.FC<DialogProps> = ({children, title, actions, ...prop
 };
 
 Dialog.displayName = 'Dialog';
+
 
 
 

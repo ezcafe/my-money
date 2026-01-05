@@ -8,6 +8,8 @@
 
 const STATIC_CACHE = 'my-money-static-v1';
 const API_CACHE = 'my-money-api-v1';
+const MAX_CACHE_SIZE_MB = 50; // Maximum cache size in MB
+const BYTES_PER_MB = 1024 * 1024;
 
 /**
  * Check if we're in development mode
@@ -86,7 +88,10 @@ self.addEventListener('fetch', (event: Event): void => {
   // Handle GraphQL requests
   if (url.pathname === '/graphql') {
     fetchEvent.respondWith(
-      caches.open(API_CACHE).then((cache: Cache) => {
+      caches.open(API_CACHE).then(async (cache: Cache) => {
+        // Check cache size and evict if needed
+        await evictCacheIfNeeded(cache, API_CACHE);
+
         return fetch(request)
           .then((response: Response) => {
             // Cache successful responses
@@ -110,13 +115,13 @@ self.addEventListener('fetch', (event: Event): void => {
     caches.match(request).then((response: Response | undefined) => {
       return (
         response ??
-        fetch(request).then((fetchResponse: Response) => {
+        fetch(request).then(async (fetchResponse: Response) => {
           // Cache new responses
           if (fetchResponse.status === 200) {
             const responseToCache = fetchResponse.clone();
-            void caches.open(STATIC_CACHE).then((cache: Cache) => {
-              void cache.put(request, responseToCache);
-            });
+            const cache = await caches.open(STATIC_CACHE);
+            await evictCacheIfNeeded(cache, STATIC_CACHE);
+            void cache.put(request, responseToCache);
           }
           return fetchResponse;
         })
@@ -124,5 +129,52 @@ self.addEventListener('fetch', (event: Event): void => {
     }),
   );
 });
+
+/**
+ * Evict cache entries if cache size exceeds limit (simple LRU implementation)
+ * @param cache - Cache to check and evict from
+ * @param cacheName - Name of the cache for logging
+ */
+async function evictCacheIfNeeded(cache: Cache, cacheName: string): Promise<void> {
+  try {
+    const keys = await cache.keys();
+    let totalSize = 0;
+    const entries: Array<{key: Request; size: number; timestamp: number}> = [];
+
+    // Calculate total size and collect entries with timestamps
+    for (const key of keys) {
+      const response = await cache.match(key);
+      if (response) {
+        const blob = await response.blob();
+        const size = blob.size;
+        totalSize += size;
+        // Use response date or current time as timestamp
+        const timestamp = response.headers.get('date')
+          ? new Date(response.headers.get('date') ?? '').getTime()
+          : Date.now();
+        entries.push({key, size, timestamp});
+      }
+    }
+
+    // If cache exceeds size limit, evict oldest entries (LRU)
+    if (totalSize > MAX_CACHE_SIZE_MB * BYTES_PER_MB) {
+      // Sort by timestamp (oldest first)
+      entries.sort((a, b) => a.timestamp - b.timestamp);
+
+      // Evict entries until under limit
+      let currentSize = totalSize;
+      for (const entry of entries) {
+        if (currentSize <= MAX_CACHE_SIZE_MB * BYTES_PER_MB) {
+          break;
+        }
+        await cache.delete(entry.key);
+        currentSize -= entry.size;
+      }
+    }
+  } catch (error) {
+    // Silently handle cache eviction errors
+    console.warn(`Cache eviction failed for ${cacheName}:`, error);
+  }
+}
 
 

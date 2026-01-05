@@ -105,6 +105,13 @@ export function createAppTheme(
             borderRadius: parseFloat(m3Shape.small), // 8px for buttons
             textTransform: 'none',
             fontWeight: m3Typography.fontWeight.medium,
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              transform: 'translateY(-1px)',
+            },
+            '&:active': {
+              transform: 'translateY(0)',
+            },
           },
         },
       },
@@ -114,6 +121,10 @@ export function createAppTheme(
             borderRadius: parseFloat(m3Shape.medium), // 12px for cards
             backgroundColor: palette.surface,
             color: palette.onSurface,
+            transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+            '&:hover': {
+              boxShadow: m3Elevation[4][isDark ? 'dark' : 'light'],
+            },
           },
         },
       },
@@ -155,8 +166,13 @@ export function createAppTheme(
         styleOverrides: {
           root: {
             borderRadius: parseFloat(m3Shape.small), // 8px for list items
+            transition: 'background-color 0.2s ease, transform 0.1s ease',
             '&:hover': {
               backgroundColor: palette.surfaceVariant,
+              transform: 'translateX(4px)',
+            },
+            '&:active': {
+              transform: 'translateX(0)',
             },
           },
         },

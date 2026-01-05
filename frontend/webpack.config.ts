@@ -103,6 +103,12 @@ const config: Configuration = {
       'process.env.REACT_APP_OPENID_CLIENT_SECRET': JSON.stringify(
         process.env.REACT_APP_OPENID_CLIENT_SECRET,
       ),
+      'process.env': JSON.stringify({
+        REACT_APP_GRAPHQL_URL: process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql',
+        REACT_APP_OPENID_DISCOVERY_URL: process.env.REACT_APP_OPENID_DISCOVERY_URL,
+        REACT_APP_OPENID_CLIENT_ID: process.env.REACT_APP_OPENID_CLIENT_ID,
+        REACT_APP_OPENID_CLIENT_SECRET: process.env.REACT_APP_OPENID_CLIENT_SECRET,
+      }),
     }),
   ],
   optimization: {

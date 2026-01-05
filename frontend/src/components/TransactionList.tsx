@@ -25,10 +25,10 @@ import {
   DialogActions,
   DialogContentText,
   Button,
-  CircularProgress,
 } from '@mui/material';
 import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear} from '@mui/icons-material';
 import {Card} from './ui/Card';
+import {SkeletonLoader} from './common/SkeletonLoader';
 import type {
   PaginatedTransactions,
   TransactionOrderByField,
@@ -233,16 +233,8 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
         )}
       </Box>
       {loading ? (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            py: 4,
-          }}
-        >
-          <CircularProgress />
+        <Box sx={{p: 2}}>
+          <SkeletonLoader variant="table" count={5} />
         </Box>
       ) : (
         <>
@@ -333,8 +325,22 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
               <TableBody>
                 {transactions.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={getEmptyStateColSpan()} align="center">
-                      {isSearchMode ? 'No transactions found matching your search.' : 'No transactions found.'}
+                    <TableCell colSpan={getEmptyStateColSpan()} align="center" sx={{py: 6}}>
+                      <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1}}>
+                        <Typography variant="body1" color="text.secondary" sx={{mb: 1}}>
+                          {isSearchMode ? 'No transactions found matching your search.' : 'No transactions found.'}
+                        </Typography>
+                        {isSearchMode && onClearSearch && (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={onClearSearch}
+                            sx={{textTransform: 'none', mt: 1}}
+                          >
+                            Clear Search
+                          </Button>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -342,7 +348,13 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                     <TableRow
                       key={transaction.id}
                       hover={Boolean(onRowClick)}
-                      sx={onRowClick ? {cursor: 'pointer'} : undefined}
+                      sx={{
+                        ...(onRowClick ? {cursor: 'pointer'} : {}),
+                        transition: 'background-color 0.15s ease',
+                        '&:hover': {
+                          backgroundColor: 'action.hover',
+                        },
+                      }}
                       onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
                     >
                       <TableCell>{formatDateShort(transaction.date)}</TableCell>

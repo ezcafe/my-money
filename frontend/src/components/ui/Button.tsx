@@ -13,11 +13,26 @@ export interface ButtonProps extends Omit<MUIButtonProps, 'ref'> {
 /**
  * Button component wrapper
  * Allows easy framework switching in the future
+ * Enhanced with smooth transitions and better visual feedback
  */
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({children, ...props}, ref) => {
+  ({children, sx, ...props}, ref) => {
     return (
-      <MUIButton ref={ref} {...props}>
+      <MUIButton
+        ref={ref}
+        {...props}
+        sx={{
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            transform: 'translateY(-1px)',
+            boxShadow: (theme) => theme.shadows[4],
+          },
+          '&:active': {
+            transform: 'translateY(0)',
+          },
+          ...sx,
+        }}
+      >
         {children}
       </MUIButton>
     );
@@ -25,6 +40,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = 'Button';
+
 
 
 

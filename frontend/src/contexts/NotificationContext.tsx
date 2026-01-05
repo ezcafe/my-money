@@ -3,11 +3,13 @@
  * Manages budget notifications globally
  */
 
-import React, {createContext, useContext, useState, useEffect, useCallback} from 'react';
+import React, {createContext, useContext, useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {useQuery, useMutation} from '@apollo/client/react';
 import {Snackbar, Alert} from '@mui/material';
 import {GET_BUDGET_NOTIFICATIONS} from '../graphql/queries';
 import {MARK_BUDGET_NOTIFICATION_READ as MARK_READ_MUTATION} from '../graphql/mutations';
+import {NOTIFICATION_POLL_INTERVAL_MS, NOTIFICATION_AUTO_DISMISS_MS} from '../utils/constants';
+import {getUserFriendlyErrorMessage} from '../utils/errorNotification';
 
 interface BudgetNotification {
   id: string;
@@ -31,6 +33,8 @@ interface NotificationContextType {
   notifications: BudgetNotification[];
   showNotification: (notification: BudgetNotification) => void;
   markAsRead: (id: string) => Promise<void>;
+  showSuccessNotification: (message: string) => void;
+  showErrorNotification: (message: string) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -41,9 +45,27 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({children}: {children: React.ReactNode}): React.JSX.Element {
   const [currentNotification, setCurrentNotification] = useState<BudgetNotification | null>(null);
   const [open, setOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const processedNotificationIds = useRef<Set<string>>(new Set());
+  const [isVisible, setIsVisible] = useState(true);
+
+  // Pause polling when tab is hidden
+  useEffect(() => {
+    const handleVisibilityChange = (): void => {
+      setIsVisible(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return (): void => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const {data, refetch} = useQuery<{budgetNotifications: BudgetNotification[]}>(GET_BUDGET_NOTIFICATIONS, {
-    pollInterval: 30000, // Poll every 30 seconds
+    pollInterval: isVisible ? NOTIFICATION_POLL_INTERVAL_MS : 0,
     fetchPolicy: 'network-only',
   });
 
@@ -51,19 +73,31 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
     refetchQueries: ['GetBudgetNotifications'],
   });
 
-  const notifications = data?.budgetNotifications ?? [];
+  const notifications = useMemo(() => data?.budgetNotifications ?? [], [data?.budgetNotifications]);
 
   // Show first unread notification
   useEffect(() => {
     if (notifications.length > 0 && !currentNotification) {
       const firstNotification = notifications[0];
-      if (firstNotification) {
+      if (firstNotification && !processedNotificationIds.current.has(firstNotification.id)) {
         setCurrentNotification(firstNotification);
         setOpen(true);
+        processedNotificationIds.current.add(firstNotification.id);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifications.length, currentNotification]);
+  }, [notifications, currentNotification]);
+
+  // Clean up processed IDs when notification is marked as read
+  useEffect(() => {
+    if (!currentNotification && !open) {
+      // Reset processed IDs periodically to allow re-showing if needed
+      // This prevents memory growth from processed IDs
+      // Reduced threshold from 100 to 50 for more aggressive cleanup
+      if (processedNotificationIds.current.size > 50) {
+        processedNotificationIds.current.clear();
+      }
+    }
+  }, [currentNotification, open]);
 
   const showNotification = useCallback((notification: BudgetNotification): void => {
     setCurrentNotification(notification);
@@ -77,9 +111,18 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
       });
       setOpen(false);
       setCurrentNotification(null);
+      processedNotificationIds.current.delete(id);
       void refetch();
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      // Log error for debugging
+      console.error('Failed to mark notification as read:', error);
+      // Show user-friendly error message
+      const userMessage = getUserFriendlyErrorMessage(error);
+      setErrorMessage(userMessage);
+      setErrorOpen(true);
+      // Still close the notification to prevent UI blocking
+      setOpen(false);
+      setCurrentNotification(null);
     }
   }, [markAsReadMutation, refetch]);
 
@@ -92,30 +135,92 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
     }
   }, [currentNotification, markAsRead]);
 
-  // Auto-dismiss after 5 seconds
+  // Auto-dismiss after configured timeout
   useEffect(() => {
     if (open && currentNotification) {
       const timer = setTimeout(() => {
         void markAsRead(currentNotification.id);
-      }, 5000);
-      return () => {
+      }, NOTIFICATION_AUTO_DISMISS_MS);
+      return (): void => {
         clearTimeout(timer);
       };
     }
     return undefined;
   }, [open, currentNotification, markAsRead]);
 
+  const handleErrorClose = useCallback((_event?: React.SyntheticEvent | Event, reason?: string): void => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setErrorOpen(false);
+    setErrorMessage(null);
+  }, []);
+
+  const showSuccessNotification = useCallback((message: string): void => {
+    setSuccessMessage(message);
+    setSuccessOpen(true);
+  }, []);
+
+  const showErrorNotification = useCallback((message: string): void => {
+    setErrorMessage(message);
+    setErrorOpen(true);
+  }, []);
+
+  const handleSuccessClose = useCallback((_event?: React.SyntheticEvent | Event, reason?: string): void => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSuccessOpen(false);
+    setSuccessMessage(null);
+  }, []);
+
+  // Listen to error events from errorNotification utility
+  useEffect(() => {
+    const handleError = (event: Event): void => {
+      const customEvent = event as CustomEvent<{message: string; details?: unknown}>;
+      if (customEvent.detail?.message) {
+        setErrorMessage(customEvent.detail.message);
+        setErrorOpen(true);
+      }
+    };
+
+    window.addEventListener('app-error', handleError);
+    return (): void => {
+      window.removeEventListener('app-error', handleError);
+    };
+  }, []);
+
   return (
-    <NotificationContext.Provider value={{notifications, showNotification, markAsRead}}>
+    <NotificationContext.Provider value={{notifications, showNotification, markAsRead, showSuccessNotification, showErrorNotification}}>
       {children}
       <Snackbar
         open={open}
-        autoHideDuration={5000}
+        autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
         onClose={handleClose}
         anchorOrigin={{vertical: 'top', horizontal: 'center'}}
       >
         <Alert onClose={handleClose} severity="warning" sx={{width: '100%'}}>
           {currentNotification?.message}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={errorOpen}
+        autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
+        onClose={handleErrorClose}
+        anchorOrigin={{vertical: 'top', horizontal: 'center'}}
+      >
+        <Alert onClose={handleErrorClose} severity="error" sx={{width: '100%'}}>
+          {errorMessage}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={successOpen}
+        autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
+        onClose={handleSuccessClose}
+        anchorOrigin={{vertical: 'top', horizontal: 'center'}}
+      >
+        <Alert onClose={handleSuccessClose} severity="success" sx={{width: '100%'}}>
+          {successMessage}
         </Alert>
       </Snackbar>
     </NotificationContext.Provider>
@@ -132,4 +237,5 @@ export function useNotifications(): NotificationContextType {
   }
   return context;
 }
+
 

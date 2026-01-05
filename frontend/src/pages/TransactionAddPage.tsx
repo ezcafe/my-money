@@ -27,10 +27,11 @@ import {useMutation, useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {CREATE_TRANSACTION, CREATE_RECURRING_TRANSACTION} from '../graphql/mutations';
-import {GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
+import {GET_CATEGORIES_AND_PAYEES} from '../graphql/queries';
 import {useAccounts} from '../hooks/useAccounts';
 import {useTitle} from '../contexts/TitleContext';
 import {getRecurringTypeOptions, getCronExpression, type RecurringType} from '../utils/recurringTypes';
+import {validateReturnUrl} from '../utils/validation';
 
 /**
  * Transaction Add Page Component
@@ -38,19 +39,17 @@ import {getRecurringTypeOptions, getCronExpression, type RecurringType} from '..
 export function TransactionAddPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get('returnTo') ?? '/';
+  const returnTo = validateReturnUrl(searchParams.get('returnTo'), '/');
   const {setTitle} = useTitle();
 
   const {accounts} = useAccounts();
-  const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string}>}>(
-    GET_CATEGORIES,
-  );
-  const {data: payeesData} = useQuery<{payees?: Array<{id: string; name: string}>}>(
-    GET_PAYEES,
-  );
+  const {data: combinedData} = useQuery<{
+    categories?: Array<{id: string; name: string; type: string; isDefault: boolean}>;
+    payees?: Array<{id: string; name: string; isDefault: boolean}>;
+  }>(GET_CATEGORIES_AND_PAYEES);
 
-  const categories = categoriesData?.categories ?? [];
-  const payees = payeesData?.payees ?? [];
+  const categories = combinedData?.categories ?? [];
+  const payees = combinedData?.payees ?? [];
 
   const [value, setValue] = useState<string>('');
   const [accountId, setAccountId] = useState<string>('');
@@ -64,6 +63,8 @@ export function TransactionAddPage(): React.JSX.Element {
   const [datePickerAnchor, setDatePickerAnchor] = useState<HTMLElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [valueError, setValueError] = useState<string | null>(null);
+  const [accountError, setAccountError] = useState<string | null>(null);
 
   // Set default account if available
   useEffect(() => {
@@ -79,22 +80,11 @@ export function TransactionAddPage(): React.JSX.Element {
   useEffect(() => {
     setTitle('Add Transaction');
     // Cleanup: clear title when component unmounts
-    return () => {
+    return (): void => {
       setTitle(undefined);
     };
   }, [setTitle]);
 
-  /**
-   * Validate return URL to prevent open redirects
-   * Only allow relative paths starting with /
-   */
-  const getValidReturnUrl = (url: string): string => {
-    // Only allow relative paths starting with /
-    if (url.startsWith('/') && !url.startsWith('//')) {
-      return url;
-    }
-    return '/';
-  };
 
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
     refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetAccount', 'GetRecurringTransactions'],
@@ -227,7 +217,7 @@ export function TransactionAddPage(): React.JSX.Element {
           }
 
           // Navigate back to return URL
-          const validReturnUrl = getValidReturnUrl(returnTo);
+          const validReturnUrl = validateReturnUrl(returnTo);
           void navigate(validReturnUrl);
         } catch (err) {
           // Error already handled by onError callback
@@ -252,7 +242,7 @@ export function TransactionAddPage(): React.JSX.Element {
           });
 
           // Navigate back to return URL
-          const validReturnUrl = getValidReturnUrl(returnTo);
+          const validReturnUrl = validateReturnUrl(returnTo);
           void navigate(validReturnUrl);
         } catch (err) {
           // Error already handled by onError callback
@@ -297,21 +287,62 @@ export function TransactionAddPage(): React.JSX.Element {
             label="Value"
             type="number"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setValue(newValue);
+              // Real-time validation
+              if (newValue.trim() === '') {
+                setValueError('Value is required');
+              } else {
+                const numValue = parseFloat(newValue);
+                if (isNaN(numValue)) {
+                  setValueError('Value must be a valid number');
+                } else {
+                  setValueError(null);
+                }
+              }
+              // Clear general error when user types
+              if (error) {
+                setError(null);
+              }
+            }}
             fullWidth
             required
+            error={Boolean(valueError)}
+            helperText={valueError}
             inputProps={{step: '0.01'}}
           />
 
-          <FormControl fullWidth>
+          <FormControl fullWidth required error={Boolean(accountError)}>
             <InputLabel>Account</InputLabel>
-            <Select value={accountId} onChange={(e) => setAccountId(e.target.value)} label="Account" required>
+            <Select
+              value={accountId}
+              onChange={(e) => {
+                setAccountId(e.target.value);
+                // Real-time validation
+                if (!e.target.value) {
+                  setAccountError('Account is required');
+                } else {
+                  setAccountError(null);
+                }
+                // Clear general error when user selects
+                if (error) {
+                  setError(null);
+                }
+              }}
+              label="Account"
+            >
               {accounts.map((account) => (
                 <MenuItem key={account.id} value={account.id}>
                   {account.name}
                 </MenuItem>
               ))}
             </Select>
+            {accountError && (
+              <Typography variant="caption" color="error" sx={{mt: 0.5, ml: 1.75}}>
+                {accountError}
+              </Typography>
+            )}
           </FormControl>
 
           <FormControl fullWidth>
@@ -399,7 +430,7 @@ export function TransactionAddPage(): React.JSX.Element {
           <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto'}}>
             <Button
               onClick={() => {
-                const validReturnUrl = getValidReturnUrl(returnTo);
+                const validReturnUrl = validateReturnUrl(returnTo);
                 void navigate(validReturnUrl);
               }}
               disabled={loading}

@@ -74,7 +74,7 @@ export function TransactionEditPage(): React.JSX.Element {
   useEffect(() => {
     setTitle('Edit Transaction');
     // Cleanup: clear title when component unmounts
-    return () => {
+    return (): void => {
       setTitle(undefined);
     };
   }, [setTitle]);

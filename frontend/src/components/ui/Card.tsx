@@ -13,10 +13,25 @@ export interface CardProps extends MUICardProps {
 /**
  * Card component wrapper
  * Allows easy framework switching in the future
+ * Enhanced with smooth transitions and better visual feedback
  */
-export const Card: React.FC<CardProps> = ({children, ...props}) => {
-  return <MUICard {...props}>{children}</MUICard>;
+export const Card: React.FC<CardProps> = ({children, sx, ...props}) => {
+  return (
+    <MUICard
+      {...props}
+      sx={{
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          boxShadow: (theme) => theme.shadows[4],
+        },
+        ...sx,
+      }}
+    >
+      {children}
+    </MUICard>
+  );
 };
+
 
 
 

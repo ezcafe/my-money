@@ -139,7 +139,7 @@ export async function handleCallback(code: string, state: string): Promise<boole
     console.error('State not found in sessionStorage - possible session issue or page reload');
     return false;
   }
-  
+
   if (storedState !== state) {
     console.error('Invalid state parameter - possible CSRF attack', {
       stored: storedState,
@@ -161,9 +161,6 @@ export async function handleCallback(code: string, state: string): Promise<boole
     return false;
   }
 
-  // Get client secret if configured (required by some OIDC providers like Pocket ID)
-  const clientSecret = process.env.REACT_APP_OPENID_CLIENT_SECRET;
-
   const config = await getOIDCConfig();
   const redirectUri = `${window.location.origin}/auth/callback`;
 
@@ -171,6 +168,8 @@ export async function handleCallback(code: string, state: string): Promise<boole
   // Keep it until after token exchange in case we need to retry
   try {
     // Prepare token exchange request with PKCE
+    // Include client_secret if configured (required by some OIDC providers)
+    const clientSecret = process.env.REACT_APP_OPENID_CLIENT_SECRET;
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -179,8 +178,7 @@ export async function handleCallback(code: string, state: string): Promise<boole
       code_verifier: verifier,
     });
 
-    // Add client_secret if provided (required by Pocket ID and some other providers)
-    // Note: This is less secure for frontend apps, but required by some OIDC providers
+    // Add client_secret if provided (required by confidential clients)
     if (clientSecret) {
       tokenParams.append('client_secret', clientSecret);
     }
@@ -202,7 +200,7 @@ export async function handleCallback(code: string, state: string): Promise<boole
       } catch {
         errorDetails = errorText;
       }
-      
+
       console.error('Token exchange failed:', {
         status: response.status,
         statusText: response.statusText,
@@ -217,10 +215,12 @@ export async function handleCallback(code: string, state: string): Promise<boole
       expires_in?: number;
     };
 
-    // Store tokens
+    // Store tokens (encrypted)
     if (tokenData.access_token) {
-      localStorage.setItem('oidc_token', tokenData.access_token);
-      
+      // Import encryption utility
+      const {storeEncryptedToken} = await import('./tokenEncryption');
+      await storeEncryptedToken('oidc_token', tokenData.access_token);
+
       // Store expiration if provided
       if (tokenData.expires_in) {
         const expiration = Date.now() + tokenData.expires_in * 1000;
@@ -229,7 +229,8 @@ export async function handleCallback(code: string, state: string): Promise<boole
     }
 
     if (tokenData.refresh_token) {
-      localStorage.setItem('oidc_refresh_token', tokenData.refresh_token);
+      const {storeEncryptedToken} = await import('./tokenEncryption');
+      await storeEncryptedToken('oidc_refresh_token', tokenData.refresh_token);
     } else {
       console.warn('No refresh token received from OIDC provider. Token refresh will not be available. Ensure "offline_access" scope is included in the authorization request.');
     }
@@ -250,8 +251,10 @@ export async function handleCallback(code: string, state: string): Promise<boole
  * Check if user is authenticated
  * @returns True if user has a valid token, false otherwise
  */
-export function isAuthenticated(): boolean {
-  return !!localStorage.getItem('oidc_token');
+export async function isAuthenticated(): Promise<boolean> {
+  const {getEncryptedToken} = await import('./tokenEncryption');
+  const token = await getEncryptedToken('oidc_token');
+  return !!token;
 }
 
 /**

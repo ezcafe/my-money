@@ -139,6 +139,22 @@ export const GET_PAYEES = gql`
   }
 `;
 
+export const GET_CATEGORIES_AND_PAYEES = gql`
+  query GetCategoriesAndPayees {
+    categories {
+      id
+      name
+      type
+      isDefault
+    }
+    payees {
+      id
+      name
+      isDefault
+    }
+  }
+`;
+
 export const GET_PAYEE = gql`
   query GetPayee($id: ID!) {
       payee(id: $id) {

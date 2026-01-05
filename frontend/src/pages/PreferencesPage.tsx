@@ -5,7 +5,7 @@
 
 import React, {useState, useEffect, useRef} from 'react';
 import {useNavigate} from 'react-router';
-import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button} from '@mui/material';
+import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, Tooltip, CircularProgress, Stack} from '@mui/material';
 import {useQuery, useMutation, useLazyQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Dialog} from '../components/ui/Dialog';
@@ -14,7 +14,8 @@ import {logout} from '../utils/oidc';
 import {CURRENCIES, type Currency} from '../utils/currencies';
 import {GET_PREFERENCES, EXPORT_DATA} from '../graphql/queries';
 import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA} from '../graphql/mutations';
-import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt, AttachMoney} from '@mui/icons-material';
+import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt, AttachMoney, HelpOutline, Settings, DataObject, Security} from '@mui/icons-material';
+import {useNotifications} from '../contexts/NotificationContext';
 
 /**
  * Export data type from GraphQL
@@ -86,12 +87,19 @@ interface ImportCSVResult {
  */
 export function PreferencesPage(): React.JSX.Element {
   const navigate = useNavigate();
+  const {showSuccessNotification, showErrorNotification} = useNotifications();
   const {data: preferencesData, loading: preferencesLoading} = useQuery<{
     preferences?: {currency: string; useThousandSeparator: boolean};
   }>(GET_PREFERENCES);
   const [updatePreferences, {loading: updating}] = useMutation(UPDATE_PREFERENCES, {
     refetchQueries: ['GetPreferences'],
     awaitRefetchQueries: true,
+    onCompleted: () => {
+      showSuccessNotification('Preferences updated successfully');
+    },
+    onError: (error) => {
+      showErrorNotification(error.message || 'Failed to update preferences');
+    },
   });
 
   const [useThousandSeparator, setUseThousandSeparator] = useState(true);
@@ -154,13 +162,11 @@ export function PreferencesPage(): React.JSX.Element {
       await resetDataMutation();
       setResetDialogOpen(false);
       setResetConfirmationText('');
-      // eslint-disable-next-line no-alert
-      alert('Data reset successfully!');
+      showSuccessNotification('All data has been reset successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Reset failed';
       console.error('Reset failed:', error);
-      // eslint-disable-next-line no-alert
-      alert(`Reset failed: ${errorMessage}`);
+      showErrorNotification(`Reset failed: ${errorMessage}`);
     }
   };
 
@@ -356,8 +362,12 @@ export function PreferencesPage(): React.JSX.Element {
         const preferencesCSV = convertToCSV([exportData.preferences], ['id', 'currency', 'useThousandSeparator']);
         downloadCSV(preferencesCSV, 'preferences.csv');
       }
+
+      showSuccessNotification('Data exported successfully');
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Export failed';
       console.error('Export failed:', error);
+      showErrorNotification(`Export failed: ${errorMessage}`);
     } finally {
       setExporting(false);
     }
@@ -411,18 +421,16 @@ export function PreferencesPage(): React.JSX.Element {
       if (result.data?.importCSV) {
         const {success, created, updated, errors} = result.data.importCSV;
         if (success) {
-          // eslint-disable-next-line no-alert
-          alert(`Import successful! Created: ${created}, Updated: ${updated}`);
+          showSuccessNotification(`Import successful! Created: ${created}, Updated: ${updated}`);
         } else {
-          // eslint-disable-next-line no-alert
-          alert(`Import completed with errors. Created: ${created}, Updated: ${updated}. Errors: ${errors.join(', ')}`);
+          const errorMsg = errors.length > 0 ? ` Errors: ${errors.join(', ')}` : '';
+          showErrorNotification(`Import completed with issues. Created: ${created}, Updated: ${updated}.${errorMsg}`);
         }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Import failed';
       console.error('Import failed:', error);
-      // eslint-disable-next-line no-alert
-      alert(`Import failed: ${errorMessage}`);
+      showErrorNotification(`Import failed: ${errorMessage}`);
     } finally {
       setImporting(false);
       // Reset file input
@@ -433,75 +441,145 @@ export function PreferencesPage(): React.JSX.Element {
   };
 
   return (
-    <Box>
-      <Card sx={{p: 2, mb: 2}}>
-        <Typography variant="h6" component="h2" gutterBottom>
+    <Box sx={{maxWidth: 800, mx: 'auto', p: 2}}>
+      {/* Display Settings Section */}
+      <Card sx={{p: 3, mb: 3}}>
+        <Typography variant="h6" component="h2" gutterBottom sx={{mb: 3, display: 'flex', alignItems: 'center', gap: 1}}>
+          <Settings fontSize="small" />
           Display Settings
         </Typography>
-        <Box sx={{mb: 2}}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Show on Calculator
-          </Typography>
-          <ToggleButtonGroup
-            value={useThousandSeparator ? '000' : '.'}
-            exclusive
-            onChange={(_, newValue: string | null) => {
-              handleUseThousandSeparatorChange(newValue);
-            }}
-            aria-label="show on calculator"
-            fullWidth
-            disabled={preferencesLoading || updating}
-          >
-            <ToggleButton value="000" aria-label="thousand separator">
-              000
-            </ToggleButton>
-            <ToggleButton value="." aria-label="decimal separator">
-              .
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        <Box sx={{mt: 2}}>
-          <Autocomplete
-            options={CURRENCIES}
-            getOptionLabel={(option) => `${option.code} - ${option.name}`}
-            value={CURRENCIES.find((c) => c.code === currency) ?? null}
-            onChange={(_event, newValue: Currency | null) => {
-              if (newValue) {
-                handleCurrencyChange(newValue.code);
-              }
-            }}
-            filterOptions={(options, {inputValue}) => {
-              const searchValue = inputValue.toLowerCase();
-              return options.filter(
-                (option) =>
-                  option.code.toLowerCase().includes(searchValue) ||
-                  option.name.toLowerCase().includes(searchValue),
-              );
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Currency"
-                fullWidth
-              />
+
+        <Stack spacing={3}>
+          {/* Number Format Setting */}
+          <Box>
+            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+              <Typography variant="subtitle2" component="label">
+                Calculator Quick Button
+              </Typography>
+              <Tooltip title="Choose which quick button appears on the calculator. The &apos;000&apos; button quickly adds &apos;000&apos; to your value (useful for entering thousands). The &apos;.&apos; button quickly adds a decimal point (useful for entering cents).">
+                <HelpOutline fontSize="small" color="action" sx={{cursor: 'help'}} />
+              </Tooltip>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
+              Choose which quick button appears on the calculator to help you enter values faster
+            </Typography>
+            <ToggleButtonGroup
+              value={useThousandSeparator ? '000' : '.'}
+              exclusive
+              onChange={(_, newValue: string | null) => {
+                handleUseThousandSeparatorChange(newValue);
+              }}
+              aria-label="calculator quick button"
+              fullWidth
+              disabled={preferencesLoading || updating}
+              size="large"
+            >
+              <ToggleButton value="000" aria-label="000 button">
+                <Box sx={{textAlign: 'center'}}>
+                  <Typography variant="body2" sx={{fontWeight: 'bold'}}>000</Typography>
+                  <Typography variant="caption" color="text.secondary">Quick button to add &apos;000&apos;</Typography>
+                </Box>
+              </ToggleButton>
+              <ToggleButton value="." aria-label="decimal point button">
+                <Box sx={{textAlign: 'center'}}>
+                  <Typography variant="body2" sx={{fontWeight: 'bold'}}>.</Typography>
+                  <Typography variant="caption" color="text.secondary">Quick button to add decimal point</Typography>
+                </Box>
+              </ToggleButton>
+            </ToggleButtonGroup>
+            {(preferencesLoading || updating) && (
+              <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mt: 1}}>
+                <CircularProgress size={16} />
+                <Typography variant="caption" color="text.secondary">
+                  {updating ? 'Saving...' : 'Loading...'}
+                </Typography>
+              </Box>
             )}
-            disabled={preferencesLoading || updating}
-            fullWidth
-          />
-        </Box>
-        <Box sx={{mt: 3}}>
-          <ColorSchemePicker />
-        </Box>
+          </Box>
+
+          {/* Currency Setting */}
+          <Box>
+            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+              <Typography variant="subtitle2" component="label">
+                Currency
+              </Typography>
+              <Tooltip title="Select your preferred currency. This will be used throughout the application for displaying amounts">
+                <HelpOutline fontSize="small" color="action" sx={{cursor: 'help'}} />
+              </Tooltip>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
+              Select your preferred currency for displaying amounts
+            </Typography>
+            <Autocomplete
+              options={CURRENCIES}
+              getOptionLabel={(option) => `${option.code} - ${option.name}`}
+              value={CURRENCIES.find((c) => c.code === currency) ?? null}
+              onChange={(_event, newValue: Currency | null) => {
+                if (newValue) {
+                  handleCurrencyChange(newValue.code);
+                }
+              }}
+              filterOptions={(options, {inputValue}) => {
+                const searchValue = inputValue.toLowerCase();
+                return options.filter(
+                  (option) =>
+                    option.code.toLowerCase().includes(searchValue) ||
+                    option.name.toLowerCase().includes(searchValue),
+                );
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select Currency"
+                  placeholder="Search by code or name..."
+                  fullWidth
+                  helperText={updating ? 'Saving...' : undefined}
+                />
+              )}
+              disabled={preferencesLoading || updating}
+              fullWidth
+            />
+          </Box>
+
+          {/* Color Scheme Setting */}
+          <Box>
+            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+              <Typography variant="subtitle2" component="label">
+                Color Scheme
+              </Typography>
+              <Tooltip title="Customize the app&apos;s color theme. Choose from preset themes or create a custom color scheme">
+                <HelpOutline fontSize="small" color="action" sx={{cursor: 'help'}} />
+              </Tooltip>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
+              Customize the app&apos;s appearance with different color themes
+            </Typography>
+            <ColorSchemePicker />
+          </Box>
+        </Stack>
       </Card>
 
-      <Card>
-        <List>
+      {/* Management Section */}
+      <Card sx={{mb: 3}}>
+        <Box sx={{p: 2, pb: 1}}>
+          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+            <DataObject fontSize="small" />
+            Data Management
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+            Manage your accounts, categories, payees, and other data
+          </Typography>
+        </Box>
+        <List disablePadding>
           <ListItem disablePadding>
             <ListItemButton onClick={() => {
               void navigate('/accounts');
             }}>
-              <ListItemText primary="Manage Accounts" />
-              <AccountBalance />
+              <AccountBalance sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Manage Accounts"
+                secondary="View and edit your accounts"
+              />
             </ListItemButton>
           </ListItem>
           <Divider />
@@ -509,8 +587,11 @@ export function PreferencesPage(): React.JSX.Element {
             <ListItemButton onClick={() => {
               void navigate('/categories');
             }}>
-              <ListItemText primary="Manage Categories" />
-              <Category />
+              <Category sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Manage Categories"
+                secondary="Organize your income and expense categories"
+              />
             </ListItemButton>
           </ListItem>
           <Divider />
@@ -518,8 +599,11 @@ export function PreferencesPage(): React.JSX.Element {
             <ListItemButton onClick={() => {
               void navigate('/payees');
             }}>
-              <ListItemText primary="Manage Payees" />
-              <Person />
+              <Person sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Manage Payees"
+                secondary="Manage people and organizations you transact with"
+              />
             </ListItemButton>
           </ListItem>
           <Divider />
@@ -527,8 +611,11 @@ export function PreferencesPage(): React.JSX.Element {
             <ListItemButton onClick={() => {
               void navigate('/budgets');
             }}>
-              <ListItemText primary="Manage Budgets" />
-              <AttachMoney />
+              <AttachMoney sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Manage Budgets"
+                secondary="Set and track spending limits"
+              />
             </ListItemButton>
           </ListItem>
           <Divider />
@@ -536,15 +623,39 @@ export function PreferencesPage(): React.JSX.Element {
             <ListItemButton onClick={() => {
               void navigate('/schedule');
             }}>
-              <ListItemText primary="Schedule" />
-              <Schedule />
+              <Schedule sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Recurring Transactions"
+                secondary="Manage scheduled and recurring transactions"
+              />
             </ListItemButton>
           </ListItem>
-          <Divider />
+        </List>
+      </Card>
+
+      {/* Import/Export Section */}
+      <Card sx={{mb: 3}}>
+        <Box sx={{p: 2, pb: 1}}>
+          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+            <Download fontSize="small" />
+            Import & Export
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+            Backup your data or import from CSV files
+          </Typography>
+        </Box>
+        <List disablePadding>
           <ListItem disablePadding>
-            <ListItemButton onClick={handleImportClick} disabled={importing}>
-              <ListItemText primary={importing ? 'Importing...' : 'Import'} />
-              <Upload />
+            <ListItemButton
+              onClick={handleImportClick}
+              disabled={importing}
+            >
+              <Upload sx={{mr: 2, color: importing ? 'text.disabled' : 'primary.main'}} />
+              <ListItemText
+                primary={importing ? 'Importing...' : 'Import Data'}
+                secondary={importing ? 'Please wait while we import your data' : 'Import accounts, transactions, and more from CSV files'}
+              />
+              {importing && <CircularProgress size={20} sx={{ml: 'auto'}} />}
             </ListItemButton>
             <input
               ref={fileInputRef}
@@ -558,25 +669,55 @@ export function PreferencesPage(): React.JSX.Element {
           </ListItem>
           <Divider />
           <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void handleExport();
-            }} disabled={exporting}>
-              <ListItemText primary={exporting ? 'Exporting...' : 'Export'} />
-              <Download />
+            <ListItemButton
+              onClick={() => {
+                void handleExport();
+              }}
+              disabled={exporting}
+            >
+              <Download sx={{mr: 2, color: exporting ? 'text.disabled' : 'primary.main'}} />
+              <ListItemText
+                primary={exporting ? 'Exporting...' : 'Export Data'}
+                secondary={exporting ? 'Preparing your data for download' : 'Download all your data as CSV files for backup'}
+              />
+              {exporting && <CircularProgress size={20} sx={{ml: 'auto'}} />}
             </ListItemButton>
           </ListItem>
-          <Divider />
+        </List>
+      </Card>
+
+      {/* Account Actions Section */}
+      <Card>
+        <Box sx={{p: 2, pb: 1}}>
+          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+            <Security fontSize="small" />
+            Account Actions
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+            Manage your account and data
+          </Typography>
+        </Box>
+        <List disablePadding>
           <ListItem disablePadding>
-            <ListItemButton onClick={handleResetDataClick} sx={{color: 'error.main'}}>
-              <ListItemText primary="Reset data" />
-              <RestartAlt />
+            <ListItemButton
+              onClick={handleResetDataClick}
+              sx={{color: 'error.main'}}
+            >
+              <RestartAlt sx={{mr: 2}} />
+              <ListItemText
+                primary="Reset All Data"
+                secondary="Permanently delete all your data (default items will remain)"
+              />
             </ListItemButton>
           </ListItem>
           <Divider />
           <ListItem disablePadding>
             <ListItemButton onClick={handleLogout} sx={{color: 'error.main'}}>
-              <ListItemText primary="Logout" />
-              <Logout />
+              <Logout sx={{mr: 2}} />
+              <ListItemText
+                primary="Logout"
+                secondary="Sign out of your account"
+              />
             </ListItemButton>
           </ListItem>
         </List>
@@ -586,10 +727,22 @@ export function PreferencesPage(): React.JSX.Element {
       <Dialog
         open={resetDialogOpen}
         onClose={handleResetDialogClose}
-        title="Reset Data"
+        title={
+          <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+            <RestartAlt color="error" />
+            <Typography variant="h6" component="span" color="error">
+              Reset All Data
+            </Typography>
+          </Box>
+        }
         actions={
-          <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end'}}>
-            <Button onClick={handleResetDialogClose} disabled={resetting} variant="outlined">
+          <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end', width: '100%'}}>
+            <Button
+              onClick={handleResetDialogClose}
+              disabled={resetting}
+              variant="outlined"
+              size="large"
+            >
               Cancel
             </Button>
             <Button
@@ -599,29 +752,70 @@ export function PreferencesPage(): React.JSX.Element {
               disabled={resetting || resetConfirmationText !== 'I understand this will delete all my data permanently'}
               variant="contained"
               color="error"
+              size="large"
+              startIcon={resetting ? <CircularProgress size={16} color="inherit" /> : <RestartAlt />}
             >
-              {resetting ? 'Resetting...' : 'Reset now'}
+              {resetting ? 'Resetting...' : 'Reset All Data'}
             </Button>
           </Box>
         }
       >
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, minWidth: 400}}>
-          <Typography variant="body1">
-            This will permanently delete all your data except the default account, category, and payee.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            To confirm, please type: <strong>I understand this will delete all my data permanently</strong>
-          </Typography>
-          <TextField
-            label="Confirmation"
-            value={resetConfirmationText}
-            onChange={(e) => {
-              setResetConfirmationText(e.target.value);
-            }}
-            fullWidth
-            placeholder="I understand this will delete all my data permanently"
-            disabled={resetting}
-          />
+        <Box sx={{display: 'flex', flexDirection: 'column', gap: 3, minWidth: {xs: 'auto', sm: 500}, maxWidth: 600}}>
+          <Box sx={{p: 2, bgcolor: 'error.light', borderRadius: 1}}>
+            <Typography variant="body1" sx={{fontWeight: 'bold', mb: 1}}>
+              ⚠️ Warning: This action cannot be undone
+            </Typography>
+            <Typography variant="body2">
+              This will permanently delete all your data including:
+            </Typography>
+            <Box component="ul" sx={{mt: 1, mb: 0, pl: 3}}>
+              <li><Typography variant="body2">All accounts (except default)</Typography></li>
+              <li><Typography variant="body2">All transactions</Typography></li>
+              <li><Typography variant="body2">All categories (except default)</Typography></li>
+              <li><Typography variant="body2">All payees (except default)</Typography></li>
+              <li><Typography variant="body2">All budgets</Typography></li>
+              <li><Typography variant="body2">All recurring transactions</Typography></li>
+            </Box>
+            <Typography variant="body2" sx={{mt: 1, fontWeight: 'medium'}}>
+              Only the default account, category, and payee will remain.
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="body1" sx={{mb: 1, fontWeight: 'medium'}}>
+              To confirm this action, please type the following:
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                p: 1.5,
+                bgcolor: 'action.hover',
+                borderRadius: 1,
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                mb: 2
+              }}
+            >
+              I understand this will delete all my data permanently
+            </Typography>
+            <TextField
+              label="Type confirmation text"
+              value={resetConfirmationText}
+              onChange={(e) => {
+                setResetConfirmationText(e.target.value);
+              }}
+              fullWidth
+              placeholder="I understand this will delete all my data permanently"
+              disabled={resetting}
+              error={resetConfirmationText !== '' && resetConfirmationText !== 'I understand this will delete all my data permanently'}
+              helperText={
+                resetConfirmationText !== '' && resetConfirmationText !== 'I understand this will delete all my data permanently'
+                  ? 'Text does not match'
+                  : 'Type the exact text above to enable the reset button'
+              }
+              size="medium"
+            />
+          </Box>
         </Box>
       </Dialog>
     </Box>

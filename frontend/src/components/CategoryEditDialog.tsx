@@ -145,7 +145,7 @@ export function CategoryEditDialog({
             exclusive
             onChange={(_, newValue: string | null) => {
               if (newValue !== null && (newValue === 'INCOME' || newValue === 'EXPENSE')) {
-                setCategoryType(newValue as 'INCOME' | 'EXPENSE');
+                setCategoryType(newValue);
               }
             }}
             aria-label="category type"

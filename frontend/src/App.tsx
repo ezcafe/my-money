@@ -3,7 +3,7 @@
  * Sets up routing and application providers
  */
 
-import React from 'react';
+import React, {lazy, Suspense} from 'react';
 import {BrowserRouter, Routes, Route, Navigate} from 'react-router';
 import {ApolloProvider} from '@apollo/client/react';
 import {Add} from '@mui/icons-material';
@@ -11,47 +11,44 @@ import {ThemeProvider} from './theme/ThemeProvider';
 import {NotificationProvider} from './contexts/NotificationContext';
 import {ErrorBoundary} from './components/common/ErrorBoundary';
 import {Layout} from './components/common/Layout';
-import {ProtectedRoute} from './components/common/ProtectedRoute';
+import {ProtectedRouteWithErrorBoundary} from './components/common/ProtectedRouteWithErrorBoundary';
 import {SearchProvider} from './contexts/SearchContext';
 import {TitleProvider} from './contexts/TitleContext';
 import {client} from './graphql/client';
-import {Calculator} from './components/Calculator';
-import {AccountsPage} from './pages/AccountsPage';
-import {AccountDetailsPage} from './pages/AccountDetailsPage';
-import {AccountEditPage} from './pages/AccountEditPage';
-import {CategoriesPage} from './pages/CategoriesPage';
-import {CategoryDetailsPage} from './pages/CategoryDetailsPage';
-import {CategoryEditPage} from './pages/CategoryEditPage';
-import {PayeesPage} from './pages/PayeesPage';
-import {PayeeDetailsPage} from './pages/PayeeDetailsPage';
-import {PayeeEditPage} from './pages/PayeeEditPage';
-import {TransactionEditPage} from './pages/TransactionEditPage';
-import {TransactionAddPage} from './pages/TransactionAddPage';
-import {ReportPage} from './pages/ReportPage';
-import {ImportPage} from './pages/ImportPage';
-import {SchedulePage} from './pages/SchedulePage';
-import {PreferencesPage} from './pages/PreferencesPage';
-import {BudgetsPage} from './pages/BudgetsPage';
-import {BudgetAddPage} from './pages/BudgetAddPage';
-import {BudgetDetailsPage} from './pages/BudgetDetailsPage';
-import {BudgetEditPage} from './pages/BudgetEditPage';
-import {LoginPage} from './pages/LoginPage';
-import {AuthCallbackPage} from './pages/AuthCallbackPage';
+import {LoadingSpinner} from './components/common/LoadingSpinner';
+import {OfflineIndicator} from './components/common/OfflineIndicator';
+
+// Lazy load page components for code splitting
+const Calculator = lazy(() => import('./components/Calculator').then((m) => ({default: m.Calculator})));
+const AccountsPage = lazy(() => import('./pages/AccountsPage').then((m) => ({default: m.AccountsPage})));
+const AccountDetailsPage = lazy(() => import('./pages/AccountDetailsPage').then((m) => ({default: m.AccountDetailsPage})));
+const AccountEditPage = lazy(() => import('./pages/AccountEditPage').then((m) => ({default: m.AccountEditPage})));
+const CategoriesPage = lazy(() => import('./pages/CategoriesPage').then((m) => ({default: m.CategoriesPage})));
+const CategoryDetailsPage = lazy(() => import('./pages/CategoryDetailsPage').then((m) => ({default: m.CategoryDetailsPage})));
+const CategoryEditPage = lazy(() => import('./pages/CategoryEditPage').then((m) => ({default: m.CategoryEditPage})));
+const PayeesPage = lazy(() => import('./pages/PayeesPage').then((m) => ({default: m.PayeesPage})));
+const PayeeDetailsPage = lazy(() => import('./pages/PayeeDetailsPage').then((m) => ({default: m.PayeeDetailsPage})));
+const PayeeEditPage = lazy(() => import('./pages/PayeeEditPage').then((m) => ({default: m.PayeeEditPage})));
+const TransactionEditPage = lazy(() => import('./pages/TransactionEditPage').then((m) => ({default: m.TransactionEditPage})));
+const TransactionAddPage = lazy(() => import('./pages/TransactionAddPage').then((m) => ({default: m.TransactionAddPage})));
+const ReportPage = lazy(() => import('./pages/ReportPage').then((m) => ({default: m.ReportPage})));
+const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({default: m.ImportPage})));
+const SchedulePage = lazy(() => import('./pages/SchedulePage').then((m) => ({default: m.SchedulePage})));
+const PreferencesPage = lazy(() => import('./pages/PreferencesPage').then((m) => ({default: m.PreferencesPage})));
+const BudgetsPage = lazy(() => import('./pages/BudgetsPage').then((m) => ({default: m.BudgetsPage})));
+const BudgetAddPage = lazy(() => import('./pages/BudgetAddPage').then((m) => ({default: m.BudgetAddPage})));
+const BudgetDetailsPage = lazy(() => import('./pages/BudgetDetailsPage').then((m) => ({default: m.BudgetDetailsPage})));
+const BudgetEditPage = lazy(() => import('./pages/BudgetEditPage').then((m) => ({default: m.BudgetEditPage})));
+const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({default: m.LoginPage})));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage').then((m) => ({default: m.AuthCallbackPage})));
 import {useNavigate, useParams} from 'react-router';
 import {useState, useCallback} from 'react';
 import {useMutation} from '@apollo/client/react';
 import {DELETE_ACCOUNT, DELETE_CATEGORY, DELETE_PAYEE, DELETE_BUDGET} from './graphql/mutations';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  DialogContentText,
-  Button,
-} from '@mui/material';
 import {useAccount} from './hooks/useAccount';
 import {useCategory} from './hooks/useCategory';
 import {usePayee} from './hooks/usePayee';
+import {DeleteConfirmDialog} from './components/common/DeleteConfirmDialog';
 
 /**
  * Schedule Page Wrapper
@@ -143,22 +140,14 @@ function AccountDetailsPageWrapper(): React.JSX.Element {
       >
         <AccountDetailsPage />
       </Layout>
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Account</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this account? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting}>
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Account"
+        message="Are you sure you want to delete this account? This action cannot be undone."
+        deleting={deleting}
+      />
     </>
   );
 }
@@ -207,22 +196,14 @@ function CategoryDetailsPageWrapper(): React.JSX.Element {
       >
         <CategoryDetailsPage />
       </Layout>
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Category</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this category? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting}>
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? This action cannot be undone."
+        deleting={deleting}
+      />
     </>
   );
 }
@@ -355,22 +336,14 @@ function PayeeDetailsPageWrapper(): React.JSX.Element {
       >
         <PayeeDetailsPage />
       </Layout>
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Payee</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this payee? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting}>
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Payee"
+        message="Are you sure you want to delete this payee? This action cannot be undone."
+        deleting={deleting}
+      />
     </>
   );
 }
@@ -417,22 +390,14 @@ function BudgetDetailsPageWrapper(): React.JSX.Element {
       >
         <BudgetDetailsPage />
       </Layout>
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Budget</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this budget? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" disabled={deleting}>
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Budget"
+        message="Are you sure you want to delete this budget? This action cannot be undone."
+        deleting={deleting}
+      />
     </>
   );
 }
@@ -450,226 +415,229 @@ function App(): React.JSX.Element {
             <SearchProvider>
               <TitleProvider>
                 <BrowserRouter>
-              <Routes>
-              {/* Public routes - no authentication required */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+                <Routes>
+                {/* Public routes - no authentication required */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
               {/* Protected routes - require authentication */}
               <Route
                 path="/"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <Calculator />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/accounts"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <AccountsPageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/accounts/add"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <AccountEditPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/accounts/:id/edit"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <AccountEditPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/accounts/:id"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <AccountDetailsPageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/categories"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <CategoriesPageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/categories/add"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <CategoryEditPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/categories/:id/edit"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <CategoryEditPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/categories/:id"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <CategoryDetailsPageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/payees"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <PayeesPageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/payees/add"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <PayeeEditPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/payees/:id/edit"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <PayeeEditPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/payees/:id"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <PayeeDetailsPageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/budgets"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <BudgetsPageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/budgets/add"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <BudgetAddPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/budgets/:id"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <BudgetDetailsPageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/budgets/:id/edit"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <BudgetEditPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/transactions/:id/edit"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <TransactionEditPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/transactions/add"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout hideSearch>
                       <TransactionAddPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/report"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout title="Report" hideSearch>
                       <ReportPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/import"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout title="Import Transactions" hideSearch>
                       <ImportPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/schedule"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <SchedulePageWrapper />
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
               <Route
                 path="/preferences"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRouteWithErrorBoundary>
                     <Layout title="Preferences" hideSearch>
                       <PreferencesPage />
                     </Layout>
-                  </ProtectedRoute>
+                  </ProtectedRouteWithErrorBoundary>
                 }
               />
-              <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+                <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+              <OfflineIndicator />
             </BrowserRouter>
             </TitleProvider>
           </SearchProvider>

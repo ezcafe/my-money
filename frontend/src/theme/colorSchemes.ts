@@ -60,11 +60,20 @@ export interface ColorPalette {
 }
 
 /**
+ * Check if a string is a valid hex color
+ * @param hex - String to validate
+ * @returns True if the string is a valid hex color
+ */
+function isValidHexColor(hex: string): boolean {
+  return /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.test(hex);
+}
+
+/**
  * Convert hex color to RGB
  */
 function hexToRgb(hex: string): {r: number; g: number; b: number} {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result || !result[1] || !result[2] || !result[3]) {
+  if (!result?.[1] || !result[2] || !result[3]) {
     throw new Error(`Invalid hex color: ${hex}`);
   }
   return {
@@ -947,7 +956,10 @@ export function getColorPalette(
   isDark: boolean,
 ): ColorPalette {
   if (schemeType === 'dynamic' && schemeValue) {
-    return generateDynamicPalette(schemeValue, isDark);
+    // Validate that schemeValue is a valid hex color
+    // If not, default to a valid hex color
+    const validHexColor = isValidHexColor(schemeValue) ? schemeValue : '#6750A4';
+    return generateDynamicPalette(validHexColor, isDark);
   }
 
   if (schemeType === 'static' && schemeValue) {

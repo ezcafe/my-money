@@ -1,7 +1,29 @@
 /**
  * Token Refresh Utility
  * Handles OIDC token refresh and expiration checking
+ *
+ * SECURITY NOTE: Tokens are currently stored in localStorage, which is vulnerable to XSS attacks.
+ * For production applications, consider:
+ * 1. Using httpOnly cookies (requires backend changes to set cookies)
+ * 2. Implementing token encryption before storing in localStorage
+ * 3. Using secure storage mechanisms (e.g., Web Crypto API with encrypted storage)
+ * 4. Implementing token rotation for enhanced security
+ *
+ * Current implementation uses localStorage for simplicity, but should be enhanced for production use.
  */
+
+import {TOKEN_EXPIRATION_BUFFER_SECONDS} from './constants';
+import {storeEncryptedToken, getEncryptedToken} from './tokenEncryption';
+
+/**
+ * Flag to prevent multiple simultaneous redirects
+ */
+let isRedirecting = false;
+
+/**
+ * Promise for ongoing token refresh to prevent concurrent refresh attempts
+ */
+let refreshPromise: Promise<string | null> | null = null;
 
 /**
  * Decode JWT token to extract claims
@@ -34,10 +56,10 @@ export function decodeToken(token: string): {exp?: number; iat?: number; sub?: s
 /**
  * Check if token is expired or will expire soon
  * @param token - JWT token string
- * @param bufferSeconds - Buffer time in seconds before expiration (default: 60)
+ * @param bufferSeconds - Buffer time in seconds before expiration (default: TOKEN_EXPIRATION_BUFFER_SECONDS)
  * @returns true if token is expired or will expire soon
  */
-export function isTokenExpired(token: string, bufferSeconds: number = 60): boolean {
+export function isTokenExpired(token: string, bufferSeconds: number = TOKEN_EXPIRATION_BUFFER_SECONDS): boolean {
   const decoded = decodeToken(token);
   if (!decoded?.exp) {
     return true; // Consider invalid tokens as expired
@@ -65,14 +87,13 @@ export function getTokenExpiration(token: string): number | null {
 }
 
 /**
- * Attempt to refresh the token using OIDC client
- * This function should be called when the token is expired or about to expire
+ * Internal function to perform the actual token refresh
  * @returns New token string or null if refresh failed
  */
-export async function refreshToken(): Promise<string | null> {
+async function performTokenRefresh(): Promise<string | null> {
   try {
-    // Get refresh token from storage
-    const refreshTokenValue = localStorage.getItem('oidc_refresh_token');
+    // Get refresh token from storage (encrypted)
+    const refreshTokenValue = await getEncryptedToken('oidc_refresh_token');
     if (!refreshTokenValue) {
       console.warn('No refresh token available for refresh. Possible reasons:', {
         reason: 'Refresh token not found in localStorage',
@@ -88,8 +109,9 @@ export async function refreshToken(): Promise<string | null> {
       localStorage.removeItem('oidc_token');
       localStorage.removeItem('oidc_refresh_token');
       localStorage.removeItem('oidc_token_expiration');
-      // Only redirect if we're not already on the login page
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
+      // Only redirect if we're not already on the login page and not already redirecting
+      if (!isRedirecting && window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
+        isRedirecting = true;
         window.location.href = '/login';
       }
       return null;
@@ -150,7 +172,7 @@ export async function refreshToken(): Promise<string | null> {
       } catch {
         errorDetails = errorText;
       }
-      
+
       console.error('Token refresh failed:', {
         status: response.status,
         statusText: response.statusText,
@@ -162,19 +184,20 @@ export async function refreshToken(): Promise<string | null> {
           'OIDC provider configuration issue',
         ],
       });
-      
+
       // If refresh token is invalid, clear all tokens and redirect to login
       if (response.status === 400 || response.status === 401) {
         console.warn('Clearing invalid refresh token from storage');
         localStorage.removeItem('oidc_token');
         localStorage.removeItem('oidc_refresh_token');
         localStorage.removeItem('oidc_token_expiration');
-        // Only redirect if we're not already on the login page
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
+        // Only redirect if we're not already on the login page and not already redirecting
+        if (!isRedirecting && window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
+          isRedirecting = true;
           window.location.href = '/login';
         }
       }
-      
+
       return null;
     }
 
@@ -183,12 +206,12 @@ export async function refreshToken(): Promise<string | null> {
       refresh_token?: string;
     } | null;
 
-    // Store new tokens
+    // Store new tokens (encrypted)
     if (tokenData?.access_token) {
-      localStorage.setItem('oidc_token', tokenData.access_token);
+      await storeEncryptedToken('oidc_token', tokenData.access_token);
     }
     if (tokenData?.refresh_token) {
-      localStorage.setItem('oidc_refresh_token', tokenData.refresh_token);
+      await storeEncryptedToken('oidc_refresh_token', tokenData.refresh_token);
     }
 
     return tokenData?.access_token ?? null;
@@ -196,6 +219,27 @@ export async function refreshToken(): Promise<string | null> {
     console.error('Error refreshing token:', error);
     return null;
   }
+}
+
+/**
+ * Attempt to refresh the token using OIDC client
+ * This function prevents concurrent refresh attempts by queuing requests
+ * @returns New token string or null if refresh failed
+ */
+export async function refreshToken(): Promise<string | null> {
+  // If a refresh is already in progress, wait for it instead of starting a new one
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  // Start a new refresh
+  refreshPromise = performTokenRefresh()
+    .finally(() => {
+      // Clear the promise when done so future refreshes can proceed
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
 }
 
 /**

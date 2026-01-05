@@ -50,9 +50,9 @@ function ColorSchemePreview({
       <Paper
         elevation={0}
         sx={{
-          p: 1,
+          p: 0.5,
           cursor: 'pointer',
-          border: 2,
+          border: 1.5,
           borderColor: isSelected ? 'primary.main' : 'divider',
           borderRadius: 0, // Flat style: no rounded corners
           boxShadow: 'none', // Flat style: no shadows
@@ -65,12 +65,12 @@ function ColorSchemePreview({
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 0.5,
+            gap: 0.25,
           }}
         >
           <Box
             sx={{
-              height: 40,
+              height: 24,
               backgroundColor: primaryColor,
               borderRadius: 0, // Flat style: no rounded corners
             }}
@@ -78,13 +78,13 @@ function ColorSchemePreview({
           <Box
             sx={{
               display: 'flex',
-              gap: 0.5,
+              gap: 0.25,
             }}
           >
             <Box
               sx={{
                 flex: 1,
-                height: 20,
+                height: 12,
                 backgroundColor: secondaryColor,
                 borderRadius: 0, // Flat style: no rounded corners
               }}
@@ -92,7 +92,7 @@ function ColorSchemePreview({
             <Box
               sx={{
                 flex: 1,
-                height: 20,
+                height: 12,
                 backgroundColor: tertiaryColor,
                 borderRadius: 0, // Flat style: no rounded corners
               }}
@@ -104,19 +104,21 @@ function ColorSchemePreview({
             sx={{
               color: 'primary.main',
               position: 'absolute',
-              top: 4,
-              right: 4,
-              fontSize: '1.2rem',
+              top: 2,
+              right: 2,
+              fontSize: '1rem',
             }}
           />
         )}
         <Typography
           variant="caption"
           sx={{
-            mt: 0.5,
+            mt: 0.25,
             display: 'block',
             textAlign: 'center',
             textTransform: 'capitalize',
+            fontSize: '0.7rem',
+            lineHeight: 1.2,
           }}
         >
           {name}
@@ -136,7 +138,18 @@ export function ColorSchemePicker(): React.JSX.Element {
   });
 
   const [schemeType, setSchemeType] = useState<ColorSchemeType>(colorScheme?.type ?? null);
-  const [dynamicColor, setDynamicColor] = useState<string>(colorScheme?.value ?? '#6750A4');
+  // Only use colorScheme.value for dynamicColor if type is 'dynamic' and value is a valid hex
+  const getInitialDynamicColor = (): string => {
+    if (colorScheme?.type === 'dynamic' && colorScheme.value) {
+      // Validate hex color format
+      const hexPattern = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
+      if (hexPattern.test(colorScheme.value)) {
+        return colorScheme.value.startsWith('#') ? colorScheme.value : `#${colorScheme.value}`;
+      }
+    }
+    return '#6750A4';
+  };
+  const [dynamicColor, setDynamicColor] = useState<string>(getInitialDynamicColor());
   const [staticScheme, setStaticScheme] = useState<StaticColorSchemeName>(
     (colorScheme?.value as StaticColorSchemeName) ?? 'purple',
   );
@@ -146,7 +159,14 @@ export function ColorSchemePicker(): React.JSX.Element {
     if (colorScheme) {
       setSchemeType(colorScheme.type);
       if (colorScheme.type === 'dynamic') {
-        setDynamicColor(colorScheme.value ?? '#6750A4');
+        // Validate hex color format before setting
+        const hexPattern = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
+        if (colorScheme.value && hexPattern.test(colorScheme.value)) {
+          const hexValue = colorScheme.value.startsWith('#') ? colorScheme.value : `#${colorScheme.value}`;
+          setDynamicColor(hexValue);
+        } else {
+          setDynamicColor('#6750A4');
+        }
       } else if (colorScheme.type === 'static') {
         setStaticScheme((colorScheme.value as StaticColorSchemeName) ?? 'purple');
       }

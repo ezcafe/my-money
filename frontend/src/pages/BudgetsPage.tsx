@@ -152,7 +152,7 @@ export function BudgetsPage(): React.JSX.Element {
   };
 
   if (budgetsLoading) {
-    return <LoadingSpinner message="Loading budgets..." />;
+    return <LoadingSpinner useSkeleton skeletonVariant="list" skeletonCount={5} />;
   }
 
   if (budgetsError) {
@@ -160,6 +160,9 @@ export function BudgetsPage(): React.JSX.Element {
       <ErrorAlert
         title="Error Loading Budgets"
         message={budgetsError.message}
+        onRetry={() => {
+          window.location.reload();
+        }}
       />
     );
   }
@@ -169,10 +172,13 @@ export function BudgetsPage(): React.JSX.Element {
   if (budgets.length === 0) {
     return (
       <Box>
-        <Card>
-          <Box sx={{p: 2}}>
-            <Typography variant="body2" color="text.secondary">
-              No budgets. Click the + button to add one.
+        <Card sx={{p: 4}}>
+          <Box sx={{textAlign: 'center', py: 4}}>
+            <Typography variant="h6" color="text.secondary" sx={{mb: 1}}>
+              No Budgets Yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
+              Create a budget to track your spending and stay on top of your finances.
             </Typography>
           </Box>
         </Card>

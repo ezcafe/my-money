@@ -19,7 +19,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
   const navigate = useNavigate();
 
   if (loading) {
-    return <LoadingSpinner message="Loading accounts..." />;
+    return <LoadingSpinner useSkeleton skeletonVariant="list" skeletonCount={5} />;
   }
 
   if (error) {
@@ -27,7 +27,28 @@ const AccountsPageComponent = (): React.JSX.Element => {
       <ErrorAlert
         title="Error Loading Accounts"
         message={error.message}
+        onRetry={() => {
+          // Trigger refetch by navigating to same page or using window.location.reload()
+          window.location.reload();
+        }}
       />
+    );
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <Box>
+        <Card sx={{p: 4}}>
+          <Box sx={{textAlign: 'center', py: 4}}>
+            <Typography variant="h6" color="text.secondary" sx={{mb: 1}}>
+              No Accounts Yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
+              Get started by creating your first account to track your finances.
+            </Typography>
+          </Box>
+        </Card>
+      </Box>
     );
   }
 
@@ -41,6 +62,12 @@ const AccountsPageComponent = (): React.JSX.Element => {
               <ListItemButton
                 onClick={(): void => {
                   void navigate(`/accounts/${account.id}`);
+                }}
+                sx={{
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
                 }}
               >
                 <ListItemText
