@@ -1,15 +1,19 @@
 /**
  * Schedule Page
  * Manage recurring transactions
+ * Follows Material Design 3 patterns
  */
 
 import React, {useEffect} from 'react';
 import {useLocation} from 'react-router';
-import {Box, Typography, List, ListItem, Chip, Card, Stack, Divider} from '@mui/material';
+import {Box, Typography, List, ListItem, Chip, Stack, Divider} from '@mui/material';
+import {Schedule} from '@mui/icons-material';
 import {useQuery} from '@apollo/client/react';
 import {GET_RECURRING_TRANSACTIONS, GET_PREFERENCES} from '../graphql/queries';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
+import {EmptyState} from '../components/common/EmptyState';
+import {Card} from '../components/ui/Card';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {getRecurringTypeOptions, type RecurringType} from '../utils/recurringTypes';
 
@@ -102,22 +106,18 @@ export function SchedulePage(): React.JSX.Element {
 
   if (recurringTransactions.length === 0) {
     return (
-      <Box>
-        <Card>
-          <Box sx={{p: 2}}>
-            <Typography variant="body2" color="text.secondary">
-              No recurring transactions. Click the + button to add one.
-            </Typography>
-          </Box>
-        </Card>
-      </Box>
+      <EmptyState
+        icon={<Schedule />}
+        title="No Recurring Transactions"
+        description="Click the + button to add a recurring transaction."
+      />
     );
   }
 
   return (
     <Box>
       <Card>
-        <List>
+        <List disablePadding>
           {recurringTransactions.map((transaction, index) => {
             const recurringType = getRecurringTypeFromCron(transaction.cronExpression);
             const typeLabel = recurringType
@@ -127,10 +127,10 @@ export function SchedulePage(): React.JSX.Element {
             return (
               <React.Fragment key={transaction.id}>
                 {index > 0 && <Divider />}
-                <ListItem>
+                <ListItem sx={{py: 1.5, px: 2}}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{width: '100%'}}>
                     <Stack spacing={0.5} sx={{flex: 1}}>
-                      <Typography variant="body1" fontWeight="medium">
+                      <Typography variant="body1" fontWeight={500}>
                         {formatCurrencyPreserveDecimals(transaction.value, currency)}
                       </Typography>
                       {transaction.account && (
@@ -155,7 +155,7 @@ export function SchedulePage(): React.JSX.Element {
                       )}
                     </Stack>
                     <Stack spacing={1} alignItems="flex-end">
-                      <Chip label={typeLabel} size="small" color="primary" />
+                      <Chip label={typeLabel} size="small" color="primary" variant="outlined" />
                       <Typography variant="body2" color="text.secondary">
                         Next: {formatDateShort(transaction.nextRunDate)}
                       </Typography>

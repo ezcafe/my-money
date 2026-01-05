@@ -43,6 +43,7 @@ import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
 import {MultiSelect, type MultiSelectOption} from '../components/ui/MultiSelect';
+import {EmptyState} from '../components/common/EmptyState';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {validateDateRange} from '../utils/validation';
 import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS} from '../graphql/queries';
@@ -1003,9 +1004,9 @@ export function ReportPage(): React.JSX.Element {
   const datePresets = getDatePresets();
 
   return (
-    <Box sx={{p: {xs: 1, sm: 2}, maxWidth: '1400px', mx: 'auto'}}>
+    <Box sx={{maxWidth: '1400px', mx: 'auto'}}>
       {/* Filters Section */}
-      <Card sx={{p: 2, mb: 3}}>
+      <Card sx={{p: 3, mb: 3}}>
         <Box
           sx={{
             display: 'flex',
@@ -1137,7 +1138,7 @@ export function ReportPage(): React.JSX.Element {
 
       {/* Active Filters */}
       {activeFilters.length > 0 && (
-        <Card sx={{p: 2, mb: 3}}>
+        <Card sx={{p: 3, mb: 3}}>
           <Box sx={{display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap'}}>
             <Typography variant="subtitle2" sx={{mr: 1, color: 'text.secondary'}}>
               Active Filters:
@@ -1168,53 +1169,53 @@ export function ReportPage(): React.JSX.Element {
       {hasFilters && totalCount > 0 && (
         <Grid container spacing={2} sx={{mb: 3}}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{p: 2, height: '100%'}}>
+            <Card sx={{p: 3, height: '100%'}}>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
                 <AttachMoney color="primary" />
                 <Typography variant="subtitle2" color="text.secondary">
                   Total Amount
                 </Typography>
               </Box>
-              <Typography variant="h5" sx={{fontWeight: 'bold'}}>
+              <Typography variant="h5" sx={{fontWeight: 600}}>
                 {formatCurrencyPreserveDecimals(summaryStats.totalAmount, currency)}
               </Typography>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{p: 2, height: '100%'}}>
+            <Card sx={{p: 3, height: '100%'}}>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
                 <TrendingUp sx={{color: 'success.main'}} />
                 <Typography variant="subtitle2" color="text.secondary">
                   Income
                 </Typography>
               </Box>
-              <Typography variant="h5" sx={{fontWeight: 'bold', color: 'success.main'}}>
+              <Typography variant="h5" sx={{fontWeight: 600, color: 'success.main'}}>
                 {formatCurrencyPreserveDecimals(summaryStats.income, currency)}
               </Typography>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{p: 2, height: '100%'}}>
+            <Card sx={{p: 3, height: '100%'}}>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
                 <TrendingDown sx={{color: 'error.main'}} />
                 <Typography variant="subtitle2" color="text.secondary">
                   Expenses
                 </Typography>
               </Box>
-              <Typography variant="h5" sx={{fontWeight: 'bold', color: 'error.main'}}>
+              <Typography variant="h5" sx={{fontWeight: 600, color: 'error.main'}}>
                 {formatCurrencyPreserveDecimals(summaryStats.expense, currency)}
               </Typography>
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{p: 2, height: '100%'}}>
+            <Card sx={{p: 3, height: '100%'}}>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
                 <Receipt color="primary" />
                 <Typography variant="subtitle2" color="text.secondary">
                   Transactions
                 </Typography>
               </Box>
-              <Typography variant="h5" sx={{fontWeight: 'bold'}}>
+              <Typography variant="h5" sx={{fontWeight: 600}}>
                 {summaryStats.transactionCount.toLocaleString()}
               </Typography>
             </Card>
@@ -1224,7 +1225,7 @@ export function ReportPage(): React.JSX.Element {
 
       {/* Actions Card */}
       {hasFilters && transactions.length > 0 && (
-        <Card sx={{p: 2, mb: 3}}>
+        <Card sx={{p: 3, mb: 3}}>
           <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
             <Button variant="contained" onClick={handleDownloadPDF} startIcon={<PictureAsPdf />} sx={{textTransform: 'none'}}>
               Download PDF
@@ -1235,7 +1236,7 @@ export function ReportPage(): React.JSX.Element {
 
       {/* Chart Section */}
       {hasFilters && !loading && transactions.length > 0 && ((chartType !== 'sankey' && chartData.length > 0) || (chartType === 'sankey' && sankeyData !== null)) && (
-        <Card sx={{p: 2, mb: 3}}>
+        <Card sx={{p: 3, mb: 3}}>
           <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
             <Typography variant="h6" component="h2">
               {chartType === 'sankey' ? 'Cash Flow' : 'Transaction Trends'}
@@ -1293,17 +1294,11 @@ export function ReportPage(): React.JSX.Element {
 
       {/* Results Section */}
       {!hasFilters ? (
-        <Card sx={{p: 4}}>
-          <Box sx={{py: 4, textAlign: 'center'}}>
-            <Receipt sx={{fontSize: 64, color: 'text.secondary', mb: 2, opacity: 0.5}} />
-            <Typography variant="h6" sx={{mb: 1}}>
-              Get Started with Reports
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{maxWidth: '500px', mx: 'auto'}}>
-              Select a date range and apply filters to generate a comprehensive report of your transactions. You can filter by accounts, categories, payees, and search by notes.
-            </Typography>
-          </Box>
-        </Card>
+        <EmptyState
+          icon={<Receipt />}
+          title="Get Started with Reports"
+          description="Select a date range and apply filters to generate a comprehensive report of your transactions. You can filter by accounts, categories, payees, and search by notes."
+        />
       ) : loading ? (
         <Card sx={{p: 4}}>
           <Box sx={{py: 4, textAlign: 'center'}}>
@@ -1314,20 +1309,16 @@ export function ReportPage(): React.JSX.Element {
           </Box>
         </Card>
       ) : totalCount === 0 ? (
-        <Card sx={{p: 4}}>
-          <Box sx={{py: 4, textAlign: 'center'}}>
-            <Receipt sx={{fontSize: 64, color: 'text.secondary', mb: 2, opacity: 0.5}} />
-            <Typography variant="h6" sx={{mb: 1}}>
-              No Transactions Found
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
-              No transactions match your current filters. Try adjusting your date range or filter criteria.
-            </Typography>
+        <EmptyState
+          icon={<Receipt />}
+          title="No Transactions Found"
+          description="No transactions match your current filters. Try adjusting your date range or filter criteria."
+          action={
             <Button variant="outlined" onClick={handleClearFilters} startIcon={<Clear />} sx={{textTransform: 'none'}}>
               Clear Filters
             </Button>
-          </Box>
-        </Card>
+          }
+        />
       ) : (
         <TransactionList
           transactions={paginatedTransactions}

@@ -1,14 +1,18 @@
 /**
  * Payees Page
  * Lists all payees (default and user-specific)
+ * Follows Material Design 3 patterns
  */
 
 import React, {memo} from 'react';
-import {Box, List, ListItemButton, ListItemText, Card, Typography, Divider} from '@mui/material';
+import {Box, List, ListItemButton, ListItemText, Divider} from '@mui/material';
 import {useNavigate} from 'react-router';
+import {Person} from '@mui/icons-material';
 import {usePayees} from '../hooks/usePayees';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
+import {EmptyState} from '../components/common/EmptyState';
+import {Card} from '../components/ui/Card';
 
 /**
  * Payees Page Component
@@ -35,18 +39,11 @@ const PayeesPageComponent = (): React.JSX.Element => {
 
   if (payees.length === 0) {
     return (
-      <Box>
-        <Card sx={{p: 4}}>
-          <Box sx={{textAlign: 'center', py: 4}}>
-            <Typography variant="h6" color="text.secondary" sx={{mb: 1}}>
-              No Payees Yet
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Payees help you track who you&apos;re transacting with. Create one to get started.
-            </Typography>
-          </Box>
-        </Card>
-      </Box>
+      <EmptyState
+        icon={<Person />}
+        title="No Payees Yet"
+        description="Payees help you track who you're transacting with. Create one to get started."
+      />
     );
   }
 
@@ -62,6 +59,8 @@ const PayeesPageComponent = (): React.JSX.Element => {
                   void navigate(`/payees/${payee.id}`);
                 }}
                 sx={{
+                  py: 1.5,
+                  px: 2,
                   transition: 'background-color 0.2s ease',
                   '&:hover': {
                     backgroundColor: 'action.hover',

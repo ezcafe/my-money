@@ -1,15 +1,19 @@
 /**
  * Accounts Page
  * Lists all accounts with total amounts
+ * Follows Material Design 3 patterns
  */
 
 import React, {memo} from 'react';
-import {Box, Typography, List, ListItemButton, ListItemText, Divider, Card} from '@mui/material';
+import {Box, Typography, List, ListItemButton, ListItemText, Divider} from '@mui/material';
 import {useNavigate} from 'react-router';
+import {AccountBalance} from '@mui/icons-material';
 import {useAccounts} from '../hooks/useAccounts';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
+import {EmptyState} from '../components/common/EmptyState';
+import {Card} from '../components/ui/Card';
 
 /**
  * Accounts Page Component
@@ -28,7 +32,6 @@ const AccountsPageComponent = (): React.JSX.Element => {
         title="Error Loading Accounts"
         message={error.message}
         onRetry={() => {
-          // Trigger refetch by navigating to same page or using window.location.reload()
           window.location.reload();
         }}
       />
@@ -37,18 +40,11 @@ const AccountsPageComponent = (): React.JSX.Element => {
 
   if (accounts.length === 0) {
     return (
-      <Box>
-        <Card sx={{p: 4}}>
-          <Box sx={{textAlign: 'center', py: 4}}>
-            <Typography variant="h6" color="text.secondary" sx={{mb: 1}}>
-              No Accounts Yet
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
-              Get started by creating your first account to track your finances.
-            </Typography>
-          </Box>
-        </Card>
-      </Box>
+      <EmptyState
+        icon={<AccountBalance />}
+        title="No Accounts Yet"
+        description="Get started by creating your first account to track your finances."
+      />
     );
   }
 
@@ -64,6 +60,8 @@ const AccountsPageComponent = (): React.JSX.Element => {
                   void navigate(`/accounts/${account.id}`);
                 }}
                 sx={{
+                  py: 1.5,
+                  px: 2,
                   transition: 'background-color 0.2s ease',
                   '&:hover': {
                     backgroundColor: 'action.hover',
@@ -77,7 +75,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
                     fontWeight: 500,
                   }}
                 />
-                <Typography variant="body1" fontWeight={500}>
+                <Typography variant="body1" fontWeight={500} color="text.primary">
                   {formatCurrencyPreserveDecimals(account.balance)}
                 </Typography>
               </ListItemButton>

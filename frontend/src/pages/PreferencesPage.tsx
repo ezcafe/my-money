@@ -441,10 +441,138 @@ export function PreferencesPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{maxWidth: 800, mx: 'auto', p: 2}}>
+    <Box sx={{maxWidth: 800, mx: 'auto'}}>
+      {/* Management Section */}
+      <Card sx={{mb: 3}}>
+        <Box sx={{p: 3, pb: 2}}>
+          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+            <DataObject fontSize="small" />
+            Data Management
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+            Manage your accounts, categories, payees, and other data
+          </Typography>
+        </Box>
+        <List disablePadding>
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/accounts');
+            }}>
+              <AccountBalance sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Manage Accounts"
+                secondary="View and edit your accounts"
+              />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/categories');
+            }}>
+              <Category sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Manage Categories"
+                secondary="Organize your income and expense categories"
+              />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/payees');
+            }}>
+              <Person sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Manage Payees"
+                secondary="Manage people and organizations you transact with"
+              />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/budgets');
+            }}>
+              <AttachMoney sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Manage Budgets"
+                secondary="Set and track spending limits"
+              />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => {
+              void navigate('/schedule');
+            }}>
+              <Schedule sx={{mr: 2, color: 'primary.main'}} />
+              <ListItemText
+                primary="Recurring Transactions"
+                secondary="Manage scheduled and recurring transactions"
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Card>
+
+      {/* Import/Export Section */}
+      <Card sx={{mb: 3}}>
+        <Box sx={{p: 3, pb: 2}}>
+          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+            <Download fontSize="small" />
+            Import & Export
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+            Backup your data or import from CSV files
+          </Typography>
+        </Box>
+        <List disablePadding>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={handleImportClick}
+              disabled={importing}
+            >
+              <Upload sx={{mr: 2, color: importing ? 'text.disabled' : 'primary.main'}} />
+              <ListItemText
+                primary={importing ? 'Importing...' : 'Import Data'}
+                secondary={importing ? 'Please wait while we import your data' : 'Import accounts, transactions, and more from CSV files'}
+              />
+              {importing && <CircularProgress size={20} sx={{ml: 'auto'}} />}
+            </ListItemButton>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              style={{display: 'none'}}
+              onChange={(e) => {
+                void handleFileChange(e);
+              }}
+            />
+          </ListItem>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => {
+                void handleExport();
+              }}
+              disabled={exporting}
+            >
+              <Download sx={{mr: 2, color: exporting ? 'text.disabled' : 'primary.main'}} />
+              <ListItemText
+                primary={exporting ? 'Exporting...' : 'Export Data'}
+                secondary={exporting ? 'Preparing your data for download' : 'Download all your data as CSV files for backup'}
+              />
+              {exporting && <CircularProgress size={20} sx={{ml: 'auto'}} />}
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Card>
+
       {/* Display Settings Section */}
-      <Card sx={{p: 3, mb: 3}}>
-        <Typography variant="h6" component="h2" gutterBottom sx={{mb: 3, display: 'flex', alignItems: 'center', gap: 1}}>
+      <Card sx={{mb: 3}}>
+        <Box sx={{p: 3, pb: 2}}>
+          <Typography variant="h6" component="h2" sx={{mb: 3, display: 'flex', alignItems: 'center', gap: 1}}>
           <Settings fontSize="small" />
           Display Settings
         </Typography>
@@ -557,138 +685,12 @@ export function PreferencesPage(): React.JSX.Element {
             <ColorSchemePicker />
           </Box>
         </Stack>
-      </Card>
-
-      {/* Management Section */}
-      <Card sx={{mb: 3}}>
-        <Box sx={{p: 2, pb: 1}}>
-          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-            <DataObject fontSize="small" />
-            Data Management
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
-            Manage your accounts, categories, payees, and other data
-          </Typography>
         </Box>
-        <List disablePadding>
-          <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/accounts');
-            }}>
-              <AccountBalance sx={{mr: 2, color: 'primary.main'}} />
-              <ListItemText
-                primary="Manage Accounts"
-                secondary="View and edit your accounts"
-              />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/categories');
-            }}>
-              <Category sx={{mr: 2, color: 'primary.main'}} />
-              <ListItemText
-                primary="Manage Categories"
-                secondary="Organize your income and expense categories"
-              />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/payees');
-            }}>
-              <Person sx={{mr: 2, color: 'primary.main'}} />
-              <ListItemText
-                primary="Manage Payees"
-                secondary="Manage people and organizations you transact with"
-              />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/budgets');
-            }}>
-              <AttachMoney sx={{mr: 2, color: 'primary.main'}} />
-              <ListItemText
-                primary="Manage Budgets"
-                secondary="Set and track spending limits"
-              />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/schedule');
-            }}>
-              <Schedule sx={{mr: 2, color: 'primary.main'}} />
-              <ListItemText
-                primary="Recurring Transactions"
-                secondary="Manage scheduled and recurring transactions"
-              />
-            </ListItemButton>
-          </ListItem>
-        </List>
-      </Card>
-
-      {/* Import/Export Section */}
-      <Card sx={{mb: 3}}>
-        <Box sx={{p: 2, pb: 1}}>
-          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-            <Download fontSize="small" />
-            Import & Export
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
-            Backup your data or import from CSV files
-          </Typography>
-        </Box>
-        <List disablePadding>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={handleImportClick}
-              disabled={importing}
-            >
-              <Upload sx={{mr: 2, color: importing ? 'text.disabled' : 'primary.main'}} />
-              <ListItemText
-                primary={importing ? 'Importing...' : 'Import Data'}
-                secondary={importing ? 'Please wait while we import your data' : 'Import accounts, transactions, and more from CSV files'}
-              />
-              {importing && <CircularProgress size={20} sx={{ml: 'auto'}} />}
-            </ListItemButton>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              style={{display: 'none'}}
-              onChange={(e) => {
-                void handleFileChange(e);
-              }}
-            />
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
-                void handleExport();
-              }}
-              disabled={exporting}
-            >
-              <Download sx={{mr: 2, color: exporting ? 'text.disabled' : 'primary.main'}} />
-              <ListItemText
-                primary={exporting ? 'Exporting...' : 'Export Data'}
-                secondary={exporting ? 'Preparing your data for download' : 'Download all your data as CSV files for backup'}
-              />
-              {exporting && <CircularProgress size={20} sx={{ml: 'auto'}} />}
-            </ListItemButton>
-          </ListItem>
-        </List>
       </Card>
 
       {/* Account Actions Section */}
       <Card>
-        <Box sx={{p: 2, pb: 1}}>
+        <Box sx={{p: 3, pb: 2}}>
           <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
             <Security fontSize="small" />
             Account Actions

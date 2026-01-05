@@ -18,6 +18,7 @@ import {GET_PREFERENCES} from '../graphql/queries';
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
+import {Card} from '../components/ui/Card';
 
 /**
  * Account Details Page Component
@@ -158,14 +159,14 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
 
   return (
     <Box>
-      <Box sx={{mb: 2}}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          {`Balance`}
+      <Card sx={{mb: 3, p: 3}}>
+        <Typography variant="subtitle2" color="text.secondary" sx={{mb: 1}}>
+          Balance
         </Typography>
-        <Typography variant="h2" component="div" color="primary" gutterBottom>
+        <Typography variant="h3" component="div" color="primary.main" fontWeight={600}>
           {formatCurrencyPreserveDecimals(account.balance, currency)}
         </Typography>
-      </Box>
+      </Card>
 
       <TransactionList
         transactions={transactions}

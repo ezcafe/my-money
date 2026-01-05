@@ -348,8 +348,8 @@ export function ImportPage(): React.JSX.Element {
   return (
     <Box sx={{display: 'flex', flexDirection: 'column', gap: 3, maxWidth: {xs: '100%', md: '900px'}, mx: 'auto'}}>
       {/* Upload Section */}
-      <Card sx={{p: 3}}>
-        <Box sx={{mb: 3}}>
+      <Card>
+        <Box sx={{p: 3, pb: 2}}>
           <Typography variant="h6" component="h2" gutterBottom>
             Upload Credit Card Statement
           </Typography>
@@ -359,16 +359,17 @@ export function ImportPage(): React.JSX.Element {
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{mb: 2}} onClose={() => setError(null)}>
+          <Alert severity="error" sx={{mb: 2, mx: 3}} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
         {successMessage && (
-          <Alert severity="success" sx={{mb: 2}} onClose={() => setSuccessMessage(null)}>
+          <Alert severity="success" sx={{mb: 2, mx: 3}} onClose={() => setSuccessMessage(null)}>
             {successMessage}
           </Alert>
         )}
 
+        <Box sx={{px: 3, pb: 3}}>
         {/* Date Format Selection */}
         <Box sx={{mb: 3}}>
           <FormControl fullWidth>
@@ -495,12 +496,13 @@ export function ImportPage(): React.JSX.Element {
             </Button>
           </Box>
         )}
+        </Box>
       </Card>
 
       {/* Mapping Section */}
       {unmappedTransactions.length > 0 && (
-        <Card sx={{p: 3}}>
-          <Box sx={{mb: 3}}>
+        <Card>
+          <Box sx={{p: 3, mb: 3}}>
             <Box sx={{display: 'flex', alignItems: 'center', gap: 2, mb: 1, flexWrap: 'wrap'}}>
               <Typography variant="h6" component="h2">
                 Map Transactions
@@ -512,10 +514,10 @@ export function ImportPage(): React.JSX.Element {
               Some transactions need manual mapping. Please assign an account, category, and payee for each unique transaction description.
             </Typography>
           </Box>
-
+          <Box sx={{px: 3, pb: 3}}>
           {/* Card number mapping */}
           {cardNumber && (
-            <Box sx={{mb: 3, p: 2, backgroundColor: 'action.hover', borderRadius: 0}}>
+            <Box sx={{mb: 3, p: 2, backgroundColor: 'action.hover', borderRadius: 1, mx: 3}}>
               <Typography variant="subtitle2" gutterBottom>
                 Card Number Mapping
               </Typography>
@@ -541,10 +543,10 @@ export function ImportPage(): React.JSX.Element {
             </Box>
           )}
 
-          <Divider sx={{my: 3}} />
+          <Divider sx={{my: 3, mx: 3}} />
 
           {/* Description mappings table */}
-          <Box sx={{mb: 2}}>
+          <Box sx={{mb: 2, mx: 3}}>
             <Typography variant="subtitle1" gutterBottom>
               Transaction Descriptions
             </Typography>
@@ -552,7 +554,7 @@ export function ImportPage(): React.JSX.Element {
               Map each unique description to an account (required), category, and payee
             </Typography>
           </Box>
-          <TableContainer component={Paper} sx={{mb: 3}}>
+          <TableContainer component={Paper} sx={{mb: 3, mx: 3}}>
             {isMobile ? (
               // Mobile view: vertical stacking
               <Box sx={{p: 1}}>
@@ -724,10 +726,10 @@ export function ImportPage(): React.JSX.Element {
               </Table>
             )}
           </TableContainer>
-          <Divider sx={{my: 3}} />
+          <Divider sx={{my: 3, mx: 3}} />
 
           {/* Action Buttons */}
-          <Box sx={{display: 'flex', flexDirection: {xs: 'column', sm: 'row'}, gap: 2, justifyContent: 'flex-end'}}>
+          <Box sx={{display: 'flex', flexDirection: {xs: 'column', sm: 'row'}, gap: 2, justifyContent: 'flex-end', px: 3, pb: 3}}>
             <Button
               variant="outlined"
               onClick={(): void => void handleIgnore()}
@@ -746,7 +748,8 @@ export function ImportPage(): React.JSX.Element {
               {saving ? 'Saving Transactions...' : 'Save All Transactions'}
             </Button>
           </Box>
-          {saving && <LinearProgress sx={{mt: 2}} />}
+          {saving && <LinearProgress sx={{mt: 2, mx: 3}} />}
+          </Box>
         </Card>
       )}
     </Box>

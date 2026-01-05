@@ -5,7 +5,7 @@
 
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router';
-import {Box, Typography, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, LinearProgress, Chip, ToggleButtonGroup, ToggleButton, Card, Stack} from '@mui/material';
+import {Box, Typography, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, Button, LinearProgress, Chip, ToggleButtonGroup, ToggleButton, Stack} from '@mui/material';
 import {useQuery, useMutation} from '@apollo/client/react';
 import {Dialog} from '../components/ui/Dialog';
 import {GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
@@ -13,6 +13,9 @@ import {CREATE_BUDGET, UPDATE_BUDGET, DELETE_BUDGET} from '../graphql/mutations'
 import {AttachMoney} from '@mui/icons-material';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
+import {EmptyState} from '../components/common/EmptyState';
+import {Card} from '../components/ui/Card';
+import {TextField} from '../components/ui/TextField';
 
 /**
  * Budgets Page Component
@@ -168,22 +171,18 @@ export function BudgetsPage(): React.JSX.Element {
 
   if (budgets.length === 0) {
     return (
-      <Box>
-        <Card>
-          <Box sx={{p: 2}}>
-            <Typography variant="body2" color="text.secondary">
-              No budgets. Click the + button to add one.
-            </Typography>
-          </Box>
-        </Card>
-      </Box>
+      <EmptyState
+        icon={<AttachMoney />}
+        title="No Budgets Yet"
+        description="Click the + button to create a budget and track your spending limits."
+      />
     );
   }
 
   return (
     <Box>
       <Card>
-        <List>
+        <List disablePadding>
           {budgets.map((budget, index) => {
             if (!budget?.id || budget.percentageUsed === undefined || budget.currentSpent == null || budget.amount == null) {
               return null;
@@ -206,29 +205,34 @@ export function BudgetsPage(): React.JSX.Element {
             const total = parseFloat(safeBudget.amount);
             return (
               <React.Fragment key={safeBudget.id}>
+                {index > 0 && <Divider />}
                 <ListItem disablePadding>
                   <ListItemButton
                     onClick={() => {
                       void navigate(`/budgets/${safeBudget.id}`);
                     }}
+                    sx={{
+                      py: 1.5,
+                      px: 2,
+                    }}
                   >
                     <ListItemText
                       primary={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <AttachMoney fontSize="small" />
-                          <Typography variant="body1" fontWeight="medium">
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{mb: 1}}>
+                          <AttachMoney fontSize="small" color="primary" />
+                          <Typography variant="body1" fontWeight={500}>
                             {getBudgetName(safeBudget)}
                           </Typography>
                           <Chip label={getBudgetTypeLabel(safeBudget)} size="small" variant="outlined" />
                         </Stack>
                       }
                       secondary={
-                        <Box sx={{mt: 1}}>
+                        <Box>
                           <Stack direction="row" justifyContent="space-between" sx={{mb: 0.5}}>
                             <Typography variant="caption" color="text.secondary">
                               {spent.toFixed(2)} / {total.toFixed(2)}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" fontWeight="medium">
+                            <Typography variant="caption" color="text.secondary" fontWeight={500}>
                               {percentage.toFixed(1)}%
                             </Typography>
                           </Stack>
@@ -236,14 +240,13 @@ export function BudgetsPage(): React.JSX.Element {
                             variant="determinate"
                             value={Math.min(percentage, 100)}
                             color={getProgressColor(percentage)}
-                            sx={{height: 8}}
+                            sx={{height: 8, borderRadius: 1}}
                           />
                         </Box>
                       }
                     />
                   </ListItemButton>
                 </ListItem>
-                {index < budgets.length - 1 && <Divider />}
               </React.Fragment>
             );
           })}

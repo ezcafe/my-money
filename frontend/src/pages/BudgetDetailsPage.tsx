@@ -309,15 +309,9 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   const isOverBudget = percentage >= 100;
 
   return (
-    <Box sx={{p: 2, width: '100%'}}>
+    <Box>
       {/* Budget Summary Card */}
-      <Card
-        sx={{
-          mt: 3,
-          p: 3,
-          mb: 2,
-        }}
-      >
+      <Card sx={{mb: 3, p: 3}}>
         {/* Header Section */}
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{mb: 2}}>
           <Chip
