@@ -19,7 +19,7 @@ import {
 import {PlusMinusIcon} from './calculator/PlusMinusIcon';
 import {BackspaceIcon} from './calculator/BackspaceIcon';
 import {CREATE_TRANSACTION} from '../graphql/mutations';
-import {GET_PREFERENCES} from '../graphql/queries';
+import {GET_PREFERENCES, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
 import {useRecentTransactions} from '../hooks/useTransactions';
 import {useAccounts} from '../hooks/useAccounts';
 import {useCategories} from '../hooks/useCategories';
@@ -58,8 +58,7 @@ export function Calculator(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
 
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
-    // Use query name string for more reliable cache matching
-    refetchQueries: ['GetRecentTransactions'],
+    refetchQueries: [{query: GET_RECENT_TRANSACTIONS}],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);

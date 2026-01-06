@@ -46,7 +46,7 @@ import {MultiSelect, type MultiSelectOption} from '../components/ui/MultiSelect'
 import {EmptyState} from '../components/common/EmptyState';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {validateDateRange} from '../utils/validation';
-import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS} from '../graphql/queries';
+import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
 import {useAccounts} from '../hooks/useAccounts';
 import type {TransactionOrderInput, TransactionOrderByField} from '../hooks/useTransactions';
@@ -326,7 +326,7 @@ export function ReportPage(): React.JSX.Element {
 
   // Delete mutation
   const [deleteTransaction] = useMutation(DELETE_TRANSACTION, {
-    refetchQueries: ['GetReportTransactions', 'GetRecentTransactions'],
+    refetchQueries: [{query: GET_REPORT_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}],
     awaitRefetchQueries: true,
     onCompleted: () => {
       void refetch();

@@ -6,6 +6,7 @@
 import {useState, useCallback, useMemo} from 'react';
 import {useMutation} from '@apollo/client/react';
 import {CREATE_TRANSACTION} from '../graphql/mutations';
+import {GET_RECENT_TRANSACTIONS} from '../graphql/queries';
 import {useRecentTransactions} from './useTransactions';
 import {useAccounts} from './useAccounts';
 import {useCategories} from './useCategories';
@@ -58,7 +59,7 @@ export function useCalculator(): UseCalculatorReturn {
   const [error, setError] = useState<string | null>(null);
 
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
-    refetchQueries: ['GetRecentTransactions'],
+    refetchQueries: [{query: GET_RECENT_TRANSACTIONS}],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);

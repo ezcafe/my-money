@@ -32,7 +32,7 @@ import {validateFileType, validateFileSize} from '../utils/validation';
 import {ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES} from '../utils/constants';
 import {useMutation} from '@apollo/client/react';
 import {UPLOAD_PDF, SAVE_IMPORTED_TRANSACTIONS, DELETE_UNMAPPED_IMPORTED_TRANSACTIONS} from '../graphql/mutations';
-import {GET_RECENT_TRANSACTIONS} from '../graphql/queries';
+import {GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS} from '../graphql/queries';
 import {useAccounts} from '../hooks/useAccounts';
 import {useCategories} from '../hooks/useCategories';
 import {usePayees} from '../hooks/usePayees';
@@ -136,7 +136,7 @@ export function ImportPage(): React.JSX.Element {
     };
   }>(UPLOAD_PDF, {
     refetchQueries: [
-      'GetTransactions',
+      {query: GET_TRANSACTIONS},
       {
         query: GET_RECENT_TRANSACTIONS,
         variables: {
@@ -144,7 +144,8 @@ export function ImportPage(): React.JSX.Element {
           orderBy: {field: 'date', direction: 'desc'},
         },
       },
-      'GetAccount',
+      // Note: GET_ACCOUNT requires an id variable, so we don't refetch it here
+      // Individual account queries will be refetched when their pages are visited
     ],
     awaitRefetchQueries: true,
     onCompleted: (data: {uploadPDF?: {savedCount: number; unmappedTransactions: UnmappedTransaction[]}}) => {
@@ -171,7 +172,7 @@ export function ImportPage(): React.JSX.Element {
     };
   }>(SAVE_IMPORTED_TRANSACTIONS, {
     refetchQueries: [
-      'GetTransactions',
+      {query: GET_TRANSACTIONS},
       {
         query: GET_RECENT_TRANSACTIONS,
         variables: {
@@ -179,7 +180,8 @@ export function ImportPage(): React.JSX.Element {
           orderBy: {field: 'date', direction: 'desc'},
         },
       },
-      'GetAccount',
+      // Note: GET_ACCOUNT requires an id variable, so we don't refetch it here
+      // Individual account queries will be refetched when their pages are visited
     ],
     awaitRefetchQueries: true,
     onCompleted: (data: {saveImportedTransactions?: {savedCount: number; errors: string[]}}) => {

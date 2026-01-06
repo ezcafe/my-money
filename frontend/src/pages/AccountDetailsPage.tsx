@@ -14,7 +14,7 @@ import {ITEMS_PER_PAGE} from '../utils/constants';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
-import {GET_PREFERENCES} from '../graphql/queries';
+import {GET_PREFERENCES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_ACCOUNT} from '../graphql/queries';
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
@@ -78,7 +78,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   }, [account, setTitle]);
 
   const [deleteTransaction] = useMutation(DELETE_TRANSACTION, {
-    refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetAccount'],
+    refetchQueries: id ? [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}, {query: GET_ACCOUNT, variables: {id}}] : [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}],
     awaitRefetchQueries: true,
     onCompleted: () => {
       void refetchTransactions();

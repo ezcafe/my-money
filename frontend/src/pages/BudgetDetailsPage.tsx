@@ -17,7 +17,7 @@ import {ITEMS_PER_PAGE} from '../utils/constants';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
-import {GET_PREFERENCES, GET_REPORT_TRANSACTIONS} from '../graphql/queries';
+import {GET_PREFERENCES, GET_REPORT_TRANSACTIONS, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_BUDGET} from '../graphql/queries';
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
@@ -153,7 +153,7 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   }, [budget, setTitle]);
 
   const [deleteTransaction] = useMutation(DELETE_TRANSACTION, {
-    refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetBudget'],
+    refetchQueries: [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}, {query: GET_BUDGET}],
     awaitRefetchQueries: true,
     onCompleted: () => {
       void refetchTransactions();

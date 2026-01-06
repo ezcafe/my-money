@@ -34,7 +34,12 @@ export function AccountEditPage(): React.JSX.Element {
     getQuery: GET_ACCOUNT,
     createMutation: CREATE_ACCOUNT,
     updateMutation: UPDATE_ACCOUNT,
-    refetchQueries: (isEdit: boolean) => isEdit ? [GET_ACCOUNTS, 'GetAccount'] : [GET_ACCOUNTS],
+    refetchQueries: (isEdit: boolean, entityId?: string) => {
+      if (isEdit && entityId) {
+        return [{query: GET_ACCOUNTS}, {query: GET_ACCOUNT, variables: {id: entityId}}];
+      }
+      return [{query: GET_ACCOUNTS}];
+    },
     fields: [
       {
         key: 'name',

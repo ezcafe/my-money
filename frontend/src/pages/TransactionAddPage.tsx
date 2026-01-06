@@ -27,7 +27,7 @@ import {useMutation, useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {CREATE_TRANSACTION, CREATE_RECURRING_TRANSACTION} from '../graphql/mutations';
-import {GET_CATEGORIES_AND_PAYEES} from '../graphql/queries';
+import {GET_CATEGORIES_AND_PAYEES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_ACCOUNT, GET_RECURRING_TRANSACTIONS} from '../graphql/queries';
 import {useAccounts} from '../hooks/useAccounts';
 import {useTitle} from '../contexts/TitleContext';
 import {getRecurringTypeOptions, getCronExpression, type RecurringType} from '../utils/recurringTypes';
@@ -87,7 +87,18 @@ export function TransactionAddPage(): React.JSX.Element {
 
 
   const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
-    refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetAccount', 'GetRecurringTransactions'],
+    refetchQueries: () => {
+      const queries: Array<{query: typeof GET_TRANSACTIONS} | {query: typeof GET_RECENT_TRANSACTIONS} | {query: typeof GET_ACCOUNT; variables: {id: string}} | {query: typeof GET_RECURRING_TRANSACTIONS}> = [
+        {query: GET_TRANSACTIONS},
+        {query: GET_RECENT_TRANSACTIONS},
+        {query: GET_RECURRING_TRANSACTIONS},
+      ];
+      // Only refetch GET_ACCOUNT if we have an accountId from the form
+      if (accountId) {
+        queries.push({query: GET_ACCOUNT, variables: {id: accountId}});
+      }
+      return queries;
+    },
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -101,7 +112,18 @@ export function TransactionAddPage(): React.JSX.Element {
   const [createRecurringTransaction, {loading: creatingRecurring}] = useMutation(
     CREATE_RECURRING_TRANSACTION,
     {
-      refetchQueries: ['GetRecurringTransactions', 'GetTransactions', 'GetRecentTransactions', 'GetAccount'],
+      refetchQueries: () => {
+        const queries: Array<{query: typeof GET_RECURRING_TRANSACTIONS} | {query: typeof GET_TRANSACTIONS} | {query: typeof GET_RECENT_TRANSACTIONS} | {query: typeof GET_ACCOUNT; variables: {id: string}}> = [
+          {query: GET_RECURRING_TRANSACTIONS},
+          {query: GET_TRANSACTIONS},
+          {query: GET_RECENT_TRANSACTIONS},
+        ];
+        // Only refetch GET_ACCOUNT if we have an accountId from the form
+        if (accountId) {
+          queries.push({query: GET_ACCOUNT, variables: {id: accountId}});
+        }
+        return queries;
+      },
       awaitRefetchQueries: true,
       onError: (err: unknown) => {
         const errorMessage = err instanceof Error ? err.message : String(err);

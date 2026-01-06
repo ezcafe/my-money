@@ -18,7 +18,7 @@ import {
 import {useMutation, useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {UPDATE_TRANSACTION} from '../graphql/mutations';
-import {GET_TRANSACTION, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
+import {GET_TRANSACTION, GET_CATEGORIES, GET_PAYEES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_ACCOUNT} from '../graphql/queries';
 import {useAccounts} from '../hooks/useAccounts';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
@@ -109,7 +109,17 @@ export function TransactionEditPage(): React.JSX.Element {
   };
 
   const [updateTransaction, {loading}] = useMutation(UPDATE_TRANSACTION, {
-    refetchQueries: ['GetTransactions', 'GetRecentTransactions', 'GetAccount'],
+    refetchQueries: () => {
+      const queries: Array<{query: typeof GET_TRANSACTIONS} | {query: typeof GET_RECENT_TRANSACTIONS} | {query: typeof GET_ACCOUNT; variables: {id: string}}> = [
+        {query: GET_TRANSACTIONS},
+        {query: GET_RECENT_TRANSACTIONS},
+      ];
+      // Only refetch GET_ACCOUNT if we have an accountId from the transaction
+      if (transaction?.account?.id) {
+        queries.push({query: GET_ACCOUNT, variables: {id: transaction.account.id}});
+      }
+      return queries;
+    },
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);

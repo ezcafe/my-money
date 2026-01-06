@@ -52,7 +52,7 @@ export interface EntityEditFormConfig<TData = unknown, TInput = unknown> {
   /** GraphQL mutation for updating entity */
   updateMutation: DocumentNode;
   /** Queries to refetch after mutation (can be query names, DocumentNode objects, or objects with query and variables) */
-  refetchQueries?: Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> | ((isEdit: boolean) => Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}>);
+  refetchQueries?: Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> | ((isEdit: boolean, entityId?: string) => Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}>);
   /** Form fields configuration */
   fields: FormFieldConfig[];
   /** Extract entity from query data */
@@ -148,7 +148,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
       return [];
     }
     if (typeof config.refetchQueries === 'function') {
-      return config.refetchQueries(false);
+      return config.refetchQueries(false, undefined);
     }
     return config.refetchQueries;
   };
@@ -159,7 +159,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
       return [];
     }
     if (typeof config.refetchQueries === 'function') {
-      return config.refetchQueries(true);
+      return config.refetchQueries(true, id);
     }
     return config.refetchQueries;
   };
@@ -186,17 +186,19 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
           try {
             for (const query of queriesToRefetch) {
               if (typeof query === 'string') {
+                // String query names - only refetch if query is in cache
                 await client.refetchQueries({include: [query]});
               } else if ('query' in query) {
+                // Object with query and variables
                 await client.query({
                   query: query.query,
                   variables: query.variables,
                   fetchPolicy: 'network-only',
                 });
               } else {
-                await client.query({
-                  query,
-                  fetchPolicy: 'network-only',
+                // DocumentNode object - refetch directly using the query document
+                await client.refetchQueries({
+                  include: [query],
                 });
               }
             }

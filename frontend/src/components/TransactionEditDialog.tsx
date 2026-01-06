@@ -17,7 +17,7 @@ import {useMutation, useQuery} from '@apollo/client/react';
 import {Dialog} from './ui/Dialog';
 import {Button} from './ui/Button';
 import {UPDATE_TRANSACTION} from '../graphql/mutations';
-import {GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
+import {GET_CATEGORIES, GET_PAYEES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
 import {useAccounts} from '../hooks/useAccounts';
 import type {Transaction} from '../hooks/useTransactions';
 
@@ -77,7 +77,7 @@ export function TransactionEditDialog({
   }, [transaction]);
 
   const [updateTransaction, {loading}] = useMutation(UPDATE_TRANSACTION, {
-    refetchQueries: ['GetTransactions', 'GetRecentTransactions'],
+    refetchQueries: [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);

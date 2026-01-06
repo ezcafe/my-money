@@ -12,7 +12,19 @@ import {Dialog} from '../components/ui/Dialog';
 import {ColorSchemePicker} from '../components/ui/ColorSchemePicker';
 import {logout} from '../utils/oidc';
 import {CURRENCIES, type Currency} from '../utils/currencies';
-import {GET_PREFERENCES, EXPORT_DATA} from '../graphql/queries';
+import {
+  GET_PREFERENCES,
+  EXPORT_DATA,
+  GET_ACCOUNTS,
+  GET_CATEGORIES,
+  GET_PAYEES,
+  GET_RECENT_TRANSACTIONS,
+  GET_RECURRING_TRANSACTIONS,
+  GET_BUDGETS,
+  GET_BUDGET_NOTIFICATIONS,
+  GET_TRANSACTIONS,
+  GET_REPORT_TRANSACTIONS,
+} from '../graphql/queries';
 import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA} from '../graphql/mutations';
 import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt, AttachMoney, HelpOutline, Settings, DataObject, Security} from '@mui/icons-material';
 import {useNotifications} from '../contexts/NotificationContext';
@@ -112,10 +124,21 @@ export function PreferencesPage(): React.JSX.Element {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [exportDataQuery] = useLazyQuery<ExportDataQueryResult>(EXPORT_DATA);
   const [importCSVMutation] = useMutation<ImportCSVResult>(IMPORT_CSV, {
-    refetchQueries: ['GetAccounts', 'GetCategories', 'GetPayees', 'GetRecentTransactions', 'GetRecurringTransactions'],
+    refetchQueries: [{query: GET_ACCOUNTS}, {query: GET_CATEGORIES}, {query: GET_PAYEES}, {query: GET_RECENT_TRANSACTIONS}, {query: GET_RECURRING_TRANSACTIONS}],
   });
   const [resetDataMutation, {loading: resetting}] = useMutation(RESET_DATA, {
-    refetchQueries: ['GetAccounts', 'GetCategories', 'GetPayees', 'GetRecentTransactions', 'GetRecurringTransactions', 'GetPreferences', 'GetBudgets', 'GetBudgetNotifications', 'GetTransactions', 'GetReportTransactions'],
+    refetchQueries: [
+      {query: GET_ACCOUNTS},
+      {query: GET_CATEGORIES},
+      {query: GET_PAYEES},
+      {query: GET_RECENT_TRANSACTIONS},
+      {query: GET_RECURRING_TRANSACTIONS},
+      {query: GET_PREFERENCES},
+      {query: GET_BUDGETS},
+      {query: GET_BUDGET_NOTIFICATIONS},
+      {query: GET_TRANSACTIONS},
+      {query: GET_REPORT_TRANSACTIONS},
+    ],
     awaitRefetchQueries: true,
     update: (cache) => {
       // Explicitly clear recentTransactions cache for all variable combinations

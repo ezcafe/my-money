@@ -10,6 +10,7 @@ import {Dialog} from './ui/Dialog';
 import {Button} from './ui/Button';
 import {TextField} from './ui/TextField';
 import {CREATE_ACCOUNT, UPDATE_ACCOUNT} from '../graphql/mutations';
+import {GET_ACCOUNTS, GET_ACCOUNT} from '../graphql/queries';
 import type {Account} from '../hooks/useAccounts';
 
 /**
@@ -36,7 +37,7 @@ export function AccountEditDialog({
   const [error, setError] = useState<string | null>(null);
 
   const [createAccount, {loading: creating}] = useMutation(CREATE_ACCOUNT, {
-    refetchQueries: ['GetAccounts'],
+    refetchQueries: [{query: GET_ACCOUNTS}],
     awaitRefetchQueries: true,
     onCompleted: () => {
       onSuccess();
@@ -48,7 +49,7 @@ export function AccountEditDialog({
   });
 
   const [updateAccount, {loading: updating}] = useMutation(UPDATE_ACCOUNT, {
-    refetchQueries: ['GetAccounts', 'GetAccount'],
+    refetchQueries: account ? [{query: GET_ACCOUNTS}, {query: GET_ACCOUNT, variables: {id: account.id}}] : [{query: GET_ACCOUNTS}],
     awaitRefetchQueries: true,
     onCompleted: () => {
       onSuccess();
