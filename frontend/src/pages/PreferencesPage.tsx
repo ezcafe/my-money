@@ -42,6 +42,7 @@ interface ExportData {
   categories: Array<{
     id: string;
     name: string;
+    type: string;
     isDefault: boolean;
   }>;
   payees: Array<{
@@ -72,7 +73,31 @@ interface ExportData {
     id: string;
     currency: string;
     useThousandSeparator: boolean;
+    colorScheme: string | null;
+    colorSchemeValue: string | null;
   } | null;
+  budgets: Array<{
+    id: string;
+    userId: string;
+    amount: string;
+    currentSpent: string;
+    accountId: string | null;
+    categoryId: string | null;
+    payeeId: string | null;
+    lastResetDate: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  importMatchRules: Array<{
+    id: string;
+    pattern: string;
+    accountId: string | null;
+    categoryId: string | null;
+    payeeId: string | null;
+    userId: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
 }
 
 /**
@@ -124,7 +149,16 @@ export function PreferencesPage(): React.JSX.Element {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [exportDataQuery] = useLazyQuery<ExportDataQueryResult>(EXPORT_DATA);
   const [importCSVMutation] = useMutation<ImportCSVResult>(IMPORT_CSV, {
-    refetchQueries: [{query: GET_ACCOUNTS}, {query: GET_CATEGORIES}, {query: GET_PAYEES}, {query: GET_RECENT_TRANSACTIONS}, {query: GET_RECURRING_TRANSACTIONS}],
+    refetchQueries: [
+      {query: GET_ACCOUNTS},
+      {query: GET_CATEGORIES},
+      {query: GET_PAYEES},
+      {query: GET_RECENT_TRANSACTIONS},
+      {query: GET_RECURRING_TRANSACTIONS},
+      {query: GET_BUDGETS},
+      {query: GET_BUDGET_NOTIFICATIONS},
+      {query: GET_PREFERENCES},
+    ],
   });
   const [resetDataMutation, {loading: resetting}] = useMutation(RESET_DATA, {
     refetchQueries: [
@@ -354,19 +388,19 @@ export function PreferencesPage(): React.JSX.Element {
       // Export accounts
       if (exportData.accounts && exportData.accounts.length > 0) {
         const accountsCSV = convertToCSV(exportData.accounts, ['id', 'name', 'initBalance', 'isDefault']);
-        downloadCSV(accountsCSV, 'accounts.csv');
+        downloadCSV(accountsCSV, 'my_money_accounts.csv');
       }
 
       // Export categories
       if (exportData.categories && exportData.categories.length > 0) {
-        const categoriesCSV = convertToCSV(exportData.categories, ['id', 'name', 'isDefault']);
-        downloadCSV(categoriesCSV, 'categories.csv');
+        const categoriesCSV = convertToCSV(exportData.categories, ['id', 'name', 'type', 'isDefault']);
+        downloadCSV(categoriesCSV, 'my_money_categories.csv');
       }
 
       // Export payees
       if (exportData.payees && exportData.payees.length > 0) {
         const payeesCSV = convertToCSV(exportData.payees, ['id', 'name', 'isDefault']);
-        downloadCSV(payeesCSV, 'payees.csv');
+        downloadCSV(payeesCSV, 'my_money_payees.csv');
       }
 
       // Export transactions
@@ -380,7 +414,7 @@ export function PreferencesPage(): React.JSX.Element {
           'payeeId',
           'note',
         ]);
-        downloadCSV(transactionsCSV, 'transactions.csv');
+        downloadCSV(transactionsCSV, 'my_money_transactions.csv');
       }
 
       // Export recurring transactions
@@ -395,13 +429,45 @@ export function PreferencesPage(): React.JSX.Element {
           'note',
           'nextRunDate',
         ]);
-        downloadCSV(recurringCSV, 'recurringTransactions.csv');
+        downloadCSV(recurringCSV, 'my_money_recurringTransactions.csv');
       }
 
       // Export preferences
       if (exportData.preferences) {
-        const preferencesCSV = convertToCSV([exportData.preferences], ['id', 'currency', 'useThousandSeparator']);
-        downloadCSV(preferencesCSV, 'preferences.csv');
+        const preferencesCSV = convertToCSV([exportData.preferences], ['id', 'currency', 'useThousandSeparator', 'colorScheme', 'colorSchemeValue']);
+        downloadCSV(preferencesCSV, 'my_money_preferences.csv');
+      }
+
+      // Export budgets
+      if (exportData.budgets && exportData.budgets.length > 0) {
+        const budgetsCSV = convertToCSV(exportData.budgets, [
+          'id',
+          'userId',
+          'amount',
+          'currentSpent',
+          'accountId',
+          'categoryId',
+          'payeeId',
+          'lastResetDate',
+          'createdAt',
+          'updatedAt',
+        ]);
+        downloadCSV(budgetsCSV, 'my_money_budgets.csv');
+      }
+
+      // Export import match rules
+      if (exportData.importMatchRules && exportData.importMatchRules.length > 0) {
+        const importMatchRulesCSV = convertToCSV(exportData.importMatchRules, [
+          'id',
+          'pattern',
+          'accountId',
+          'categoryId',
+          'payeeId',
+          'userId',
+          'createdAt',
+          'updatedAt',
+        ]);
+        downloadCSV(importMatchRulesCSV, 'my_money_importMatchRules.csv');
       }
 
       showSuccessNotification('Data exported successfully');
@@ -433,7 +499,8 @@ export function PreferencesPage(): React.JSX.Element {
     }
 
     // Determine entity type from filename
-    const filename = file.name.toLowerCase();
+    // Remove my_money_ prefix if present for detection
+    const filename = file.name.toLowerCase().replace(/^my_money_/, '');
     let entityType: string;
     if (filename.includes('account')) {
       entityType = 'accounts';
@@ -441,10 +508,16 @@ export function PreferencesPage(): React.JSX.Element {
       entityType = 'categories';
     } else if (filename.includes('payee')) {
       entityType = 'payees';
-    } else if (filename.includes('transaction') && !filename.includes('recurring')) {
-      entityType = 'transactions';
     } else if (filename.includes('recurring')) {
       entityType = 'recurringTransactions';
+    } else if (filename.includes('transaction')) {
+      entityType = 'transactions';
+    } else if (filename.includes('preference')) {
+      entityType = 'preferences';
+    } else if (filename.includes('budget')) {
+      entityType = 'budgets';
+    } else if (filename.includes('importmatch') || filename.includes('import_match')) {
+      entityType = 'importMatchRules';
     } else {
       // Default to transactions if cannot determine
       entityType = 'transactions';

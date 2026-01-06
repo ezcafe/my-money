@@ -64,6 +64,7 @@ export async function streamFileWithSizeLimit(
     totalSize += chunk.length;
     if (totalSize > maxSize) {
       if ('destroy' in readStream && typeof readStream.destroy === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         readStream.destroy();
       }
       writeStream.destroy();

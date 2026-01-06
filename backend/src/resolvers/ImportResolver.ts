@@ -13,7 +13,7 @@ import {createWriteStream} from 'fs';
 import {join} from 'path';
 import {tmpdir} from 'os';
 import {randomUUID} from 'crypto';
-import type {PrismaClient} from '@prisma/client';
+import type {PrismaClient, CategoryType} from '@prisma/client';
 import {incrementAccountBalance} from '../services/AccountBalanceService';
 import {updateBudgetForTransaction} from '../services/BudgetService';
 import {TRANSACTION_BATCH_SIZE, MAX_PDF_FILE_SIZE, MAX_CSV_FILE_SIZE} from '../utils/constants';
@@ -1228,11 +1228,46 @@ export async function importCSV(
   updated: number;
   errors: string[];
 }> {
-  const fileData = await file;
-  const {filename, mimetype, createReadStream: createUploadStream} = fileData;
+  let fileData = file instanceof Promise ? await file : file;
+
+  // If fileData is empty (Promise resolved to empty object due to serialization),
+  // try to retrieve from request context
+  if (fileData && typeof fileData === 'object' && Object.keys(fileData).length === 0) {
+    // Try to get file from request context (stored in multipart handler)
+    // Note: This is a fallback if Promise gets serialized
+    const request = context.request as {uploadFiles?: Record<string, {filename: string; mimetype?: string; encoding?: string; createReadStream: () => NodeJS.ReadableStream}>} | undefined;
+    if (request?.uploadFiles) {
+      // Get the first file (typically there's only one)
+      const fileKey = Object.keys(request.uploadFiles)[0];
+      if (fileKey && request.uploadFiles[fileKey]) {
+        fileData = request.uploadFiles[fileKey];
+      }
+    }
+  }
+
+  // Check if fileData has the expected structure
+  if (!fileData || typeof fileData !== 'object') {
+    throw new ValidationError('Invalid file upload. File data is missing or invalid.');
+  }
+
+  // Extract file properties - handle both standard and alternative property names
+  const filename = 'filename' in fileData && typeof fileData.filename === 'string' ? fileData.filename : (fileData as {name?: string}).name ?? '';
+  const mimetype = ('mimetype' in fileData && typeof fileData.mimetype === 'string' ? fileData.mimetype : (fileData as {type?: string}).type) ?? undefined;
+  const createUploadStream = ('createReadStream' in fileData && typeof fileData.createReadStream === 'function' ? fileData.createReadStream : () => {
+    throw new ValidationError('File stream is not available. The file may have been corrupted during upload.');
+  });
 
   // Validate entity type
-  const validEntityTypes = ['accounts', 'categories', 'payees', 'transactions', 'recurringTransactions'];
+  const validEntityTypes = [
+    'accounts',
+    'categories',
+    'payees',
+    'transactions',
+    'recurringTransactions',
+    'preferences',
+    'budgets',
+    'importMatchRules',
+  ];
   if (!validEntityTypes.includes(entityType)) {
     throw new ValidationError(`Invalid entity type. Must be one of: ${validEntityTypes.join(', ')}`);
   }
@@ -1342,75 +1377,107 @@ export async function importCSV(
 
     // Use transaction to ensure atomicity
     await context.prisma.$transaction(async (tx) => {
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row) {
-        continue;
-      }
-      try {
-        let wasUpdated = false;
-        if (entityType === 'accounts') {
-          if (row.id) {
-            const existing = await tx.account.findFirst({where: {id: row.id, userId: context.userId}});
-            wasUpdated = existing !== null;
-          }
-          await importAccount(row, tx, context.userId);
-          if (wasUpdated) {
-            updated++;
-          } else {
-            created++;
-          }
-        } else if (entityType === 'categories') {
-          if (row.id) {
-            const existing = await tx.category.findFirst({where: {id: row.id, userId: context.userId || null}});
-            wasUpdated = existing !== null;
-          }
-          await importCategory(row, tx, context.userId);
-          if (wasUpdated) {
-            updated++;
-          } else {
-            created++;
-          }
-        } else if (entityType === 'payees') {
-          if (row.id) {
-            const existing = await tx.payee.findFirst({where: {id: row.id, userId: context.userId || null}});
-            wasUpdated = existing !== null;
-          }
-          await importPayee(row, tx, context.userId);
-          if (wasUpdated) {
-            updated++;
-          } else {
-            created++;
-          }
-        } else if (entityType === 'transactions') {
-          if (row.id) {
-            const existing = await tx.transaction.findFirst({where: {id: row.id, userId: context.userId}});
-            wasUpdated = existing !== null;
-          }
-          await importTransaction(row, tx, context.userId);
-          if (wasUpdated) {
-            updated++;
-          } else {
-            created++;
-          }
-        } else if (entityType === 'recurringTransactions') {
-          if (row.id) {
-            const existing = await tx.recurringTransaction.findFirst({where: {id: row.id, userId: context.userId}});
-            wasUpdated = existing !== null;
-          }
-          await importRecurringTransaction(row, tx, context.userId);
-          if (wasUpdated) {
-            updated++;
-          } else {
-            created++;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) {
+          continue;
+        }
+        try {
+            let wasUpdated = false;
+            if (entityType === 'accounts') {
+              if (row.id) {
+                const existing = await tx.account.findFirst({where: {id: row.id, userId: context.userId}});
+                wasUpdated = existing !== null;
+              }
+              await importAccount(row, tx, context.userId);
+              if (wasUpdated) {
+                updated++;
+              } else {
+                created++;
+              }
+            } else if (entityType === 'categories') {
+              if (row.id) {
+                const existing = await tx.category.findFirst({where: {id: row.id, userId: context.userId || null}});
+                wasUpdated = existing !== null;
+              }
+              await importCategory(row, tx, context.userId);
+              if (wasUpdated) {
+                updated++;
+              } else {
+                created++;
+              }
+            } else if (entityType === 'payees') {
+              if (row.id) {
+                const existing = await tx.payee.findFirst({where: {id: row.id, userId: context.userId || null}});
+                wasUpdated = existing !== null;
+              }
+              await importPayee(row, tx, context.userId);
+              if (wasUpdated) {
+                updated++;
+              } else {
+                created++;
+              }
+            } else if (entityType === 'transactions') {
+              if (row.id) {
+                const existing = await tx.transaction.findFirst({where: {id: row.id, userId: context.userId}});
+                wasUpdated = existing !== null;
+              }
+              await importTransaction(row, tx, context.userId);
+              if (wasUpdated) {
+                updated++;
+              } else {
+                created++;
+              }
+            } else if (entityType === 'recurringTransactions') {
+              if (row.id) {
+                const existing = await tx.recurringTransaction.findFirst({where: {id: row.id, userId: context.userId}});
+                wasUpdated = existing !== null;
+              }
+              await importRecurringTransaction(row, tx, context.userId);
+              if (wasUpdated) {
+                updated++;
+              } else {
+                created++;
+              }
+            } else if (entityType === 'preferences') {
+              // Preferences are always upserted (one per user)
+              const existing = await tx.userPreferences.findUnique({where: {userId: context.userId}});
+              wasUpdated = existing !== null;
+              await importPreferences(row, tx, context.userId);
+              if (wasUpdated) {
+                updated++;
+              } else {
+                created++;
+              }
+            } else if (entityType === 'budgets') {
+              if (row.id) {
+                const existing = await tx.budget.findFirst({where: {id: row.id, userId: context.userId}});
+                wasUpdated = existing !== null;
+              }
+              await importBudget(row, tx, context.userId);
+              if (wasUpdated) {
+                updated++;
+              } else {
+                created++;
+              }
+            } else if (entityType === 'importMatchRules') {
+              if (row.id) {
+                const existing = await tx.importMatchRule.findFirst({where: {id: row.id, userId: context.userId}});
+                wasUpdated = existing !== null;
+              }
+              await importImportMatchRule(row, tx, context.userId);
+              if (wasUpdated) {
+                updated++;
+              } else {
+                created++;
+              }
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            errors.push(`Row ${i + 1}: ${errorMessage}`);
           }
         }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        errors.push(`Row ${i + 1}: ${errorMessage}`);
-      }
-    }
-  });
+      });
 
     return {
       success: errors.length === 0,
@@ -1482,6 +1549,7 @@ async function importCategory(
 
   const data = {
     name: row.name,
+    type: ((row.type === 'INCOME' || row.type === 'EXPENSE') ? row.type : 'EXPENSE') as CategoryType,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
     userId,
   };
@@ -1560,23 +1628,29 @@ async function importTransaction(
     throw new ValidationError(`Account with ID ${row.accountId} not found`);
   }
 
-  // Validate category if provided
-  if (row.categoryId) {
+  // Validate category if provided - if not found, set to null instead of failing
+  let categoryId: string | null = row.categoryId || null;
+  if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: row.categoryId, userId: userId || null},
+      where: {id: categoryId, userId: userId || null},
     });
     if (!category) {
-      throw new ValidationError(`Category with ID ${row.categoryId} not found`);
+      // Category not found - set to null instead of failing the import
+      // This allows importing transactions even if categories are missing
+      categoryId = null;
     }
   }
 
-  // Validate payee if provided
-  if (row.payeeId) {
+  // Validate payee if provided - if not found, set to null instead of failing
+  let payeeId: string | null = row.payeeId || null;
+  if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: row.payeeId, userId: userId || null},
+      where: {id: payeeId, userId: userId || null},
     });
     if (!payee) {
-      throw new ValidationError(`Payee with ID ${row.payeeId} not found`);
+      // Payee not found - set to null instead of failing the import
+      // This allows importing transactions even if payees are missing
+      payeeId = null;
     }
   }
 
@@ -1584,8 +1658,8 @@ async function importTransaction(
     value: parseFloat(row.value),
     date: new Date(row.date),
     accountId: row.accountId,
-    categoryId: row.categoryId || null,
-    payeeId: row.payeeId || null,
+    categoryId,
+    payeeId,
     note: row.note || null,
     userId,
   };
@@ -1673,6 +1747,174 @@ async function importRecurringTransaction(
   }
 
   await tx.recurringTransaction.create({
+    data: row.id ? {...data, id: row.id} : data,
+  });
+}
+
+/**
+ * Import preferences from CSV row
+ */
+async function importPreferences(
+  row: Record<string, string>,
+  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  userId: string,
+): Promise<void> {
+  const data = {
+    currency: row.currency || 'USD',
+    useThousandSeparator: row.useThousandSeparator === 'true' || row.useThousandSeparator === '1',
+    colorScheme: row.colorScheme || null,
+    colorSchemeValue: row.colorSchemeValue || null,
+    userId,
+  };
+
+  // Preferences are unique per user, so we upsert
+  await tx.userPreferences.upsert({
+    where: {userId},
+    update: data,
+    create: data,
+  });
+}
+
+/**
+ * Import budget from CSV row
+ */
+async function importBudget(
+  row: Record<string, string>,
+  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  userId: string,
+): Promise<void> {
+  if (!row.amount) {
+    throw new ValidationError('Budget amount is required');
+  }
+
+  // Validate account if provided
+  let accountId: string | null = row.accountId || null;
+  if (accountId) {
+    const account = await tx.account.findFirst({
+      where: {id: accountId, userId},
+    });
+    if (!account) {
+      accountId = null;
+    }
+  }
+
+  // Validate category if provided
+  let categoryId: string | null = row.categoryId || null;
+  if (categoryId) {
+    const category = await tx.category.findFirst({
+      where: {id: categoryId, userId: userId || null},
+    });
+    if (!category) {
+      categoryId = null;
+    }
+  }
+
+  // Validate payee if provided
+  let payeeId: string | null = row.payeeId || null;
+  if (payeeId) {
+    const payee = await tx.payee.findFirst({
+      where: {id: payeeId, userId: userId || null},
+    });
+    if (!payee) {
+      payeeId = null;
+    }
+  }
+
+  const data = {
+    amount: parseFloat(row.amount),
+    currentSpent: row.currentSpent ? parseFloat(row.currentSpent) : 0,
+    accountId,
+    categoryId,
+    payeeId,
+    lastResetDate: row.lastResetDate ? new Date(row.lastResetDate) : new Date(),
+    userId,
+  };
+
+  if (row.id) {
+    const existing = await tx.budget.findFirst({
+      where: {id: row.id, userId},
+    });
+    if (existing) {
+      await tx.budget.update({
+        where: {id: row.id},
+        data,
+      });
+      return;
+    }
+  }
+
+  await tx.budget.create({
+    data: row.id ? {...data, id: row.id} : data,
+  });
+}
+
+/**
+ * Import import match rule from CSV row
+ */
+async function importImportMatchRule(
+  row: Record<string, string>,
+  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  userId: string,
+): Promise<void> {
+  if (!row.pattern) {
+    throw new ValidationError('Import match rule pattern is required');
+  }
+
+  // Validate account if provided
+  let accountId: string | null = row.accountId || null;
+  if (accountId) {
+    const account = await tx.account.findFirst({
+      where: {id: accountId, userId},
+    });
+    if (!account) {
+      accountId = null;
+    }
+  }
+
+  // Validate category if provided
+  let categoryId: string | null = row.categoryId || null;
+  if (categoryId) {
+    const category = await tx.category.findFirst({
+      where: {id: categoryId, userId: userId || null},
+    });
+    if (!category) {
+      categoryId = null;
+    }
+  }
+
+  // Validate payee if provided
+  let payeeId: string | null = row.payeeId || null;
+  if (payeeId) {
+    const payee = await tx.payee.findFirst({
+      where: {id: payeeId, userId: userId || null},
+    });
+    if (!payee) {
+      payeeId = null;
+    }
+  }
+
+  const data = {
+    pattern: row.pattern,
+    accountId,
+    categoryId,
+    payeeId,
+    userId,
+  };
+
+  if (row.id) {
+    const existing = await tx.importMatchRule.findFirst({
+      where: {id: row.id, userId},
+    });
+    if (existing) {
+      await tx.importMatchRule.update({
+        where: {id: row.id},
+        data,
+      });
+      return;
+    }
+  }
+
+  await tx.importMatchRule.create({
     data: row.id ? {...data, id: row.id} : data,
   });
 }

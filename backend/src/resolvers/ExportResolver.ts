@@ -14,7 +14,8 @@ import {withPrismaErrorHandling} from '../utils/prismaErrors';
 export class ExportResolver {
   /**
    * Export all user data for CSV generation
-   * Fetches accounts, categories, payees, transactions, recurringTransactions, and preferences
+   * Fetches all user data including accounts, categories, payees, transactions,
+   * recurringTransactions, preferences, budgets, and importMatchRules
    * @param _ - Parent resolver (unused)
    * @param __ - Arguments (unused)
    * @param context - GraphQL context with user and Prisma client
@@ -24,7 +25,16 @@ export class ExportResolver {
     return await withPrismaErrorHandling(
       async () => {
         // Fetch all user data in parallel
-        const [accounts, categories, payees, transactions, recurringTransactions, preferences] = await Promise.all([
+        const [
+          accounts,
+          categories,
+          payees,
+          transactions,
+          recurringTransactions,
+          preferences,
+          budgets,
+          importMatchRules,
+        ] = await Promise.all([
           // Accounts
           context.prisma.account.findMany({
             where: {userId: context.userId},
@@ -54,6 +64,16 @@ export class ExportResolver {
           context.prisma.userPreferences.findUnique({
             where: {userId: context.userId},
           }),
+          // Budgets
+          context.prisma.budget.findMany({
+            where: {userId: context.userId},
+            orderBy: {createdAt: 'asc'},
+          }),
+          // Import Match Rules
+          context.prisma.importMatchRule.findMany({
+            where: {userId: context.userId},
+            orderBy: {createdAt: 'asc'},
+          }),
         ]);
 
         return {
@@ -63,6 +83,8 @@ export class ExportResolver {
           transactions,
           recurringTransactions,
           preferences,
+          budgets,
+          importMatchRules,
         };
       },
       {resource: 'ExportData', operation: 'read'},

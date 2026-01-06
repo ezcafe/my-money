@@ -314,6 +314,28 @@ export const EXPORT_DATA = gql`
         colorScheme
         colorSchemeValue
       }
+      budgets {
+        id
+        userId
+        amount
+        currentSpent
+        accountId
+        categoryId
+        payeeId
+        lastResetDate
+        createdAt
+        updatedAt
+      }
+      importMatchRules {
+        id
+        pattern
+        accountId
+        categoryId
+        payeeId
+        userId
+        createdAt
+        updatedAt
+      }
     }
   }
 `;

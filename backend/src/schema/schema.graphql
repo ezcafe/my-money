@@ -418,6 +418,8 @@ type ExportData {
   transactions: [Transaction!]!
   recurringTransactions: [RecurringTransaction!]!
   preferences: UserPreferences
+  budgets: [Budget!]!
+  importMatchRules: [ImportMatchRule!]!
 }
 
 type Budget {
@@ -444,7 +446,19 @@ type BudgetNotification {
   budget: Budget
   threshold: Float!
   message: String!
+  read: Boolean!
   createdAt: DateTime!
+}
+
+type ImportMatchRule {
+  id: ID!
+  pattern: String!
+  accountId: ID
+  categoryId: ID
+  payeeId: ID
+  userId: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 type ImportResult {
