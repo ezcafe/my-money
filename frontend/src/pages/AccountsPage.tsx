@@ -4,11 +4,12 @@
  * Follows Material Design 3 patterns
  */
 
-import React, {memo} from 'react';
+import React, {memo, useMemo} from 'react';
 import {Box, Typography, List, ListItemButton, ListItemText, Divider} from '@mui/material';
 import {useNavigate} from 'react-router';
 import {AccountBalance} from '@mui/icons-material';
 import {useAccounts} from '../hooks/useAccounts';
+import {useSearch} from '../contexts/SearchContext';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
@@ -20,7 +21,19 @@ import {Card} from '../components/ui/Card';
  */
 const AccountsPageComponent = (): React.JSX.Element => {
   const {accounts, loading, error} = useAccounts();
+  const {searchQuery} = useSearch();
   const navigate = useNavigate();
+
+  /**
+   * Filter accounts based on search query
+   */
+  const filteredAccounts = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return accounts;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return accounts.filter((account) => account.name.toLowerCase().includes(query));
+  }, [accounts, searchQuery]);
 
   if (loading) {
     return <LoadingSpinner useSkeleton skeletonVariant="list" skeletonCount={5} />;
@@ -48,11 +61,21 @@ const AccountsPageComponent = (): React.JSX.Element => {
     );
   }
 
+  const hasSearchResults = filteredAccounts.length > 0;
+  const hasNoSearchResults = searchQuery.trim() && !hasSearchResults;
+
   return (
     <Box>
-      <Card>
-        <List disablePadding>
-          {accounts.map((account, index) => (
+      {hasNoSearchResults && (
+        <EmptyState
+          title="No accounts found"
+          description="Try adjusting your search query"
+        />
+      )}
+      {hasSearchResults && (
+        <Card>
+          <List disablePadding>
+            {filteredAccounts.map((account, index) => (
             <React.Fragment key={account.id}>
               {index > 0 && <Divider />}
               <ListItemButton
@@ -81,8 +104,9 @@ const AccountsPageComponent = (): React.JSX.Element => {
               </ListItemButton>
             </React.Fragment>
           ))}
-        </List>
-      </Card>
+          </List>
+        </Card>
+      )}
     </Box>
   );
 };

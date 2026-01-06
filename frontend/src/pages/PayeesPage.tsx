@@ -4,11 +4,12 @@
  * Follows Material Design 3 patterns
  */
 
-import React, {memo, useEffect} from 'react';
+import React, {memo, useEffect, useMemo} from 'react';
 import {Box, List, ListItemButton, ListItemText, Divider} from '@mui/material';
 import {useNavigate, useLocation} from 'react-router';
 import {Person} from '@mui/icons-material';
 import {usePayees} from '../hooks/usePayees';
+import {useSearch} from '../contexts/SearchContext';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {EmptyState} from '../components/common/EmptyState';
@@ -20,6 +21,7 @@ import {Card} from '../components/ui/Card';
 const PayeesPageComponent = (): React.JSX.Element => {
   const location = useLocation();
   const {payees, loading, error, refetch} = usePayees();
+  const {searchQuery} = useSearch();
   const navigate = useNavigate();
 
   // Refetch when returning from create page
@@ -28,6 +30,17 @@ const PayeesPageComponent = (): React.JSX.Element => {
       void refetch();
     }
   }, [location.pathname, refetch]);
+
+  /**
+   * Filter payees based on search query
+   */
+  const filteredPayees = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return payees;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return payees.filter((payee) => payee.name.toLowerCase().includes(query));
+  }, [payees, searchQuery]);
 
   if (loading) {
     return <LoadingSpinner useSkeleton skeletonVariant="list" skeletonCount={5} />;
@@ -55,11 +68,21 @@ const PayeesPageComponent = (): React.JSX.Element => {
     );
   }
 
+  const hasSearchResults = filteredPayees.length > 0;
+  const hasNoSearchResults = searchQuery.trim() && !hasSearchResults;
+
   return (
     <Box>
-      <Card>
-        <List disablePadding>
-          {payees.map((payee, index) => (
+      {hasNoSearchResults && (
+        <EmptyState
+          title="No payees found"
+          description="Try adjusting your search query"
+        />
+      )}
+      {hasSearchResults && (
+        <Card>
+          <List disablePadding>
+            {filteredPayees.map((payee, index) => (
             <React.Fragment key={payee.id}>
               {index > 0 && <Divider />}
               <ListItemButton
@@ -85,8 +108,9 @@ const PayeesPageComponent = (): React.JSX.Element => {
               </ListItemButton>
             </React.Fragment>
           ))}
-        </List>
-      </Card>
+          </List>
+        </Card>
+      )}
     </Box>
   );
 };

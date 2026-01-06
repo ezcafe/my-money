@@ -14,6 +14,7 @@ interface SearchContextType {
   openSearch: () => void;
   closeSearch: () => void;
   performSearch: (query: string) => void;
+  setSearchQuery: (query: string) => void;
   clearSearch: () => void;
 }
 
@@ -45,15 +46,21 @@ export function SearchProvider({children}: SearchProviderProps): React.JSX.Eleme
   }, []);
 
   /**
-   * Close search box
+   * Close search box (does not clear search query)
    */
   const closeSearch = useCallback(() => {
     setIsSearchOpen(false);
-    setSearchQuery('');
   }, []);
 
   /**
-   * Perform search with query
+   * Set search query without closing the search box
+   */
+  const setSearchQueryValue = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
+  /**
+   * Perform search with query (closes search box)
    */
   const performSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -75,6 +82,7 @@ export function SearchProvider({children}: SearchProviderProps): React.JSX.Eleme
         openSearch,
         closeSearch,
         performSearch,
+        setSearchQuery: setSearchQueryValue,
         clearSearch,
       }}
     >

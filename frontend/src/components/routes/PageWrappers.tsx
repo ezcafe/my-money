@@ -199,7 +199,6 @@ export function AccountsPageWrapper(): React.JSX.Element {
   return (
     <Layout
       title="Accounts"
-      hideSearch
       actionButton={{
         icon: <Add />,
         onClick: handleAdd,
@@ -227,7 +226,6 @@ export function PayeesPageWrapper(): React.JSX.Element {
   return (
     <Layout
       title="Payees"
-      hideSearch
       actionButton={{
         icon: <Add />,
         onClick: handleAdd,
@@ -255,7 +253,6 @@ export function CategoriesPageWrapper(): React.JSX.Element {
   return (
     <Layout
       title="Categories"
-      hideSearch
       actionButton={{
         icon: <Add />,
         onClick: handleAdd,

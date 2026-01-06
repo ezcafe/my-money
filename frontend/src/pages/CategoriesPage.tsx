@@ -4,7 +4,7 @@
  * Features search, visual indicators, and improved UX
  */
 
-import React, {memo, useMemo, useState, useCallback, useEffect} from 'react';
+import React, {memo, useMemo, useEffect} from 'react';
 import {
   Box,
   List,
@@ -12,19 +12,17 @@ import {
   ListItemText,
   Typography,
   Divider,
-  InputAdornment,
   Chip,
   Stack,
-  IconButton,
 } from '@mui/material';
-import {Search as SearchIcon, Clear as ClearIcon, TrendingUp, TrendingDown, Star, Category} from '@mui/icons-material';
+import {TrendingUp, TrendingDown, Star, Category} from '@mui/icons-material';
 import {useNavigate, useLocation} from 'react-router';
 import {useCategories} from '../hooks/useCategories';
+import {useSearch} from '../contexts/SearchContext';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {EmptyState} from '../components/common/EmptyState';
 import {Card} from '../components/ui/Card';
-import {TextField} from '../components/ui/TextField';
 
 /**
  * Categories Page Component
@@ -32,8 +30,8 @@ import {TextField} from '../components/ui/TextField';
 const CategoriesPageComponent = (): React.JSX.Element => {
   const location = useLocation();
   const {categories, loading, error, refetch} = useCategories();
+  const {searchQuery} = useSearch();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Refetch when returning from create page
   useEffect(() => {
@@ -74,20 +72,6 @@ const CategoriesPageComponent = (): React.JSX.Element => {
     return {income: incomeCount, expense: expenseCount};
   }, [categories]);
 
-  /**
-   * Handle search input change
-   */
-  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value);
-  }, []);
-
-  /**
-   * Clear search query
-   */
-  const handleClearSearch = useCallback(() => {
-    setSearchQuery('');
-  }, []);
-
   if (loading) {
     return <LoadingSpinner useSkeleton skeletonVariant="list" skeletonCount={5} />;
   }
@@ -119,35 +103,6 @@ const CategoriesPageComponent = (): React.JSX.Element => {
 
   return (
     <Box>
-      {/* Search Bar */}
-      <Card sx={{mb: 2, p: 2}}>
-        <TextField
-          fullWidth
-          placeholder="Search categories..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery ? (
-              <InputAdornment position="end">
-                <IconButton size="small" onClick={handleClearSearch} edge="end" aria-label="clear search">
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ) : null,
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: 'background.paper',
-            },
-          }}
-        />
-      </Card>
-
       {/* No Search Results */}
       {hasNoSearchResults && (
         <EmptyState

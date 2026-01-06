@@ -3,50 +3,60 @@
  * Displays a floating search box at the bottom of the page
  */
 
-import React, {useState, useEffect, useCallback, useMemo, type KeyboardEvent} from 'react';
+import React, {useState, useEffect, useMemo, type KeyboardEvent} from 'react';
 import {Box, Paper, TextField, IconButton, InputAdornment, useTheme} from '@mui/material';
 import {Search as SearchIcon, Close as CloseIcon} from '@mui/icons-material';
+import {useLocation} from 'react-router';
 import {useSearch} from '../contexts/SearchContext';
-import {debounce} from '../utils/rateLimiting';
 
 /**
  * Floating Search Box Component
  */
 export function FloatingSearchBox(): React.JSX.Element {
   const theme = useTheme();
-  const {isSearchOpen, closeSearch, performSearch} = useSearch();
+  const location = useLocation();
+  const {isSearchOpen, closeSearch, setSearchQuery, clearSearch, searchQuery} = useSearch();
   const [inputValue, setInputValue] = useState('');
 
-  // Debounced search function (300ms delay)
-  const debouncedSearch = useCallback(
-    (query: string): void => {
-      if (query.trim()) {
-        performSearch(query.trim());
-      }
-    },
-    [performSearch],
-  );
-
-  const debouncedSearchFn = useMemo(
-    () => debounce(debouncedSearch as (...args: unknown[]) => unknown, 300) as (query: string) => void,
-    [debouncedSearch],
-  );
-
-  // Trigger debounced search when input changes
-  useEffect(() => {
-    if (inputValue.trim()) {
-      debouncedSearchFn(inputValue);
+  /**
+   * Get placeholder text based on current route
+   */
+  const placeholder = useMemo(() => {
+    if (location.pathname.startsWith('/accounts')) {
+      return 'Search accounts by name... (Press Ctrl+K to open)';
     }
-  }, [inputValue, debouncedSearchFn]);
+    if (location.pathname.startsWith('/categories')) {
+      return 'Search categories by name... (Press Ctrl+K to open)';
+    }
+    if (location.pathname.startsWith('/payees')) {
+      return 'Search payees by name... (Press Ctrl+K to open)';
+    }
+    return 'Search transactions by note... (Press Ctrl+K to open)';
+  }, [location.pathname]);
+
+  // Sync input value with search query when search box opens (only on open, not on searchQuery change)
+  useEffect(() => {
+    if (isSearchOpen) {
+      // When search box opens, initialize input with current search query
+      // This allows the user to see and continue their previous search
+      setInputValue(searchQuery);
+    } else {
+      // When search box closes, clear input (but don't clear search query)
+      setInputValue('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSearchOpen]);
 
   /**
-   * Handle search button click
+   * Handle search button click - performs search and closes box
    */
   const handleSearch = (): void => {
     if (inputValue.trim()) {
-      performSearch(inputValue.trim());
-      setInputValue('');
+      setSearchQuery(inputValue.trim());
+    } else {
+      clearSearch();
     }
+    closeSearch();
   };
 
   /**
@@ -59,7 +69,7 @@ export function FloatingSearchBox(): React.JSX.Element {
   };
 
   /**
-   * Handle close button click
+   * Handle close button click - only closes the box, doesn't clear search query
    */
   const handleClose = (): void => {
     setInputValue('');
@@ -115,7 +125,7 @@ export function FloatingSearchBox(): React.JSX.Element {
       >
         <TextField
           fullWidth
-          placeholder="Search transactions by note... (Press Ctrl+K to open)"
+          placeholder={placeholder}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
