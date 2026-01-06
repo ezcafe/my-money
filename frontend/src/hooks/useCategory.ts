@@ -3,8 +3,8 @@
  * Provides category data with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
 import {GET_CATEGORY} from '../graphql/queries';
+import {useEntity} from './useEntity';
 
 /**
  * Category type from GraphQL query
@@ -36,30 +36,19 @@ interface GetCategoryData {
 }
 
 export function useCategory(id: string | undefined): UseCategoryResult {
-  const {data, loading, error, refetch} = useQuery<GetCategoryData>(GET_CATEGORY, {
+  const {entity, loading, error, refetch} = useEntity<Category, GetCategoryData>({
+    query: GET_CATEGORY,
     variables: {id},
     skip: !id,
     errorPolicy: 'all',
+    extractEntity: (data) => data.category,
   });
 
-  let errorResult: Error | undefined;
-  if (error) {
-    if (error instanceof Error) {
-      errorResult = error;
-    } else if (error && typeof error === 'object' && 'message' in error) {
-      errorResult = new Error(String(error.message));
-    } else {
-      errorResult = new Error('An unknown error occurred');
-    }
-  }
-
   return {
-    category: data?.category,
-    loading: Boolean(loading),
-    error: errorResult,
-    refetch: (): void => {
-      void refetch();
-    },
+    category: entity,
+    loading,
+    error,
+    refetch,
   };
 }
 

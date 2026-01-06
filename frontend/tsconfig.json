@@ -9,7 +9,6 @@
     "resolveJsonModule": true,
     "allowJs": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "baseUrl": "./src",
     "paths": {
       "@/*": ["./*"],
@@ -18,11 +17,12 @@
       "@hooks/*": ["./hooks/*"],
       "@utils/*": ["./utils/*"],
       "@graphql/*": ["./graphql/*"],
-      "@theme/*": ["./theme/*"]
+      "@theme/*": ["./theme/*"],
+      "@my-money/shared": ["../shared/src/index.ts"]
     },
     "types": ["jest", "@testing-library/jest-dom", "node"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../shared/src/**/*"],
   "exclude": ["node_modules", "dist", "__tests__", "**/*.test.ts", "**/*.test.tsx"]
 }
 

@@ -3,8 +3,8 @@
  * Provides payee data with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
 import {GET_PAYEE} from '../graphql/queries';
+import {useEntity} from './useEntity';
 
 /**
  * Payee type from GraphQL query
@@ -35,30 +35,19 @@ interface GetPayeeData {
 }
 
 export function usePayee(id: string | undefined): UsePayeeResult {
-  const {data, loading, error, refetch} = useQuery<GetPayeeData>(GET_PAYEE, {
+  const {entity, loading, error, refetch} = useEntity<Payee, GetPayeeData>({
+    query: GET_PAYEE,
     variables: {id},
     skip: !id,
     errorPolicy: 'all',
+    extractEntity: (data) => data.payee,
   });
 
-  let errorResult: Error | undefined;
-  if (error) {
-    if (error instanceof Error) {
-      errorResult = error;
-    } else if (error && typeof error === 'object' && 'message' in error) {
-      errorResult = new Error(String(error.message));
-    } else {
-      errorResult = new Error('An unknown error occurred');
-    }
-  }
-
   return {
-    payee: data?.payee,
-    loading: Boolean(loading),
-    error: errorResult,
-    refetch: (): void => {
-      void refetch();
-    },
+    payee: entity,
+    loading,
+    error,
+    refetch,
   };
 }
 

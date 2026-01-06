@@ -26,6 +26,7 @@ const config: Configuration = {
     modules: [
       path.resolve(__dirname, 'node_modules'),
       path.resolve(__dirname, '../node_modules'),
+      path.resolve(__dirname, '../shared'),
       'node_modules',
     ],
     fallback: {
@@ -40,6 +41,7 @@ const config: Configuration = {
       '@utils': path.resolve(__dirname, 'src/utils'),
       '@graphql': path.resolve(__dirname, 'src/graphql'),
       '@theme': path.resolve(__dirname, 'src/theme'),
+      '@my-money/shared': path.resolve(__dirname, '../shared/src/index.ts'),
     },
   },
   experiments: {
@@ -51,6 +53,10 @@ const config: Configuration = {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/,
+        include: [
+          path.resolve(__dirname, 'src'),
+          path.resolve(__dirname, '../shared/src'),
+        ],
       },
       {
         test: /\.m?js$/,

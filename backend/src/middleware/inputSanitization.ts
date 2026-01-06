@@ -4,7 +4,7 @@
  */
 
 import type {GraphQLResolveInfo} from 'graphql';
-import {sanitizeUserInput, sanitizeObject} from '../utils/sanitization';
+import {sanitizeUserInput, sanitizeObject} from '@my-money/shared';
 
 /**
  * Sanitize GraphQL input arguments

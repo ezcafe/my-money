@@ -3,8 +3,8 @@
  * Provides account data with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
 import {GET_ACCOUNT} from '../graphql/queries';
+import {useEntity} from './useEntity';
 
 /**
  * Account type from GraphQL query
@@ -37,30 +37,19 @@ interface GetAccountData {
 }
 
 export function useAccount(id: string | undefined): UseAccountResult {
-  const {data, loading, error, refetch} = useQuery<GetAccountData>(GET_ACCOUNT, {
+  const {entity, loading, error, refetch} = useEntity<Account, GetAccountData>({
+    query: GET_ACCOUNT,
     variables: {id},
     skip: !id,
     errorPolicy: 'all',
+    extractEntity: (data) => data.account,
   });
 
-  let errorResult: Error | undefined;
-  if (error) {
-    if (error instanceof Error) {
-      errorResult = error;
-    } else if (error && typeof error === 'object' && 'message' in error) {
-      errorResult = new Error(String(error.message));
-    } else {
-      errorResult = new Error('An unknown error occurred');
-    }
-  }
-
   return {
-    account: data?.account,
-    loading: Boolean(loading),
-    error: errorResult,
-    refetch: (): void => {
-      void refetch();
-    },
+    account: entity,
+    loading,
+    error,
+    refetch,
   };
 }
 

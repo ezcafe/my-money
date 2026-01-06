@@ -1,15 +1,15 @@
 /**
  * Page Wrapper Components
  * Wraps page components with navigation functionality and layout
+ * Uses usePageWrapper hook to reduce code duplication and improve maintainability
  */
 
-import React, {useState, useCallback} from 'react';
+import React from 'react';
 import {useNavigate, useParams} from 'react-router';
-import {useMutation} from '@apollo/client/react';
 import {Add} from '@mui/icons-material';
 import {Layout} from '../common/Layout';
-import {DeleteConfirmDialog} from '../common/DeleteConfirmDialog';
 import {DELETE_ACCOUNT, DELETE_CATEGORY, DELETE_PAYEE, DELETE_BUDGET} from '../../graphql/mutations';
+import {usePageWrapper} from '../../hooks/usePageWrapper';
 import {useAccount} from '../../hooks/useAccount';
 import {useCategory} from '../../hooks/useCategory';
 import {usePayee} from '../../hooks/usePayee';
@@ -77,52 +77,25 @@ export function BudgetsPageWrapper(): React.JSX.Element {
  */
 export function AccountDetailsPageWrapper(): React.JSX.Element {
   const {id} = useParams<{id: string}>();
-  const navigate = useNavigate();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const {account} = useAccount(id);
-  const [deleteAccount, {loading: deleting}] = useMutation(DELETE_ACCOUNT, {
+  const {PageLayout, DeleteDialog} = usePageWrapper({
+    title: '',
+    defaultReturnUrl: '/accounts',
+    editPath: '/accounts/{id}/edit?returnTo=/accounts/{id}',
+    deleteMutation: DELETE_ACCOUNT,
+    getDeleteVariables: (entityId: string) => ({id: entityId}),
     refetchQueries: ['GetAccounts'],
-    awaitRefetchQueries: true,
-    onCompleted: () => {
-      void navigate('/accounts');
-    },
+    deleteTitle: 'Delete Account',
+    deleteMessage: 'Are you sure you want to delete this account? This action cannot be undone.',
+    disableDelete: account?.isDefault ?? false,
   });
-
-  const handleEdit = useCallback(() => {
-    if (id) {
-      void navigate(`/accounts/${id}/edit?returnTo=/accounts/${id}`);
-    }
-  }, [id, navigate]);
-
-  const handleDelete = useCallback(() => {
-    setDeleteDialogOpen(true);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (id) {
-      void deleteAccount({variables: {id}});
-    }
-  }, [id, deleteAccount]);
 
   return (
     <>
-      <Layout
-        contextMenu={{
-          onEdit: handleEdit,
-          onDelete: handleDelete,
-          disableDelete: account?.isDefault ?? false,
-        }}
-      >
+      <PageLayout>
         <AccountDetailsPage />
-      </Layout>
-      <DeleteConfirmDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Account"
-        message="Are you sure you want to delete this account? This action cannot be undone."
-        deleting={deleting}
-      />
+      </PageLayout>
+      {DeleteDialog}
     </>
   );
 }
@@ -133,52 +106,25 @@ export function AccountDetailsPageWrapper(): React.JSX.Element {
  */
 export function CategoryDetailsPageWrapper(): React.JSX.Element {
   const {id} = useParams<{id: string}>();
-  const navigate = useNavigate();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const {category} = useCategory(id);
-  const [deleteCategory, {loading: deleting}] = useMutation(DELETE_CATEGORY, {
+  const {PageLayout, DeleteDialog} = usePageWrapper({
+    title: '',
+    defaultReturnUrl: '/categories',
+    editPath: '/categories/{id}/edit?returnTo=/categories/{id}',
+    deleteMutation: DELETE_CATEGORY,
+    getDeleteVariables: (entityId: string) => ({id: entityId}),
     refetchQueries: ['GetCategories'],
-    awaitRefetchQueries: true,
-    onCompleted: () => {
-      void navigate('/categories');
-    },
+    deleteTitle: 'Delete Category',
+    deleteMessage: 'Are you sure you want to delete this category? This action cannot be undone.',
+    disableDelete: category?.isDefault ?? false,
   });
-
-  const handleEdit = useCallback(() => {
-    if (id) {
-      void navigate(`/categories/${id}/edit?returnTo=/categories/${id}`);
-    }
-  }, [id, navigate]);
-
-  const handleDelete = useCallback(() => {
-    setDeleteDialogOpen(true);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (id) {
-      void deleteCategory({variables: {id}});
-    }
-  }, [id, deleteCategory]);
 
   return (
     <>
-      <Layout
-        contextMenu={{
-          onEdit: handleEdit,
-          onDelete: handleDelete,
-          disableDelete: category?.isDefault ?? false,
-        }}
-      >
+      <PageLayout>
         <CategoryDetailsPage />
-      </Layout>
-      <DeleteConfirmDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Category"
-        message="Are you sure you want to delete this category? This action cannot be undone."
-        deleting={deleting}
-      />
+      </PageLayout>
+      {DeleteDialog}
     </>
   );
 }
@@ -190,7 +136,7 @@ export function CategoryDetailsPageWrapper(): React.JSX.Element {
 export function AccountsPageWrapper(): React.JSX.Element {
   const navigate = useNavigate();
 
-  const handleAdd = useCallback(() => {
+  const handleAdd = React.useCallback(() => {
     // Use replace to avoid adding the add page to history
     // This way, when we navigate back after creation, we can replace it
     void navigate('/accounts/add?returnTo=/accounts', {replace: true});
@@ -217,7 +163,7 @@ export function AccountsPageWrapper(): React.JSX.Element {
 export function PayeesPageWrapper(): React.JSX.Element {
   const navigate = useNavigate();
 
-  const handleAdd = useCallback(() => {
+  const handleAdd = React.useCallback(() => {
     // Use replace to avoid adding the add page to history
     // This way, when we navigate back after creation, we can replace it
     void navigate('/payees/add?returnTo=/payees', {replace: true});
@@ -244,7 +190,7 @@ export function PayeesPageWrapper(): React.JSX.Element {
 export function CategoriesPageWrapper(): React.JSX.Element {
   const navigate = useNavigate();
 
-  const handleAdd = useCallback(() => {
+  const handleAdd = React.useCallback(() => {
     // Use replace to avoid adding the add page to history
     // This way, when we navigate back after creation, we can replace it
     void navigate('/categories/add?returnTo=/categories', {replace: true});
@@ -270,52 +216,25 @@ export function CategoriesPageWrapper(): React.JSX.Element {
  */
 export function PayeeDetailsPageWrapper(): React.JSX.Element {
   const {id} = useParams<{id: string}>();
-  const navigate = useNavigate();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const {payee} = usePayee(id);
-  const [deletePayee, {loading: deleting}] = useMutation(DELETE_PAYEE, {
+  const {PageLayout, DeleteDialog} = usePageWrapper({
+    title: '',
+    defaultReturnUrl: '/payees',
+    editPath: '/payees/{id}/edit?returnTo=/payees/{id}',
+    deleteMutation: DELETE_PAYEE,
+    getDeleteVariables: (entityId: string) => ({id: entityId}),
     refetchQueries: ['GetPayees'],
-    awaitRefetchQueries: true,
-    onCompleted: () => {
-      void navigate('/payees');
-    },
+    deleteTitle: 'Delete Payee',
+    deleteMessage: 'Are you sure you want to delete this payee? This action cannot be undone.',
+    disableDelete: payee?.isDefault ?? false,
   });
-
-  const handleEdit = useCallback(() => {
-    if (id) {
-      void navigate(`/payees/${id}/edit?returnTo=/payees/${id}`);
-    }
-  }, [id, navigate]);
-
-  const handleDelete = useCallback(() => {
-    setDeleteDialogOpen(true);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (id) {
-      void deletePayee({variables: {id}});
-    }
-  }, [id, deletePayee]);
 
   return (
     <>
-      <Layout
-        contextMenu={{
-          onEdit: handleEdit,
-          onDelete: handleDelete,
-          disableDelete: payee?.isDefault ?? false,
-        }}
-      >
+      <PageLayout>
         <PayeeDetailsPage />
-      </Layout>
-      <DeleteConfirmDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Payee"
-        message="Are you sure you want to delete this payee? This action cannot be undone."
-        deleting={deleting}
-      />
+      </PageLayout>
+      {DeleteDialog}
     </>
   );
 }
@@ -325,51 +244,23 @@ export function PayeeDetailsPageWrapper(): React.JSX.Element {
  * Wraps BudgetDetailsPage with context menu for edit/delete
  */
 export function BudgetDetailsPageWrapper(): React.JSX.Element {
-  const {id} = useParams<{id: string}>();
-  const navigate = useNavigate();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteBudget, {loading: deleting}] = useMutation(DELETE_BUDGET, {
+  const {PageLayout, DeleteDialog} = usePageWrapper({
+    title: '',
+    defaultReturnUrl: '/budgets',
+    editPath: '/budgets/{id}/edit?returnTo=/budgets/{id}',
+    deleteMutation: DELETE_BUDGET,
+    getDeleteVariables: (entityId: string) => ({id: entityId}),
     refetchQueries: ['GetBudgets'],
-    awaitRefetchQueries: true,
-    onCompleted: () => {
-      void navigate('/budgets');
-    },
+    deleteTitle: 'Delete Budget',
+    deleteMessage: 'Are you sure you want to delete this budget? This action cannot be undone.',
   });
-
-  const handleEdit = useCallback(() => {
-    if (id) {
-      void navigate(`/budgets/${id}/edit?returnTo=/budgets/${id}`);
-    }
-  }, [id, navigate]);
-
-  const handleDelete = useCallback(() => {
-    setDeleteDialogOpen(true);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (id) {
-      void deleteBudget({variables: {id}});
-    }
-  }, [id, deleteBudget]);
 
   return (
     <>
-      <Layout
-        contextMenu={{
-          onEdit: handleEdit,
-          onDelete: handleDelete,
-        }}
-      >
+      <PageLayout>
         <BudgetDetailsPage />
-      </Layout>
-      <DeleteConfirmDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Budget"
-        message="Are you sure you want to delete this budget? This action cannot be undone."
-        deleting={deleting}
-      />
+      </PageLayout>
+      {DeleteDialog}
     </>
   );
 }
