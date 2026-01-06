@@ -4,6 +4,7 @@
  */
 
 import type {FastifyRequest} from 'fastify';
+import {randomUUID} from 'crypto';
 import {prisma} from '../utils/prisma';
 import {getUserFromToken} from './auth';
 import {UnauthorizedError} from '../utils/errors';
@@ -14,7 +15,9 @@ import {logAuthFailure} from '../utils/securityLogger';
 export interface GraphQLContext extends DataLoaderContext {
   userId: string;
   userEmail?: string;
+  requestId: string;
   prisma: typeof prisma;
+  request?: FastifyRequest;
 }
 
 /**
@@ -66,10 +69,15 @@ export async function createContext(req: FastifyRequest): Promise<GraphQLContext
 
   const dataLoaders = createDataLoaders();
 
+  // Generate correlation ID (request ID) for tracing
+  const requestId = randomUUID();
+
   return {
     userId: user.id,
     userEmail: user.email,
+    requestId,
     prisma,
+    request: req,
     ...dataLoaders,
   };
 }

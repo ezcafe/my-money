@@ -10,6 +10,7 @@ import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {sanitizeUserInput} from '../utils/sanitization';
+import {BaseResolver} from './BaseResolver';
 
 const CreateCategoryInputSchema = z.object({
   name: z.string().min(1).max(255),
@@ -21,7 +22,7 @@ const UpdateCategoryInputSchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']).optional(),
 });
 
-export class CategoryResolver {
+export class CategoryResolver extends BaseResolver {
   /**
    * Ensure default categories exist
    * Creates default categories if they don't exist
@@ -39,6 +40,7 @@ export class CategoryResolver {
           isDefault: true,
           userId: null,
         },
+        select: {id: true},
       });
 
       if (!existing) {
@@ -113,6 +115,7 @@ export class CategoryResolver {
         name: validatedInput.name,
         userId: context.userId,
       },
+      select: {id: true},
     });
 
     if (existing) {
@@ -152,6 +155,7 @@ export class CategoryResolver {
         userId: context.userId,
         isDefault: false,
       },
+      select: {id: true, name: true},
     });
 
     if (!existing) {
@@ -166,6 +170,7 @@ export class CategoryResolver {
           userId: context.userId,
           id: {not: id},
         },
+        select: {id: true},
       });
 
       if (duplicate) {
@@ -188,12 +193,14 @@ export class CategoryResolver {
    * Delete category (cannot delete default categories)
    */
   async deleteCategory(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+    // Verify category belongs to user and is not default
     const category = await context.prisma.category.findFirst({
       where: {
         id,
         userId: context.userId,
         isDefault: false,
       },
+      select: {id: true},
     });
 
     if (!category) {

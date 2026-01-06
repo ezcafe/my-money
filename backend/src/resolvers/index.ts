@@ -16,23 +16,37 @@ import {BudgetResolver} from './BudgetResolver';
 import {uploadPDF, matchImportedTransaction, importCSV, saveImportedTransactions, deleteUnmappedImportedTransactions} from './ImportResolver';
 import type {GraphQLContext} from '../middleware/context';
 
+// Create resolver instances once (singleton pattern)
+// This reduces object creation overhead and allows for better state management if needed
+const userResolver = new UserResolver();
+const accountResolver = new AccountResolver();
+const transactionResolver = new TransactionResolver();
+const categoryResolver = new CategoryResolver();
+const payeeResolver = new PayeeResolver();
+const preferencesResolver = new PreferencesResolver();
+const recurringTransactionResolver = new RecurringTransactionResolver();
+const reportResolver = new ReportResolver();
+const exportResolver = new ExportResolver();
+const resetDataResolver = new ResetDataResolver();
+const budgetResolver = new BudgetResolver();
+
 export const resolvers = {
   Query: {
     // User queries
     me: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new UserResolver().me(parent, args, context),
+      userResolver.me(parent, args, context),
 
     // Account queries
     accounts: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new AccountResolver().accounts(parent, args, context),
+      accountResolver.accounts(parent, args, context),
     account: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new AccountResolver().account(parent, args as {id: string}, context),
+      accountResolver.account(parent, args as {id: string}, context),
     accountBalance: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new AccountResolver().accountBalance(parent, args as {accountId: string}, context),
+      accountResolver.accountBalance(parent, args as {accountId: string}, context),
 
     // Transaction queries
     transactions: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new TransactionResolver().transactions(
+      transactionResolver.transactions(
         parent,
         args as {
           accountId?: string;
@@ -46,35 +60,35 @@ export const resolvers = {
         context,
       ),
     recentTransactions: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new TransactionResolver().recentTransactions(parent, args as {limit?: number}, context),
+      transactionResolver.recentTransactions(parent, args as {limit?: number}, context),
     transaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new TransactionResolver().transaction(parent, args as {id: string}, context),
+      transactionResolver.transaction(parent, args as {id: string}, context),
     topUsedValues: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new TransactionResolver().topUsedValues(parent, args as {days?: number}, context),
+      transactionResolver.topUsedValues(parent, args as {days?: number}, context),
 
     // Category queries
     categories: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new CategoryResolver().categories(parent, args, context),
+      categoryResolver.categories(parent, args, context),
     category: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new CategoryResolver().category(parent, args as {id: string}, context),
+      categoryResolver.category(parent, args as {id: string}, context),
 
     // Payee queries
     payees: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PayeeResolver().payees(parent, args, context),
+      payeeResolver.payees(parent, args, context),
     payee: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PayeeResolver().payee(parent, args as {id: string}, context),
+      payeeResolver.payee(parent, args as {id: string}, context),
 
     // Preferences queries
     preferences: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PreferencesResolver().preferences(parent, args, context),
+      preferencesResolver.preferences(parent, args, context),
 
     // Recurring transaction queries
     recurringTransactions: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new RecurringTransactionResolver().recurringTransactions(parent, args, context),
+      recurringTransactionResolver.recurringTransactions(parent, args, context),
 
     // Report queries
     reportTransactions: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new ReportResolver().reportTransactions(
+      reportResolver.reportTransactions(
         parent,
         args as {
           accountIds?: string[];
@@ -92,56 +106,56 @@ export const resolvers = {
 
     // Export queries
     exportData: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new ExportResolver().exportData(parent, args, context),
+      exportResolver.exportData(parent, args, context),
 
     // Budget queries
     budgets: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new BudgetResolver().budgets(parent, args, context),
+      budgetResolver.budgets(parent, args, context),
     budget: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new BudgetResolver().budget(parent, args as {id: string}, context),
+      budgetResolver.budget(parent, args as {id: string}, context),
     budgetNotifications: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new BudgetResolver().budgetNotifications(parent, args, context),
+      budgetResolver.budgetNotifications(parent, args, context),
   },
   Mutation: {
     // Account mutations
     createAccount: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new AccountResolver().createAccount(parent, args as {input: {name: string; initBalance?: number}}, context),
+      accountResolver.createAccount(parent, args as {input: {name: string; initBalance?: number}}, context),
     updateAccount: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new AccountResolver().updateAccount(parent, args as {id: string; input: {name?: string; initBalance?: number}}, context),
+      accountResolver.updateAccount(parent, args as {id: string; input: {name?: string; initBalance?: number}}, context),
     deleteAccount: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new AccountResolver().deleteAccount(parent, args as {id: string}, context),
+      accountResolver.deleteAccount(parent, args as {id: string}, context),
 
     // Transaction mutations
     createTransaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new TransactionResolver().createTransaction(parent, args as {input: unknown}, context),
+      transactionResolver.createTransaction(parent, args as {input: unknown}, context),
     updateTransaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new TransactionResolver().updateTransaction(parent, args as {id: string; input: unknown}, context),
+      transactionResolver.updateTransaction(parent, args as {id: string; input: unknown}, context),
     deleteTransaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new TransactionResolver().deleteTransaction(parent, args as {id: string}, context),
+      transactionResolver.deleteTransaction(parent, args as {id: string}, context),
 
     // Category mutations
     createCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new CategoryResolver().createCategory(parent, args as {input: {name: string; type: 'INCOME' | 'EXPENSE'}}, context),
+      categoryResolver.createCategory(parent, args as {input: {name: string; type: 'INCOME' | 'EXPENSE'}}, context),
     updateCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new CategoryResolver().updateCategory(parent, args as {id: string; input: {name?: string; type?: 'INCOME' | 'EXPENSE'}}, context),
+      categoryResolver.updateCategory(parent, args as {id: string; input: {name?: string; type?: 'INCOME' | 'EXPENSE'}}, context),
     deleteCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new CategoryResolver().deleteCategory(parent, args as {id: string}, context),
+      categoryResolver.deleteCategory(parent, args as {id: string}, context),
 
     // Payee mutations
     createPayee: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PayeeResolver().createPayee(parent, args as {input: {name: string}}, context),
+      payeeResolver.createPayee(parent, args as {input: {name: string}}, context),
     updatePayee: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PayeeResolver().updatePayee(parent, args as {id: string; input: {name?: string}}, context),
+      payeeResolver.updatePayee(parent, args as {id: string; input: {name?: string}}, context),
     deletePayee: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PayeeResolver().deletePayee(parent, args as {id: string}, context),
+      payeeResolver.deletePayee(parent, args as {id: string}, context),
 
     // Preferences mutations
     updatePreferences: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new PreferencesResolver().updatePreferences(parent, args as {input: {currency?: string; useThousandSeparator?: boolean; colorScheme?: string | null; colorSchemeValue?: string | null}}, context),
+      preferencesResolver.updatePreferences(parent, args as {input: {currency?: string; useThousandSeparator?: boolean; colorScheme?: string | null; colorSchemeValue?: string | null}}, context),
 
     // Recurring transaction mutations
     createRecurringTransaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new RecurringTransactionResolver().createRecurringTransaction(
+      recurringTransactionResolver.createRecurringTransaction(
         parent,
         args as {
           input: {
@@ -157,7 +171,7 @@ export const resolvers = {
         context,
       ),
     updateRecurringTransaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new RecurringTransactionResolver().updateRecurringTransaction(
+      recurringTransactionResolver.updateRecurringTransaction(
         parent,
         args as {
           id: string;
@@ -174,7 +188,7 @@ export const resolvers = {
         context,
       ),
     deleteRecurringTransaction: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new RecurringTransactionResolver().deleteRecurringTransaction(parent, args as {id: string}, context),
+      recurringTransactionResolver.deleteRecurringTransaction(parent, args as {id: string}, context),
 
     // Import mutations
     uploadPDF: (parent: unknown, args: unknown, context: GraphQLContext) =>
@@ -229,17 +243,17 @@ export const resolvers = {
 
     // Reset data mutation
     resetData: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new ResetDataResolver().resetData(parent, args, context),
+      resetDataResolver.resetData(parent, args, context),
 
     // Budget mutations
     createBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new BudgetResolver().createBudget(parent, args as {input: unknown}, context),
+      budgetResolver.createBudget(parent, args as {input: unknown}, context),
     updateBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new BudgetResolver().updateBudget(parent, args as {id: string; input: unknown}, context),
+      budgetResolver.updateBudget(parent, args as {id: string; input: unknown}, context),
     deleteBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new BudgetResolver().deleteBudget(parent, args as {id: string}, context),
+      budgetResolver.deleteBudget(parent, args as {id: string}, context),
     markBudgetNotificationRead: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      new BudgetResolver().markBudgetNotificationRead(parent, args as {id: string}, context),
+      budgetResolver.markBudgetNotificationRead(parent, args as {id: string}, context),
   },
   Account: {
     balance: async (parent: {id: string}, _: unknown, context: GraphQLContext) => {

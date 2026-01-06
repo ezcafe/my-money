@@ -4,6 +4,7 @@
  */
 
 import * as oidc from 'openid-client';
+import LRUCache from 'lru-cache';
 import {UnauthorizedError} from '../utils/errors';
 
 // Type aliases for openid-client types
@@ -16,28 +17,19 @@ let config: oidc.Configuration | null = null;
  */
 interface TokenCacheEntry {
   userInfo: {sub: string; email?: string};
-  expiresAt: number;
 }
 
-/**
- * In-memory token cache with TTL
- * Cache tokens for 5 minutes to reduce external OIDC provider calls
- */
-const tokenCache = new Map<string, TokenCacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Clean up expired cache entries periodically
+ * LRU token cache with TTL and size limit
+ * Cache tokens for 5 minutes to reduce external OIDC provider calls
+ * Maximum 1000 entries to prevent memory leaks
  */
-setInterval(() => {
-  const now = Date.now();
-  const entries = Array.from(tokenCache.entries());
-  for (const [token, entry] of entries) {
-    if (entry.expiresAt < now) {
-      tokenCache.delete(token);
-    }
-  }
-}, 60000); // Clean up every minute
+const tokenCache = new LRUCache<string, TokenCacheEntry>({
+  max: 1000, // Maximum number of entries
+  ttl: CACHE_TTL_MS, // Time to live in milliseconds
+});
 
 /**
  * Initialize OIDC client
@@ -154,7 +146,7 @@ export async function verifyToken(token: string): Promise<TokenSet> {
 export async function getUserFromToken(token: string): Promise<{sub: string; email?: string}> {
   // Check cache first
   const cached = tokenCache.get(token);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (cached) {
     return cached.userInfo;
   }
 
@@ -165,10 +157,9 @@ export async function getUserFromToken(token: string): Promise<{sub: string; ema
     email: tokenSet.email,
   };
 
-  // Cache the result
+  // Cache the result (LRU cache handles TTL automatically)
   tokenCache.set(token, {
     userInfo,
-    expiresAt: Date.now() + CACHE_TTL_MS,
   });
 
   return userInfo;

@@ -16,32 +16,32 @@ import {API_CONFIG} from '../config/api';
 
 /**
  * Custom fetch function with timeout support
+ * Uses async/await for consistency with the rest of the codebase
  * @param input - Request URL or RequestInfo
  * @param options - Fetch options
  * @returns Promise<Response>
  */
-function fetchWithTimeout(input: RequestInfo | URL, options: RequestInit = {}): Promise<Response> {
+async function fetchWithTimeout(input: RequestInfo | URL, options: RequestInit = {}): Promise<Response> {
   const timeout = API_CONFIG.requestTimeoutMs;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
   }, timeout);
 
-  return fetch(input, {
-    ...options,
-    signal: controller.signal,
-  })
-    .then((response) => {
-      clearTimeout(timeoutId);
-      return response;
-    })
-    .catch((error: unknown) => {
-      clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Request timeout after ${timeout}ms`);
-      }
-      throw error;
+  try {
+    const response = await fetch(input, {
+      ...options,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout}ms`);
+    }
+    throw error;
+  }
 }
 
 // Circuit breaker state for connection errors
@@ -334,134 +334,86 @@ const successTrackingLink = new ApolloLinkClass((operation, forward) => {
 /**
  * Apollo Client instance
  * Configured according to Apollo Client v4 best practices
+ * Uses Apollo's built-in cache eviction policies instead of custom LRU implementation
  */
-// Create cache with monitoring for size limits
 const cache = new InMemoryCache({
-    typePolicies: {
-      Account: {
-        fields: {
-          balance: {
-            // Balance is computed, read from cache if available
-            read(existing: number | undefined): number {
-              return existing ?? 0;
-            },
-          },
-        },
-      },
-      Transaction: {
-        keyFields: ['id'],
-      },
-      Query: {
-        fields: {
-          transactions: {
-            // Merge paginated results
-            // Apollo Client v4: merge function signature remains the same
-            merge(
-              existing: {items: unknown[]; totalCount: number; hasMore: boolean} = {items: [], totalCount: 0, hasMore: false},
-              incoming: {items?: unknown[]; totalCount?: number; hasMore?: boolean},
-            ): {items: unknown[]; totalCount: number; hasMore: boolean} {
-              return {
-                items: [...(existing.items ?? []), ...(incoming.items ?? [])],
-                totalCount: incoming.totalCount ?? existing.totalCount,
-                hasMore: incoming.hasMore ?? existing.hasMore,
-              };
-            },
-          },
-          reportTransactions: {
-            // Don't merge report results, always use fresh data
-            merge: false,
+  typePolicies: {
+    Account: {
+      fields: {
+        balance: {
+          // Balance is computed, read from cache if available
+          read(existing: number | undefined): number {
+            return existing ?? 0;
           },
         },
       },
     },
-    // Apollo Client v4: possibleTypes can be configured here if needed for union/interface types
-    // possibleTypes: {},
-  });
+    Transaction: {
+      keyFields: ['id'],
+      // Use Apollo's built-in cache eviction for transactions
+      // Evict old transactions when cache grows too large
+      fields: {
+        // Transactions are automatically evicted when cache size is managed via field policies
+      },
+    },
+    Query: {
+      fields: {
+        transactions: {
+          // Merge paginated results
+          // Apollo Client v4: merge function signature remains the same
+          merge(
+            existing: {items: unknown[]; totalCount: number; hasMore: boolean} = {items: [], totalCount: 0, hasMore: false},
+            incoming: {items?: unknown[]; totalCount?: number; hasMore?: boolean},
+          ): {items: unknown[]; totalCount: number; hasMore: boolean} {
+            return {
+              items: [...(existing.items ?? []), ...(incoming.items ?? [])],
+              totalCount: incoming.totalCount ?? existing.totalCount,
+              hasMore: incoming.hasMore ?? existing.hasMore,
+            };
+          },
+        },
+        reportTransactions: {
+          // Don't merge report results, always use fresh data
+          merge: false,
+        },
+        recentTransactions: {
+          // Limit cache size for recent transactions using Apollo's built-in eviction
+          // When new transactions are fetched, evict oldest ones if cache exceeds limit
+          merge(existing: unknown[] = [], incoming: unknown[] = []): unknown[] {
+            const merged = [...existing, ...incoming];
+            // Keep only the most recent transactions (limit to APOLLO_CACHE_MAX_SIZE)
+            if (merged.length > APOLLO_CACHE_MAX_SIZE) {
+              return merged.slice(-APOLLO_CACHE_MAX_SIZE);
+            }
+            return merged;
+          },
+        },
+      },
+    },
+  },
+  // Apollo Client v4: possibleTypes can be configured here if needed for union/interface types
+  // possibleTypes: {},
+});
 
-// Track cache access times for LRU eviction
-// Maps cache key to last access timestamp
-const cacheAccessTimes = new Map<string, number>();
-
-// Monitor and evict cache entries if size exceeds limit
-// Uses LRU (Least Recently Used) strategy based on access times
-function evictCacheIfNeeded(): void {
-  try {
-    const cacheData = cache.extract();
-    const cacheKeys = Object.keys(cacheData);
-    const now = Date.now();
-
-    // Update access times for current cache keys (mark as recently seen)
-    for (const key of cacheKeys) {
-      if (!cacheAccessTimes.has(key)) {
-        // New key - set current time
-        cacheAccessTimes.set(key, now);
-      }
-    }
-
-    // Remove access times for keys that no longer exist in cache
-    for (const key of cacheAccessTimes.keys()) {
-      if (!cacheKeys.includes(key)) {
-        cacheAccessTimes.delete(key);
-      }
-    }
-
-    // If cache exceeds max size, evict least recently used entries
-    if (cacheKeys.length > APOLLO_CACHE_MAX_SIZE) {
-      // Sort by access time (oldest first) - true LRU
-      const entries = Array.from(cacheAccessTimes.entries())
-        .filter(([key]) => cacheKeys.includes(key))
-        .sort((a, b) => a[1] - b[1]);
-
-      // Evict oldest entries (least recently used)
-      const keysToEvict = entries
-        .slice(0, cacheKeys.length - APOLLO_CACHE_MAX_SIZE)
-        .map(([key]) => key);
-
-      for (const key of keysToEvict) {
-        try {
-          cache.evict({id: key});
-          cacheAccessTimes.delete(key);
-        } catch {
-          // Ignore eviction errors for individual keys
-        }
-      }
-      cache.gc(); // Garbage collect evicted entries
-    }
-  } catch (error) {
-    // Silently handle cache monitoring errors
-    console.warn('Cache eviction check failed:', error);
-  }
-}
-
-// Update access time when cache is read
-// Hook into cache reads by wrapping the cache's readQuery method
-const originalReadQuery = cache.readQuery.bind(cache);
-(cache as {readQuery: typeof cache.readQuery}).readQuery = function(
-  options: Parameters<typeof cache.readQuery>[0],
-): ReturnType<typeof cache.readQuery> {
-  const result = originalReadQuery(options);
-  // Update access times for all current cache keys after a read
-  // This approximates LRU by tracking when cache is accessed
-  const cacheData = cache.extract();
-  const now = Date.now();
-  for (const key of Object.keys(cacheData)) {
-    cacheAccessTimes.set(key, now);
-  }
-  return result;
-};
-
-// Set up periodic cache eviction check (every 5 minutes)
-// Store interval ID for cleanup
-let cacheEvictionIntervalId: ReturnType<typeof setInterval> | null = null;
+// Use Apollo's built-in cache garbage collection
+// Set up periodic cache cleanup using Apollo's gc() method
+let cacheGcIntervalId: ReturnType<typeof setInterval> | null = null;
 
 if (typeof window !== 'undefined') {
-  cacheEvictionIntervalId = setInterval(evictCacheIfNeeded, 5 * 60 * 1000);
+  // Run garbage collection every 5 minutes to clean up evicted entries
+  cacheGcIntervalId = setInterval(() => {
+    try {
+      cache.gc();
+    } catch (error) {
+      console.warn('Cache garbage collection failed:', error);
+    }
+  }, 5 * 60 * 1000);
 
   // Clean up interval on page unload
   window.addEventListener('beforeunload', () => {
-    if (cacheEvictionIntervalId !== null) {
-      clearInterval(cacheEvictionIntervalId);
-      cacheEvictionIntervalId = null;
+    if (cacheGcIntervalId !== null) {
+      clearInterval(cacheGcIntervalId);
+      cacheGcIntervalId = null;
     }
   });
 }

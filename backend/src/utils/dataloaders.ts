@@ -11,24 +11,71 @@ import type {Account, Category, Payee, User} from '@prisma/client';
 /**
  * Create a cache map with size limit to prevent unbounded memory growth
  * Uses LRU-like eviction when cache exceeds max size
+ * Implements DataLoader's CacheMap interface
  */
-class LimitedCacheMap<K, V> extends Map<K, V> {
+class LimitedCacheMap<K, V> implements Map<K, V> {
   private readonly maxSize: number;
+  private readonly map: Map<K, V>;
 
   constructor(maxSize: number) {
-    super();
     this.maxSize = maxSize;
+    this.map = new Map<K, V>();
+  }
+
+  get size(): number {
+    return this.map.size;
+  }
+
+  clear(): void {
+    this.map.clear();
+  }
+
+  delete(key: K): boolean {
+    return this.map.delete(key);
+  }
+
+  forEach(callbackfn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown): void {
+    this.map.forEach(callbackfn, thisArg);
+  }
+
+  get(key: K): V | undefined {
+    return this.map.get(key);
+  }
+
+  has(key: K): boolean {
+    return this.map.has(key);
   }
 
   set(key: K, value: V): this {
     // If cache is full, remove oldest entry (first in map)
-    if (this.size >= this.maxSize && !this.has(key)) {
-      const firstKey = this.keys().next().value;
+    if (this.map.size >= this.maxSize && !this.map.has(key)) {
+      const firstKey = this.map.keys().next().value;
       if (firstKey !== undefined) {
-        this.delete(firstKey);
+        this.map.delete(firstKey);
       }
     }
-    return super.set(key, value);
+    this.map.set(key, value);
+    return this;
+  }
+
+  entries(): IterableIterator<[K, V]> {
+    return this.map.entries();
+  }
+
+  keys(): IterableIterator<K> {
+    return this.map.keys();
+  }
+
+  values(): IterableIterator<V> {
+    return this.map.values();
+  }
+
+  [Symbol.iterator](): IterableIterator<[K, V]> {
+    return this.map[Symbol.iterator]();
+  }
+
+  get [Symbol.toStringTag](): string {
+    return 'LimitedCacheMap';
   }
 }
 
@@ -58,6 +105,9 @@ export function createAccountBalanceLoader(): DataLoader<string, number> {
     return accountIds.map((id) => accountMap.get(id) ?? 0);
     },
     {
+      // Type assertion needed: DataLoader's CacheMap interface expects get() to return Promise<V> | void,
+      // but our LimitedCacheMap returns V | undefined. DataLoader internally handles Promises,
+      // so this type mismatch is acceptable. The cache still works correctly.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       cacheMap: new LimitedCacheMap<string, number>(CACHE_SIZE_LIMIT) as any,
     },
@@ -80,6 +130,7 @@ export function createCategoryLoader(): DataLoader<string, Category | null> {
       return categoryIds.map((id) => categoryMap.get(id) ?? null);
     },
     {
+      // Type assertion needed: See comment in createAccountBalanceLoader for explanation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       cacheMap: new LimitedCacheMap<string, Category | null>(CACHE_SIZE_LIMIT) as any,
     },
@@ -102,6 +153,7 @@ export function createPayeeLoader(): DataLoader<string, Payee | null> {
       return payeeIds.map((id) => payeeMap.get(id) ?? null);
     },
     {
+      // Type assertion needed: See comment in createAccountBalanceLoader for explanation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       cacheMap: new LimitedCacheMap<string, Payee | null>(CACHE_SIZE_LIMIT) as any,
     },
@@ -124,6 +176,7 @@ export function createAccountLoader(): DataLoader<string, Account | null> {
       return accountIds.map((id) => accountMap.get(id) ?? null);
     },
     {
+      // Type assertion needed: See comment in createAccountBalanceLoader for explanation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       cacheMap: new LimitedCacheMap<string, Account | null>(CACHE_SIZE_LIMIT) as any,
     },
@@ -146,6 +199,7 @@ export function createUserLoader(): DataLoader<string, User | null> {
       return userIds.map((id) => userMap.get(id) ?? null);
     },
     {
+      // Type assertion needed: See comment in createAccountBalanceLoader for explanation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       cacheMap: new LimitedCacheMap<string, User | null>(CACHE_SIZE_LIMIT) as any,
     },

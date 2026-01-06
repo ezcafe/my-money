@@ -89,6 +89,7 @@ export class TransactionResolver {
             {isDefault: true},
           ],
         },
+        select: {id: true},
       });
 
       if (!category) {
@@ -108,6 +109,7 @@ export class TransactionResolver {
             {isDefault: true},
           ],
         },
+        select: {id: true},
       });
 
       if (!payee) {
@@ -267,6 +269,7 @@ export class TransactionResolver {
         id: validatedInput.accountId,
         userId: context.userId,
       },
+      select: {id: true},
     });
 
     if (!account) {
@@ -287,6 +290,7 @@ export class TransactionResolver {
                 {isDefault: true},
               ],
             },
+            select: {id: true, type: true},
           })
         : Promise.resolve(null),
       validatedInput.payeeId
@@ -298,6 +302,7 @@ export class TransactionResolver {
                 {isDefault: true},
               ],
             },
+            select: {id: true},
           })
         : Promise.resolve(null),
     ]);
@@ -407,6 +412,7 @@ export class TransactionResolver {
           id: validatedInput.accountId,
           userId: context.userId,
         },
+        select: {id: true},
       });
 
       if (!account) {
@@ -426,6 +432,7 @@ export class TransactionResolver {
               {isDefault: true},
             ],
           },
+          select: {id: true, type: true},
         });
 
         if (!foundCategory) {

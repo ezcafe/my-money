@@ -78,7 +78,7 @@ export function logWarn(message: string, context?: LogContext): void {
 /**
  * Log an error message
  * @param message - Log message
- * @param context - Additional context data
+ * @param context - Additional context data (should include userId and requestId for tracing)
  * @param error - Error object
  */
 export function logError(message: string, context?: LogContext, error?: Error): void {

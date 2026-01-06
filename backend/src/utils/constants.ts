@@ -43,3 +43,20 @@ export const MAX_GRAPHQL_BODY_SIZE = 2 * 1024 * 1024; // 2MB
 export const MAX_REGEX_PATTERN_LENGTH = 500;
 export const MAX_REGEX_INPUT_LENGTH = 10000;
 
+// String length constants
+export const MAX_ACCOUNT_NAME_LENGTH = 255;
+export const MAX_CATEGORY_NAME_LENGTH = 255;
+export const MAX_PAYEE_NAME_LENGTH = 255;
+export const MAX_TRANSACTION_NOTE_LENGTH = 1000;
+export const MAX_FILENAME_LENGTH = 255;
+
+// Cache and performance constants
+export const CACHE_EVICTION_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+export const CACHE_GC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Time constants
+export const ONE_MINUTE_MS = 60 * 1000;
+export const FIVE_MINUTES_MS = 5 * 60 * 1000;
+export const ONE_HOUR_MS = 60 * 60 * 1000;
+export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+

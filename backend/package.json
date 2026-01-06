@@ -33,6 +33,7 @@
     "graphql-scalars": "^1.25.0",
     "graphql-upload": "^16.0.0",
     "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^11.0.1",
     "node-cron": "^3.0.3",
     "openid-client": "^6.0.0",
     "pdf-parse": "^1.1.1",

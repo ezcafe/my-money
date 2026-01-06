@@ -130,6 +130,7 @@ export class BudgetResolver {
           id: validatedInput.accountId,
           userId: context.userId,
         },
+        select: {id: true},
       });
       if (!account) {
         throw new NotFoundError('Account');
@@ -145,6 +146,7 @@ export class BudgetResolver {
             {isDefault: true},
           ],
         },
+        select: {id: true},
       });
       if (!category) {
         throw new NotFoundError('Category');
@@ -160,6 +162,7 @@ export class BudgetResolver {
             {isDefault: true},
           ],
         },
+        select: {id: true},
       });
       if (!payee) {
         throw new NotFoundError('Payee');
@@ -174,6 +177,7 @@ export class BudgetResolver {
         categoryId: validatedInput.categoryId ?? null,
         payeeId: validatedInput.payeeId ?? null,
       },
+      select: {id: true},
     });
 
     if (existingBudget) {

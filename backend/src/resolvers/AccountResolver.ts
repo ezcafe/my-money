@@ -8,39 +8,18 @@ import type {GraphQLContext} from '../middleware/context';
 import {NotFoundError, ForbiddenError} from '../utils/errors';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {recalculateAccountBalance} from '../services/AccountBalanceService';
+import {AccountService} from '../services/AccountService';
 import {sanitizeUserInput} from '../utils/sanitization';
-import {DEFAULT_ACCOUNT_NAME} from '../utils/constants';
+import {BaseResolver} from './BaseResolver';
 
-export class AccountResolver {
+export class AccountResolver extends BaseResolver {
   /**
-   * Ensure a default account exists for the user
-   * Creates a default account if none exists or if no default account is found
+   * Get account service instance with context
+   * @param context - GraphQL context
+   * @returns Account service instance
    */
-  private async ensureDefaultAccount(context: GraphQLContext): Promise<void> {
-    // Check if user has a default account
-    const defaultAccount = await context.prisma.account.findFirst({
-      where: {
-        userId: context.userId,
-        isDefault: true,
-      },
-    });
-
-    // If no default account exists, create one
-    if (!defaultAccount) {
-      await withPrismaErrorHandling(
-        async () =>
-          await context.prisma.account.create({
-            data: {
-              name: DEFAULT_ACCOUNT_NAME,
-              initBalance: 0,
-              balance: 0, // New account has no transactions, balance equals initBalance
-              isDefault: true,
-              userId: context.userId,
-            },
-          }),
-        {resource: 'Account', operation: 'create'},
-      );
-    }
+  private getAccountService(context: GraphQLContext): AccountService {
+    return new AccountService(context.prisma);
   }
 
   /**
@@ -50,7 +29,8 @@ export class AccountResolver {
    */
   async accounts(_: unknown, __: unknown, context: GraphQLContext) {
     // Ensure a default account exists
-    await this.ensureDefaultAccount(context);
+    const accountService = this.getAccountService(context);
+    await accountService.ensureDefaultAccount(context.userId);
 
     const accounts = await context.prisma.account.findMany({
       where: {userId: context.userId},
@@ -98,6 +78,7 @@ export class AccountResolver {
         id: accountId,
         userId: context.userId,
       },
+      select: {id: true},
     });
 
     if (!account) {
@@ -151,6 +132,7 @@ export class AccountResolver {
         id,
         userId: context.userId,
       },
+      select: {id: true},
     });
 
     if (!existingAccount) {
@@ -192,16 +174,13 @@ export class AccountResolver {
    */
   async deleteAccount(_: unknown, {id}: {id: string}, context: GraphQLContext) {
     // Verify account belongs to user
-    const account = await context.prisma.account.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-    });
-
-    if (!account) {
-      throw new NotFoundError('Account');
-    }
+    const account = await this.requireEntityOwnership<{id: string; isDefault: boolean}>(
+      context.prisma,
+      'account',
+      id,
+      context.userId,
+      {id: true, isDefault: true},
+    );
 
     // Cannot delete default account
     if (account.isDefault) {

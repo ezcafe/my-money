@@ -62,6 +62,65 @@ export function validateFileExtension(filename: string): boolean {
 }
 
 /**
+ * Validate file content using magic numbers (file signatures)
+ * This is more secure than relying solely on file extensions or MIME types
+ * @param buffer - File buffer to check
+ * @param expectedType - Expected file type ('pdf' or 'csv')
+ * @returns True if magic number matches expected type
+ */
+export function validateFileMagicNumber(buffer: Buffer, expectedType: 'pdf' | 'csv'): boolean {
+  if (!buffer || buffer.length < 4) {
+    return false;
+  }
+
+  // Read first few bytes (magic number)
+  const magicBytes = buffer.subarray(0, Math.min(4, buffer.length));
+
+  if (expectedType === 'pdf') {
+    // PDF files start with %PDF (hex: 25 50 44 46)
+    const pdfMagic = Buffer.from('%PDF', 'utf-8');
+    return magicBytes.subarray(0, 4).equals(pdfMagic);
+  }
+
+  if (expectedType === 'csv') {
+    // CSV files are text files, so we check for common text encodings
+    // UTF-8 BOM: EF BB BF
+    // UTF-16 LE BOM: FF FE
+    // UTF-16 BE BOM: FE FF
+    // Or plain ASCII text (first byte should be printable ASCII: 0x20-0x7E)
+    const firstByte = magicBytes[0];
+    if (firstByte === undefined) {
+      return false;
+    }
+    const secondByte = magicBytes[1] ?? 0;
+    const thirdByte = magicBytes[2] ?? 0;
+
+    // Check for BOMs
+    if (firstByte === 0xEF && secondByte === 0xBB && thirdByte === 0xBF) {
+      return true; // UTF-8 BOM
+    }
+    if (firstByte === 0xFF && secondByte === 0xFE) {
+      return true; // UTF-16 LE BOM
+    }
+    if (firstByte === 0xFE && secondByte === 0xFF) {
+      return true; // UTF-16 BE BOM
+    }
+
+    // Check for printable ASCII (common for CSV files)
+    // ASCII printable range: 0x20 (space) to 0x7E (~)
+    if (firstByte >= 0x20 && firstByte <= 0x7E) {
+      // Check if it looks like text (not binary)
+      // CSV typically starts with letters, numbers, or quotes
+      return true;
+    }
+
+    return false;
+  }
+
+  return false;
+}
+
+/**
  * Match pattern against text with ReDoS protection
  * Tries regex first, falls back to case-insensitive string includes
  * Limits pattern length and checks for potentially dangerous regex patterns
@@ -369,7 +428,23 @@ export async function uploadPDF(
     cardNumber: string | null;
   }>;
 }> {  // Handle file parameter - it might be a Promise or already resolved
-  const fileData = file instanceof Promise ? await file : file;
+  let fileData = file instanceof Promise ? await file : file;
+
+  // If fileData is empty (Promise resolved to empty object due to serialization),
+  // try to retrieve from request context
+  if (fileData && typeof fileData === 'object' && Object.keys(fileData).length === 0) {
+    // Try to get file from request context (stored in multipart handler)
+    // Note: This is a fallback if Promise gets serialized
+    const request = context.request as {uploadFiles?: Record<string, {filename: string; mimetype?: string; encoding?: string; createReadStream: () => NodeJS.ReadableStream}>} | undefined;
+    if (request?.uploadFiles) {
+      // Get the first file (typically there's only one)
+      const fileKey = Object.keys(request.uploadFiles)[0];
+      if (fileKey && request.uploadFiles[fileKey]) {
+        fileData = request.uploadFiles[fileKey];
+      }
+    }
+  }
+
   // Check if fileData has the expected structure
   if (!fileData || typeof fileData !== 'object') {
     throw new ValidationError('Invalid file upload. File data is missing or invalid.');
@@ -442,6 +517,18 @@ export async function uploadPDF(
     // using alternative PDF parsing libraries that support streaming
     const {readFileSync} = await import('fs');
     const buffer: Buffer = readFileSync(tempPath) as Buffer;
+
+    // Validate file content using magic numbers (more secure than extension/MIME type)
+    if (!validateFileMagicNumber(buffer, 'pdf')) {
+      const {unlinkSync} = await import('fs');
+      try {
+        unlinkSync(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw new ValidationError('Invalid file content. File does not appear to be a valid PDF file.');
+    }
+
     // Parse PDF with date format (default to DD/MM/YYYY)
     const parsedData = await parsePDF(buffer, dateFormat ?? 'DD/MM/YYYY');
     const {cardNumber, transactions} = parsedData;
@@ -873,6 +960,34 @@ export async function saveImportedTransactions(
     });
 
     // 4. Match transactions by description and create Transaction records
+    // Batch category lookups for better performance
+    const categoryIds = new Set<string>();
+    for (const descMapping of descriptionPatterns.values()) {
+      if (descMapping.categoryId) {
+        categoryIds.add(descMapping.categoryId);
+      }
+    }
+    const categories = categoryIds.size > 0
+      ? await tx.category.findMany({
+          where: {id: {in: Array.from(categoryIds)}},
+          select: {id: true, type: true},
+        })
+      : [];
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+
+    // Process transactions - collect for potential batch create
+    const transactionsToCreate: Array<{
+      value: number;
+      date: Date;
+      accountId: string;
+      categoryId: string | null;
+      payeeId: string | null;
+      note: string;
+      userId: string;
+      importedId: string;
+      balanceDelta: number;
+    }> = [];
+
     for (const imported of allUnmapped) {
       // Normalize description before matching
       const normalizedDescription = normalizeDescription(imported.rawDescription);
@@ -892,37 +1007,52 @@ export async function saveImportedTransactions(
         const date = parseDate(imported.rawDate);
 
         // Get category to determine balance delta
-        let category: {type: 'INCOME' | 'EXPENSE'} | null = null;
-        if (descMapping.categoryId) {
-          const foundCategory = await tx.category.findUnique({
-            where: {id: descMapping.categoryId},
-            select: {type: true},
-          });
-          category = foundCategory;
-        }
+        const category = descMapping.categoryId ? categoryMap.get(descMapping.categoryId) ?? null : null;
 
         // Calculate balance delta based on category type
         const balanceDelta = category?.type === 'INCOME' ? value : -value;
 
+        transactionsToCreate.push({
+          value,
+          date,
+          accountId: descMapping.accountId,
+          categoryId: descMapping.categoryId ?? null,
+          payeeId: descMapping.payeeId ?? null,
+          note: imported.rawDescription,
+          userId: context.userId,
+          importedId: imported.id,
+          balanceDelta,
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errors.push(`Transaction ${imported.id}: ${errorMessage}`);
+      }
+    }
+
+    // Create transactions and update balances/imported transactions
+    // Note: We can't use createMany here because we need the transaction IDs
+    // to update imported transactions. However, we've optimized category lookups.
+    for (const txData of transactionsToCreate) {
+      try {
         // Create transaction
         const transaction = await tx.transaction.create({
           data: {
-            value,
-            date,
-            accountId: descMapping.accountId,
-            categoryId: descMapping.categoryId ?? null,
-            payeeId: descMapping.payeeId ?? null,
-            note: imported.rawDescription,
-            userId: context.userId,
+            value: txData.value,
+            date: txData.date,
+            accountId: txData.accountId,
+            categoryId: txData.categoryId,
+            payeeId: txData.payeeId,
+            note: txData.note,
+            userId: txData.userId,
           },
         });
 
         // Update account balance
-        await incrementAccountBalance(descMapping.accountId, balanceDelta, tx);
+        await incrementAccountBalance(txData.accountId, txData.balanceDelta, tx);
 
         // Mark ImportedTransaction as matched
         await tx.importedTransaction.update({
-          where: {id: imported.id},
+          where: {id: txData.importedId},
           data: {
             matched: true,
             transactionId: transaction.id,
@@ -932,7 +1062,7 @@ export async function saveImportedTransactions(
         savedCount++;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        errors.push(`Transaction ${imported.id}: ${errorMessage}`);
+        errors.push(`Transaction ${txData.importedId}: ${errorMessage}`);
       }
     }
   });
@@ -1153,6 +1283,20 @@ export async function importCSV(
         // Ignore cleanup errors
       }
       throw error;
+    }
+
+    // Validate file content using magic numbers (read first few bytes)
+    const {readFileSync: readFileSyncCSV} = await import('fs');
+    const fileBuffer = readFileSyncCSV(tempPath);
+    const firstBytes = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    if (!validateFileMagicNumber(firstBytes, 'csv')) {
+      const {unlinkSync} = await import('fs');
+      try {
+        unlinkSync(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw new ValidationError('Invalid file content. File does not appear to be a valid CSV/text file.');
     }
 
     // Stream CSV parsing line-by-line to avoid loading entire file into memory

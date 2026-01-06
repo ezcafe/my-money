@@ -177,34 +177,36 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
     },
-    onCompleted: async () => {
-      setError(null);
-      // Manually refetch queries to ensure data is updated
-      const queriesToRefetch = getCreateRefetchQueries();
-      if (queriesToRefetch.length > 0) {
-        try {
-          for (const query of queriesToRefetch) {
-            if (typeof query === 'string') {
-              await client.refetchQueries({include: [query]});
-            } else if ('query' in query) {
-              await client.query({
-                query: query.query,
-                variables: query.variables,
-                fetchPolicy: 'network-only',
-              });
-            } else {
-              await client.query({
-                query,
-                fetchPolicy: 'network-only',
-              });
+    onCompleted: () => {
+      void (async (): Promise<void> => {
+        setError(null);
+        // Manually refetch queries to ensure data is updated
+        const queriesToRefetch = getCreateRefetchQueries();
+        if (queriesToRefetch.length > 0) {
+          try {
+            for (const query of queriesToRefetch) {
+              if (typeof query === 'string') {
+                await client.refetchQueries({include: [query]});
+              } else if ('query' in query) {
+                await client.query({
+                  query: query.query,
+                  variables: query.variables,
+                  fetchPolicy: 'network-only',
+                });
+              } else {
+                await client.query({
+                  query,
+                  fetchPolicy: 'network-only',
+                });
+              }
             }
+          } catch (refetchError) {
+            // Silently handle refetch errors
+            console.warn('Error refetching queries:', refetchError);
           }
-        } catch (refetchError) {
-          // Silently handle refetch errors
-          console.warn('Error refetching queries:', refetchError);
         }
-      }
-      void navigate(returnTo, {replace: true});
+        void navigate(returnTo, {replace: true});
+      })();
     },
   });
 

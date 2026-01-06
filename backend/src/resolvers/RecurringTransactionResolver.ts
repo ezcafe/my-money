@@ -106,6 +106,7 @@ export class RecurringTransactionResolver {
         id: validatedInput.accountId,
         userId: context.userId,
       },
+      select: {id: true},
     });
 
     if (!account) {
@@ -122,6 +123,7 @@ export class RecurringTransactionResolver {
             {isDefault: true},
           ],
         },
+        select: {id: true},
       });
 
       if (!category) {
@@ -139,6 +141,7 @@ export class RecurringTransactionResolver {
             {isDefault: true},
           ],
         },
+        select: {id: true},
       });
 
       if (!payee) {
@@ -197,6 +200,7 @@ export class RecurringTransactionResolver {
         id,
         userId: context.userId,
       },
+      select: {id: true},
     });
 
     if (!existing) {
@@ -210,6 +214,7 @@ export class RecurringTransactionResolver {
           id: validatedInput.accountId,
           userId: context.userId,
         },
+        select: {id: true},
       });
 
       if (!account) {
@@ -249,6 +254,7 @@ export class RecurringTransactionResolver {
         id,
         userId: context.userId,
       },
+      select: {id: true},
     });
 
     if (!recurringTransaction) {
