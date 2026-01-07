@@ -3,7 +3,7 @@
  * Handles user-related GraphQL operations
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+ 
 import type {GraphQLContext} from '../middleware/context';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {validateContext} from '../utils/baseResolver';

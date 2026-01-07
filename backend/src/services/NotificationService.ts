@@ -3,7 +3,7 @@
  * Handles budget threshold notifications
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+ 
 import type {PrismaClient} from '@prisma/client';
 import {prisma} from '../utils/prisma';
 

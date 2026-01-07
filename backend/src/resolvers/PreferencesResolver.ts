@@ -3,7 +3,7 @@
  * Handles user preferences GraphQL operations
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+
 import type {GraphQLContext} from '../middleware/context';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
@@ -25,15 +25,13 @@ export class PreferencesResolver {
     });
 
     // Create default preferences if they don't exist
-    if (!preferences) {
-      preferences = await context.prisma.userPreferences.create({
-        data: {
-          userId: context.userId,
-          currency: 'USD',
-          useThousandSeparator: true,
-        },
-      });
-    }
+    preferences ??= await context.prisma.userPreferences.create({
+      data: {
+        userId: context.userId,
+        currency: 'USD',
+        useThousandSeparator: true,
+      },
+    });
 
     return preferences;
   }

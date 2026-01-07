@@ -100,9 +100,8 @@ export async function registerSecurityPlugins(fastify: FastifyInstance): Promise
       if (process.env.NODE_ENV === 'production') {
         if (allowedOrigins.length > 0) {
           const isValidOrigin =
-            (origin && allowedOrigins.includes(origin)) ||
-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-            (referer && allowedOrigins.some((allowed) => referer.startsWith(allowed)));
+            (origin !== undefined && allowedOrigins.includes(origin)) ||
+            (referer !== undefined && allowedOrigins.some((allowed) => referer.startsWith(allowed)));
 
           if (!isValidOrigin) {
             return reply.code(403).send({

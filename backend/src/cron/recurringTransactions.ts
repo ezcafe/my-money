@@ -4,7 +4,7 @@
  * Includes retry logic, structured logging, and error tracking
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+ 
 import cron from 'node-cron';
 import {prisma} from '../utils/prisma';
 import {retry, isRetryableError} from '../utils/retry';

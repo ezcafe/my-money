@@ -3,7 +3,7 @@
  * Handles PDF import and transaction matching operations
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import type {GraphQLContext} from '../middleware/context';
 import {NotFoundError, ValidationError} from '../utils/errors';
 import {parsePDF} from '../services/PDFParser';
@@ -195,18 +195,16 @@ async function getDefaultAccount(context: GraphQLContext) {
     },
   });
 
-  if (!account) {
-    // Create default account if none exists
-    account = await context.prisma.account.create({
-      data: {
-        name: 'Cash',
-        initBalance: 0,
-        balance: 0,
-        isDefault: true,
-        userId: context.userId,
-      },
-    });
-  }
+  // Create default account if none exists
+  account ??= await context.prisma.account.create({
+    data: {
+      name: 'Cash',
+      initBalance: 0,
+      balance: 0,
+      isDefault: true,
+      userId: context.userId,
+    },
+  });
 
   return account;
 }
@@ -226,17 +224,15 @@ async function getDefaultCategory(context: GraphQLContext) {
     },
   });
 
-  if (!category) {
-    // Create default expense category if none exists
-    category = await context.prisma.category.create({
-      data: {
-        name: 'Default Expense Category',
-        type: 'EXPENSE',
-        isDefault: true,
-        userId: null,
-      },
-    });
-  }
+  // Create default expense category if none exists
+  category ??= await context.prisma.category.create({
+    data: {
+      name: 'Default Expense Category',
+      type: 'EXPENSE',
+      isDefault: true,
+      userId: null,
+    },
+  });
 
   return category;
 }
@@ -256,16 +252,14 @@ async function getDefaultPayee(context: GraphQLContext) {
     },
   });
 
-  if (!payee) {
-    // Create default payee if none exists
-    payee = await context.prisma.payee.create({
-      data: {
-        name: 'Default Payee',
-        isDefault: true,
-        userId: null,
-      },
-    });
-  }
+  // Create default payee if none exists
+  payee ??= await context.prisma.payee.create({
+    data: {
+      name: 'Default Payee',
+      isDefault: true,
+      userId: null,
+    },
+  });
 
   return payee;
 }
@@ -511,7 +505,7 @@ export async function uploadPDF(
     }
 
     // Read file buffer
-    // Note: pdf-parse library requires the entire file in memory
+    // Note: pdfjs-dist requires the entire file in memory
     // This is a limitation of the library, not our implementation
     // For production, consider monitoring memory usage and potentially
     // using alternative PDF parsing libraries that support streaming
@@ -670,9 +664,10 @@ export async function uploadPDF(
       savedCount += batchResults.filter((result) => result === true).length;
     }
 
-    // Deduplicate unmapped transactions by normalized description
-    // Group by normalized description and return only one simplified version per group
-    const normalizedDescriptionMap = new Map<string, {
+    // Deduplicate unmapped transactions by raw description, date, and amount
+    // This prevents showing truly duplicate transactions while preserving unique identifiers
+    // Use composite key: rawDescription + date + debit + credit
+    const deduplicationKeyMap = new Map<string, {
       id: string;
       rawDate: string;
       rawDescription: string;
@@ -685,18 +680,21 @@ export async function uploadPDF(
     }>();
 
     for (const unmapped of unmappedTransactions) {
-      const normalizedDesc = normalizeDescription(unmapped.rawDescription);
-      // Use normalized description as key - if not exists, add it with simplified description
-      if (!normalizedDescriptionMap.has(normalizedDesc)) {
-        normalizedDescriptionMap.set(normalizedDesc, {
+      // Create composite key: rawDescription + date + debit + credit
+      // This ensures we only deduplicate truly identical transactions
+      const deduplicationKey = `${unmapped.rawDescription}|${unmapped.rawDate}|${unmapped.rawDebit ?? ''}|${unmapped.rawCredit ?? ''}`;
+
+      // Only add if we haven't seen this exact combination before
+      if (!deduplicationKeyMap.has(deduplicationKey)) {
+        deduplicationKeyMap.set(deduplicationKey, {
           ...unmapped,
-          rawDescription: normalizedDesc, // Use simplified version
+          // Keep original rawDescription - don't replace with normalized version
         });
       }
     }
 
     // Convert map values to array
-    const deduplicatedUnmapped = Array.from(normalizedDescriptionMap.values());
+    const deduplicatedUnmapped = Array.from(deduplicationKeyMap.values());
 
     return {
       success: true,
@@ -1629,10 +1627,10 @@ async function importTransaction(
   }
 
   // Validate category if provided - if not found, set to null instead of failing
-  let categoryId: string | null = row.categoryId || null;
+  let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, userId: userId || null},
+      where: {id: categoryId, userId: userId ?? null},
     });
     if (!category) {
       // Category not found - set to null instead of failing the import
@@ -1642,10 +1640,10 @@ async function importTransaction(
   }
 
   // Validate payee if provided - if not found, set to null instead of failing
-  let payeeId: string | null = row.payeeId || null;
+  let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, userId: userId || null},
+      where: {id: payeeId, userId: userId ?? null},
     });
     if (!payee) {
       // Payee not found - set to null instead of failing the import
@@ -1660,7 +1658,7 @@ async function importTransaction(
     accountId: row.accountId,
     categoryId,
     payeeId,
-    note: row.note || null,
+    note: row.note ?? null,
     userId,
   };
 
@@ -1726,9 +1724,9 @@ async function importRecurringTransaction(
     cronExpression: row.cronExpression,
     value: parseFloat(row.value),
     accountId: row.accountId,
-    categoryId: row.categoryId || null,
-    payeeId: row.payeeId || null,
-    note: row.note || null,
+    categoryId: row.categoryId ?? null,
+    payeeId: row.payeeId ?? null,
+    note: row.note ?? null,
     nextRunDate: new Date(row.nextRunDate),
     userId,
   };
@@ -1760,10 +1758,10 @@ async function importPreferences(
   userId: string,
 ): Promise<void> {
   const data = {
-    currency: row.currency || 'USD',
+    currency: row.currency ?? 'USD',
     useThousandSeparator: row.useThousandSeparator === 'true' || row.useThousandSeparator === '1',
-    colorScheme: row.colorScheme || null,
-    colorSchemeValue: row.colorSchemeValue || null,
+    colorScheme: row.colorScheme ?? null,
+    colorSchemeValue: row.colorSchemeValue ?? null,
     userId,
   };
 
@@ -1788,7 +1786,7 @@ async function importBudget(
   }
 
   // Validate account if provided
-  let accountId: string | null = row.accountId || null;
+  let accountId: string | null = row.accountId ?? null;
   if (accountId) {
     const account = await tx.account.findFirst({
       where: {id: accountId, userId},
@@ -1799,10 +1797,10 @@ async function importBudget(
   }
 
   // Validate category if provided
-  let categoryId: string | null = row.categoryId || null;
+  let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, userId: userId || null},
+      where: {id: categoryId, userId: userId ?? null},
     });
     if (!category) {
       categoryId = null;
@@ -1810,10 +1808,10 @@ async function importBudget(
   }
 
   // Validate payee if provided
-  let payeeId: string | null = row.payeeId || null;
+  let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, userId: userId || null},
+      where: {id: payeeId, userId: userId ?? null},
     });
     if (!payee) {
       payeeId = null;
@@ -1861,7 +1859,7 @@ async function importImportMatchRule(
   }
 
   // Validate account if provided
-  let accountId: string | null = row.accountId || null;
+  let accountId: string | null = row.accountId ?? null;
   if (accountId) {
     const account = await tx.account.findFirst({
       where: {id: accountId, userId},
@@ -1872,10 +1870,10 @@ async function importImportMatchRule(
   }
 
   // Validate category if provided
-  let categoryId: string | null = row.categoryId || null;
+  let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, userId: userId || null},
+      where: {id: categoryId, userId: userId ?? null},
     });
     if (!category) {
       categoryId = null;
@@ -1883,10 +1881,10 @@ async function importImportMatchRule(
   }
 
   // Validate payee if provided
-  let payeeId: string | null = row.payeeId || null;
+  let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, userId: userId || null},
+      where: {id: payeeId, userId: userId ?? null},
     });
     if (!payee) {
       payeeId = null;

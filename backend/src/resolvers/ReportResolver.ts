@@ -3,7 +3,7 @@
  * Handles report-related GraphQL operations
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+ 
 import type {GraphQLContext} from '../middleware/context';
 import {z} from 'zod';
 import {validate} from '../utils/validation';

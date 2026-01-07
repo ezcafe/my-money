@@ -31,7 +31,7 @@ export function handlePrismaError(
     switch (error.code) {
       case 'P2002': {
         // Unique constraint violation
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+         
         const target = error.meta?.target as string[] | undefined;
         const field = target?.[0] ?? 'field';
         throw new ValidationError(
@@ -73,7 +73,7 @@ export function handlePrismaError(
       case 'P2011': {
         // Null constraint violation
         throw new ValidationError(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+           
           `Required field is missing: ${error.meta?.target as string}`,
         );
       }
@@ -81,7 +81,7 @@ export function handlePrismaError(
       case 'P2012': {
         // Missing required value
         throw new ValidationError(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+           
           `Missing required value: ${error.meta?.target as string}`,
         );
       }
@@ -105,7 +105,7 @@ export function handlePrismaError(
       case 'P2017': {
         // Records for relation not connected
         throw new ValidationError(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+           
           `Records are not properly connected: ${error.meta?.relation_name as string}`,
         );
       }
@@ -113,7 +113,7 @@ export function handlePrismaError(
       case 'P2018': {
         // Required connected records not found
         throw new NotFoundError(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+           
           `Required connected records not found: ${error.meta?.details as string}`,
         );
       }
@@ -121,7 +121,7 @@ export function handlePrismaError(
       case 'P2019': {
         // Input error
         throw new ValidationError(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+           
           `Invalid input: ${error.meta?.details as string}`,
         );
       }
@@ -129,7 +129,7 @@ export function handlePrismaError(
       case 'P2020': {
         // Value out of range
         throw new ValidationError(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+           
           `Value out of range: ${error.meta?.details as string}`,
         );
       }
@@ -137,7 +137,7 @@ export function handlePrismaError(
       case 'P2021': {
         // Table does not exist
         throw new AppError(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+           
           `Database table not found: ${error.meta?.table as string}`,
           'DATABASE_ERROR',
           500,
@@ -147,7 +147,7 @@ export function handlePrismaError(
       case 'P2022': {
         // Column does not exist
         throw new AppError(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+           
           `Database column not found: ${error.meta?.column as string}`,
           'DATABASE_ERROR',
           500,
@@ -201,7 +201,7 @@ export function handlePrismaError(
 
   // Handle Prisma validation errors
   if (error instanceof Prisma.PrismaClientValidationError) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+     
     const firstLine = error.message.split('\n')[0];
     throw new ValidationError(
       `Invalid input data: ${firstLine as string}`,

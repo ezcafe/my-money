@@ -21,7 +21,7 @@ export function inputSanitizationPlugin(): ApolloServerPlugin<GraphQLContext | R
             requestContext.request.variables = sanitizeInput(requestContext.request.variables);
           }
         },
-      });
+      } as GraphQLRequestListener<GraphQLContext | Record<string, never>>);
     },
   };
 }

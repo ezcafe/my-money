@@ -63,9 +63,7 @@ export async function updateTransactionWithBalance(
     ? oldValue
     : -oldValue;
 
-  const newValue = validatedInput.value !== undefined
-    ? validatedInput.value
-    : oldValue;
+  const newValue = validatedInput.value ?? oldValue;
   const oldAccountId = existingTransaction.accountId;
   const newAccountId = validatedInput.accountId ?? oldAccountId;
 

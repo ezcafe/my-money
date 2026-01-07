@@ -4,7 +4,7 @@
  * Tracks spending against budgets for accounts, categories, or payees
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+ 
 import type {PrismaClient} from '@prisma/client';
 import {prisma} from '../utils/prisma';
 import {createBudgetNotification} from './NotificationService';

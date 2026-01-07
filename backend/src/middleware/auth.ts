@@ -4,7 +4,7 @@
  */
 
 import * as oidc from 'openid-client';
-import LRUCache from 'lru-cache';
+import {LRUCache} from 'lru-cache';
 import {UnauthorizedError} from '../utils/errors';
 
 // Type aliases for openid-client types

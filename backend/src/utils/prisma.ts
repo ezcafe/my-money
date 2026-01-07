@@ -2,12 +2,16 @@
  * Prisma client singleton
  * Ensures only one instance of PrismaClient is created
  * Configured with connection pooling and best practices
+ *
+ * Prisma 7+ requires using an adapter for database connections
  */
 
 import {PrismaClient} from '@prisma/client';
+import {PrismaPg} from '@prisma/adapter-pg';
+import {Pool} from 'pg';
 
 interface GlobalForPrisma {
-  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+   
   prisma: PrismaClient | undefined;
 }
 
@@ -36,18 +40,30 @@ const globalForPrisma = globalThis as unknown as GlobalForPrisma;
  * Recommended DATABASE_URL format:
  * postgresql://user:pass@host:5432/db?connection_limit=100&pool_timeout=20&connect_timeout=10&command_timeout=30000
  */
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+// Create PostgreSQL pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 100, // Maximum number of clients in the pool
+  connectionTimeoutMillis: 10000, // 10 seconds
+  idleTimeoutMillis: 30000, // 30 seconds
+});
+
+// Create Prisma adapter
+const adapter = new PrismaPg(pool);
+
+ 
 export const prisma =
   globalForPrisma.prisma ??
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+   
   new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     // Connection pool settings and timeouts are configured via DATABASE_URL query parameters
     // See documentation above for recommended timeout values
   });
 
 if (process.env.NODE_ENV !== 'production') {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+   
   globalForPrisma.prisma = prisma;
 }
 
@@ -56,7 +72,7 @@ if (process.env.NODE_ENV !== 'production') {
  * Should be called on application shutdown
  */
 export async function disconnectPrisma(): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+   
   await prisma.$disconnect();
 }
 

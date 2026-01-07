@@ -3,7 +3,8 @@
  * Extracts transaction data from credit card statement PDFs
  */
 
-import pdfParse from 'pdf-parse';
+// Use legacy build for Node.js environments (avoids DOMMatrix dependency)
+import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {logDebug} from '../utils/logger';
 
 export interface ParsedTransaction {
@@ -95,26 +96,31 @@ function isValidDate(dateStr: string, format: string): boolean {
   }
 
   // Create regex pattern based on format
+  // Accept both dashes and slashes for formats that use them
   let pattern: RegExp;
   switch (format) {
     case 'DD/MM/YYYY':
-      pattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+      // Accept both DD/MM/YYYY and DD-MM-YYYY
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/;
       break;
     case 'MM/DD/YYYY':
-      pattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+      // Accept both MM/DD/YYYY and MM-DD-YYYY
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/;
       break;
     case 'YYYY-MM-DD':
       pattern = /^(\d{4})-(\d{2})-(\d{2})$/;
       break;
     case 'DD-MM-YYYY':
-      pattern = /^(\d{1,2})-(\d{1,2})-(\d{4})$/;
+      // Accept both DD-MM-YYYY and DD/MM/YYYY
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/;
       break;
     case 'MM-DD-YYYY':
-      pattern = /^(\d{1,2})-(\d{1,2})-(\d{4})$/;
+      // Accept both MM-DD-YYYY and MM/DD/YYYY
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/;
       break;
     default:
-      // Default to DD/MM/YYYY
-      pattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+      // Default to DD/MM/YYYY (accept both separators)
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/;
   }
 
   const match = trimmed.match(pattern);
@@ -176,26 +182,31 @@ function parseDateByFormat(dateStr: string, format: string): string {
   }
 
   // Try to match the format pattern
+  // Accept both dashes and slashes for formats that use them
   let pattern: RegExp;
   switch (format) {
     case 'DD/MM/YYYY':
-      pattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+      // Accept both DD/MM/YYYY and DD-MM-YYYY
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/;
       break;
     case 'MM/DD/YYYY':
-      pattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+      // Accept both MM/DD/YYYY and MM-DD-YYYY
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/;
       break;
     case 'YYYY-MM-DD':
       pattern = /^(\d{4})-(\d{2})-(\d{2})/;
       break;
     case 'DD-MM-YYYY':
-      pattern = /^(\d{1,2})-(\d{1,2})-(\d{4})/;
+      // Accept both DD-MM-YYYY and DD/MM/YYYY
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/;
       break;
     case 'MM-DD-YYYY':
-      pattern = /^(\d{1,2})-(\d{1,2})-(\d{4})/;
+      // Accept both MM-DD-YYYY and MM/DD/YYYY
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/;
       break;
     default:
-      // Default to DD/MM/YYYY
-      pattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+      // Default to DD/MM/YYYY (accept both separators)
+      pattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/;
   }
 
   const match = trimmed.match(pattern);
@@ -239,8 +250,8 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
       const hasTransactionDate = line.includes('transaction date');
       const hasDescription = line.includes('description');
 
-      // Check for amount column (Amounts, Debit, Credit, or Paid)
-      const hasAmount = line.includes('amounts') ||
+      // Check for amount column (Amount, Debit, Credit, or Paid)
+      const hasAmount = line.includes('amount') ||
                        line.includes('debit') ||
                        line.includes('credit') ||
                        line.includes('paid');
@@ -253,9 +264,9 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
         dateColumnIndex = columns.findIndex((col) => col.includes('transaction date') || col.includes('date'));
         descriptionColumnIndex = columns.findIndex((col) => col.includes('description'));
 
-        // Find amount column (check for Amounts, Debit, Credit, or Paid)
+        // Find amount column (check for Amount, Debit, Credit, or Paid)
         amountColumnIndex = columns.findIndex((col) =>
-          col.includes('amounts') ||
+          col.includes('amount') ||
           col.includes('debit') ||
           col.includes('credit') ||
           col.includes('paid')
@@ -270,8 +281,38 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
       }
     }
 
+    // If no explicit header found, try to detect table by data pattern
+    // Look for lines that start with two dates (DD-MM-YYYY or DD/MM/YYYY format)
+    // This handles PDFs without explicit headers but with Date and Description data
+    let patternBasedTableFound = false;
+    if (headerRowIndex < 0) {
+      // Pattern: two dates at start of line (transaction date and posting date)
+      // Example: "06-12-2025  06-12-2025  9941  MOCA  40.000"
+      const twoDatePattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\s+(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/;
+
+      for (let i = currentLineIndex; i < Math.min(lines.length, currentLineIndex + 200); i++) {
+        const line = lines[i]?.trim();
+        if (!line) continue;
+
+        // Check if line starts with two dates (pattern for transaction row)
+        const match = line.match(twoDatePattern);
+        if (match) {
+          // Validate first date
+          const firstDateStr = `${match[1]}-${match[2]}-${match[3]}`;
+          if (isValidDate(firstDateStr, dateFormat)) {
+            // Found potential transaction data - treat this as start of table
+            headerRowIndex = -1; // No explicit header
+            dataStartRowIndex = i;
+            patternBasedTableFound = true;
+            break;
+          }
+        }
+      }
+    }
+
     // If single-line header not found OR description column not found, try multi-line header detection
-    if (headerRowIndex < 0 || descriptionColumnIndex < 0) {
+    // BUT skip if pattern-based table was already found
+    if (!patternBasedTableFound && (headerRowIndex < 0 || descriptionColumnIndex < 0)) {
       // Reset indices if we're re-detecting
       if (headerRowIndex >= 0 && descriptionColumnIndex < 0) {
         headerRowIndex = -1;
@@ -369,31 +410,167 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
 
     // Check if we detected multi-line headers (indicated by descriptionColumnIndex or amountColumnIndex being -1)
     const isMultiLineFormat = descriptionColumnIndex < 0 || amountColumnIndex < 0;
+    // If pattern-based table was found, it's a pattern-based detection (no explicit header)
+    const isPatternBasedTable = patternBasedTableFound;
 
     // If table structure not found, continue to next section
     // For multi-line format, descriptionColumnIndex can be -1 (description is on separate line)
     // For single-line format, we require descriptionColumnIndex >= 0
     // Rule 1: Process tables with description column
-    if (headerRowIndex < 0 || dataStartRowIndex < 0) {
-      // No table found, move to next section
-      currentLineIndex = Math.max(currentLineIndex + 1, headerRowIndex + 1);
-      continue;
-    }
-    if (!isMultiLineFormat && descriptionColumnIndex < 0) {
-      // Table found but no description column, skip this table
-      currentLineIndex = headerRowIndex + 1;
-      continue;
+    if (!isPatternBasedTable) {
+      if (headerRowIndex < 0 || dataStartRowIndex < 0) {
+        // No table found, move to next section
+        currentLineIndex = Math.max(currentLineIndex + 1, headerRowIndex + 1);
+        continue;
+      }
+      if (!isMultiLineFormat && descriptionColumnIndex < 0) {
+        // Table found but no description column, skip this table
+        currentLineIndex = headerRowIndex + 1;
+        continue;
+      }
     }
 
     let tableEndRow = -1;
 
     // Parse transaction rows from this table
-    if (isMultiLineFormat) {
+    if (isPatternBasedTable) {
+      // Pattern-based table: parse lines that start with two dates
+      // Format: "DD-MM-YYYY  DD-MM-YYYY  [identifier]  [description]  [amount]"
+      // Example: "06-12-2025  06-12-2025  9941  MOCA  40.000"
+      const twoDatePattern = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\s+(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/;
+
+      for (let i = dataStartRowIndex; i < lines.length; i++) {
+        const line = lines[i]?.trim();
+        if (!line) {
+          // Empty line might indicate end of table
+          if (tableEndRow < 0) {
+            tableEndRow = i - 1;
+          }
+          continue;
+        }
+
+        // Check if line starts with two dates
+        const match = line.match(twoDatePattern);
+        if (!match) {
+          // No more transaction rows
+          if (tableEndRow < 0) {
+            tableEndRow = i - 1;
+          }
+          // Check if this looks like a summary line (e.g., "OUTSTANDING BALANCE")
+          const lowerLine = line.toLowerCase();
+          if (lowerLine.includes('balance') || lowerLine.includes('total') || lowerLine.includes('summary')) {
+            break;
+          }
+          continue;
+        }
+
+        // Extract first date (transaction date)
+        const day1 = parseInt(match[1] ?? '0', 10);
+        const month1 = parseInt(match[2] ?? '0', 10);
+        const year1 = parseInt(match[3] ?? '0', 10);
+
+        // Build date string in the specified format
+        const separator = dateFormat.includes('-') ? '-' : '/';
+        let dateStr: string;
+        if (dateFormat === 'MM/DD/YYYY' || dateFormat === 'MM-DD-YYYY') {
+          dateStr = `${month1.toString().padStart(2, '0')}${separator}${day1.toString().padStart(2, '0')}${separator}${year1}`;
+        } else if (dateFormat === 'YYYY-MM-DD') {
+          dateStr = `${year1}${separator}${month1.toString().padStart(2, '0')}${separator}${day1.toString().padStart(2, '0')}`;
+        } else {
+          // DD/MM/YYYY or DD-MM-YYYY (default)
+          dateStr = `${day1.toString().padStart(2, '0')}${separator}${month1.toString().padStart(2, '0')}${separator}${year1}`;
+        }
+
+        // Validate date
+        if (!isValidDate(dateStr, dateFormat)) {
+          continue;
+        }
+
+        // Extract remaining part after dates: [identifier][description][amount]
+        const afterDates = line.substring(match[0]?.length ?? 0).trim();
+
+        // Find amount - PDF format has both DR and CR amounts: "[desc] [DR amount] DR  0 CR" or "[desc]  0 DR  [CR amount] CR"
+        // Extract both and use the non-zero one
+        let amountStr: string | null = null;
+        let isCredit = false;
+
+        // Try to match pattern: [number] DR  [number] CR
+        const drCrPattern = /([\d.,]+)\s+DR\s+([\d.,]+)\s+CR$/i;
+        const drCrMatch = afterDates.match(drCrPattern);
+
+        if (drCrMatch) {
+          const drAmount = drCrMatch[1];
+          const crAmount = drCrMatch[2];
+          // Use the non-zero amount
+          if (drAmount && drAmount !== '0' && !drAmount.match(/^0+[.,]?0*$/)) {
+            amountStr = drAmount;
+            isCredit = false;
+          } else if (crAmount && crAmount !== '0' && !crAmount.match(/^0+[.,]?0*$/)) {
+            amountStr = crAmount;
+            isCredit = true;
+          }
+        } else {
+          // Fallback: look for number with optional CR/DR suffix
+          const suffixMatch = afterDates.match(/\s*(CR|DR|CREDIT|DEBIT)$/i);
+          if (suffixMatch) {
+            const beforeSuffix = afterDates.substring(0, suffixMatch.index).trim();
+            const amountMatch = beforeSuffix.match(/([\d.,]+)\s*$/);
+            if (amountMatch?.[1]) {
+              amountStr = amountMatch[1];
+              isCredit = /CR|CREDIT/i.test(suffixMatch[1]);
+            }
+          } else {
+            // No suffix: take the last number sequence
+            const lastNumberMatch = afterDates.match(/([\d.,]+)$/);
+            if (lastNumberMatch?.[1] && lastNumberMatch[1].length <= 15) {
+              amountStr = lastNumberMatch[1];
+            }
+          }
+        }
+
+        if (!amountStr) continue;
+
+        // Parse amount (handle Vietnamese format: dots as thousand separators)
+        const amountValue = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
+        if (isNaN(amountValue) || amountValue === 0) continue;
+
+        // Extract description (everything between dates and amount)
+        let description: string;
+        if (drCrMatch) {
+          // For DR/CR format, description is everything before the DR amount
+          const drAmountStart = afterDates.indexOf(drCrMatch[1]);
+          description = afterDates.substring(0, drAmountStart).trim();
+        } else {
+          // For other formats, use lastIndexOf to find amount
+          const amountStartIndex = afterDates.lastIndexOf(amountStr);
+          description = afterDates.substring(0, amountStartIndex).trim();
+        }
+
+        // Remove identifier if present (usually 4 digits at start)
+        description = description.replace(/^\d{4}\s+/, '').trim();
+        if (!description || description.length < 2) continue;
+
+        // Determine debit/credit (already set from amount extraction above)
+        const isDebit = !isCredit;
+
+        const parsedTransaction: ParsedTransaction = {
+          date: dateStr,
+          description,
+          debit: isDebit ? amountValue : undefined,
+          credit: isCredit ? amountValue : undefined,
+        };
+
+        transactions.push(parsedTransaction);
+        tableEndRow = i;
+      }
+    } else if (isMultiLineFormat) {
       // Multi-line format: each transaction spans 3 lines (date, description, amounts)
+      // But also check if rows are actually single-line concatenated format
       for (let i = dataStartRowIndex; i < lines.length - 2; i += 3) {
       const dateLine = lines[i]?.trim();
       const descriptionLine = lines[i + 1]?.trim();
       const amountLine = lines[i + 2]?.trim();
+
 
       logDebug('Raw transaction row (multi-line format)', {
         dateLine,
@@ -519,7 +696,7 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
         // Check if we've hit a new table header (stop processing this table)
         const lowerLine = line.toLowerCase();
         if (lowerLine.includes('transaction date') && lowerLine.includes('description') &&
-            (lowerLine.includes('amounts') || lowerLine.includes('debit') ||
+            (lowerLine.includes('amount') || lowerLine.includes('debit') ||
              lowerLine.includes('credit') || lowerLine.includes('paid'))) {
           // Found next table header, stop processing this one
           tableEndRow = i;
@@ -581,10 +758,26 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
 
         // Determine if it's debit or credit based on column name or suffix
         const headerLine = headerRowIndex >= 0 ? lines[headerRowIndex] : undefined;
+        const headerLineLower = headerLine?.toLowerCase() ?? '';
+
+        // Get header columns to check the amount column name
+        const headerColumns = headerLineLower.split(/\s{2,}|\t/).map((col) => col.trim());
+        const rawAmountColumnName = amountColumnIndex >= 0 ? headerColumns[amountColumnIndex] : '';
+        const amountColumnName = rawAmountColumnName ?? '';
+
+        // Check if amount column is "Amount" (not "Debit", or "Credit")
+        const isAmountColumn = amountColumnName.includes('amount') &&
+                               !amountColumnName.includes('debit') &&
+                               !amountColumnName.includes('credit');
+
+        // For "Amount" column: treat as credit if value > 0 and has "CR" suffix
+        // Otherwise, use standard logic for Debit/Credit columns
         const isDebit = /DR|DEBIT/i.test(amountStr) ||
-                        (headerLine?.toLowerCase().includes('debit') ?? false);
+                        (amountColumnName.includes('debit') && !isAmountColumn) ||
+                        (isAmountColumn && /DR/i.test(amountStr));
         const isCredit = /CR|CREDIT/i.test(amountStr) ||
-                         (headerLine?.toLowerCase().includes('credit') ?? false);
+                         (amountColumnName.includes('credit') && !isAmountColumn) ||
+                         (isAmountColumn && /CR/i.test(amountStr) && amountValue > 0);
 
         // Create transaction
         let debit: number | undefined;
@@ -627,7 +820,241 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
     }
   }
 
+  // Also try parsing concatenated single-line format (always run as fallback)
+  // Pattern: DD-MM-YYYYDD-MM-YYYY[identifier][description][amount]
+  // Example: 06-12-202506-12-20259941MOCA40.000
+  // Search entire text for these patterns (they may be embedded in longer lines)
+
+  // Search entire text for concatenated transaction patterns
+  // Pattern: two dates concatenated (DD-MM-YYYYDD-MM-YYYY or DD/MM/YYYYDD/MM/YYYY)
+  // Accept both dashes and slashes, and match anywhere in the text (not just start of line)
+  const concatenatedDatePattern = /(\d{1,2})[/-](\d{1,2})[/-](\d{4})(\d{1,2})[/-](\d{1,2})[/-](\d{4})/g;
+  let match;
+  const fullText = text;
+
+  while ((match = concatenatedDatePattern.exec(fullText)) !== null) {
+    const matchStart = match.index;
+    const matchEnd = matchStart + (match[0]?.length ?? 0);
+
+    // Find the line containing this match and extract the full line context
+    let lineStart = matchStart;
+    while (lineStart > 0 && fullText[lineStart - 1] !== '\n') {
+      lineStart--;
+    }
+    let lineEnd = matchEnd;
+    while (lineEnd < fullText.length && fullText[lineEnd] !== '\n') {
+      lineEnd++;
+    }
+    const line = fullText.substring(lineStart, lineEnd).trim();
+
+    // Skip if this line was already parsed as a transaction
+    const alreadyParsed = transactions.some((txn) => {
+      const txnLine = `${txn.date}${txn.description}${txn.debit ?? txn.credit ?? ''}`;
+      return line.includes(txnLine) || txnLine.includes(line.substring(0, 50));
+    });
+    if (alreadyParsed) continue;
+
+    // Extract first date (transaction date)
+    const day1 = parseInt(match[1] ?? '0', 10);
+    const month1 = parseInt(match[2] ?? '0', 10);
+    const year1 = parseInt(match[3] ?? '0', 10);
+
+    // Build date string in the specified format (use separator from format)
+    const separator = dateFormat.includes('-') ? '-' : '/';
+    let dateStr: string;
+    if (dateFormat === 'MM/DD/YYYY' || dateFormat === 'MM-DD-YYYY') {
+      dateStr = `${month1.toString().padStart(2, '0')}${separator}${day1.toString().padStart(2, '0')}${separator}${year1}`;
+    } else if (dateFormat === 'YYYY-MM-DD') {
+      dateStr = `${year1}${separator}${month1.toString().padStart(2, '0')}${separator}${day1.toString().padStart(2, '0')}`;
+    } else {
+      // DD/MM/YYYY or DD-MM-YYYY (default)
+      dateStr = `${day1.toString().padStart(2, '0')}${separator}${month1.toString().padStart(2, '0')}${separator}${year1}`;
+    }
+
+    // Validate date
+    if (!isValidDate(dateStr, dateFormat)) {
+      continue;
+    }
+
+    // Extract remaining part after dates: [identifier][description][amount]
+    const afterDates = line.substring(match[0]?.length ?? 0);
+
+    // Find amount at the end - be more precise to avoid matching numbers in description
+    // The amount is the number sequence immediately before CR/DR/CREDIT/DEBIT
+    // Work backwards from the suffix to find the amount
+    let amountStr: string | null = null;
+
+    // Check if line ends with CR/DR/CREDIT/DEBIT
+    const suffixMatch = afterDates.match(/\s*(CR|DR|CREDIT|DEBIT)$/i);
+
+    if (suffixMatch) {
+      // Find the number sequence immediately before the suffix
+      // Look for pattern: [number][optional spaces][CR/DR]
+      // The number should be at the end of the string before the suffix
+      const beforeSuffix = afterDates.substring(0, suffixMatch.index);
+      // Match the last number sequence at the end (may have spaces before it)
+      const amountMatch = beforeSuffix.match(/([\d.,]+)\s*$/);
+      if (amountMatch?.[1]) {
+        let candidateAmount = amountMatch[1];
+        // If the matched number is very long, it might be multiple numbers concatenated
+        // Try to extract the rightmost reasonable amount (typically ends with .XXX pattern)
+        // Example: "11.202514.130" should extract "14.130"
+        // Vietnamese amounts are typically [1-3 digits].[3 digits] format
+        if (candidateAmount.length > 10) {
+          // Strategy: Look for the pattern that's at the END of the string
+          // The amount is typically the last [1-3 digits].[3 digits] pattern
+          // Find all matches and prefer the longest one that's reasonable
+
+          // Try [1-3 digits].[3 digits] to get all possible matches
+          const allMatches = Array.from(candidateAmount.matchAll(/(\d{1,3}\.\d{3})/g));
+          if (allMatches.length > 0) {
+            // Get the last (rightmost) match
+            const lastMatch = allMatches[allMatches.length - 1];
+            if (lastMatch?.[1] && lastMatch[1].length <= 8) {
+              // Check if there's a shorter match that's also at the end
+              // For "11.202514.130", we want "14.130" not "514.130"
+              // For "655.989", we want "655.989" not "55.989"
+              const lastMatchStr = lastMatch[1];
+              const beforeDot = lastMatchStr.split('.')[0];
+
+              // If the last match has 3 digits before dot, check if there's a 1-2 digit match
+              // that's also at the end (would indicate concatenated numbers)
+              if (beforeDot?.length === 3) {
+                const shorterMatch = candidateAmount.match(/(\d{1,2}\.\d{3})$/);
+                // Only use shorter match if it's NOT a suffix of the longer match
+                // This handles "11.202514.130" -> prefer "14.130" over "514.130"
+                // But keeps "655.989" instead of "55.989" (since "55.989" is a suffix of "655.989")
+                if (shorterMatch?.[1] && !lastMatchStr.endsWith(shorterMatch[1])) {
+                  candidateAmount = shorterMatch[1];
+                } else {
+                  candidateAmount = lastMatchStr;
+                }
+              } else {
+                candidateAmount = lastMatchStr;
+              }
+            } else {
+              // Fallback: try 1-2 digit pattern
+              const last2DigitMatch = candidateAmount.match(/(\d{1,2}\.\d{3})$/);
+              if (last2DigitMatch?.[1]) {
+                candidateAmount = last2DigitMatch[1];
+              }
+            }
+          } else {
+            // Last resort: take the last 6-8 characters (typical amount length)
+            candidateAmount = candidateAmount.substring(Math.max(0, candidateAmount.length - 8));
+          }
+        }
+        amountStr = candidateAmount;
+      }
+    } else {
+      // No suffix: take the last number sequence in the line
+      const lastNumberMatch = afterDates.match(/([\d.,]+)$/);
+      const potentialAmount = lastNumberMatch?.[1];
+      // Only accept if it's reasonably sized (not too many digits, suggesting it's not concatenated)
+      // Vietnamese amounts typically have 3-6 digits before decimal/thousand separator
+      if (potentialAmount && potentialAmount.length <= 15) {
+        amountStr = potentialAmount;
+      }
+    }
+
+    if (!amountStr) continue;
+
+    // Parse amount (replace dots/commas, handle as thousand separators)
+    // Vietnamese format uses dots as thousand separators: 40.000 = 40000
+    const amountValue = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
+    if (isNaN(amountValue) || amountValue === 0) continue;
+
+    // Extract description (everything between dates and amount)
+    // Find where the amount starts in the string
+    const amountStartIndex = afterDates.lastIndexOf(amountStr);
+    const description = afterDates.substring(0, amountStartIndex).trim();
+    if (!description || description.length < 2) continue;
+
+    // Determine debit/credit - check the suffix after the amount
+    const afterAmount = afterDates.substring(amountStartIndex + amountStr.length);
+    const isCredit = /CR|CREDIT/i.test(afterAmount);
+    const isDebit = /DR|DEBIT/i.test(afterAmount) || !isCredit;
+
+    const parsedTransaction: ParsedTransaction = {
+      date: dateStr,
+      description,
+      debit: isDebit ? amountValue : undefined,
+      credit: isCredit ? amountValue : undefined,
+    };
+
+    transactions.push(parsedTransaction);
+  }
+
   return transactions;
+}
+
+/**
+ * Extract text from PDF using pdfjs-dist
+ * Preserves spacing and layout for better table parsing
+ * @param buffer - PDF file buffer
+ * @returns Extracted text content from all pages
+ */
+async function extractTextFromPDF(buffer: Buffer): Promise<string> {
+  // Load PDF document
+  const loadingTask = getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+    verbosity: 0, // Suppress warnings
+  });
+  const pdf = await loadingTask.promise;
+
+  const textParts: string[] = [];
+  const numPages = pdf.numPages;
+
+  // Extract text from each page
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+
+    // Build text while preserving spacing for table structure
+    let pageText = '';
+    let lastY = -1;
+    let lastX = -1;
+
+    for (const item of textContent.items) {
+      if (!('str' in item) || !item.str) {
+        continue;
+      }
+
+      const transform = item.transform;
+      // Type assertion for transform array (pdfjs-dist uses number[])
+      const transformArray = transform as number[];
+      const x = transformArray[4] ?? 0;
+      const y = transformArray[5] ?? 0;
+
+      // If Y position changed significantly, start a new line
+      if (lastY >= 0 && Math.abs(y - lastY) > 2) {
+        pageText += '\n';
+      } else if (lastX >= 0 && x - lastX > 10) {
+        // If X position has significant gap, add spaces (likely column separator)
+        // Use multiple spaces to preserve column alignment
+        const spaces = Math.floor((x - lastX) / 5);
+        pageText += ' '.repeat(Math.min(spaces, 20));
+      } else if (lastX >= 0 && x < lastX) {
+        // X moved backwards, likely a new line or wrapped text
+        pageText += ' ';
+      } else if (pageText.length > 0 && !pageText.endsWith('\n') && !pageText.endsWith(' ')) {
+        // Add space between words on same line
+        pageText += ' ';
+      }
+
+      pageText += item.str;
+      // Type assertion for width property
+      const itemWidth = ('width' in item && typeof item.width === 'number') ? item.width : 0;
+      lastX = x + itemWidth;
+      lastY = y;
+    }
+
+    textParts.push(pageText);
+  }
+
+  // Join all pages with newlines
+  return textParts.join('\n');
 }
 
 /**
@@ -637,8 +1064,7 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
  * @returns Parsed PDF data with card number and transactions
  */
 export async function parsePDF(buffer: Buffer, dateFormat: string = 'DD/MM/YYYY'): Promise<ParsedPDFData> {
-  const data = await pdfParse(buffer);
-  const text = data.text;
+  const text = await extractTextFromPDF(buffer);
 
   // Extract card number
   const cardNumber = extractCardNumber(text);

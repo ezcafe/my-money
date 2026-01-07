@@ -108,10 +108,37 @@ export function ImportPage(): React.JSX.Element {
         // Find first transaction with this description for suggested values
         const firstTxn = unmappedTransactions.find((txn) => txn.rawDescription === desc);
         if (firstTxn && !newMappings.has(desc)) {
+          // Determine default categories
+          const defaultIncomeCategory = categories.find(
+            (category) => category.isDefault && category.type === 'INCOME',
+          );
+
+          const defaultExpenseCategory = categories.find(
+            (category) => category.isDefault && category.type === 'EXPENSE',
+          );
+
+          // Determine initial category based on transaction type
+          const isCredit = firstTxn.rawCredit !== null && firstTxn.rawCredit !== 0;
+
+          let initialCategoryId = firstTxn.suggestedCategoryId ?? '';
+
+          if (!initialCategoryId) {
+            if (isCredit && defaultIncomeCategory) {
+              // For credit transactions, prefer Default Income Category
+              initialCategoryId = defaultIncomeCategory.id;
+            } else if (!isCredit && defaultExpenseCategory) {
+              // For non-credit transactions, prefer Default Expense Category when available
+              initialCategoryId = defaultExpenseCategory.id;
+            } else if (categories[0]?.id) {
+              // Fallback to the first available category
+              initialCategoryId = categories[0].id;
+            }
+          }
+
           newMappings.set(desc, {
             description: desc,
             accountId: firstTxn.suggestedAccountId ?? accounts[0]?.id ?? '',
-            categoryId: firstTxn.suggestedCategoryId ?? categories[0]?.id ?? '',
+            categoryId: initialCategoryId,
             payeeId: firstTxn.suggestedPayeeId ?? payees[0]?.id ?? '',
           });
         }
