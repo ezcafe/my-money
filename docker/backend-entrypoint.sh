@@ -5,7 +5,9 @@ set -e
 # Prisma migrate deploy will apply pending migrations
 # Docker's depends_on with health checks ensures database is ready
 echo "Running database migrations..."
-npx prisma migrate deploy || {
+echo "DATABASE_URL is set: ${DATABASE_URL:+yes}"
+cd /app/backend
+prisma migrate deploy || {
   echo "Migration failed. Exiting..."
   exit 1
 }

@@ -174,9 +174,7 @@ export function formatDateHeader(date: Date | string): string {
  */
 export function formatNumberAbbreviation(value: number): string {
   const absValue = Math.abs(value);
-  const sign = value < 0 ? '-' : '';
-
-  if (absValue >= 1_000_000_000) {
+  const sign = value < 0 ? '-' : '';  if (absValue >= 1_000_000_000) {
     return `${sign}${(absValue / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
   }
   if (absValue >= 1_000_000) {
@@ -187,4 +185,3 @@ export function formatNumberAbbreviation(value: number): string {
   }
   return String(value);
 }
-

@@ -15,7 +15,7 @@ export function inputSanitizationPlugin(): ApolloServerPlugin<GraphQLContext | R
   return {
     requestDidStart(): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>> {
       return Promise.resolve({
-        async didResolveOperation(requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>): Promise<void> {
+        didResolveOperation(requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>): void {
           // Sanitize variables before they reach resolvers
           if (requestContext.request.variables) {
             requestContext.request.variables = sanitizeInput(requestContext.request.variables);

@@ -28,10 +28,11 @@ export function handlePrismaError(
 
   // Handle Prisma known request errors
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    // TypeScript narrows the type after instanceof check
     switch (error.code) {
       case 'P2002': {
         // Unique constraint violation
-         
+
         const target = error.meta?.target as string[] | undefined;
         const field = target?.[0] ?? 'field';
         throw new ValidationError(
@@ -73,7 +74,7 @@ export function handlePrismaError(
       case 'P2011': {
         // Null constraint violation
         throw new ValidationError(
-           
+
           `Required field is missing: ${error.meta?.target as string}`,
         );
       }
@@ -81,7 +82,7 @@ export function handlePrismaError(
       case 'P2012': {
         // Missing required value
         throw new ValidationError(
-           
+
           `Missing required value: ${error.meta?.target as string}`,
         );
       }
@@ -105,7 +106,7 @@ export function handlePrismaError(
       case 'P2017': {
         // Records for relation not connected
         throw new ValidationError(
-           
+
           `Records are not properly connected: ${error.meta?.relation_name as string}`,
         );
       }
@@ -113,7 +114,7 @@ export function handlePrismaError(
       case 'P2018': {
         // Required connected records not found
         throw new NotFoundError(
-           
+
           `Required connected records not found: ${error.meta?.details as string}`,
         );
       }
@@ -121,7 +122,7 @@ export function handlePrismaError(
       case 'P2019': {
         // Input error
         throw new ValidationError(
-           
+
           `Invalid input: ${error.meta?.details as string}`,
         );
       }
@@ -129,7 +130,7 @@ export function handlePrismaError(
       case 'P2020': {
         // Value out of range
         throw new ValidationError(
-           
+
           `Value out of range: ${error.meta?.details as string}`,
         );
       }
@@ -137,7 +138,7 @@ export function handlePrismaError(
       case 'P2021': {
         // Table does not exist
         throw new AppError(
-           
+
           `Database table not found: ${error.meta?.table as string}`,
           'DATABASE_ERROR',
           500,
@@ -147,7 +148,7 @@ export function handlePrismaError(
       case 'P2022': {
         // Column does not exist
         throw new AppError(
-           
+
           `Database column not found: ${error.meta?.column as string}`,
           'DATABASE_ERROR',
           500,
@@ -201,7 +202,6 @@ export function handlePrismaError(
 
   // Handle Prisma validation errors
   if (error instanceof Prisma.PrismaClientValidationError) {
-     
     const firstLine = error.message.split('\n')[0];
     throw new ValidationError(
       `Invalid input data: ${firstLine as string}`,

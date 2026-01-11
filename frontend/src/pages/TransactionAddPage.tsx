@@ -239,7 +239,7 @@ export function TransactionAddPage(): React.JSX.Element {
           }
 
           // Navigate back to return URL
-          const validReturnUrl = validateReturnUrl(returnTo);
+          const validReturnUrl = validateReturnUrl(returnTo, '/');
           void navigate(validReturnUrl);
         } catch (err) {
           // Error already handled by onError callback
@@ -264,7 +264,7 @@ export function TransactionAddPage(): React.JSX.Element {
           });
 
           // Navigate back to return URL
-          const validReturnUrl = validateReturnUrl(returnTo);
+          const validReturnUrl = validateReturnUrl(returnTo, '/');
           void navigate(validReturnUrl);
         } catch (err) {
           // Error already handled by onError callback

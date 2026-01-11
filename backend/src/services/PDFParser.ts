@@ -517,7 +517,7 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
             const amountMatch = beforeSuffix.match(/([\d.,]+)\s*$/);
             if (amountMatch?.[1]) {
               amountStr = amountMatch[1];
-              isCredit = /CR|CREDIT/i.test(suffixMatch[1]);
+              isCredit = /CR|CREDIT/i.test(suffixMatch?.[1] || '');
             }
           } else {
             // No suffix: take the last number sequence
@@ -538,7 +538,7 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
         let description: string;
         if (drCrMatch) {
           // For DR/CR format, description is everything before the DR amount
-          const drAmountStart = afterDates.indexOf(drCrMatch[1]);
+          const drAmountStart = afterDates.indexOf(drCrMatch?.[1] || '');
           description = afterDates.substring(0, drAmountStart).trim();
         } else {
           // For other formats, use lastIndexOf to find amount

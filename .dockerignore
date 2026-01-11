@@ -2,13 +2,14 @@
 node_modules
 npm-debug.log
 yarn-error.log
-package-lock.json
+# Note: package-lock.json is needed for npm ci, so we don't exclude it
 yarn.lock
 
 # Environment files
 .env
 .env.local
 .env.*.local
+.env.example
 
 # Git
 .git
@@ -39,6 +40,8 @@ __tests__
 *.spec.ts
 *.spec.tsx
 jest.config.ts
+*.test.js
+*.spec.js
 
 # Documentation
 *.md
@@ -52,5 +55,17 @@ Dockerfile*
 
 # Misc
 *.log
+.cache
+.eslintcache
+*.tsbuildinfo
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Temporary files
+*.tmp
+*.temp
 .cache
 

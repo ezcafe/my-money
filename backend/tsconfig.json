@@ -7,20 +7,21 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "baseUrl": "./src",
     "paths": {
       "@/*": ["./*"],
       "@resolvers/*": ["./resolvers/*"],
       "@services/*": ["./services/*"],
       "@utils/*": ["./utils/*"],
-      "@middleware/*": ["./middleware/*"]
+      "@middleware/*": ["./middleware/*"],
+      "@my-money/shared": ["../../shared/src/index.ts"]
     },
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "__tests__", "**/*.test.ts"]
 }
+
 
 
 

@@ -2,41 +2,112 @@
 ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=1.0.0
+ARG NODE_VERSION=25.2.1
 
-FROM node:25.2.1-alpine AS builder
-
-# Add metadata labels
-LABEL maintainer="my-money-app" \
-      org.label-schema.build-date="${BUILD_DATE}" \
-      org.label-schema.vcs-ref="${VCS_REF}" \
-      org.label-schema.version="${VERSION}" \
-      org.label-schema.description="My Money Backend Service" \
-      org.label-schema.name="my-money-backend"
+# ============================================================================
+# Dependencies stage - Install all dependencies
+# ============================================================================
+FROM node:${NODE_VERSION}-alpine AS deps
 
 WORKDIR /app
 
-# Copy workspace files
-COPY package*.json ./
+# Copy only package files for dependency installation (better layer caching)
+COPY package*.json package-lock.json ./
 COPY backend/package*.json ./backend/
 COPY shared/package*.json ./shared/
 
-# Install dependencies with BuildKit cache mount for faster rebuilds
+# Install all dependencies with BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    npm ci --include-workspace-root
 
-# Copy source files
-COPY backend ./backend
-COPY shared ./shared
+# ============================================================================
+# Prisma generation stage - Generate Prisma client
+# ============================================================================
+FROM node:${NODE_VERSION}-alpine AS prisma-generator
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+# In npm workspaces, dependencies are hoisted to root node_modules
+COPY --from=deps /app/node_modules ./node_modules
+# Create workspace node_modules directories (may not exist if all deps are hoisted)
+RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
+
+# Copy Prisma schema and migrations
+COPY backend/prisma ./backend/prisma
+# Copy Prisma config file (required for Prisma 7+)
+COPY backend/prisma.config.ts ./backend/prisma.config.ts
 
 # Generate Prisma client
 WORKDIR /app/backend
 RUN npx prisma generate
 
-# Build backend
+# ============================================================================
+# Builder stage - Build the application
+# ============================================================================
+FROM node:${NODE_VERSION}-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependencies
+# In npm workspaces, dependencies are hoisted to root node_modules
+COPY --from=deps /app/node_modules ./node_modules
+# Create workspace node_modules directories (may not exist if all deps are hoisted)
+RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
+
+# Copy Prisma generated client
+# First, copy the entire prisma-generator stage to a temp location to check where .prisma was generated
+COPY --from=prisma-generator /app /tmp/prisma-stage
+# Then copy .prisma from wherever it was generated
+# In npm workspaces, @prisma/client is in root node_modules, so .prisma should be in root node_modules/.prisma
+RUN mkdir -p /app/backend/node_modules && \
+    if [ -d "/tmp/prisma-stage/node_modules/.prisma" ]; then \
+        cp -r /tmp/prisma-stage/node_modules/.prisma /app/node_modules/.prisma; \
+        cp -r /tmp/prisma-stage/node_modules/.prisma /app/backend/node_modules/.prisma; \
+    elif [ -d "/tmp/prisma-stage/backend/node_modules/.prisma" ]; then \
+        cp -r /tmp/prisma-stage/backend/node_modules/.prisma /app/node_modules/.prisma; \
+        cp -r /tmp/prisma-stage/backend/node_modules/.prisma /app/backend/node_modules/.prisma; \
+    else \
+        echo "Error: Prisma client not found. Checked:" && \
+        ls -la /tmp/prisma-stage/backend/node_modules/ 2>/dev/null || echo "backend/node_modules not found" && \
+        ls -la /tmp/prisma-stage/node_modules/.prisma 2>/dev/null || echo "root node_modules/.prisma not found" && \
+        exit 1; \
+    fi && \
+    rm -rf /tmp/prisma-stage
+
+# Copy source files and config files
+COPY tsconfig.json ./tsconfig.json
+COPY backend ./backend
+COPY shared ./shared
+
+# Build shared package first
+WORKDIR /app/shared
 RUN npm run build
 
-# Production stage
-FROM node:25.2.1-alpine
+# Build backend
+WORKDIR /app/backend
+RUN npm run build
+
+# ============================================================================
+# Production dependencies stage - Install only production deps
+# ============================================================================
+FROM node:${NODE_VERSION}-alpine AS prod-deps
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json package-lock.json ./
+COPY backend/package*.json ./backend/
+COPY shared/package*.json ./shared/
+
+# Install production dependencies only
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --include-workspace-root
+
+# ============================================================================
+# Production stage - Final runtime image
+# ============================================================================
+FROM node:${NODE_VERSION}-alpine
 
 # Add metadata labels
 LABEL maintainer="my-money-app" \
@@ -45,6 +116,10 @@ LABEL maintainer="my-money-app" \
       org.label-schema.version="${VERSION}" \
       org.label-schema.description="My Money Backend Service" \
       org.label-schema.name="my-money-backend"
+
+# Install Prisma CLI globally (needed for migrations)
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g prisma@^7.2.0
 
 # Add non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -52,37 +127,53 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY backend/package*.json ./backend/
-COPY shared/package*.json ./shared/
+# Copy production dependencies
+# In npm workspaces, dependencies are hoisted to root node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
+# Create workspace node_modules directories (may not exist if all deps are hoisted)
+RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
+# Copy workspace-specific node_modules if they exist (some deps may not be hoisted)
+# Use a shell command to conditionally copy
+RUN --mount=from=prod-deps,source=/app,target=/tmp/prod-deps \
+    if [ -d "/tmp/prod-deps/backend/node_modules" ] && [ "$(ls -A /tmp/prod-deps/backend/node_modules 2>/dev/null)" ]; then \
+        cp -r /tmp/prod-deps/backend/node_modules/* /app/backend/node_modules/; \
+    fi
 
-# Install production dependencies only with BuildKit cache mount
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --only=production && \
-    npm cache clean --force
+# Copy Prisma generated client from builder
+# Use a mount to check both locations and copy to the correct place
+RUN --mount=from=builder,source=/app,target=/tmp/builder \
+    if [ -d "/tmp/builder/node_modules/.prisma" ]; then \
+        cp -r /tmp/builder/node_modules/.prisma /app/node_modules/.prisma; \
+    elif [ -d "/tmp/builder/backend/node_modules/.prisma" ]; then \
+        cp -r /tmp/builder/backend/node_modules/.prisma /app/node_modules/.prisma; \
+        cp -r /tmp/builder/backend/node_modules/.prisma /app/backend/node_modules/.prisma; \
+    else \
+        echo "Warning: Prisma client not found in builder stage"; \
+    fi
 
-# Install Prisma CLI as dev dependency for migrations (needed in production)
-# This is required for running migrations via entrypoint script
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --save-dev prisma@^5.20.0
-
-# Copy built files
-COPY --from=builder /app/backend/dist ./backend/dist
+# Copy Prisma schema and migrations (needed for migrations)
 COPY --from=builder /app/backend/prisma ./backend/prisma
-COPY --from=builder /app/backend/node_modules/.prisma ./backend/node_modules/.prisma
-COPY --from=builder /app/shared ./shared
+# Copy Prisma config file (required for Prisma 7+ migrations)
+COPY --from=builder /app/backend/prisma.config.ts ./backend/prisma.config.ts
+
+# Copy built application
+COPY --from=builder /app/backend/dist ./backend/dist
+
+# Copy GraphQL schema file (needed at runtime, not compiled by TypeScript)
+COPY --from=builder /app/backend/src/schema/schema.graphql ./backend/dist/schema/schema.graphql
+
+# Copy shared built files (needed at runtime)
+COPY --from=builder /app/shared/dist ./shared/dist
+COPY --from=builder /app/shared/package.json ./shared/package.json
 
 # Copy entrypoint script for database migrations
 COPY docker/backend-entrypoint.sh /app/backend-entrypoint.sh
 
 WORKDIR /app/backend
 
-# Make entrypoint script executable
-RUN chmod +x /app/backend-entrypoint.sh
-
-# Change ownership to non-root user
-RUN chown -R nodejs:nodejs /app
+# Make entrypoint script executable and change ownership
+RUN chmod +x /app/backend-entrypoint.sh && \
+    chown -R nodejs:nodejs /app
 
 # Switch to non-root user
 USER nodejs

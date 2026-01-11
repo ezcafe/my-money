@@ -1,49 +1,56 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:18-alpine
-    container_name: my-money-postgres
-    environment:
-      # Require explicit POSTGRES_USER and POSTGRES_PASSWORD in production
-      # For development, set these in .env file
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-mymoney}
-    # Database port exposed for local development
-    # Remove in production or use conditional port mapping
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - my-money-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    restart: unless-stopped
+  # postgres:
+  #   image: postgres:18-alpine
+  #   container_name: my-money-postgres
+  #   env_file:
+  #     - ../.env
+  #   environment:
+  #     # Require explicit POSTGRES_USER and POSTGRES_PASSWORD in production
+  #     # For development, set these in .env file
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB:-mymoney}
+  #   # Database port exposed for local development
+  #   # Remove in production or use conditional port mapping
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   networks:
+  #     - my-money-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 512M
+  #       reservations:
+  #         cpus: '0.25'
+  #         memory: 256M
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #   restart: unless-stopped
 
   backend:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
+      args:
+        BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        VCS_REF: ${VCS_REF:-$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')}
+        VERSION: ${VERSION:-1.0.0}
+        NODE_VERSION: ${NODE_VERSION:-25.2.1}
     container_name: my-money-backend
+    env_file:
+      - ../.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mymoney}
       PORT: 4000
@@ -53,9 +60,9 @@ services:
       OPENID_DISCOVERY_URL: ${OPENID_DISCOVERY_URL}
     ports:
       - "4000:4000"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
     networks:
       - my-money-network
     healthcheck:
@@ -84,6 +91,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
+      args:
+        BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        VCS_REF: ${VCS_REF:-$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')}
+        VERSION: ${VERSION:-1.0.0}
+        NODE_VERSION: ${NODE_VERSION:-25.2.1}
+        NGINX_VERSION: ${NGINX_VERSION:-alpine}
     container_name: my-money-frontend
     ports:
       - "3000:80"
