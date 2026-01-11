@@ -3,7 +3,7 @@
  * Handles report-related GraphQL operations
  */
 
- 
+
 import type {GraphQLContext} from '../middleware/context';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
@@ -182,7 +182,7 @@ export class ReportResolver {
     const offset = validatedInput.skip ?? 0;
 
     // Run all queries in parallel to minimize database round-trips
-    const [items, totalCount, totalAmountResult] = await Promise.all([
+    const [items, totalCount, totalAmountResult, allTransactionValues] = await Promise.all([
       context.prisma.transaction.findMany({
         where,
         skip: offset,
@@ -198,16 +198,46 @@ export class ReportResolver {
           value: true,
         },
       }),
+      // Fetch all transaction values with category types (not paginated) to calculate income/expense
+      context.prisma.transaction.findMany({
+        where,
+        select: {
+          value: true,
+          category: {
+            select: {
+              type: true,
+            },
+          },
+        },
+      }),
     ]);
 
     const totalAmount = totalAmountResult._sum.value
       ? Number(totalAmountResult._sum.value)
       : 0;
 
+    // Calculate totalIncome and totalExpense from all filtered transactions
+    // Use category type to determine income vs expense (consistent with Sankey chart logic)
+    let totalIncome = 0;
+    let totalExpense = 0;
+    for (const transaction of allTransactionValues) {
+      const value = Number(transaction.value);
+      const categoryType = transaction.category?.type;
+      // Income categories contribute to income, Expense categories (or no category) contribute to expense
+      if (categoryType === 'INCOME') {
+        totalIncome += Math.abs(value);
+      } else {
+        // EXPENSE category or no category
+        totalExpense += Math.abs(value);
+      }
+    }
+
         return {
           items,
           totalCount,
           totalAmount,
+          totalIncome,
+          totalExpense,
         };
       },
       {resource: 'Report', operation: 'read'},

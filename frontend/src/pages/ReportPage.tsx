@@ -85,6 +85,8 @@ interface ReportData {
     items: ReportTransaction[];
     totalCount: number;
     totalAmount: number;
+    totalIncome: number;
+    totalExpense: number;
   };
 }
 
@@ -304,6 +306,8 @@ export function ReportPage(): React.JSX.Element {
   const transactions = useMemo(() => data?.reportTransactions?.items ?? [], [data?.reportTransactions?.items]);
   const totalCount = data?.reportTransactions?.totalCount ?? 0;
   const totalAmount = data?.reportTransactions?.totalAmount ?? 0;
+  const totalIncome = data?.reportTransactions?.totalIncome ?? 0;
+  const totalExpense = data?.reportTransactions?.totalExpense ?? 0;
 
   // Map to PaginatedTransactions format
   const paginatedTransactions = useMemo(() => ({
@@ -468,9 +472,10 @@ export function ReportPage(): React.JSX.Element {
 
   /**
    * Calculate summary statistics
+   * Uses backend-calculated totalIncome and totalExpense for accuracy across all filtered transactions
    */
   const summaryStats = useMemo(() => {
-    if (transactions.length === 0) {
+    if (totalCount === 0) {
       return {
         totalAmount: 0,
         transactionCount: 0,
@@ -480,20 +485,20 @@ export function ReportPage(): React.JSX.Element {
       };
     }
 
-    const amounts = transactions.map((t) => Number(t.value));
-    const totalAmount = amounts.reduce((sum, val) => sum + val, 0);
-    const income = amounts.filter((val) => val > 0).reduce((sum, val) => sum + val, 0);
-    const expense = Math.abs(amounts.filter((val) => val < 0).reduce((sum, val) => sum + val, 0));
-    const averageAmount = totalAmount / transactions.length;
+    // Use backend-calculated values for income and expense (from all filtered transactions)
+    // Calculate average from paginated transactions for display
+    const averageAmount = transactions.length > 0
+      ? transactions.reduce((sum, t) => sum + Number(t.value), 0) / transactions.length
+      : 0;
 
     return {
       totalAmount,
       transactionCount: totalCount,
       averageAmount,
-      income,
-      expense,
+      income: totalIncome,
+      expense: totalExpense,
     };
-  }, [transactions, totalCount]);
+  }, [transactions, totalCount, totalAmount, totalIncome, totalExpense, page]);
 
   /**
    * Get active filter chips

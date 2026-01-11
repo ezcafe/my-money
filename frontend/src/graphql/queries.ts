@@ -233,6 +233,8 @@ export const GET_REPORT_TRANSACTIONS = gql`
       }
       totalCount
       totalAmount
+      totalIncome
+      totalExpense
     }
   }
 `;

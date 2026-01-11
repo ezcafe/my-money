@@ -404,6 +404,8 @@ type ReportTransactionConnection {
   items: [Transaction!]!
   totalCount: Int!
   totalAmount: Decimal!
+  totalIncome: Decimal!
+  totalExpense: Decimal!
 }
 
 type TopUsedValue {
