@@ -15,6 +15,7 @@ import {
   Chip,
   Grid,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import {
   Clear,
@@ -29,6 +30,7 @@ import {
   Receipt,
   AttachMoney,
   AccountTree,
+  DonutLarge,
 } from '@mui/icons-material';
 import {DateCalendar} from '@mui/x-date-pickers/DateCalendar';
 import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
@@ -36,7 +38,7 @@ import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, {type Dayjs} from 'dayjs';
 import {useQuery, useMutation} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
-import {LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, type TooltipProps} from 'recharts';
+import {LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, type TooltipProps} from 'recharts';
 import {jsPDF} from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {Card} from '../components/ui/Card';
@@ -44,7 +46,7 @@ import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
 import {MultiSelect, type MultiSelectOption} from '../components/ui/MultiSelect';
 import {EmptyState} from '../components/common/EmptyState';
-import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
+import {formatCurrencyPreserveDecimals, formatDateShort, formatNumberAbbreviation} from '../utils/formatting';
 import {validateDateRange} from '../utils/validation';
 import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
@@ -91,11 +93,12 @@ interface ReportData {
 }
 
 /**
- * Chart data point
+ * Chart data point with dynamic series keys
  */
 interface ChartDataPoint {
   date: string;
-  amount: number;
+  originalDate?: string;
+  [key: string]: string | number | undefined; // Dynamic keys for payee-category combinations
 }
 
 /**
@@ -181,6 +184,7 @@ function getDatePresets(): Record<DatePreset, DatePresetConfig> {
  */
 export function ReportPage(): React.JSX.Element {
   const navigate = useNavigate();
+  const theme = useTheme();
   const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
   const currency = preferencesData?.preferences?.currency ?? 'USD';
 
@@ -216,7 +220,10 @@ export function ReportPage(): React.JSX.Element {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Chart type state
-  const [chartType, setChartType] = useState<'line' | 'bar' | 'sankey'>('line');
+  const [chartType, setChartType] = useState<'line' | 'bar' | 'pie' | 'sankey'>('line');
+
+  // Chart series visibility state (track which series are hidden)
+  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -498,7 +505,7 @@ export function ReportPage(): React.JSX.Element {
       income: totalIncome,
       expense: totalExpense,
     };
-  }, [transactions, totalCount, totalAmount, totalIncome, totalExpense, page]);
+  }, [transactions, totalCount, totalAmount, totalIncome, totalExpense]);
 
   /**
    * Get active filter chips
@@ -574,16 +581,246 @@ export function ReportPage(): React.JSX.Element {
   }, [appliedFilters, accounts, categories, payees]);
 
   /**
-   * Custom chart tooltip formatter
+   * Format currency with abbreviation (B, M, K)
+   * @param value - The numeric value to format
+   * @param currencyCode - The currency code
+   * @returns Formatted currency string with abbreviation
+   */
+  const formatCurrencyAbbreviated = useCallback((value: number, currencyCode: string): string => {
+    const absValue = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    let abbreviation = '';
+    let formattedValue = value;
+
+    if (absValue >= 1_000_000_000) {
+      formattedValue = absValue / 1_000_000_000;
+      abbreviation = 'B';
+    } else if (absValue >= 1_000_000) {
+      formattedValue = absValue / 1_000_000;
+      abbreviation = 'M';
+    } else if (absValue >= 1_000) {
+      formattedValue = absValue / 1_000;
+      abbreviation = 'K';
+    }
+
+    if (abbreviation) {
+      const formatted = formattedValue.toFixed(1).replace(/\.0$/, '');
+      // Get currency symbol
+      const currencyFormatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      });
+      const symbol = currencyFormatter.format(0).replace(/[\d\s,.-]/g, '');
+      return `${sign}${symbol}${formatted}${abbreviation}`;
+    }
+
+    return formatCurrencyPreserveDecimals(value, currencyCode);
+  }, []);
+
+  /**
+   * Prepare chart data with dynamic grouping based on applied filters
+   * - Filter by date or note: group by payees, then date
+   * - Filter by account: group by categories, then date
+   * - Filter by payees or categories: group by date only
+   * - Default: group by payee, then category, then date
+   * Don't show year if date filter is in current year
+   * Don't show month if date filter is in current month
+   */
+  const chartData = useMemo<ChartDataPoint[]>(() => {
+    if (transactions.length === 0) {
+      return [];
+    }
+
+    // Determine grouping strategy based on applied filters
+    const hasDateFilter = appliedFilters.startDate !== '' || appliedFilters.endDate !== '';
+    const hasNoteFilter = appliedFilters.note.trim() !== '';
+    const hasAccountFilter = appliedFilters.accountIds.length > 0;
+    const hasPayeeFilter = appliedFilters.payeeIds.length > 0;
+    const hasCategoryFilter = appliedFilters.categoryIds.length > 0;
+
+    let groupingStrategy: 'payee-date' | 'category-date' | 'date-only' | 'payee-category-date';
+
+    if (hasDateFilter || hasNoteFilter) {
+      // Filter by date or note: group by payees, then date
+      groupingStrategy = 'payee-date';
+    } else if (hasAccountFilter) {
+      // Filter by account: group by categories, then date
+      groupingStrategy = 'category-date';
+    } else if (hasPayeeFilter || hasCategoryFilter) {
+      // Filter by payees or categories: group by date only
+      groupingStrategy = 'date-only';
+    } else {
+      // Default: group by payee, then category, then date
+      groupingStrategy = 'payee-category-date';
+    }
+
+    // Group transactions based on strategy
+    // Structure: Map<dateKey, Map<seriesKey, amount>>
+    const groupedData = new Map<string, Map<string, number>>();
+    const allSeriesKeys = new Set<string>();
+
+    for (const transaction of transactions) {
+      let seriesKey: string;
+
+      if (groupingStrategy === 'payee-date') {
+        // Group by payee, then date
+        const payeeName = transaction.payee?.name ?? 'Others';
+        seriesKey = payeeName;
+      } else if (groupingStrategy === 'category-date') {
+        // Group by category, then date
+        const categoryName = transaction.category?.name ?? 'Uncategorized';
+        seriesKey = categoryName;
+      } else if (groupingStrategy === 'date-only') {
+        // Group by date only
+        seriesKey = 'Total';
+      } else {
+        // Default: group by payee, then category, then date
+        const payeeName = transaction.payee?.name ?? 'Others';
+        const categoryName = transaction.category?.name ?? 'Uncategorized';
+        seriesKey = `${payeeName} - ${categoryName}`;
+      }
+
+      allSeriesKeys.add(seriesKey);
+
+      const dateKey = formatDateShort(transaction.date);
+      if (!groupedData.has(dateKey)) {
+        groupedData.set(dateKey, new Map());
+      }
+      const dateMap = groupedData.get(dateKey)!;
+      const current = dateMap.get(seriesKey) ?? 0;
+      dateMap.set(seriesKey, current + Number(transaction.value));
+    }
+
+    // Convert to array and sort by date, then format dates
+    const now = new Date();
+    const startDate = appliedFilters.startDate ? new Date(appliedFilters.startDate) : null;
+    const endDate = appliedFilters.endDate ? new Date(appliedFilters.endDate) : null;
+
+    // Check if filter is in current year
+    const isCurrentYear = (!startDate || startDate.getFullYear() === now.getFullYear()) &&
+      (!endDate || endDate.getFullYear() === now.getFullYear());
+
+    // Check if filter is in current month
+    const isCurrentMonth = isCurrentYear &&
+      (!startDate || (startDate.getFullYear() === now.getFullYear() && startDate.getMonth() === now.getMonth())) &&
+      (!endDate || (endDate.getFullYear() === now.getFullYear() && endDate.getMonth() === now.getMonth()));
+
+    const dataPoints: ChartDataPoint[] = Array.from(groupedData.entries())
+      .map(([dateStr, seriesMap]) => {
+        const date = new Date(dateStr);
+        let formattedDate: string;
+        if (isCurrentMonth) {
+          formattedDate = date.getDate().toString();
+        } else if (isCurrentYear) {
+          formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+        } else {
+          formattedDate = formatDateShort(dateStr);
+        }
+
+        const dataPoint: ChartDataPoint = {
+          date: formattedDate,
+          originalDate: dateStr,
+        };
+
+        // Add all series values (set to 0 if not present for this date)
+        for (const seriesKey of allSeriesKeys) {
+          dataPoint[seriesKey] = seriesMap.get(seriesKey) ?? 0;
+        }
+
+        return dataPoint;
+      })
+      .sort((a, b) => new Date(a.originalDate ?? '').getTime() - new Date(b.originalDate ?? '').getTime());
+
+    return dataPoints;
+  }, [transactions, appliedFilters.startDate, appliedFilters.endDate, appliedFilters.accountIds, appliedFilters.categoryIds, appliedFilters.payeeIds, appliedFilters.note]);
+
+  /**
+   * Get series keys from chart data
+   */
+  const chartSeriesKeys = useMemo(() => {
+    if (chartData.length === 0) {
+      return [];
+    }
+    const keys = new Set<string>();
+    for (const dataPoint of chartData) {
+      for (const key in dataPoint) {
+        if (key !== 'date' && key !== 'originalDate' && typeof dataPoint[key] === 'number') {
+          keys.add(key);
+        }
+      }
+    }
+    return Array.from(keys);
+  }, [chartData]);
+
+  /**
+   * Reset hidden series when chart data changes significantly
+   * (when series keys change, clean up hidden state for non-existent keys)
+   */
+  useEffect(() => {
+    setHiddenSeries((prev) => {
+      const newSet = new Set<string>();
+      for (const key of prev) {
+        if (chartSeriesKeys.includes(key)) {
+          newSet.add(key);
+        }
+      }
+      return newSet;
+    });
+  }, [chartSeriesKeys.join(',')]); // Reset when series keys change
+
+  /**
+   * Generate color palette for chart series
+   * Uses a diverse, colorblind-friendly palette optimized for data visualization
+   */
+  const getSeriesColor = useCallback((index: number): string => {
+    // Professional color palette for financial charts
+    // Colors are distinct, colorblind-friendly, and work well for data visualization
+    const colors: string[] = [
+      '#2196F3', // Blue
+      '#4CAF50', // Green
+      '#FF9800', // Orange
+      '#F44336', // Red
+      '#9C27B0', // Purple
+      '#00BCD4', // Cyan
+      '#FFC107', // Amber
+      '#795548', // Brown
+      '#E91E63', // Pink
+      '#3F51B5', // Indigo
+      '#009688', // Teal
+      '#FF5722', // Deep Orange
+      '#673AB7', // Deep Purple
+      '#8BC34A', // Light Green
+      '#FFEB3B', // Yellow
+      '#607D8B', // Blue Grey
+    ];
+    // Cycle through colors
+    return colors[index % colors.length] ?? '#2196F3';
+  }, []);
+
+  /**
+   * Toggle series visibility when legend item is clicked
+   */
+  const handleLegendClick = useCallback((dataKey: string) => {
+    setHiddenSeries((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(dataKey)) {
+        newSet.delete(dataKey);
+      } else {
+        newSet.add(dataKey);
+      }
+      return newSet;
+    });
+  }, []);
+
+  /**
+   * Custom chart tooltip formatter for multiple series
    */
   const CustomTooltip = useCallback(
     ({active, payload}: TooltipProps<number, string>) => {
       if (active && payload && payload.length > 0) {
-        const data = payload[0];
-        if (!data) {
-          return null;
-        }
-        const payloadData = data.payload as ChartDataPoint | undefined;
+        const payloadData = payload[0]?.payload as ChartDataPoint | undefined;
         const date = payloadData?.date ?? '';
         return (
           <Box
@@ -596,18 +833,29 @@ export function ReportPage(): React.JSX.Element {
               boxShadow: 2,
             }}
           >
-            <Typography variant="body2" sx={{mb: 0.5}}>
+            <Typography variant="body2" sx={{mb: 1}}>
               <strong>{date}</strong>
             </Typography>
-            <Typography variant="body2" color="primary">
-              {formatCurrencyPreserveDecimals(data.value ?? 0, currency)}
-            </Typography>
+            {payload.map((entry, index) => {
+              if (!entry || entry.value === undefined) {
+                return null;
+              }
+              return (
+                <Typography
+                  key={index}
+                  variant="body2"
+                  sx={{color: entry.color, mb: 0.5}}
+                >
+                  {entry.name}: {formatCurrencyAbbreviated(Number(entry.value), currency)}
+                </Typography>
+              );
+            })}
           </Box>
         );
       }
       return null;
     },
-    [currency],
+    [currency, formatCurrencyAbbreviated],
   );
 
   /**
@@ -655,30 +903,6 @@ export function ReportPage(): React.JSX.Element {
   );
 
   /**
-   * Prepare chart data
-   */
-  const chartData = useMemo<ChartDataPoint[]>(() => {
-    if (transactions.length === 0) {
-      return [];
-    }
-
-    // Group transactions by date
-    const groupedByDate = new Map<string, number>();
-    for (const transaction of transactions) {
-      const dateKey = formatDateShort(transaction.date);
-      const current = groupedByDate.get(dateKey) ?? 0;
-      groupedByDate.set(dateKey, current + Number(transaction.value));
-    }
-
-    // Convert to array and sort by date
-    const dataPoints: ChartDataPoint[] = Array.from(groupedByDate.entries())
-      .map(([date, amount]) => ({date, amount}))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    return dataPoints;
-  }, [transactions]);
-
-  /**
    * Format Y-axis tick values with abbreviation
    */
   const formatYAxisTick = useCallback((value: unknown): string => {
@@ -686,19 +910,79 @@ export function ReportPage(): React.JSX.Element {
     if (typeof numValue !== 'number' || Number.isNaN(numValue) || !Number.isFinite(numValue)) {
       return '';
     }
-    const absValue = Math.abs(numValue);
-    const sign = numValue < 0 ? '-' : '';
-    if (absValue >= 1_000_000_000) {
-      return `${sign}${(absValue / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
-    }
-    if (absValue >= 1_000_000) {
-      return `${sign}${(absValue / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-    }
-    if (absValue >= 1_000) {
-      return `${sign}${(absValue / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-    }
-    return String(numValue);
+    return formatNumberAbbreviation(numValue);
   }, []);
+
+  /**
+   * Prepare pie chart data with dynamic grouping based on applied filters
+   * - Filter by date or note: group by payees
+   * - Filter by account: group by categories
+   * - Filter by payees or categories: show total only
+   * - Default: group by payee, then category
+   */
+  const pieChartData = useMemo(() => {
+    if (transactions.length === 0) {
+      return [];
+    }
+
+    // Determine grouping strategy based on applied filters
+    const hasDateFilter = appliedFilters.startDate !== '' || appliedFilters.endDate !== '';
+    const hasNoteFilter = appliedFilters.note.trim() !== '';
+    const hasAccountFilter = appliedFilters.accountIds.length > 0;
+    const hasPayeeFilter = appliedFilters.payeeIds.length > 0;
+    const hasCategoryFilter = appliedFilters.categoryIds.length > 0;
+
+    let groupingStrategy: 'payee' | 'category' | 'total' | 'payee-category';
+
+    if (hasDateFilter || hasNoteFilter) {
+      // Filter by date or note: group by payees
+      groupingStrategy = 'payee';
+    } else if (hasAccountFilter) {
+      // Filter by account: group by categories
+      groupingStrategy = 'category';
+    } else if (hasPayeeFilter || hasCategoryFilter) {
+      // Filter by payees or categories: show total only
+      groupingStrategy = 'total';
+    } else {
+      // Default: group by payee, then category
+      groupingStrategy = 'payee-category';
+    }
+
+    // Group transactions based on strategy
+    const groupedData = new Map<string, number>();
+    for (const transaction of transactions) {
+      let seriesKey: string;
+
+      if (groupingStrategy === 'payee') {
+        // Group by payee
+        const payeeName = transaction.payee?.name ?? 'Others';
+        seriesKey = payeeName;
+      } else if (groupingStrategy === 'category') {
+        // Group by category
+        const categoryName = transaction.category?.name ?? 'Uncategorized';
+        seriesKey = categoryName;
+      } else if (groupingStrategy === 'total') {
+        // Show total only
+        seriesKey = 'Total';
+      } else {
+        // Default: group by payee, then category
+        const payeeName = transaction.payee?.name ?? 'Others';
+        const categoryName = transaction.category?.name ?? 'Uncategorized';
+        seriesKey = `${payeeName} - ${categoryName}`;
+      }
+
+      const value = Math.abs(Number(transaction.value));
+      const current = groupedData.get(seriesKey) ?? 0;
+      groupedData.set(seriesKey, current + value);
+    }
+
+    // Convert to array and sort by value (descending)
+    const dataPoints = Array.from(groupedData.entries())
+      .map(([name, value]) => ({name, value}))
+      .sort((a, b) => b.value - a.value);
+
+    return dataPoints;
+  }, [transactions, appliedFilters.startDate, appliedFilters.endDate, appliedFilters.accountIds, appliedFilters.categoryIds, appliedFilters.payeeIds, appliedFilters.note]);
 
   /**
    * Prepare Sankey diagram data
@@ -1170,23 +1454,40 @@ export function ReportPage(): React.JSX.Element {
         </Card>
       )}
 
+      {/* Actions Card with Transaction Count */}
+      {hasFilters && transactions.length > 0 && (
+        <Card sx={{p: 3, mb: 3}}>
+          <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between'}}>
+            <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+              <Receipt color="primary" />
+              <Typography variant="body1" color="text.secondary">
+                {summaryStats.transactionCount.toLocaleString()} Transactions
+              </Typography>
+            </Box>
+            <Button variant="contained" onClick={handleDownloadPDF} startIcon={<PictureAsPdf />} sx={{textTransform: 'none'}}>
+              Download PDF
+            </Button>
+          </Box>
+        </Card>
+      )}
+
       {/* Summary Cards */}
       {hasFilters && totalCount > 0 && (
         <Grid container spacing={2} sx={{mb: 3}}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={4}>
             <Card sx={{p: 3, height: '100%'}}>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
                 <AttachMoney color="primary" />
                 <Typography variant="subtitle2" color="text.secondary">
-                  Total Amount
+                  Total
                 </Typography>
               </Box>
               <Typography variant="h5" sx={{fontWeight: 600}}>
-                {formatCurrencyPreserveDecimals(summaryStats.totalAmount, currency)}
+                {formatCurrencyAbbreviated(summaryStats.totalAmount, currency)}
               </Typography>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={4}>
             <Card sx={{p: 3, height: '100%'}}>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
                 <TrendingUp sx={{color: 'success.main'}} />
@@ -1195,11 +1496,11 @@ export function ReportPage(): React.JSX.Element {
                 </Typography>
               </Box>
               <Typography variant="h5" sx={{fontWeight: 600, color: 'success.main'}}>
-                {formatCurrencyPreserveDecimals(summaryStats.income, currency)}
+                {formatCurrencyAbbreviated(summaryStats.income, currency)}
               </Typography>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={4}>
             <Card sx={{p: 3, height: '100%'}}>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
                 <TrendingDown sx={{color: 'error.main'}} />
@@ -1208,50 +1509,26 @@ export function ReportPage(): React.JSX.Element {
                 </Typography>
               </Box>
               <Typography variant="h5" sx={{fontWeight: 600, color: 'error.main'}}>
-                {formatCurrencyPreserveDecimals(summaryStats.expense, currency)}
-              </Typography>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{p: 3, height: '100%'}}>
-              <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
-                <Receipt color="primary" />
-                <Typography variant="subtitle2" color="text.secondary">
-                  Transactions
-                </Typography>
-              </Box>
-              <Typography variant="h5" sx={{fontWeight: 600}}>
-                {summaryStats.transactionCount.toLocaleString()}
+                {formatCurrencyAbbreviated(summaryStats.expense, currency)}
               </Typography>
             </Card>
           </Grid>
         </Grid>
       )}
 
-      {/* Actions Card */}
-      {hasFilters && transactions.length > 0 && (
-        <Card sx={{p: 3, mb: 3}}>
-          <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
-            <Button variant="contained" onClick={handleDownloadPDF} startIcon={<PictureAsPdf />} sx={{textTransform: 'none'}}>
-              Download PDF
-            </Button>
-          </Box>
-        </Card>
-      )}
-
       {/* Chart Section */}
-      {hasFilters && !loading && transactions.length > 0 && ((chartType !== 'sankey' && chartData.length > 0) || (chartType === 'sankey' && sankeyData !== null)) && (
+      {hasFilters && !loading && transactions.length > 0 && ((chartType !== 'sankey' && chartType !== 'pie' && chartData.length > 0) || (chartType === 'pie' && pieChartData.length > 0) || (chartType === 'sankey' && sankeyData !== null)) && (
         <Card sx={{p: 3, mb: 3}}>
           <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
             <Typography variant="h6" component="h2">
-              {chartType === 'sankey' ? 'Cash Flow' : 'Transaction Trends'}
+              {chartType === 'sankey' ? 'Cash Flow' : chartType === 'pie' ? 'Category Distribution' : 'Trends'}
             </Typography>
             <ToggleButtonGroup
               value={chartType}
               exclusive
               onChange={(_, value) => {
-                if (value !== null && (value === 'line' || value === 'bar' || value === 'sankey')) {
-                  setChartType(value as 'line' | 'bar' | 'sankey');
+                if (value !== null && (value === 'line' || value === 'bar' || value === 'pie' || value === 'sankey')) {
+                  setChartType(value as 'line' | 'bar' | 'pie' | 'sankey');
                 }
               }}
               size="small"
@@ -1262,36 +1539,149 @@ export function ReportPage(): React.JSX.Element {
               <ToggleButton value="bar" aria-label="Bar chart">
                 <BarChartIcon />
               </ToggleButton>
+              <ToggleButton value="pie" aria-label="Pie chart">
+                <DonutLarge />
+              </ToggleButton>
               <ToggleButton value="sankey" aria-label="Cash flow chart">
                 <AccountTree />
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
-          <Box>
+          <Box sx={{width: '100%', height: 400}}>
             {chartType === 'sankey' ? (
               sankeyData && (
-                <SankeyChart data={sankeyData} width={800} height={400} currency={currency} />
+                <SankeyChart data={sankeyData} height={400} currency={currency} />
               )
+            ) : chartType === 'pie' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieChartData.filter((item) => !hiddenSeries.has(item.name))}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({name, percent}: {name: string; percent: number}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={120}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {pieChartData
+                      .filter((item) => !hiddenSeries.has(item.name))
+                      .map((item, filteredIndex) => {
+                        // Find original index to maintain consistent colors
+                        const originalIndex = pieChartData.findIndex((d) => d.name === item.name);
+                        return <Cell key={`cell-${item.name}`} fill={getSeriesColor(originalIndex >= 0 ? originalIndex : filteredIndex)} />;
+                      })}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: unknown): string => formatCurrencyAbbreviated(Number(value), currency)}
+                  />
+                  <Legend
+                    onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
+                      const payload = data as {value?: unknown; dataKey?: string | number};
+                      if (payload.value && typeof payload.value === 'string') {
+                        handleLegendClick(payload.value);
+                      }
+                    }}
+                    formatter={(value: string): string => {
+                      const dataPoint = pieChartData.find((d) => d.name === value);
+                      if (dataPoint) {
+                        return `${value}: ${formatCurrencyAbbreviated(dataPoint.value, currency)}`;
+                      }
+                      return value;
+                    }}
+                    align="left"
+                    iconSize={12}
+                    wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             ) : (
-              <Box sx={{width: '100%', height: 400, overflow: 'auto'}}>
+              <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'line' ? (
-                  <LineChart width={800} height={400} data={chartData} style={{minWidth: 800}}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis tickFormatter={formatYAxisTick} />
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+                    <XAxis
+                      dataKey="date"
+                      stroke={theme.palette.text.secondary}
+                      tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                    />
+                    <YAxis
+                      tickFormatter={formatYAxisTick}
+                      stroke={theme.palette.text.secondary}
+                      tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                    />
                     <Tooltip content={<CustomTooltip />} />
-                    <Line type="monotone" dataKey="amount" stroke="#8884d8" name="Amount" strokeWidth={2} />
+                    <Legend
+                      onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
+                        const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
+                        if (payload.dataKey && typeof payload.dataKey === 'string') {
+                          handleLegendClick(payload.dataKey);
+                        }
+                      }}
+                      align="left"
+                      iconSize={12}
+                      wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                    />
+                    {chartSeriesKeys.map((seriesKey, index) => {
+                      const isHidden = hiddenSeries.has(seriesKey);
+                      return (
+                        <Line
+                          key={seriesKey}
+                          type="monotone"
+                          dataKey={seriesKey}
+                          stroke={getSeriesColor(index)}
+                          name={seriesKey}
+                          strokeWidth={2}
+                          dot={{fill: getSeriesColor(index), r: 3}}
+                          activeDot={{r: 5, fill: getSeriesColor(index)}}
+                          hide={isHidden}
+                          connectNulls
+                        />
+                      );
+                    })}
                   </LineChart>
                 ) : (
-                  <BarChart width={800} height={400} data={chartData} style={{minWidth: 800}}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis tickFormatter={formatYAxisTick} />
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+                    <XAxis
+                      dataKey="date"
+                      stroke={theme.palette.text.secondary}
+                      tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                    />
+                    <YAxis
+                      tickFormatter={formatYAxisTick}
+                      stroke={theme.palette.text.secondary}
+                      tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                    />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="amount" fill="#8884d8" name="Amount" />
+                    <Legend
+                      onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
+                        const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
+                        if (payload.dataKey && typeof payload.dataKey === 'string') {
+                          handleLegendClick(payload.dataKey);
+                        }
+                      }}
+                      align="left"
+                      iconSize={12}
+                      wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                    />
+                    {chartSeriesKeys.map((seriesKey, index) => {
+                      const isHidden = hiddenSeries.has(seriesKey);
+                      return (
+                        <Bar
+                          key={seriesKey}
+                          dataKey={seriesKey}
+                          fill={getSeriesColor(index)}
+                          name={seriesKey}
+                          radius={[4, 4, 0, 0]}
+                          hide={isHidden}
+                        />
+                      );
+                    })}
                   </BarChart>
                 )}
-              </Box>
+              </ResponsiveContainer>
             )}
           </Box>
         </Card>
