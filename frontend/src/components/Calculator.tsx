@@ -4,7 +4,7 @@
  */
 
 import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
-import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText, Chip, Stack} from '@mui/material';
+import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText, Chip, Stack, FormControl, Select} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useNavigate, useLocation} from 'react-router';
 import {Button} from './ui/Button';
@@ -16,7 +16,6 @@ import {
   Upload,
   Settings,
 } from '@mui/icons-material';
-import {PlusMinusIcon} from './calculator/PlusMinusIcon';
 import {BackspaceIcon} from './calculator/BackspaceIcon';
 import {CREATE_TRANSACTION} from '../graphql/mutations';
 import {GET_PREFERENCES, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
@@ -82,6 +81,10 @@ export function Calculator(): React.JSX.Element {
   const historyListRef = useRef<HTMLDivElement>(null);
   const calculatorRef = useRef<HTMLDivElement>(null);
   const [calculatorHeight, setCalculatorHeight] = useState<number>(0);
+  const [showAmount, setShowAmount] = useState<boolean>(false);
+  const [selectedPayeeId, setSelectedPayeeId] = useState<string>('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
 
   // Auto-scroll to bottom when transactions are loaded or new ones are added
   useAutoScroll(historyListRef, transactions, transactionsLoading);
@@ -151,7 +154,27 @@ export function Calculator(): React.JSX.Element {
     return defaultPayee?.id ?? null;
   }, [payees]);
 
+  // Initialize selected values with defaults
+  useEffect(() => {
+    if (defaultAccountId && !selectedAccountId) {
+      setSelectedAccountId(defaultAccountId);
+    }
+  }, [defaultAccountId, selectedAccountId]);
+
+  useEffect(() => {
+    if (defaultCategoryId && !selectedCategoryId) {
+      setSelectedCategoryId(defaultCategoryId);
+    }
+  }, [defaultCategoryId, selectedCategoryId]);
+
+  useEffect(() => {
+    if (defaultPayeeId && !selectedPayeeId) {
+      setSelectedPayeeId(defaultPayeeId);
+    }
+  }, [defaultPayeeId, selectedPayeeId]);
+
   const handleNumber = useCallback((num: string) => {
+    setShowAmount(true);
     setState((prev) => {
       if (prev.waitingForNewValue) {
         return {
@@ -179,6 +202,7 @@ export function Calculator(): React.JSX.Element {
   }, []);
 
   const handleOperation = useCallback((op: string) => {
+    setShowAmount(true);
     setState((prev) => {
       const currentValue = parseFloat(prev.display);
 
@@ -205,9 +229,6 @@ export function Calculator(): React.JSX.Element {
             break;
           case '/':
             result = prev.previousValue / currentValue;
-            break;
-          case '%':
-            result = prev.previousValue % currentValue;
             break;
           default:
             result = currentValue;
@@ -241,6 +262,7 @@ export function Calculator(): React.JSX.Element {
 
       // If display becomes empty or only contains minus sign, set to '0'
       if (newDisplay === '' || newDisplay === '-') {
+        setShowAmount(false);
         return {
           ...prev,
           display: '0',
@@ -254,24 +276,12 @@ export function Calculator(): React.JSX.Element {
     });
   }, []);
 
-  const handlePlusMinus = useCallback(() => {
-    setState((prev) => {
-      const currentValue = parseFloat(prev.display);
-      if (isNaN(currentValue)) {
-        return prev;
-      }
-      return {
-        ...prev,
-        display: String(-currentValue),
-      };
-    });
-  }, []);
-
   /**
    * Handle top used value button click
    * Sets the calculator display to the selected value
    */
   const handleTopUsedValueClick = useCallback((value: number) => {
+    setShowAmount(true);
     setState((prev) => ({
       ...prev,
       display: String(value),
@@ -298,9 +308,6 @@ export function Calculator(): React.JSX.Element {
           case '/':
             result = prev.previousValue / currentValue;
             break;
-          case '%':
-            result = prev.previousValue % currentValue;
-            break;
           default:
             result = currentValue;
         }
@@ -322,14 +329,15 @@ export function Calculator(): React.JSX.Element {
         date: string;
       } = {
         value: result,
-        accountId: defaultAccountId,
-        categoryId: defaultCategoryId,
+        accountId: selectedAccountId || defaultAccountId,
+        categoryId: selectedCategoryId || defaultCategoryId,
         date: new Date().toISOString(),
       };
 
       // Only include payeeId if it's not null
-      if (defaultPayeeId) {
-        transactionInput.payeeId = defaultPayeeId;
+      const payeeIdToUse = selectedPayeeId || defaultPayeeId;
+      if (payeeIdToUse) {
+        transactionInput.payeeId = payeeIdToUse;
       }
 
       createTransaction({
@@ -345,6 +353,7 @@ export function Calculator(): React.JSX.Element {
             operation: null,
             waitingForNewValue: false,
           });
+          setShowAmount(false);
           // Scroll will be handled by useEffect when transactions update
         })
         .catch(() => {
@@ -358,7 +367,7 @@ export function Calculator(): React.JSX.Element {
         waitingForNewValue: false,
       };
     });
-  }, [defaultAccountId, defaultCategoryId, defaultPayeeId, createTransaction]);
+  }, [selectedAccountId, selectedCategoryId, selectedPayeeId, defaultAccountId, defaultCategoryId, defaultPayeeId, createTransaction]);
 
   /**
    * Handle settings button click - opens context menu
@@ -468,61 +477,138 @@ export function Calculator(): React.JSX.Element {
         }}
       >
         <Paper sx={{p: 2, width: '100%', maxWidth: '600px'}}>
-          <Typography
-            variant="h4"
-            component="div"
+          {/* First Row: Backspace (when amount visible) + Amount or Top Used Values */}
+          <Box
             sx={{
-              textAlign: 'right',
               mb: 2,
+              minHeight: '64px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
             }}
           >
-            {state.previousValue !== null && state.operation
-              ? `${state.previousValue} ${state.operation} ${state.waitingForNewValue ? '' : state.display}`
-              : state.display}
-          </Typography>
-
-          {/* Top 5 Most Used Values Row */}
-          {topUsedValues.length > 0 && (
-            <Stack
-              direction="row"
-              spacing={1}
+            {showAmount && (
+              <Button variant="text" onClick={handleBackspace}>
+                <BackspaceIcon />
+              </Button>
+            )}
+            <Box
               sx={{
-                mb: 1,
-                overflowX: 'auto',
-                overflowY: 'hidden',
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
               }}
             >
-              {topUsedValues.slice(0, 5).map((item, index) => (
-                <Chip
-                  key={`${item.value}-${index}`}
-                  label={formatCurrencyPreserveDecimals(item.value, currency)}
-                  variant="outlined"
-                  onClick={() => handleTopUsedValueClick(Number(item.value))}
-                  sx={{cursor: 'pointer'}}
-                />
-              ))}
-            </Stack>
-          )}
+              {showAmount ? (
+                <Typography
+                  variant="h4"
+                  component="div"
+                  sx={{
+                    textAlign: 'right',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                  }}
+                >
+                  {state.previousValue !== null && state.operation
+                    ? `${state.previousValue} ${state.operation} ${state.waitingForNewValue ? '' : state.display}`
+                    : state.display}
+                </Typography>
+              ) : (
+                topUsedValues.length > 0 && (
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      overflowX: 'auto',
+                      overflowY: 'hidden',
+                      width: '100%',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
+                    {topUsedValues.slice(0, 5).map((item, index) => (
+                      <Chip
+                        key={`${item.value}-${index}`}
+                        label={formatCurrencyPreserveDecimals(item.value, currency)}
+                        variant="outlined"
+                        onClick={() => handleTopUsedValueClick(Number(item.value))}
+                        sx={{cursor: 'pointer'}}
+                      />
+                    ))}
+                  </Stack>
+                )
+              )}
+            </Box>
+          </Box>
 
         <Grid container spacing={1}>
-          {/* Row 1: Backspace, ±, %, ÷ */}
+          {/* Row 1: Payee, Account, Category, ÷ */}
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handleBackspace}>
-              <BackspaceIcon />
-            </Button>
+            <FormControl
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  height: '36.5px',
+                },
+              }}
+            >
+              <Select
+                value={selectedPayeeId || ''}
+                onChange={(e) => setSelectedPayeeId(e.target.value)}
+                displayEmpty
+              >
+                {payees.map((payee) => (
+                  <MenuItem key={payee.id} value={payee.id}>
+                    {payee.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handlePlusMinus}>
-              <PlusMinusIcon />
-            </Button>
+            <FormControl
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  height: '36.5px',
+                },
+              }}
+            >
+              <Select
+                value={selectedAccountId || ''}
+                onChange={(e) => setSelectedAccountId(e.target.value)}
+                displayEmpty
+              >
+                {accounts.map((account) => (
+                  <MenuItem key={account.id} value={account.id}>
+                    {account.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
           <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('%')}>
-              %
-            </Button>
+            <FormControl
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  height: '36.5px',
+                },
+              }}
+            >
+              <Select
+                value={selectedCategoryId || ''}
+                onChange={(e) => setSelectedCategoryId(e.target.value)}
+                displayEmpty
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
           <Grid item xs={3}>
             <Button fullWidth variant="outlined" onClick={() => handleOperation('/')}>

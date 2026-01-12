@@ -5,7 +5,7 @@
 
 import React, {useState, useEffect, useRef} from 'react';
 import {useNavigate} from 'react-router';
-import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, Tooltip, CircularProgress, Stack, Select, MenuItem, FormControl, InputLabel} from '@mui/material';
+import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, Tooltip, CircularProgress, Stack, Select, MenuItem, FormControl, InputLabel, Popover, IconButton} from '@mui/material';
 import {useQuery, useMutation, useLazyQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Dialog} from '../components/ui/Dialog';
@@ -119,6 +119,73 @@ interface ImportCSVResult {
     updated: number;
     errors: string[];
   };
+}
+
+/**
+ * Help Icon Component
+ * Displays a help icon with tooltip on hover (desktop) and popover on click (mobile)
+ * @param helpText - The help text to display
+ */
+function HelpIcon({helpText}: {helpText: string}): React.JSX.Element {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const open = Boolean(anchorEl);
+
+  /**
+   * Handle help icon click
+   * Opens popover on mobile devices
+   */
+  const handleClick = (event: React.MouseEvent<HTMLElement>): void => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  /**
+   * Handle popover close
+   */
+  const handleClose = (): void => {
+    setAnchorEl(null);
+  };
+
+  return (
+    <>
+      <Tooltip title={helpText} arrow>
+        <IconButton
+          size="small"
+          onClick={handleClick}
+          sx={{
+            padding: 0.5,
+            cursor: 'help',
+            '&:hover': {
+              backgroundColor: 'action.hover',
+            },
+          }}
+          aria-label="Help"
+        >
+          <HelpOutline fontSize="small" color="action" />
+        </IconButton>
+      </Tooltip>
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        PaperProps={{
+          sx: {
+            maxWidth: 300,
+            p: 1.5,
+          },
+        }}
+      >
+        <Typography variant="body2">{helpText}</Typography>
+      </Popover>
+    </>
+  );
 }
 
 /**
@@ -740,9 +807,7 @@ export function PreferencesPage(): React.JSX.Element {
               <Typography variant="subtitle2" component="label">
                 Calculator Quick Button
               </Typography>
-              <Tooltip title="Choose which quick button appears on the calculator. The &apos;000&apos; button quickly adds &apos;000&apos; to your value (useful for entering thousands). The &apos;.&apos; button quickly adds a decimal point (useful for entering cents).">
-                <HelpOutline fontSize="small" color="action" sx={{cursor: 'help'}} />
-              </Tooltip>
+              <HelpIcon helpText="Choose which quick button appears on the calculator. The '000' button quickly adds '000' to your value (useful for entering thousands). The '.' button quickly adds a decimal point (useful for entering cents)." />
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
               Choose which quick button appears on the calculator to help you enter values faster
@@ -787,9 +852,7 @@ export function PreferencesPage(): React.JSX.Element {
               <Typography variant="subtitle2" component="label">
                 Currency
               </Typography>
-              <Tooltip title="Select your preferred currency. This will be used throughout the application for displaying amounts">
-                <HelpOutline fontSize="small" color="action" sx={{cursor: 'help'}} />
-              </Tooltip>
+              <HelpIcon helpText="Select your preferred currency. This will be used throughout the application for displaying amounts" />
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
               Select your preferred currency for displaying amounts
@@ -831,9 +894,7 @@ export function PreferencesPage(): React.JSX.Element {
               <Typography variant="subtitle2" component="label">
                 Date Format
               </Typography>
-              <Tooltip title="Select your preferred date format. This will be used throughout the application for displaying dates">
-                <HelpOutline fontSize="small" color="action" sx={{cursor: 'help'}} />
-              </Tooltip>
+              <HelpIcon helpText="Select your preferred date format. This will be used throughout the application for displaying dates" />
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
               Choose how dates are displayed throughout the application
@@ -870,9 +931,7 @@ export function PreferencesPage(): React.JSX.Element {
               <Typography variant="subtitle2" component="label">
                 Color Scheme
               </Typography>
-              <Tooltip title="Customize the app&apos;s color theme. Choose from preset themes or create a custom color scheme">
-                <HelpOutline fontSize="small" color="action" sx={{cursor: 'help'}} />
-              </Tooltip>
+              <HelpIcon helpText="Customize the app's color theme. Choose from preset themes or create a custom color scheme" />
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
               Customize the app&apos;s appearance with different color themes
