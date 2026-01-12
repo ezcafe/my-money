@@ -202,6 +202,32 @@ export function formatDateHeader(date: Date | string, dateFormat: DateFormat = D
 }
 
 /**
+ * Format a date as month/year based on the user's date format pattern
+ * Extracts month and year, maintaining the format's separator and order
+ * @param date - The date to format (Date object or string)
+ * @param dateFormat - The date format pattern (e.g., 'MM/DD/YYYY')
+ * @returns Formatted month/year string (e.g., 'MM/YYYY', 'YYYY-MM')
+ */
+export function formatMonthYear(date: Date | string, dateFormat: DateFormat): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+
+  switch (dateFormat) {
+    case 'DD/MM/YYYY':
+    case 'MM/DD/YYYY':
+      return `${month}/${year}`;
+    case 'YYYY-MM-DD':
+      return `${year}-${month}`;
+    case 'DD-MM-YYYY':
+    case 'MM-DD-YYYY':
+      return `${month}-${year}`;
+    default:
+      return `${month}/${year}`;
+  }
+}
+
+/**
  * Format a number with abbreviation (K, M, B, etc.)
  * Examples: 1000 -> 1K, 32000000 -> 32M, 1500000000 -> 1.5B
  * @param value - The numeric value to format

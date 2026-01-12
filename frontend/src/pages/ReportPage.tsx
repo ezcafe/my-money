@@ -47,7 +47,7 @@ import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
 import {MultiSelect, type MultiSelectOption} from '../components/ui/MultiSelect';
 import {EmptyState} from '../components/common/EmptyState';
-import {formatCurrencyPreserveDecimals, formatDateShort, formatNumberAbbreviation} from '../utils/formatting';
+import {formatCurrencyPreserveDecimals, formatDateShort, formatNumberAbbreviation, formatMonthYear} from '../utils/formatting';
 import type {DateFormat} from '../contexts/DateFormatContext';
 import {validateDateRange} from '../utils/validation';
 import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_BUDGETS} from '../graphql/queries';
@@ -461,17 +461,21 @@ export function ReportPage(): React.JSX.Element {
    * Get formatted start date text for button
    */
   const startDateText = useMemo(() => {
-    const text = filters.startDate || 'Start Date';
-    return text.charAt(0).toUpperCase() + text.slice(1);
-  }, [filters.startDate]);
+    if (filters.startDate) {
+      return formatDateShort(filters.startDate, dateFormat);
+    }
+    return 'Start Date';
+  }, [filters.startDate, dateFormat]);
 
   /**
    * Get formatted end date text for button
    */
   const endDateText = useMemo(() => {
-    const text = filters.endDate || 'End Date';
-    return text.charAt(0).toUpperCase() + text.slice(1);
-  }, [filters.endDate]);
+    if (filters.endDate) {
+      return formatDateShort(filters.endDate, dateFormat);
+    }
+    return 'End Date';
+  }, [filters.endDate, dateFormat]);
 
   /**
    * Apply preset date range
@@ -717,13 +721,12 @@ export function ReportPage(): React.JSX.Element {
         // Format the group key for display
         let formattedDate: string;
         if (groupingType === 'month') {
-          const dateObj = dayjs(data.originalDate);
-          formattedDate = dateObj.format('MMM YYYY');
+          formattedDate = formatMonthYear(data.originalDate, dateFormat);
         } else if (groupingType === 'week') {
           const dateObj = dayjs(data.originalDate);
-          const weekStart = dateObj.startOf('week');
-          const weekEnd = dateObj.endOf('week');
-          formattedDate = `${weekStart.format('MMM D')} - ${weekEnd.format('MMM D, YYYY')}`;
+          const weekStart = dateObj.startOf('week').toDate();
+          const weekEnd = dateObj.endOf('week').toDate();
+          formattedDate = `${formatDateShort(weekStart, dateFormat)} - ${formatDateShort(weekEnd, dateFormat)}`;
         } else {
           formattedDate = formatDateShort(data.originalDate, dateFormat);
         }

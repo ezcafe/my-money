@@ -130,9 +130,22 @@ export function PreferencesPage(): React.JSX.Element {
   const {data: preferencesData, loading: preferencesLoading} = useQuery<{
     preferences?: {currency: string; useThousandSeparator: boolean; dateFormat: string | null};
   }>(GET_PREFERENCES);
-  const [updatePreferences, {loading: updating}] = useMutation(UPDATE_PREFERENCES, {
+  const [updatePreferences, {loading: updating}] = useMutation<{
+    updatePreferences: {id: string; currency: string; useThousandSeparator: boolean; colorScheme: string | null; colorSchemeValue: string | null; dateFormat: string | null};
+  }>(UPDATE_PREFERENCES, {
     refetchQueries: ['GetPreferences'],
     awaitRefetchQueries: true,
+    update: (cache, {data}) => {
+      if (data?.updatePreferences) {
+        // Explicitly write to cache - this ensures the cache is updated before refetchQueries runs
+        cache.writeQuery({
+          query: GET_PREFERENCES,
+          data: {
+            preferences: data.updatePreferences,
+          },
+        });
+      }
+    },
     onCompleted: () => {
       showSuccessNotification('Preferences updated successfully');
     },
@@ -199,8 +212,12 @@ export function PreferencesPage(): React.JSX.Element {
   // Initialize state from loaded preferences
   useEffect(() => {
     if (preferencesData?.preferences) {
-      setUseThousandSeparator(preferencesData.preferences.useThousandSeparator);
-      setCurrency(preferencesData.preferences.currency);
+      if (preferencesData.preferences.useThousandSeparator !== undefined) {
+        setUseThousandSeparator(preferencesData.preferences.useThousandSeparator);
+      }
+      if (preferencesData.preferences.currency) {
+        setCurrency(preferencesData.preferences.currency);
+      }
       const format = preferencesData.preferences.dateFormat;
       if (format && (format === 'DD/MM/YYYY' || format === 'MM/DD/YYYY' || format === 'YYYY-MM-DD' || format === 'DD-MM-YYYY' || format === 'MM-DD-YYYY')) {
         setDateFormat(format as DateFormat);
