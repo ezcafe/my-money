@@ -29,8 +29,9 @@ import {
   TrendingDown,
   Receipt,
   AttachMoney,
-  AccountTree,
   DonutLarge,
+  Layers,
+  Timeline,
 } from '@mui/icons-material';
 import {DateCalendar} from '@mui/x-date-pickers/DateCalendar';
 import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
@@ -47,10 +48,12 @@ import {TextField} from '../components/ui/TextField';
 import {MultiSelect, type MultiSelectOption} from '../components/ui/MultiSelect';
 import {EmptyState} from '../components/common/EmptyState';
 import {formatCurrencyPreserveDecimals, formatDateShort, formatNumberAbbreviation} from '../utils/formatting';
+import type {DateFormat} from '../contexts/DateFormatContext';
 import {validateDateRange} from '../utils/validation';
-import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
+import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_BUDGETS} from '../graphql/queries';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
 import {useAccounts} from '../hooks/useAccounts';
+import {useDateFormat} from '../hooks/useDateFormat';
 import type {TransactionOrderInput, TransactionOrderByField} from '../hooks/useTransactions';
 import {ITEMS_PER_PAGE} from '../utils/constants';
 import {TransactionList} from '../components/TransactionList';
@@ -180,6 +183,56 @@ function getDatePresets(): Record<DatePreset, DatePresetConfig> {
 }
 
 /**
+ * Determine date grouping type based on date filter
+ * @param startDate - Start date string (YYYY-MM-DD)
+ * @param endDate - End date string (YYYY-MM-DD)
+ * @returns 'month' | 'week' | 'date'
+ */
+function getDateGroupingType(startDate: string, endDate: string): 'month' | 'week' | 'date' {
+  if (!startDate || !endDate) {
+    return 'month'; // Default to month if no filter
+  }
+
+  const start = dayjs(startDate);
+  const end = dayjs(endDate);
+  const diffMonths = end.diff(start, 'month', true);
+
+  if (diffMonths >= 1) {
+    return 'month';
+  }
+
+  const diffWeeks = end.diff(start, 'week', true);
+  if (diffWeeks >= 1) {
+    return 'week';
+  }
+
+  return 'date';
+}
+
+/**
+ * Get group key for a date based on grouping type
+ * @param date - Date string (YYYY-MM-DD)
+ * @param groupingType - Grouping type ('month' | 'week' | 'date')
+ * @param dateFormat - Date format for date-level grouping
+ * @returns Group key string
+ */
+function getGroupKey(date: string, groupingType: 'month' | 'week' | 'date', dateFormat: DateFormat): string {
+  const dateObj = dayjs(date);
+
+  switch (groupingType) {
+    case 'month':
+      return dateObj.format('YYYY-MM');
+    case 'week':
+      // Use start of week as the key for consistent grouping
+      return dateObj.startOf('week').format('YYYY-MM-DD');
+    case 'date':
+      return formatDateShort(date, dateFormat);
+    default:
+      return dateObj.format('YYYY-MM');
+  }
+}
+
+/**
  * Report Page Component
  */
 export function ReportPage(): React.JSX.Element {
@@ -189,11 +242,14 @@ export function ReportPage(): React.JSX.Element {
   const currency = preferencesData?.preferences?.currency ?? 'USD';
 
   const {accounts} = useAccounts();
+  const {dateFormat} = useDateFormat();
   const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string}>}>(GET_CATEGORIES);
   const {data: payeesData} = useQuery<{payees?: Array<{id: string; name: string}>}>(GET_PAYEES);
+  const {data: budgetsData} = useQuery<{budgets?: Array<{id: string; amount: string; currentSpent: string; categoryId: string | null; category: {id: string; name: string} | null}>}>(GET_BUDGETS);
 
   const categories = useMemo(() => categoriesData?.categories ?? [], [categoriesData?.categories]);
   const payees = useMemo(() => payeesData?.payees ?? [], [payeesData?.payees]);
+  const budgets = useMemo(() => budgetsData?.budgets ?? [], [budgetsData?.budgets]);
 
   // Filter state (current input values)
   const [filters, setFilters] = useState({
@@ -220,7 +276,7 @@ export function ReportPage(): React.JSX.Element {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Chart type state
-  const [chartType, setChartType] = useState<'line' | 'bar' | 'pie' | 'sankey'>('line');
+  const [chartType, setChartType] = useState<'line' | 'bar' | 'pie' | 'sankey' | 'stacked'>('line');
 
   // Chart series visibility state (track which series are hidden)
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
@@ -515,7 +571,7 @@ export function ReportPage(): React.JSX.Element {
 
     if (appliedFilters.startDate && appliedFilters.endDate) {
       chips.push({
-        label: `${formatDateShort(appliedFilters.startDate)} - ${formatDateShort(appliedFilters.endDate)}`,
+        label: `${formatDateShort(appliedFilters.startDate, dateFormat)} - ${formatDateShort(appliedFilters.endDate, dateFormat)}`,
         onDelete: () => {
           setFilters((prev) => ({...prev, startDate: '', endDate: ''}));
           setAppliedFilters((prev) => ({...prev, startDate: '', endDate: ''}));
@@ -578,7 +634,7 @@ export function ReportPage(): React.JSX.Element {
     }
 
     return chips;
-  }, [appliedFilters, accounts, categories, payees]);
+  }, [appliedFilters, accounts, categories, payees, dateFormat]);
 
   /**
    * Format currency with abbreviation (B, M, K)
@@ -620,121 +676,69 @@ export function ReportPage(): React.JSX.Element {
   }, []);
 
   /**
-   * Prepare chart data with dynamic grouping based on applied filters
-   * - Filter by date or note: group by payees, then date
-   * - Filter by account: group by categories, then date
-   * - Filter by payees or categories: group by date only
-   * - Default: group by payee, then category, then date
-   * Don't show year if date filter is in current year
-   * Don't show month if date filter is in current month
+   * Prepare chart data for line chart showing income and expense lines
+   * Groups by month/week/date based on date filter range
    */
   const chartData = useMemo<ChartDataPoint[]>(() => {
     if (transactions.length === 0) {
       return [];
     }
 
-    // Determine grouping strategy based on applied filters
-    const hasDateFilter = appliedFilters.startDate !== '' || appliedFilters.endDate !== '';
-    const hasNoteFilter = appliedFilters.note.trim() !== '';
-    const hasAccountFilter = appliedFilters.accountIds.length > 0;
-    const hasPayeeFilter = appliedFilters.payeeIds.length > 0;
-    const hasCategoryFilter = appliedFilters.categoryIds.length > 0;
+    // Determine date grouping type
+    const groupingType = getDateGroupingType(appliedFilters.startDate, appliedFilters.endDate);
 
-    let groupingStrategy: 'payee-date' | 'category-date' | 'date-only' | 'payee-category-date';
+    // Separate income and expense transactions
+    const incomeTransactions = transactions.filter((t) => t.category?.type === 'INCOME');
+    const expenseTransactions = transactions.filter((t) => !t.category || t.category.type === 'EXPENSE');
 
-    if (hasDateFilter || hasNoteFilter) {
-      // Filter by date or note: group by payees, then date
-      groupingStrategy = 'payee-date';
-    } else if (hasAccountFilter) {
-      // Filter by account: group by categories, then date
-      groupingStrategy = 'category-date';
-    } else if (hasPayeeFilter || hasCategoryFilter) {
-      // Filter by payees or categories: group by date only
-      groupingStrategy = 'date-only';
-    } else {
-      // Default: group by payee, then category, then date
-      groupingStrategy = 'payee-category-date';
+    // Group by date period
+    // Structure: Map<groupKey, {income: number, expense: number}>
+    const groupedData = new Map<string, {income: number; expense: number; originalDate: string}>();
+
+    // Process income transactions
+    for (const transaction of incomeTransactions) {
+      const groupKey = getGroupKey(transaction.date, groupingType, dateFormat);
+      const existing = groupedData.get(groupKey) ?? {income: 0, expense: 0, originalDate: transaction.date};
+      existing.income += Number(transaction.value);
+      groupedData.set(groupKey, existing);
     }
 
-    // Group transactions based on strategy
-    // Structure: Map<dateKey, Map<seriesKey, amount>>
-    const groupedData = new Map<string, Map<string, number>>();
-    const allSeriesKeys = new Set<string>();
-
-    for (const transaction of transactions) {
-      let seriesKey: string;
-
-      if (groupingStrategy === 'payee-date') {
-        // Group by payee, then date
-        const payeeName = transaction.payee?.name ?? 'Others';
-        seriesKey = payeeName;
-      } else if (groupingStrategy === 'category-date') {
-        // Group by category, then date
-        const categoryName = transaction.category?.name ?? 'Uncategorized';
-        seriesKey = categoryName;
-      } else if (groupingStrategy === 'date-only') {
-        // Group by date only
-        seriesKey = 'Total';
-      } else {
-        // Default: group by payee, then category, then date
-        const payeeName = transaction.payee?.name ?? 'Others';
-        const categoryName = transaction.category?.name ?? 'Uncategorized';
-        seriesKey = `${payeeName} - ${categoryName}`;
-      }
-
-      allSeriesKeys.add(seriesKey);
-
-      const dateKey = formatDateShort(transaction.date);
-      if (!groupedData.has(dateKey)) {
-        groupedData.set(dateKey, new Map());
-      }
-      const dateMap = groupedData.get(dateKey)!;
-      const current = dateMap.get(seriesKey) ?? 0;
-      dateMap.set(seriesKey, current + Number(transaction.value));
+    // Process expense transactions
+    for (const transaction of expenseTransactions) {
+      const groupKey = getGroupKey(transaction.date, groupingType, dateFormat);
+      const existing = groupedData.get(groupKey) ?? {income: 0, expense: 0, originalDate: transaction.date};
+      existing.expense += Math.abs(Number(transaction.value));
+      groupedData.set(groupKey, existing);
     }
 
-    // Convert to array and sort by date, then format dates
-    const now = new Date();
-    const startDate = appliedFilters.startDate ? new Date(appliedFilters.startDate) : null;
-    const endDate = appliedFilters.endDate ? new Date(appliedFilters.endDate) : null;
-
-    // Check if filter is in current year
-    const isCurrentYear = (!startDate || startDate.getFullYear() === now.getFullYear()) &&
-      (!endDate || endDate.getFullYear() === now.getFullYear());
-
-    // Check if filter is in current month
-    const isCurrentMonth = isCurrentYear &&
-      (!startDate || (startDate.getFullYear() === now.getFullYear() && startDate.getMonth() === now.getMonth())) &&
-      (!endDate || (endDate.getFullYear() === now.getFullYear() && endDate.getMonth() === now.getMonth()));
-
+    // Convert to array and format dates
     const dataPoints: ChartDataPoint[] = Array.from(groupedData.entries())
-      .map(([dateStr, seriesMap]) => {
-        const date = new Date(dateStr);
+      .map(([, data]) => {
+        // Format the group key for display
         let formattedDate: string;
-        if (isCurrentMonth) {
-          formattedDate = date.getDate().toString();
-        } else if (isCurrentYear) {
-          formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+        if (groupingType === 'month') {
+          const dateObj = dayjs(data.originalDate);
+          formattedDate = dateObj.format('MMM YYYY');
+        } else if (groupingType === 'week') {
+          const dateObj = dayjs(data.originalDate);
+          const weekStart = dateObj.startOf('week');
+          const weekEnd = dateObj.endOf('week');
+          formattedDate = `${weekStart.format('MMM D')} - ${weekEnd.format('MMM D, YYYY')}`;
         } else {
-          formattedDate = formatDateShort(dateStr);
+          formattedDate = formatDateShort(data.originalDate, dateFormat);
         }
 
-        const dataPoint: ChartDataPoint = {
+        return {
           date: formattedDate,
-          originalDate: dateStr,
+          originalDate: data.originalDate,
+          income: data.income,
+          expense: data.expense,
         };
-
-        // Add all series values (set to 0 if not present for this date)
-        for (const seriesKey of allSeriesKeys) {
-          dataPoint[seriesKey] = seriesMap.get(seriesKey) ?? 0;
-        }
-
-        return dataPoint;
       })
-      .sort((a, b) => new Date(a.originalDate ?? '').getTime() - new Date(b.originalDate ?? '').getTime());
+      .sort((a, b) => new Date(a.originalDate).getTime() - new Date(b.originalDate).getTime());
 
     return dataPoints;
-  }, [transactions, appliedFilters.startDate, appliedFilters.endDate, appliedFilters.accountIds, appliedFilters.categoryIds, appliedFilters.payeeIds, appliedFilters.note]);
+  }, [transactions, appliedFilters.startDate, appliedFilters.endDate, dateFormat]);
 
   /**
    * Get series keys from chart data
@@ -758,6 +762,7 @@ export function ReportPage(): React.JSX.Element {
    * Reset hidden series when chart data changes significantly
    * (when series keys change, clean up hidden state for non-existent keys)
    */
+  const chartSeriesKeysString = chartSeriesKeys.join(',');
   useEffect(() => {
     setHiddenSeries((prev) => {
       const newSet = new Set<string>();
@@ -768,7 +773,8 @@ export function ReportPage(): React.JSX.Element {
       }
       return newSet;
     });
-  }, [chartSeriesKeys.join(',')]); // Reset when series keys change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartSeriesKeysString]); // Reset when series keys change
 
   /**
    * Generate color palette for chart series
@@ -837,7 +843,7 @@ export function ReportPage(): React.JSX.Element {
               <strong>{date}</strong>
             </Typography>
             {payload.map((entry, index) => {
-              if (!entry || entry.value === undefined) {
+              if (!entry?.value) {
                 return null;
               }
               return (
@@ -914,66 +920,20 @@ export function ReportPage(): React.JSX.Element {
   }, []);
 
   /**
-   * Prepare pie chart data with dynamic grouping based on applied filters
-   * - Filter by date or note: group by payees
-   * - Filter by account: group by categories
-   * - Filter by payees or categories: show total only
-   * - Default: group by payee, then category
+   * Prepare pie chart data - always group by categories
    */
   const pieChartData = useMemo(() => {
     if (transactions.length === 0) {
       return [];
     }
 
-    // Determine grouping strategy based on applied filters
-    const hasDateFilter = appliedFilters.startDate !== '' || appliedFilters.endDate !== '';
-    const hasNoteFilter = appliedFilters.note.trim() !== '';
-    const hasAccountFilter = appliedFilters.accountIds.length > 0;
-    const hasPayeeFilter = appliedFilters.payeeIds.length > 0;
-    const hasCategoryFilter = appliedFilters.categoryIds.length > 0;
-
-    let groupingStrategy: 'payee' | 'category' | 'total' | 'payee-category';
-
-    if (hasDateFilter || hasNoteFilter) {
-      // Filter by date or note: group by payees
-      groupingStrategy = 'payee';
-    } else if (hasAccountFilter) {
-      // Filter by account: group by categories
-      groupingStrategy = 'category';
-    } else if (hasPayeeFilter || hasCategoryFilter) {
-      // Filter by payees or categories: show total only
-      groupingStrategy = 'total';
-    } else {
-      // Default: group by payee, then category
-      groupingStrategy = 'payee-category';
-    }
-
-    // Group transactions based on strategy
+    // Group transactions by category
     const groupedData = new Map<string, number>();
     for (const transaction of transactions) {
-      let seriesKey: string;
-
-      if (groupingStrategy === 'payee') {
-        // Group by payee
-        const payeeName = transaction.payee?.name ?? 'Others';
-        seriesKey = payeeName;
-      } else if (groupingStrategy === 'category') {
-        // Group by category
-        const categoryName = transaction.category?.name ?? 'Uncategorized';
-        seriesKey = categoryName;
-      } else if (groupingStrategy === 'total') {
-        // Show total only
-        seriesKey = 'Total';
-      } else {
-        // Default: group by payee, then category
-        const payeeName = transaction.payee?.name ?? 'Others';
-        const categoryName = transaction.category?.name ?? 'Uncategorized';
-        seriesKey = `${payeeName} - ${categoryName}`;
-      }
-
+      const categoryName = transaction.category?.name ?? 'Uncategorized';
       const value = Math.abs(Number(transaction.value));
-      const current = groupedData.get(seriesKey) ?? 0;
-      groupedData.set(seriesKey, current + value);
+      const current = groupedData.get(categoryName) ?? 0;
+      groupedData.set(categoryName, current + value);
     }
 
     // Convert to array and sort by value (descending)
@@ -982,10 +942,85 @@ export function ReportPage(): React.JSX.Element {
       .sort((a, b) => b.value - a.value);
 
     return dataPoints;
-  }, [transactions, appliedFilters.startDate, appliedFilters.endDate, appliedFilters.accountIds, appliedFilters.categoryIds, appliedFilters.payeeIds, appliedFilters.note]);
+  }, [transactions]);
+
+  /**
+   * Prepare budget chart data for stacked column chart
+   * Shows budget vs actual spending grouped by month
+   */
+  const budgetChartData = useMemo(() => {
+    if (transactions.length === 0 || budgets.length === 0) {
+      return [];
+    }
+
+    // Group transactions by month and category
+    const transactionsByMonth = new Map<string, Map<string, number>>();
+
+    for (const transaction of transactions) {
+      // Only process expense transactions
+      if (transaction.category?.type === 'EXPENSE' && transaction.category?.id) {
+        const monthKey = dayjs(transaction.date).format('YYYY-MM');
+        if (!transactionsByMonth.has(monthKey)) {
+          transactionsByMonth.set(monthKey, new Map());
+        }
+        const categoryMap = transactionsByMonth.get(monthKey)!;
+        const categoryId = transaction.category.id;
+        const current = categoryMap.get(categoryId) ?? 0;
+        categoryMap.set(categoryId, current + Math.abs(Number(transaction.value)));
+      }
+    }
+
+    // Get all unique months
+    const months = Array.from(transactionsByMonth.keys()).sort();
+
+    // Build data points
+    const dataPoints: Array<{month: string; [key: string]: string | number}> = [];
+
+    for (const month of months) {
+      const dataPoint: {month: string; [key: string]: string | number} = {
+        month: dayjs(month).format('MMM YYYY'),
+      };
+
+      const categorySpending = transactionsByMonth.get(month)!;
+
+      // For each budget, add budget and actual values
+      for (const budget of budgets) {
+        if (budget.categoryId) {
+          const categoryId = budget.categoryId;
+          const budgetAmount = parseFloat(budget.amount);
+          const actualAmount = categorySpending.get(categoryId) ?? 0;
+
+          // Use category name as key suffix
+          const categoryName = budget.category?.name ?? 'Uncategorized';
+          const budgetKey = `${categoryName}_budget`;
+          const actualKey = `${categoryName}_actual`;
+
+          dataPoint[budgetKey] = budgetAmount;
+          dataPoint[actualKey] = actualAmount;
+        }
+      }
+
+      dataPoints.push(dataPoint);
+    }
+
+    return dataPoints;
+  }, [transactions, budgets]);
+
+  /**
+   * Check if stacked chart should be visible
+   * Only show if: no date filter OR date filter spans multiple months
+   */
+  const shouldShowStackedChart = useMemo(() => {
+    if (!appliedFilters.startDate || !appliedFilters.endDate) {
+      return true; // No date filter - show stacked chart
+    }
+    const groupingType = getDateGroupingType(appliedFilters.startDate, appliedFilters.endDate);
+    return groupingType === 'month';
+  }, [appliedFilters.startDate, appliedFilters.endDate]);
 
   /**
    * Prepare Sankey diagram data
+   * Flow: Income Categories -> Account -> Expense Categories
    */
   const sankeyData = useMemo(() => {
     if (transactions.length === 0) {
@@ -1004,87 +1039,73 @@ export function ReportPage(): React.JSX.Element {
     const nodeMap = new Map<string, number>();
     const links: Array<{source: string; target: string; value: number}> = [];
 
-    // Process income: Account -> Payee -> Budget
-    const incomeByAccountPayee = new Map<string, Map<string, number>>();
-    let totalIncome = 0;
+    // Process income: Income Category -> Account
+    // Structure: Map<categoryName, Map<accountName, amount>>
+    const incomeByCategoryAccount = new Map<string, Map<string, number>>();
 
     for (const transaction of incomeTransactions) {
+      const categoryName = transaction.category?.name ?? 'Uncategorized';
       const accountName = transaction.account?.name ?? 'Unknown Account';
-      const payeeName = transaction.payee?.name ?? 'Others';
       const value = Number(transaction.value);
 
-      if (!incomeByAccountPayee.has(accountName)) {
-        incomeByAccountPayee.set(accountName, new Map());
+      if (!incomeByCategoryAccount.has(categoryName)) {
+        incomeByCategoryAccount.set(categoryName, new Map());
       }
-      const payeeMap = incomeByAccountPayee.get(accountName)!;
-      payeeMap.set(payeeName, (payeeMap.get(payeeName) ?? 0) + value);
-      totalIncome += value;
+      const accountMap = incomeByCategoryAccount.get(categoryName)!;
+      accountMap.set(accountName, (accountMap.get(accountName) ?? 0) + value);
     }
 
-    // Create nodes and links for income flow
-    for (const [accountName, payeeMap] of incomeByAccountPayee.entries()) {
-      const accountNodeId = `account_${accountName}`;
-      nodeMap.set(accountNodeId, (nodeMap.get(accountNodeId) ?? 0) + Array.from(payeeMap.values()).reduce((sum, val) => sum + val, 0));
-
-      for (const [payeeName, value] of payeeMap.entries()) {
-        const payeeNodeId = `payee_income_${accountName}_${payeeName}`;
-        nodeMap.set(payeeNodeId, (nodeMap.get(payeeNodeId) ?? 0) + value);
-
-        // Link: Account -> Payee
-        links.push({
-          source: accountNodeId,
-          target: payeeNodeId,
-          value,
-        });
-
-        // Link: Payee -> Budget
-        links.push({
-          source: payeeNodeId,
-          target: 'budget',
-          value,
-        });
-      }
-    }
-
-    // Budget node
-    nodeMap.set('budget', totalIncome);
-
-    // Process expenses: Budget -> Category -> Payee
-    const expenseByCategoryPayee = new Map<string, Map<string, number>>();
+    // Process expenses: Account -> Expense Category
+    // Structure: Map<accountName, Map<categoryName, amount>>
+    const expenseByAccountCategory = new Map<string, Map<string, number>>();
 
     for (const transaction of expenseTransactions) {
+      const accountName = transaction.account?.name ?? 'Unknown Account';
       const categoryName = transaction.category?.name ?? 'Uncategorized';
-      const payeeName = transaction.payee?.name ?? 'Others';
       const value = Math.abs(Number(transaction.value));
 
-      if (!expenseByCategoryPayee.has(categoryName)) {
-        expenseByCategoryPayee.set(categoryName, new Map());
+      if (!expenseByAccountCategory.has(accountName)) {
+        expenseByAccountCategory.set(accountName, new Map());
       }
-      const payeeMap = expenseByCategoryPayee.get(categoryName)!;
-      payeeMap.set(payeeName, (payeeMap.get(payeeName) ?? 0) + value);
+      const categoryMap = expenseByAccountCategory.get(accountName)!;
+      categoryMap.set(categoryName, (categoryMap.get(categoryName) ?? 0) + value);
     }
 
-    // Create nodes and links for expense flow
-    for (const [categoryName, payeeMap] of expenseByCategoryPayee.entries()) {
-      const categoryNodeId = `category_${categoryName}`;
-      const categoryTotal = Array.from(payeeMap.values()).reduce((sum, val) => sum + val, 0);
-      nodeMap.set(categoryNodeId, (nodeMap.get(categoryNodeId) ?? 0) + categoryTotal);
+    // Create nodes and links for income flow: Income Category -> Account
+    for (const [categoryName, accountMap] of incomeByCategoryAccount.entries()) {
+      const incomeCategoryNodeId = `income_category_${categoryName}`;
+      const categoryTotal = Array.from(accountMap.values()).reduce((sum, val) => sum + val, 0);
+      nodeMap.set(incomeCategoryNodeId, (nodeMap.get(incomeCategoryNodeId) ?? 0) + categoryTotal);
 
-      // Link: Budget -> Category
-      links.push({
-        source: 'budget',
-        target: categoryNodeId,
-        value: categoryTotal,
-      });
+      for (const [accountName, value] of accountMap.entries()) {
+        const accountNodeId = `account_${accountName}`;
+        nodeMap.set(accountNodeId, (nodeMap.get(accountNodeId) ?? 0) + value);
 
-      for (const [payeeName, value] of payeeMap.entries()) {
-        const payeeNodeId = `payee_expense_${categoryName}_${payeeName}`;
-        nodeMap.set(payeeNodeId, (nodeMap.get(payeeNodeId) ?? 0) + value);
-
-        // Link: Category -> Payee
+        // Link: Income Category -> Account
         links.push({
-          source: categoryNodeId,
-          target: payeeNodeId,
+          source: incomeCategoryNodeId,
+          target: accountNodeId,
+          value,
+        });
+      }
+    }
+
+    // Create nodes and links for expense flow: Account -> Expense Category
+    for (const [accountName, categoryMap] of expenseByAccountCategory.entries()) {
+      const accountNodeId = `account_${accountName}`;
+      // Account node already created from income flow, just ensure it exists
+      if (!nodeMap.has(accountNodeId)) {
+        nodeMap.set(accountNodeId, 0);
+      }
+
+      for (const [categoryName, value] of categoryMap.entries()) {
+        const expenseCategoryNodeId = `expense_category_${categoryName}`;
+        nodeMap.set(expenseCategoryNodeId, (nodeMap.get(expenseCategoryNodeId) ?? 0) + value);
+
+        // Link: Account -> Expense Category
+        links.push({
+          source: accountNodeId,
+          target: expenseCategoryNodeId,
           value,
         });
       }
@@ -1095,11 +1116,29 @@ export function ReportPage(): React.JSX.Element {
     const nodeValues: number[] = [];
     const nodeIdToIndex = new Map<string, number>();
 
-    // Add nodes in order: Earnings (Account -> Payee), Budget, Categories, Spendings
+    // Add nodes in order: Income Categories -> Accounts -> Expense Categories
     let nodeIndex = 0;
 
-    // Earnings: Accounts
-    for (const [accountName] of incomeByAccountPayee.entries()) {
+    // Column 0: Income Categories
+    for (const categoryName of Array.from(incomeByCategoryAccount.keys()).sort()) {
+      const nodeId = `income_category_${categoryName}`;
+      nodeIdToIndex.set(nodeId, nodeIndex);
+      nodeLabels.push(categoryName);
+      nodeValues.push(nodeMap.get(nodeId) ?? 0);
+      nodeIndex++;
+    }
+
+    // Column 1: Accounts (union of accounts from income and expense)
+    const accountSet = new Set<string>();
+    for (const accountMap of incomeByCategoryAccount.values()) {
+      for (const accountName of accountMap.keys()) {
+        accountSet.add(accountName);
+      }
+    }
+    for (const accountName of expenseByAccountCategory.keys()) {
+      accountSet.add(accountName);
+    }
+    for (const accountName of Array.from(accountSet).sort()) {
       const nodeId = `account_${accountName}`;
       nodeIdToIndex.set(nodeId, nodeIndex);
       nodeLabels.push(accountName);
@@ -1107,41 +1146,19 @@ export function ReportPage(): React.JSX.Element {
       nodeIndex++;
     }
 
-    // Earnings: Payees
-    for (const [accountName, payeeMap] of incomeByAccountPayee.entries()) {
-      for (const [payeeName] of payeeMap.entries()) {
-        const nodeId = `payee_income_${accountName}_${payeeName}`;
-        nodeIdToIndex.set(nodeId, nodeIndex);
-        nodeLabels.push(payeeName);
-        nodeValues.push(nodeMap.get(nodeId) ?? 0);
-        nodeIndex++;
+    // Column 2: Expense Categories
+    const expenseCategorySet = new Set<string>();
+    for (const categoryMap of expenseByAccountCategory.values()) {
+      for (const categoryName of categoryMap.keys()) {
+        expenseCategorySet.add(categoryName);
       }
     }
-
-    // Budget
-    nodeIdToIndex.set('budget', nodeIndex);
-    nodeLabels.push(`Budget (${formatCurrencyPreserveDecimals(totalIncome, currency)})`);
-    nodeValues.push(totalIncome);
-    nodeIndex++;
-
-    // Categories
-    for (const [categoryName] of expenseByCategoryPayee.entries()) {
-      const nodeId = `category_${categoryName}`;
+    for (const categoryName of Array.from(expenseCategorySet).sort()) {
+      const nodeId = `expense_category_${categoryName}`;
       nodeIdToIndex.set(nodeId, nodeIndex);
       nodeLabels.push(categoryName);
       nodeValues.push(nodeMap.get(nodeId) ?? 0);
       nodeIndex++;
-    }
-
-    // Spendings: Payees
-    for (const [categoryName, payeeMap] of expenseByCategoryPayee.entries()) {
-      for (const [payeeName] of payeeMap.entries()) {
-        const nodeId = `payee_expense_${categoryName}_${payeeName}`;
-        nodeIdToIndex.set(nodeId, nodeIndex);
-        nodeLabels.push(payeeName);
-        nodeValues.push(nodeMap.get(nodeId) ?? 0);
-        nodeIndex++;
-      }
     }
 
     // Convert links to indices
@@ -1175,7 +1192,7 @@ export function ReportPage(): React.JSX.Element {
         value: linkValues,
       },
     };
-  }, [transactions, currency]);
+  }, [transactions]);
 
   /**
    * Generate and download PDF
@@ -1243,7 +1260,7 @@ export function ReportPage(): React.JSX.Element {
 
     // Table data
     const tableData = transactions.map((t) => [
-      formatDateShort(t.date),
+      formatDateShort(t.date, dateFormat),
       formatCurrencyPreserveDecimals(t.value, currency),
       t.account?.name ?? '-',
       t.category?.name ?? '-',
@@ -1264,7 +1281,7 @@ export function ReportPage(): React.JSX.Element {
     // Save PDF
     const filename = `report_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(filename);
-  }, [transactions, appliedFilters, accounts, categories, payees, totalCount, totalAmount, currency]);
+  }, [transactions, appliedFilters, accounts, categories, payees, totalCount, totalAmount, currency, dateFormat]);
 
   // Validation error
   const validationError = useMemo(() => {
@@ -1517,18 +1534,18 @@ export function ReportPage(): React.JSX.Element {
       )}
 
       {/* Chart Section */}
-      {hasFilters && !loading && transactions.length > 0 && ((chartType !== 'sankey' && chartType !== 'pie' && chartData.length > 0) || (chartType === 'pie' && pieChartData.length > 0) || (chartType === 'sankey' && sankeyData !== null)) && (
+      {hasFilters && !loading && transactions.length > 0 && ((chartType !== 'sankey' && chartType !== 'pie' && chartType !== 'stacked' && chartData.length > 0) || (chartType === 'pie' && pieChartData.length > 0) || (chartType === 'sankey' && sankeyData !== null) || (chartType === 'stacked' && shouldShowStackedChart)) && (
         <Card sx={{p: 3, mb: 3}}>
           <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
             <Typography variant="h6" component="h2">
-              {chartType === 'sankey' ? 'Cash Flow' : chartType === 'pie' ? 'Category Distribution' : 'Trends'}
+              Trends
             </Typography>
             <ToggleButtonGroup
               value={chartType}
               exclusive
               onChange={(_, value) => {
-                if (value !== null && (value === 'line' || value === 'bar' || value === 'pie' || value === 'sankey')) {
-                  setChartType(value as 'line' | 'bar' | 'pie' | 'sankey');
+                if (value !== null && (value === 'line' || value === 'bar' || value === 'pie' || value === 'sankey' || value === 'stacked')) {
+                  setChartType(value as 'line' | 'bar' | 'pie' | 'sankey' | 'stacked');
                 }
               }}
               size="small"
@@ -1536,14 +1553,19 @@ export function ReportPage(): React.JSX.Element {
               <ToggleButton value="line" aria-label="Line chart">
                 <ShowChart />
               </ToggleButton>
-              <ToggleButton value="bar" aria-label="Bar chart">
-                <BarChartIcon />
-              </ToggleButton>
               <ToggleButton value="pie" aria-label="Pie chart">
                 <DonutLarge />
               </ToggleButton>
+              <ToggleButton value="bar" aria-label="Bar chart">
+                <BarChartIcon />
+              </ToggleButton>
+              {shouldShowStackedChart && (
+                <ToggleButton value="stacked" aria-label="Stacked column chart">
+                  <Layers />
+                </ToggleButton>
+              )}
               <ToggleButton value="sankey" aria-label="Cash flow chart">
-                <AccountTree />
+                <Timeline />
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
@@ -1556,7 +1578,7 @@ export function ReportPage(): React.JSX.Element {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={pieChartData.filter((item) => !hiddenSeries.has(item.name))}
+                    data={pieChartData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -1565,13 +1587,12 @@ export function ReportPage(): React.JSX.Element {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {pieChartData
-                      .filter((item) => !hiddenSeries.has(item.name))
-                      .map((item, filteredIndex) => {
-                        // Find original index to maintain consistent colors
-                        const originalIndex = pieChartData.findIndex((d) => d.name === item.name);
-                        return <Cell key={`cell-${item.name}`} fill={getSeriesColor(originalIndex >= 0 ? originalIndex : filteredIndex)} />;
-                      })}
+                    {pieChartData.map((item, index) => {
+                      const baseColor = getSeriesColor(index);
+                      // Reduce opacity if item is in hiddenSeries (toggled state)
+                      const opacity = hiddenSeries.has(item.name) ? 0.3 : 1;
+                      return <Cell key={`cell-${item.name}`} fill={baseColor} opacity={opacity} />;
+                    })}
                   </Pie>
                   <Tooltip
                     formatter={(value: unknown): string => formatCurrencyAbbreviated(Number(value), currency)}
@@ -1596,6 +1617,74 @@ export function ReportPage(): React.JSX.Element {
                   />
                 </PieChart>
               </ResponsiveContainer>
+            ) : chartType === 'stacked' ? (
+              budgetChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={budgetChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+                    <XAxis
+                      dataKey="month"
+                      stroke={theme.palette.text.secondary}
+                      tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                    />
+                    <YAxis
+                      tickFormatter={formatYAxisTick}
+                      stroke={theme.palette.text.secondary}
+                      tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend
+                      onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
+                        const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
+                        if (payload.dataKey && typeof payload.dataKey === 'string') {
+                          handleLegendClick(payload.dataKey);
+                        }
+                      }}
+                      align="left"
+                      iconSize={12}
+                      wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                    />
+                    {budgets
+                      .filter((budget) => budget.categoryId)
+                      .map((budget, index) => {
+                        const categoryName = budget.category?.name ?? 'Uncategorized';
+                        const budgetKey = `${categoryName}_budget`;
+                        const actualKey = `${categoryName}_actual`;
+                        const budgetOpacity = hiddenSeries.has(budgetKey) ? 0.3 : 1;
+                        const actualOpacity = hiddenSeries.has(actualKey) ? 0.3 : 1;
+                        return (
+                          <React.Fragment key={budget.id}>
+                            <Bar
+                              dataKey={budgetKey}
+                              stackId="budget"
+                              fill={getSeriesColor(index * 2)}
+                              name={`${categoryName} (Budget)`}
+                              radius={[0, 0, 0, 0]}
+                              opacity={budgetOpacity}
+                            />
+                            <Bar
+                              dataKey={actualKey}
+                              stackId="actual"
+                              fill={getSeriesColor(index * 2 + 1)}
+                              name={`${categoryName} (Actual)`}
+                              radius={[4, 4, 0, 0]}
+                              opacity={actualOpacity}
+                            />
+                          </React.Fragment>
+                        );
+                      })}
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 2}}>
+                  <Typography variant="body2" color="text.secondary">
+                    No budget data available for the selected period
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{opacity: 0.7}}>
+                    Create budgets and add expense transactions to see budget vs actual comparison
+                  </Typography>
+                </Box>
+              )
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'line' ? (
@@ -1623,23 +1712,28 @@ export function ReportPage(): React.JSX.Element {
                       iconSize={12}
                       wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
                     />
-                    {chartSeriesKeys.map((seriesKey, index) => {
-                      const isHidden = hiddenSeries.has(seriesKey);
-                      return (
-                        <Line
-                          key={seriesKey}
-                          type="monotone"
-                          dataKey={seriesKey}
-                          stroke={getSeriesColor(index)}
-                          name={seriesKey}
-                          strokeWidth={2}
-                          dot={{fill: getSeriesColor(index), r: 3}}
-                          activeDot={{r: 5, fill: getSeriesColor(index)}}
-                          hide={isHidden}
-                          connectNulls
-                        />
-                      );
-                    })}
+                    <Line
+                      type="monotone"
+                      dataKey="income"
+                      stroke={theme.palette.success.main}
+                      name="Income"
+                      strokeWidth={2}
+                      dot={{fill: theme.palette.success.main, r: 3, opacity: hiddenSeries.has('income') ? 0.3 : 1}}
+                      activeDot={{r: 5, fill: theme.palette.success.main}}
+                      connectNulls
+                      strokeOpacity={hiddenSeries.has('income') ? 0.3 : 1}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="expense"
+                      stroke={theme.palette.error.main}
+                      name="Expense"
+                      strokeWidth={2}
+                      dot={{fill: theme.palette.error.main, r: 3, opacity: hiddenSeries.has('expense') ? 0.3 : 1}}
+                      activeDot={{r: 5, fill: theme.palette.error.main}}
+                      connectNulls
+                      strokeOpacity={hiddenSeries.has('expense') ? 0.3 : 1}
+                    />
                   </LineChart>
                 ) : (
                   <BarChart data={chartData}>
@@ -1667,7 +1761,7 @@ export function ReportPage(): React.JSX.Element {
                       wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
                     />
                     {chartSeriesKeys.map((seriesKey, index) => {
-                      const isHidden = hiddenSeries.has(seriesKey);
+                      const opacity = hiddenSeries.has(seriesKey) ? 0.3 : 1;
                       return (
                         <Bar
                           key={seriesKey}
@@ -1675,7 +1769,7 @@ export function ReportPage(): React.JSX.Element {
                           fill={getSeriesColor(index)}
                           name={seriesKey}
                           radius={[4, 4, 0, 0]}
-                          hide={isHidden}
+                          opacity={opacity}
                         />
                       );
                     })}
@@ -1683,6 +1777,16 @@ export function ReportPage(): React.JSX.Element {
                 )}
               </ResponsiveContainer>
             )}
+          </Box>
+          {/* Chart Descriptions */}
+          <Box sx={{mt: 2}}>
+            <Typography variant="body2" color="text.secondary" sx={{fontSize: '0.875rem'}}>
+              {chartType === 'line' && 'Visualizes income and expense trends over time to identify patterns and seasonal variations'}
+              {chartType === 'pie' && 'Shows the proportion of expenses across different categories to identify spending patterns'}
+              {chartType === 'stacked' && 'Compares budgeted amounts with actual spending to track financial discipline'}
+              {chartType === 'sankey' && 'Illustrates cash flow from income sources through categories to expenses, showing how money moves through your financial system'}
+              {chartType === 'bar' && 'Displays transaction data in bar format for easy comparison'}
+            </Typography>
           </Box>
         </Card>
       )}

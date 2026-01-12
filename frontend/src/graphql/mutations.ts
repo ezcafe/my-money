@@ -94,6 +94,7 @@ export const UPDATE_PREFERENCES = gql`
       useThousandSeparator
       colorScheme
       colorSchemeValue
+      dateFormat
     }
   }
 `;

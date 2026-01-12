@@ -3,6 +3,9 @@
  * Shared formatting functions for currency, dates, and numbers
  */
 
+import type {DateFormat} from '../contexts/DateFormatContext';
+import {DEFAULT_DATE_FORMAT} from '../contexts/DateFormatContext';
+
 /**
  * Minimal transaction interface for date grouping
  * Only requires id and date properties
@@ -10,6 +13,34 @@
 interface Transaction {
   id: string;
   date: Date | string;
+}
+
+/**
+ * Format a date according to the specified format pattern
+ * @param date - The date to format (Date object or string)
+ * @param format - The date format pattern (e.g., 'MM/DD/YYYY')
+ * @returns Formatted date string
+ */
+function formatDateByPattern(date: Date | string, format: DateFormat): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+
+  switch (format) {
+    case 'DD/MM/YYYY':
+      return `${day}/${month}/${year}`;
+    case 'MM/DD/YYYY':
+      return `${month}/${day}/${year}`;
+    case 'YYYY-MM-DD':
+      return `${year}-${month}-${day}`;
+    case 'DD-MM-YYYY':
+      return `${day}-${month}-${year}`;
+    case 'MM-DD-YYYY':
+      return `${month}-${day}-${year}`;
+    default:
+      return `${month}/${day}/${year}`;
+  }
 }
 
 /**
@@ -27,10 +58,12 @@ export function formatCurrency(value: number, currency: string = 'USD'): string 
 
 /**
  * Format a date to a readable string
+ * Uses a readable format (e.g., "Jan 15, 2024") regardless of date format preference
  * @param date - The date to format (Date object or string)
+ * @param _dateFormat - Optional date format pattern (not used for this function, kept for API consistency)
  * @returns Formatted date string
  */
-export function formatDate(date: Date | string): string {
+export function formatDate(date: Date | string, _dateFormat?: DateFormat): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -42,11 +75,11 @@ export function formatDate(date: Date | string): string {
 /**
  * Format a date to a short locale string
  * @param date - The date to format (Date object or string)
- * @returns Formatted date string (MM/DD/YYYY)
+ * @param dateFormat - Optional date format pattern (defaults to MM/DD/YYYY)
+ * @returns Formatted date string according to the specified format
  */
-export function formatDateShort(date: Date | string): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString();
+export function formatDateShort(date: Date | string, dateFormat: DateFormat = DEFAULT_DATE_FORMAT): string {
+  return formatDateByPattern(date, dateFormat);
 }
 
 /**
@@ -145,11 +178,12 @@ export function groupTransactionsByDate<T extends Transaction>(
 /**
  * Format a date header with smart labels
  * Returns "Today" for current date, "Yesterday" for previous date,
- * or a formatted date string for older dates
+ * or a formatted date string for older dates using the user's preferred format
  * @param date - The date to format (Date object or string)
+ * @param dateFormat - Optional date format pattern (defaults to MM/DD/YYYY)
  * @returns Formatted date header string
  */
-export function formatDateHeader(date: Date | string): string {
+export function formatDateHeader(date: Date | string, dateFormat: DateFormat = DEFAULT_DATE_FORMAT): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const today = new Date();
   const yesterday = new Date(today);
@@ -163,7 +197,8 @@ export function formatDateHeader(date: Date | string): string {
     return 'Yesterday';
   }
 
-  return formatDate(dateObj);
+  // For older dates, use the user's preferred date format
+  return formatDateShort(dateObj, dateFormat);
 }
 
 /**
@@ -174,7 +209,8 @@ export function formatDateHeader(date: Date | string): string {
  */
 export function formatNumberAbbreviation(value: number): string {
   const absValue = Math.abs(value);
-  const sign = value < 0 ? '-' : '';  if (absValue >= 1_000_000_000) {
+  const sign = value < 0 ? '-' : '';
+  if (absValue >= 1_000_000_000) {
     return `${sign}${(absValue / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
   }
   if (absValue >= 1_000_000) {

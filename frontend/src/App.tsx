@@ -8,6 +8,7 @@ import {BrowserRouter, Routes, Route, Navigate} from 'react-router';
 import {ApolloProvider} from '@apollo/client/react';
 import {ThemeProvider} from './theme/ThemeProvider';
 import {NotificationProvider} from './contexts/NotificationContext';
+import {DateFormatProvider} from './contexts/DateFormatContext';
 import {ErrorBoundary} from './components/common/ErrorBoundary';
 import {Layout} from './components/common/Layout';
 import {ProtectedRouteWithErrorBoundary} from './components/common/ProtectedRouteWithErrorBoundary';
@@ -53,9 +54,10 @@ function App(): React.JSX.Element {
       <ApolloProvider client={client}>
         <ThemeProvider>
           <NotificationProvider>
-            <SearchProvider>
-              <TitleProvider>
-                <BrowserRouter>
+            <DateFormatProvider>
+              <SearchProvider>
+                <TitleProvider>
+                  <BrowserRouter>
               <Suspense fallback={<LoadingSpinner message="Loading..." />}>
                 <Routes>
                 {/* Public routes - no authentication required */}
@@ -279,9 +281,10 @@ function App(): React.JSX.Element {
                 </Routes>
               </Suspense>
               <OfflineIndicator />
-            </BrowserRouter>
-            </TitleProvider>
-          </SearchProvider>
+                  </BrowserRouter>
+                </TitleProvider>
+              </SearchProvider>
+            </DateFormatProvider>
           </NotificationProvider>
         </ThemeProvider>
       </ApolloProvider>

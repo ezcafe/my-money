@@ -5,7 +5,7 @@
 
 import React, {useState, useEffect, useRef} from 'react';
 import {useNavigate} from 'react-router';
-import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, Tooltip, CircularProgress, Stack} from '@mui/material';
+import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, Tooltip, CircularProgress, Stack, Select, MenuItem, FormControl, InputLabel} from '@mui/material';
 import {useQuery, useMutation, useLazyQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
 import {Dialog} from '../components/ui/Dialog';
@@ -28,6 +28,8 @@ import {
 import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA} from '../graphql/mutations';
 import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt, AttachMoney, HelpOutline, Settings, DataObject, Security} from '@mui/icons-material';
 import {useNotifications} from '../contexts/NotificationContext';
+import type {DateFormat} from '../contexts/DateFormatContext';
+import {DEFAULT_DATE_FORMAT} from '../contexts/DateFormatContext';
 
 /**
  * Export data type from GraphQL
@@ -126,7 +128,7 @@ export function PreferencesPage(): React.JSX.Element {
   const navigate = useNavigate();
   const {showSuccessNotification, showErrorNotification} = useNotifications();
   const {data: preferencesData, loading: preferencesLoading} = useQuery<{
-    preferences?: {currency: string; useThousandSeparator: boolean};
+    preferences?: {currency: string; useThousandSeparator: boolean; dateFormat: string | null};
   }>(GET_PREFERENCES);
   const [updatePreferences, {loading: updating}] = useMutation(UPDATE_PREFERENCES, {
     refetchQueries: ['GetPreferences'],
@@ -141,6 +143,7 @@ export function PreferencesPage(): React.JSX.Element {
 
   const [useThousandSeparator, setUseThousandSeparator] = useState(true);
   const [currency, setCurrency] = useState('USD');
+  const [dateFormat, setDateFormat] = useState<DateFormat>(DEFAULT_DATE_FORMAT);
   const currencyUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -198,6 +201,12 @@ export function PreferencesPage(): React.JSX.Element {
     if (preferencesData?.preferences) {
       setUseThousandSeparator(preferencesData.preferences.useThousandSeparator);
       setCurrency(preferencesData.preferences.currency);
+      const format = preferencesData.preferences.dateFormat;
+      if (format && (format === 'DD/MM/YYYY' || format === 'MM/DD/YYYY' || format === 'YYYY-MM-DD' || format === 'DD-MM-YYYY' || format === 'MM-DD-YYYY')) {
+        setDateFormat(format as DateFormat);
+      } else {
+        setDateFormat(DEFAULT_DATE_FORMAT);
+      }
     }
   }, [preferencesData]);
 
@@ -299,6 +308,22 @@ export function PreferencesPage(): React.JSX.Element {
       });
       currencyUpdateTimeoutRef.current = null;
     }, 500);
+  };
+
+  /**
+   * Handle date format change
+   * Saves preference to backend
+   * @param newFormat - The new date format
+   */
+  const handleDateFormatChange = (newFormat: DateFormat): void => {
+    setDateFormat(newFormat);
+    void updatePreferences({
+      variables: {
+        input: {
+          dateFormat: newFormat,
+        },
+      },
+    });
   };
 
   /**
@@ -781,6 +806,45 @@ export function PreferencesPage(): React.JSX.Element {
               disabled={preferencesLoading || updating}
               fullWidth
             />
+          </Box>
+
+          {/* Date Format Setting */}
+          <Box>
+            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+              <Typography variant="subtitle2" component="label">
+                Date Format
+              </Typography>
+              <Tooltip title="Select your preferred date format. This will be used throughout the application for displaying dates">
+                <HelpOutline fontSize="small" color="action" sx={{cursor: 'help'}} />
+              </Tooltip>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
+              Choose how dates are displayed throughout the application
+            </Typography>
+            <FormControl fullWidth disabled={preferencesLoading || updating}>
+              <InputLabel>Date Format</InputLabel>
+              <Select
+                value={dateFormat}
+                label="Date Format"
+                onChange={(e) => {
+                  handleDateFormatChange(e.target.value as DateFormat);
+                }}
+              >
+                <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
+                <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
+                <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
+                <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
+                <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
+              </Select>
+              {updating && (
+                <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mt: 1}}>
+                  <CircularProgress size={16} />
+                  <Typography variant="caption" color="text.secondary">
+                    Saving...
+                  </Typography>
+                </Box>
+              )}
+            </FormControl>
           </Box>
 
           {/* Color Scheme Setting */}

@@ -40,6 +40,7 @@ import type {
 } from '../hooks/useTransactions';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {ITEMS_PER_PAGE} from '../utils/constants';
+import {useDateFormat} from '../hooks/useDateFormat';
 
 /**
  * Props for TransactionList component
@@ -109,6 +110,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const {dateFormat} = useDateFormat();
 
   // Menu state
   const [menuAnchor, setMenuAnchor] = useState<{element: HTMLElement; transactionId: string} | null>(
@@ -296,7 +298,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
             <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5}}>
               <Box sx={{flex: 1}}>
                 <Typography variant="body2" color="text.secondary" sx={{mb: 0.5}}>
-                  {formatDateShort(transaction.date)}
+                  {formatDateShort(transaction.date, dateFormat)}
                 </Typography>
                 <Typography variant="h6" sx={{fontWeight: 600, mb: 1}}>
                   {formatCurrencyPreserveDecimals(transaction.value, currency)}
@@ -415,7 +417,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                         sx={onRowClick ? {cursor: 'pointer'} : undefined}
                         onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
                       >
-                        <TableCell>{formatDateShort(transaction.date)}</TableCell>
+                        <TableCell>{formatDateShort(transaction.date, dateFormat)}</TableCell>
                         <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
                         {showAccountColumn && <TableCell>{transaction.account?.name ?? '-'}</TableCell>}
                         {showCategoryColumn && <TableCell>{transaction.category?.name ?? '-'}</TableCell>}

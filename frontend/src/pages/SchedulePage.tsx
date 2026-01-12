@@ -16,6 +16,7 @@ import {EmptyState} from '../components/common/EmptyState';
 import {Card} from '../components/ui/Card';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {getRecurringTypeOptions, type RecurringType} from '../utils/recurringTypes';
+import {useDateFormat} from '../hooks/useDateFormat';
 
 /**
  * Recurring transaction type from GraphQL
@@ -81,6 +82,7 @@ export function SchedulePage(): React.JSX.Element {
   );
   const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
   const currency = preferencesData?.preferences?.currency ?? 'USD';
+  const {dateFormat} = useDateFormat();
 
   // Refetch when returning from add page
   useEffect(() => {
@@ -157,7 +159,7 @@ export function SchedulePage(): React.JSX.Element {
                     <Stack spacing={1} alignItems="flex-end">
                       <Chip label={typeLabel} size="small" color="primary" variant="outlined" />
                       <Typography variant="body2" color="text.secondary">
-                        Next: {formatDateShort(transaction.nextRunDate)}
+                        Next: {formatDateShort(transaction.nextRunDate, dateFormat)}
                       </Typography>
                     </Stack>
                   </Stack>

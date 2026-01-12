@@ -13,6 +13,7 @@ const UpdatePreferencesInputSchema = z.object({
   useThousandSeparator: z.boolean().optional(),
   colorScheme: z.string().nullable().optional(),
   colorSchemeValue: z.string().nullable().optional(),
+  dateFormat: z.string().optional(),
 });
 
 export class PreferencesResolver {
@@ -30,6 +31,7 @@ export class PreferencesResolver {
         userId: context.userId,
         currency: 'USD',
         useThousandSeparator: true,
+        dateFormat: 'MM/DD/YYYY',
       },
     });
 
@@ -41,7 +43,7 @@ export class PreferencesResolver {
    */
   async updatePreferences(
     _: unknown,
-    {input}: {input: {currency?: string; useThousandSeparator?: boolean; colorScheme?: string | null; colorSchemeValue?: string | null}},
+    {input}: {input: {currency?: string; useThousandSeparator?: boolean; colorScheme?: string | null; colorSchemeValue?: string | null; dateFormat?: string | null}},
     context: GraphQLContext,
   ) {
     const validatedInput = validate(UpdatePreferencesInputSchema, input);
@@ -56,6 +58,7 @@ export class PreferencesResolver {
         }),
         ...(validatedInput.colorScheme !== undefined && {colorScheme: validatedInput.colorScheme}),
         ...(validatedInput.colorSchemeValue !== undefined && {colorSchemeValue: validatedInput.colorSchemeValue}),
+        ...(validatedInput.dateFormat !== undefined && {dateFormat: validatedInput.dateFormat}),
       },
       create: {
         userId: context.userId,
@@ -63,6 +66,7 @@ export class PreferencesResolver {
         useThousandSeparator: validatedInput.useThousandSeparator ?? true,
         colorScheme: validatedInput.colorScheme ?? null,
         colorSchemeValue: validatedInput.colorSchemeValue ?? null,
+        dateFormat: validatedInput.dateFormat ?? 'MM/DD/YYYY',
       },
     });
 

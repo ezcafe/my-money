@@ -9,6 +9,7 @@ import {useQuery} from '@apollo/client/react';
 import {Card} from './ui/Card';
 import {formatCurrencyPreserveDecimals, groupTransactionsByDate, formatDateHeader, getDateKey} from '../utils/formatting';
 import {GET_PREFERENCES} from '../graphql/queries';
+import {useDateFormat} from '../hooks/useDateFormat';
 
 interface Transaction {
   id: string;
@@ -35,6 +36,7 @@ const HistoryListComponent = ({
 }: HistoryListProps): React.JSX.Element => {
   const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
   const currency = preferencesData?.preferences?.currency ?? 'USD';
+  const {dateFormat} = useDateFormat();
 
   // Group transactions by date and preserve order
   const {groupedTransactions, dateKeys} = useMemo(() => {
@@ -63,7 +65,7 @@ const HistoryListComponent = ({
             const dateTransactions = groupedTransactions.get(dateKey) ?? [];
             // Get the date from the first transaction in the group
             const date = dateTransactions[0]?.date;
-            const dateHeader = date ? formatDateHeader(date) : '';
+            const dateHeader = date ? formatDateHeader(date, dateFormat) : '';
 
             return (
               <React.Fragment key={dateKey}>

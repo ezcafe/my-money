@@ -103,6 +103,7 @@ export const GET_PREFERENCES = gql`
       useThousandSeparator
       colorScheme
       colorSchemeValue
+      dateFormat
     }
   }
 `;
