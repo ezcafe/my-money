@@ -5,7 +5,7 @@
 
 import React, {useState, memo, useCallback, useEffect, useRef} from 'react';
 import {useParams, useNavigate, useLocation} from 'react-router';
-import {Box, Typography} from '@mui/material';
+import {Typography} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useAccount} from '../hooks/useAccount';
 import {useTransactions, type TransactionOrderInput, type TransactionOrderByField} from '../hooks/useTransactions';
@@ -19,7 +19,7 @@ import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
 import {Card} from '../components/ui/Card';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Account Details Page Component
@@ -173,7 +173,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       <Card sx={{mb: 3, p: 3}}>
         <Typography variant="subtitle2" color="text.secondary" sx={{mb: 1}}>
           Balance
@@ -202,7 +202,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
         showPayeeColumn={true}
         sortableFields={['date', 'value', 'category', 'payee']}
       />
-    </Box>
+    </PageContainer>
   );
 };
 

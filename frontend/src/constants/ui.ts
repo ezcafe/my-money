@@ -45,12 +45,19 @@ export const VIEWPORT_CONFIG = {
 } as const;
 
 /**
- * Page container style for consistent layout across all pages
- * - Mobile (xs): Full width
- * - Desktop/Tablet (sm+): Max 680px, centered
+ * Responsive breakpoint constants (Material Design 3)
+ * Use these for consistent breakpoint values across the app
  */
-export const pageContainerStyle = {
-  width: {xs: '100%', sm: '100%'},
-  maxWidth: {xs: '100%', sm: '680px'},
-  mx: {xs: 0, sm: 'auto'},
+export const RESPONSIVE_BREAKPOINTS = {
+  xs: 0,      // Mobile
+  sm: 600,    // Tablet
+  md: 960,    // Desktop
+  lg: 1280,   // Large Desktop
+  xl: 1920,   // Extra Large Desktop
 } as const;
+
+/**
+ * Note: For page containers, use the PageContainer component from
+ * '../components/common/PageContainer' instead of inline styles.
+ * It provides consistent nested container structure with responsive behavior.
+ */

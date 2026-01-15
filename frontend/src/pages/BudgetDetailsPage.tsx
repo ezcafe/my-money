@@ -21,7 +21,7 @@ import {GET_PREFERENCES, GET_REPORT_TRANSACTIONS, GET_TRANSACTIONS, GET_RECENT_T
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Budget Details Page Component
@@ -310,7 +310,7 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   const isOverBudget = percentage >= 100;
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       {/* Budget Summary Card */}
       <Card sx={{mb: 3, p: 3}}>
         {/* Header Section */}
@@ -495,7 +495,7 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
         showPayeeColumn={showPayeeColumn}
         sortableFields={sortableFields}
       />
-    </Box>
+    </PageContainer>
   );
 };
 

@@ -5,7 +5,7 @@
  */
 
 import React, {memo, useEffect, useMemo} from 'react';
-import {Box, List, ListItemButton, ListItemText, Divider} from '@mui/material';
+import {List, ListItemButton, ListItemText, Divider} from '@mui/material';
 import {useNavigate, useLocation} from 'react-router';
 import {Person} from '@mui/icons-material';
 import {usePayees} from '../hooks/usePayees';
@@ -14,7 +14,7 @@ import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {EmptyState} from '../components/common/EmptyState';
 import {Card} from '../components/ui/Card';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Payees Page Component
@@ -73,7 +73,7 @@ const PayeesPageComponent = (): React.JSX.Element => {
   const hasNoSearchResults = searchQuery.trim() && !hasSearchResults;
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       {hasNoSearchResults && (
         <EmptyState
           title="No payees found"
@@ -112,7 +112,7 @@ const PayeesPageComponent = (): React.JSX.Element => {
           </List>
         </Card>
       )}
-    </Box>
+    </PageContainer>
   );
 };
 

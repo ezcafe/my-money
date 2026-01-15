@@ -14,7 +14,7 @@ import {GET_BUDGET} from '../graphql/queries';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {useTitle} from '../contexts/TitleContext';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Budget data from GraphQL query
@@ -169,12 +169,11 @@ export function BudgetEditPage(): React.JSX.Element {
   const budgetName = budget.account?.name ?? budget.category?.name ?? budget.payee?.name ?? 'Budget';
 
   return (
-    <Box
+    <PageContainer
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        ...pageContainerStyle,
       }}
     >
       <Card
@@ -229,7 +228,7 @@ export function BudgetEditPage(): React.JSX.Element {
           </Box>
         </Box>
       </Card>
-    </Box>
+    </PageContainer>
   );
 }
 

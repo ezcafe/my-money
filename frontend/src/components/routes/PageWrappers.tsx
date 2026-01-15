@@ -1,13 +1,12 @@
 /**
  * Page Wrapper Components
- * Wraps page components with navigation functionality and layout
- * Uses usePageWrapper hook to reduce code duplication and improve maintainability
+ * Unified wrapper components for pages with consistent patterns
+ * Uses usePageWrapper hook to reduce code duplication
  */
 
 import React from 'react';
 import {useNavigate, useParams} from 'react-router';
 import {Add} from '@mui/icons-material';
-import {Layout} from '../common/Layout';
 import {DELETE_ACCOUNT, DELETE_CATEGORY, DELETE_PAYEE, DELETE_BUDGET} from '../../graphql/mutations';
 import {usePageWrapper} from '../../hooks/usePageWrapper';
 import {useAccount} from '../../hooks/useAccount';
@@ -27,53 +26,128 @@ const BudgetDetailsPage = React.lazy(() => import('../../pages/BudgetDetailsPage
 
 /**
  * Schedule Page Wrapper
- * Wraps SchedulePage with navigation functionality
  */
 export function SchedulePageWrapper(): React.JSX.Element {
   const navigate = useNavigate();
+  const {PageLayout} = usePageWrapper({
+    title: 'Schedule',
+    defaultReturnUrl: '/schedule',
+    hideSearch: true,
+    actionButton: {
+      icon: <Add />,
+      onClick: () => {
+        void navigate('/transactions/add?returnTo=/schedule');
+      },
+      ariaLabel: 'Add Recurring Transaction',
+    },
+  });
+
   return (
-    <Layout
-      title="Schedule"
-      hideSearch
-      actionButton={{
-        icon: <Add />,
-        onClick: () => {
-          void navigate('/transactions/add?returnTo=/schedule');
-        },
-        ariaLabel: 'Add Recurring Transaction',
-      }}
-    >
+    <PageLayout>
       <SchedulePage />
-    </Layout>
+    </PageLayout>
   );
 }
 
 /**
  * Budgets Page Wrapper
- * Wraps BudgetsPage with navigation functionality
  */
 export function BudgetsPageWrapper(): React.JSX.Element {
   const navigate = useNavigate();
+  const {PageLayout} = usePageWrapper({
+    title: 'Budgets',
+    defaultReturnUrl: '/budgets',
+    hideSearch: true,
+    actionButton: {
+      icon: <Add />,
+      onClick: () => {
+        void navigate('/budgets/add?returnTo=/budgets');
+      },
+      ariaLabel: 'Create Budget',
+    },
+  });
+
   return (
-    <Layout
-      title="Budgets"
-      hideSearch
-      actionButton={{
-        icon: <Add />,
-        onClick: () => {
-          void navigate('/budgets/add?returnTo=/budgets');
-        },
-        ariaLabel: 'Create Budget',
-      }}
-    >
+    <PageLayout>
       <BudgetsPage />
-    </Layout>
+    </PageLayout>
+  );
+}
+
+/**
+ * Accounts Page Wrapper
+ */
+export function AccountsPageWrapper(): React.JSX.Element {
+  const navigate = useNavigate();
+  const {PageLayout} = usePageWrapper({
+    title: 'Accounts',
+    defaultReturnUrl: '/accounts',
+    actionButton: {
+      icon: <Add />,
+      onClick: () => {
+        void navigate('/accounts/add?returnTo=/accounts', {replace: true});
+      },
+      ariaLabel: 'Add Account',
+    },
+  });
+
+  return (
+    <PageLayout>
+      <AccountsPage />
+    </PageLayout>
+  );
+}
+
+/**
+ * Payees Page Wrapper
+ */
+export function PayeesPageWrapper(): React.JSX.Element {
+  const navigate = useNavigate();
+  const {PageLayout} = usePageWrapper({
+    title: 'Payees',
+    defaultReturnUrl: '/payees',
+    actionButton: {
+      icon: <Add />,
+      onClick: () => {
+        void navigate('/payees/add?returnTo=/payees', {replace: true});
+      },
+      ariaLabel: 'Add Payee',
+    },
+  });
+
+  return (
+    <PageLayout>
+      <PayeesPage />
+    </PageLayout>
+  );
+}
+
+/**
+ * Categories Page Wrapper
+ */
+export function CategoriesPageWrapper(): React.JSX.Element {
+  const navigate = useNavigate();
+  const {PageLayout} = usePageWrapper({
+    title: 'Categories',
+    defaultReturnUrl: '/categories',
+    actionButton: {
+      icon: <Add />,
+      onClick: () => {
+        void navigate('/categories/add?returnTo=/categories', {replace: true});
+      },
+      ariaLabel: 'Add Category',
+    },
+  });
+
+  return (
+    <PageLayout>
+      <CategoriesPage />
+    </PageLayout>
   );
 }
 
 /**
  * Account Details Page Wrapper
- * Wraps AccountDetailsPage with context menu for edit/delete
  */
 export function AccountDetailsPageWrapper(): React.JSX.Element {
   const {id} = useParams<{id: string}>();
@@ -102,7 +176,6 @@ export function AccountDetailsPageWrapper(): React.JSX.Element {
 
 /**
  * Category Details Page Wrapper
- * Wraps CategoryDetailsPage with context menu for edit/delete
  */
 export function CategoryDetailsPageWrapper(): React.JSX.Element {
   const {id} = useParams<{id: string}>();
@@ -130,89 +203,7 @@ export function CategoryDetailsPageWrapper(): React.JSX.Element {
 }
 
 /**
- * Accounts Page Wrapper
- * Wraps AccountsPage with add button
- */
-export function AccountsPageWrapper(): React.JSX.Element {
-  const navigate = useNavigate();
-
-  const handleAdd = React.useCallback(() => {
-    // Use replace to avoid adding the add page to history
-    // This way, when we navigate back after creation, we can replace it
-    void navigate('/accounts/add?returnTo=/accounts', {replace: true});
-  }, [navigate]);
-
-  return (
-    <Layout
-      title="Accounts"
-      actionButton={{
-        icon: <Add />,
-        onClick: handleAdd,
-        ariaLabel: 'Add Account',
-      }}
-    >
-      <AccountsPage />
-    </Layout>
-  );
-}
-
-/**
- * Payees Page Wrapper
- * Wraps PayeesPage with add button
- */
-export function PayeesPageWrapper(): React.JSX.Element {
-  const navigate = useNavigate();
-
-  const handleAdd = React.useCallback(() => {
-    // Use replace to avoid adding the add page to history
-    // This way, when we navigate back after creation, we can replace it
-    void navigate('/payees/add?returnTo=/payees', {replace: true});
-  }, [navigate]);
-
-  return (
-    <Layout
-      title="Payees"
-      actionButton={{
-        icon: <Add />,
-        onClick: handleAdd,
-        ariaLabel: 'Add Payee',
-      }}
-    >
-      <PayeesPage />
-    </Layout>
-  );
-}
-
-/**
- * Categories Page Wrapper
- * Wraps CategoriesPage with add button
- */
-export function CategoriesPageWrapper(): React.JSX.Element {
-  const navigate = useNavigate();
-
-  const handleAdd = React.useCallback(() => {
-    // Use replace to avoid adding the add page to history
-    // This way, when we navigate back after creation, we can replace it
-    void navigate('/categories/add?returnTo=/categories', {replace: true});
-  }, [navigate]);
-
-  return (
-    <Layout
-      title="Categories"
-      actionButton={{
-        icon: <Add />,
-        onClick: handleAdd,
-        ariaLabel: 'Add Category',
-      }}
-    >
-      <CategoriesPage />
-    </Layout>
-  );
-}
-
-/**
  * Payee Details Page Wrapper
- * Wraps PayeeDetailsPage with context menu for edit/delete
  */
 export function PayeeDetailsPageWrapper(): React.JSX.Element {
   const {id} = useParams<{id: string}>();
@@ -241,7 +232,6 @@ export function PayeeDetailsPageWrapper(): React.JSX.Element {
 
 /**
  * Budget Details Page Wrapper
- * Wraps BudgetDetailsPage with context menu for edit/delete
  */
 export function BudgetDetailsPageWrapper(): React.JSX.Element {
   const {PageLayout, DeleteDialog} = usePageWrapper({
@@ -264,4 +254,3 @@ export function BudgetDetailsPageWrapper(): React.JSX.Element {
     </>
   );
 }
-

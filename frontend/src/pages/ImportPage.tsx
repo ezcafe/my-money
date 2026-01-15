@@ -35,7 +35,7 @@ import {useAccounts} from '../hooks/useAccounts';
 import {useCategories} from '../hooks/useCategories';
 import {usePayees} from '../hooks/usePayees';
 import {MAX_RECENT_TRANSACTIONS} from '../constants';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Unmapped transaction type
@@ -398,7 +398,7 @@ export function ImportPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{display: 'flex', flexDirection: 'column', gap: 3, ...pageContainerStyle}}>
+    <PageContainer sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
       {/* Upload Section */}
       <Card>
         <Box sx={{p: 3}}>
@@ -806,6 +806,6 @@ export function ImportPage(): React.JSX.Element {
           </Box>
         </Card>
       )}
-    </Box>
+    </PageContainer>
   );
 }

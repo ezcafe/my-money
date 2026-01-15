@@ -14,7 +14,7 @@ import {LoadingSpinner} from './LoadingSpinner';
 import {ErrorAlert} from './ErrorAlert';
 import {useTitle} from '../../contexts/TitleContext';
 import {validateReturnUrl} from '../../utils/validation';
-import {pageContainerStyle} from '../../constants/ui';
+import {PageContainer} from './PageContainer';
 
 /**
  * Field configuration for form fields
@@ -371,12 +371,11 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   });
 
   return (
-    <Box
+    <PageContainer
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        ...pageContainerStyle,
       }}
     >
       <Card
@@ -455,7 +454,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
           </Box>
         </Box>
       </Card>
-    </Box>
+    </PageContainer>
   );
 }
 

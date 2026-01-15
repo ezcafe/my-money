@@ -6,7 +6,7 @@
 
 import React, {useEffect} from 'react';
 import {useLocation} from 'react-router';
-import {Box, Typography, List, ListItem, Chip, Stack, Divider} from '@mui/material';
+import {Typography, List, ListItem, Chip, Stack, Divider} from '@mui/material';
 import {Schedule} from '@mui/icons-material';
 import {useQuery} from '@apollo/client/react';
 import {GET_RECURRING_TRANSACTIONS, GET_PREFERENCES} from '../graphql/queries';
@@ -17,7 +17,7 @@ import {Card} from '../components/ui/Card';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {getRecurringTypeOptions, type RecurringType} from '../utils/recurringTypes';
 import {useDateFormat} from '../hooks/useDateFormat';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Recurring transaction type from GraphQL
@@ -118,7 +118,7 @@ export function SchedulePage(): React.JSX.Element {
   }
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       <Card>
         <List disablePadding>
           {recurringTransactions.map((transaction, index) => {
@@ -170,7 +170,7 @@ export function SchedulePage(): React.JSX.Element {
           })}
         </List>
       </Card>
-    </Box>
+    </PageContainer>
   );
 }
 

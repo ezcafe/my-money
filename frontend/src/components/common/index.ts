@@ -10,6 +10,7 @@ export {ErrorAlert} from './ErrorAlert';
 export {ErrorBoundary} from './ErrorBoundary';
 export {Layout, type LayoutProps} from './Layout';
 export {LoadingSpinner} from './LoadingSpinner';
+export {PageContainer, type PageContainerProps} from './PageContainer';
 export {OfflineIndicator} from './OfflineIndicator';
 export {ProtectedRoute} from './ProtectedRoute';
 export {ProtectedRouteWithErrorBoundary} from './ProtectedRouteWithErrorBoundary';

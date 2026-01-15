@@ -32,7 +32,7 @@ import {useAccounts} from '../hooks/useAccounts';
 import {useTitle} from '../contexts/TitleContext';
 import {getRecurringTypeOptions, getCronExpression, type RecurringType} from '../utils/recurringTypes';
 import {validateReturnUrl} from '../utils/validation';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Transaction Add Page Component
@@ -281,12 +281,11 @@ export function TransactionAddPage(): React.JSX.Element {
   const recurringTypeOptions = getRecurringTypeOptions();
 
   return (
-    <Box
+    <PageContainer
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        ...pageContainerStyle,
       }}
     >
       <Card
@@ -495,7 +494,7 @@ export function TransactionAddPage(): React.JSX.Element {
           </Box>
         </LocalizationProvider>
       </Popover>
-    </Box>
+    </PageContainer>
   );
 }
 

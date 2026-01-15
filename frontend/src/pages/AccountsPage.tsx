@@ -5,7 +5,7 @@
  */
 
 import React, {memo, useMemo} from 'react';
-import {Box, Typography, List, ListItemButton, ListItemText, Divider} from '@mui/material';
+import {Typography, List, ListItemButton, ListItemText, Divider} from '@mui/material';
 import {useNavigate} from 'react-router';
 import {AccountBalance} from '@mui/icons-material';
 import {useAccounts} from '../hooks/useAccounts';
@@ -15,7 +15,7 @@ import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {EmptyState} from '../components/common/EmptyState';
 import {Card} from '../components/ui/Card';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Accounts Page Component
@@ -66,7 +66,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
   const hasNoSearchResults = searchQuery.trim() && !hasSearchResults;
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       {hasNoSearchResults && (
         <EmptyState
           title="No accounts found"
@@ -108,7 +108,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
           </List>
         </Card>
       )}
-    </Box>
+    </PageContainer>
   );
 };
 

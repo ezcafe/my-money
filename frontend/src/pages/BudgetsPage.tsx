@@ -16,7 +16,7 @@ import {ErrorAlert} from '../components/common/ErrorAlert';
 import {EmptyState} from '../components/common/EmptyState';
 import {Card} from '../components/ui/Card';
 import {TextField} from '../components/ui/TextField';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Budgets Page Component
@@ -183,7 +183,7 @@ export function BudgetsPage(): React.JSX.Element {
   }
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       <Card>
         <List disablePadding>
           {budgets.map((budget, index) => {
@@ -407,7 +407,7 @@ export function BudgetsPage(): React.JSX.Element {
           </Typography>
         </Dialog>
       </Card>
-    </Box>
+    </PageContainer>
   );
 }
 

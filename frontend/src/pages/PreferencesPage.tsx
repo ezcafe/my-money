@@ -30,7 +30,7 @@ import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, Re
 import {useNotifications} from '../contexts/NotificationContext';
 import type {DateFormat} from '../contexts/DateFormatContext';
 import {DEFAULT_DATE_FORMAT} from '../contexts/DateFormatContext';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Export data type from GraphQL
@@ -665,7 +665,7 @@ export function PreferencesPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       {/* Management Section */}
       <Card sx={{mb: 3}}>
         <Box sx={{p: 3, pb: 2}}>
@@ -1075,7 +1075,7 @@ export function PreferencesPage(): React.JSX.Element {
           </Box>
         </Box>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }
 

@@ -5,7 +5,6 @@
 
 import React, {useState, memo, useCallback, useEffect, useRef} from 'react';
 import {useParams, useNavigate, useLocation} from 'react-router';
-import {Box} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useCategory} from '../hooks/useCategory';
 import {useTransactions, type TransactionOrderInput, type TransactionOrderByField} from '../hooks/useTransactions';
@@ -17,7 +16,7 @@ import {GET_PREFERENCES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_CATEGORY
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Category Details Page Component
@@ -166,7 +165,7 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       <TransactionList
         transactions={transactions}
         loading={transactionsLoading}
@@ -186,7 +185,7 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
         showPayeeColumn={true}
         sortableFields={['date', 'value', 'payee']}
       />
-    </Box>
+    </PageContainer>
   );
 };
 

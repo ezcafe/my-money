@@ -4,7 +4,7 @@
  */
 
 import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
-import {Box, Grid, Paper, Alert, Stack} from '@mui/material';
+import {Box, Grid, Alert, Stack} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useNavigate, useLocation} from 'react-router';
 import {HistoryList} from './HistoryList';
@@ -20,6 +20,7 @@ import {MAX_RECENT_TRANSACTIONS} from '../constants';
 import {CalculatorDisplay} from './calculator/CalculatorDisplay';
 import {CalculatorKeypad} from './calculator/CalculatorKeypad';
 import {CalculatorControls} from './calculator/CalculatorControls';
+import {Card} from './ui/Card';
 
 interface CalculatorState {
   display: string;
@@ -430,28 +431,36 @@ export function Calculator(): React.JSX.Element {
         </Alert>
       ) : null}
 
-      <Box
-        ref={historyListRef}
+      <Card
         sx={{
-          height: calculatorHeight > 0
-            ? {
-                xs: `calc(100vh - ${calculatorHeight}px - 16px)`,
-                sm: `calc(100vh - ${calculatorHeight}px - 24px)`,
-              }
-            : '100vh',
-          overflowY: 'auto',
-          overflowX: 'hidden',
           mb: {xs: 2, sm: 3},
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
-        <HistoryList
-          transactions={[...transactions].reverse().map((t) => ({
-            ...t,
-            date: typeof t.date === 'string' ? new Date(t.date) : t.date,
-          }))}
-          onTransactionClick={handleTransactionClick}
-        />
-      </Box>
+        <Box
+          ref={historyListRef}
+          sx={{
+            height: calculatorHeight > 0
+              ? {
+                  xs: `calc(100vh - ${calculatorHeight}px - 16px)`,
+                  sm: `calc(100vh - ${calculatorHeight}px - 24px)`,
+                }
+              : '100vh',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          }}
+        >
+          <HistoryList
+            transactions={[...transactions].reverse().map((t) => ({
+              ...t,
+              date: typeof t.date === 'string' ? new Date(t.date) : t.date,
+            }))}
+            onTransactionClick={handleTransactionClick}
+          />
+        </Box>
+      </Card>
 
       <Box
         ref={calculatorRef}
@@ -468,53 +477,65 @@ export function Calculator(): React.JSX.Element {
           pb: {xs: 2, sm: 3},
         }}
       >
-        <Paper sx={{p: 2, width: '400px'}}>
-          <CalculatorDisplay
-            display={state.display}
-            previousValue={state.previousValue}
-            operation={state.operation}
-            waitingForNewValue={state.waitingForNewValue}
-            showAmount={showAmount}
-            topUsedValues={topUsedValues.map((item) => ({value: Number.parseFloat(item.value), count: item.count}))}
-            currency={currency}
-            onBackspace={handleBackspace}
-            onTopUsedValueClick={handleTopUsedValueClick}
-          />
+        <Box
+          sx={{
+            width: {xs: '100%', sm: '100%'},
+            maxWidth: {
+              xs: '100%',
+              sm: '680px', // Tablet
+              md: '800px', // Desktop
+            },
+            mx: {xs: 0, sm: 'auto'},
+          }}
+        >
+          <Card sx={{p: 2, width: '100%'}}>
+            <CalculatorDisplay
+              display={state.display}
+              previousValue={state.previousValue}
+              operation={state.operation}
+              waitingForNewValue={state.waitingForNewValue}
+              showAmount={showAmount}
+              topUsedValues={topUsedValues.map((item) => ({value: Number.parseFloat(item.value), count: item.count}))}
+              currency={currency}
+              onBackspace={handleBackspace}
+              onTopUsedValueClick={handleTopUsedValueClick}
+            />
 
-          <Grid container spacing={1} sx={{width: '100%'}}>
-            <CalculatorKeypad
-              selectedPayeeId={selectedPayeeId}
-              selectedAccountId={selectedAccountId}
-              selectedCategoryId={selectedCategoryId}
-              payees={payees}
-              accounts={accounts}
-              categories={categories}
-              useThousandSeparator={useThousandSeparator}
-              creatingTransaction={creatingTransaction}
-              canSubmit={!(state.display === '0' && state.previousValue === null)}
-              onNumberClick={handleNumber}
-              onOperationClick={handleOperation}
-              onEqualsClick={() => {
-                void handleEquals();
-              }}
-              onPayeeChange={(value) => {
-                setSelectedPayeeId(value);
-              }}
-              onAccountChange={(value) => {
-                setSelectedAccountId(value);
-              }}
-              onCategoryChange={(value) => {
-                setSelectedCategoryId(value);
-              }}
-              onSettingsClick={handleSettingsClick}
-            />
-            <CalculatorControls
-              menuAnchor={menuAnchor}
-              onMenuClose={handleMenuClose}
-              onMenuNavigation={handleMenuNavigation}
-            />
-          </Grid>
-        </Paper>
+            <Grid container spacing={1} sx={{width: '100%'}}>
+              <CalculatorKeypad
+                selectedPayeeId={selectedPayeeId}
+                selectedAccountId={selectedAccountId}
+                selectedCategoryId={selectedCategoryId}
+                payees={payees}
+                accounts={accounts}
+                categories={categories}
+                useThousandSeparator={useThousandSeparator}
+                creatingTransaction={creatingTransaction}
+                canSubmit={!(state.display === '0' && state.previousValue === null)}
+                onNumberClick={handleNumber}
+                onOperationClick={handleOperation}
+                onEqualsClick={() => {
+                  void handleEquals();
+                }}
+                onPayeeChange={(value) => {
+                  setSelectedPayeeId(value);
+                }}
+                onAccountChange={(value) => {
+                  setSelectedAccountId(value);
+                }}
+                onCategoryChange={(value) => {
+                  setSelectedCategoryId(value);
+                }}
+                onSettingsClick={handleSettingsClick}
+              />
+              <CalculatorControls
+                menuAnchor={menuAnchor}
+                onMenuClose={handleMenuClose}
+                onMenuNavigation={handleMenuNavigation}
+              />
+            </Grid>
+          </Card>
+        </Box>
       </Box>
 
     </Stack>

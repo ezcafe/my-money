@@ -24,7 +24,7 @@ import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {useTitle} from '../contexts/TitleContext';
 import type {Transaction} from '../hooks/useTransactions';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Transaction data from GraphQL query
@@ -220,12 +220,11 @@ export function TransactionEditPage(): React.JSX.Element {
   }
 
   return (
-    <Box
+    <PageContainer
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        ...pageContainerStyle,
       }}
     >
       <Card
@@ -325,7 +324,7 @@ export function TransactionEditPage(): React.JSX.Element {
           </Box>
         </Box>
       </Card>
-    </Box>
+    </PageContainer>
   );
 }
 

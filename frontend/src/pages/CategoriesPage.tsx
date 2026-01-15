@@ -23,7 +23,7 @@ import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {EmptyState} from '../components/common/EmptyState';
 import {Card} from '../components/ui/Card';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Categories Page Component
@@ -103,7 +103,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
   const hasNoSearchResults = searchQuery.trim() && !hasSearchResults;
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       {/* No Search Results */}
       {hasNoSearchResults && (
         <EmptyState
@@ -210,7 +210,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
           </List>
         </Card>
       )}
-    </Box>
+    </PageContainer>
   );
 };
 

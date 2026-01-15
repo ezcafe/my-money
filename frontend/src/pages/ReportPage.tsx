@@ -55,7 +55,7 @@ import type {TransactionOrderInput, TransactionOrderByField} from '../hooks/useT
 import {ITEMS_PER_PAGE} from '../constants';
 import {TransactionList} from '../components/TransactionList';
 import {SankeyChart} from '../components/SankeyChart';
-import {pageContainerStyle} from '../constants/ui';
+import {PageContainer} from '../components/common/PageContainer';
 
 /**
  * Transaction type from report query
@@ -1359,7 +1359,7 @@ export function ReportPage(): React.JSX.Element {
   const datePresets = getDatePresets();
 
   return (
-    <Box sx={pageContainerStyle}>
+    <PageContainer>
       {/* Filters Section */}
       <Card sx={{p: 3, mb: 3}}>
         <Box
@@ -1926,6 +1926,6 @@ export function ReportPage(): React.JSX.Element {
           </Box>
         </LocalizationProvider>
       </Popover>
-    </Box>
+    </PageContainer>
   );
 }
