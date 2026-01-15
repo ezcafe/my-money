@@ -2,6 +2,8 @@
  * Custom error classes for the application
  */
 
+import {ErrorCode} from './errorCodes';
+
 export class AppError extends Error {
   constructor(
     message: string,
@@ -16,7 +18,7 @@ export class AppError extends Error {
 
 export class ValidationError extends AppError {
   constructor(message: string) {
-    super(message, 'VALIDATION_ERROR', 400);
+    super(message, ErrorCode.VALIDATION_ERROR, 400);
     this.name = 'ValidationError';
     Object.setPrototypeOf(this, ValidationError.prototype);
   }
@@ -24,7 +26,7 @@ export class ValidationError extends AppError {
 
 export class NotFoundError extends AppError {
   constructor(resource: string) {
-    super(`${resource} not found`, 'NOT_FOUND', 404);
+    super(`${resource} not found`, ErrorCode.NOT_FOUND, 404);
     this.name = 'NotFoundError';
     Object.setPrototypeOf(this, NotFoundError.prototype);
   }
@@ -32,7 +34,7 @@ export class NotFoundError extends AppError {
 
 export class UnauthorizedError extends AppError {
   constructor(message: string = 'Unauthorized') {
-    super(message, 'UNAUTHORIZED', 401);
+    super(message, ErrorCode.UNAUTHORIZED, 401);
     this.name = 'UnauthorizedError';
     Object.setPrototypeOf(this, UnauthorizedError.prototype);
   }
@@ -40,7 +42,7 @@ export class UnauthorizedError extends AppError {
 
 export class ForbiddenError extends AppError {
   constructor(message: string = 'Forbidden') {
-    super(message, 'FORBIDDEN', 403);
+    super(message, ErrorCode.FORBIDDEN, 403);
     this.name = 'ForbiddenError';
     Object.setPrototypeOf(this, ForbiddenError.prototype);
   }

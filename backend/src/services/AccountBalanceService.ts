@@ -4,9 +4,12 @@
  * Uses stored balance column for O(1) read performance
  */
 
- 
+
 import type {PrismaClient} from '@prisma/client';
 import {prisma} from '../utils/prisma';
+import {AccountRepository} from '../repositories/AccountRepository';
+import {TransactionRepository} from '../repositories/TransactionRepository';
+import {NotFoundError} from '../utils/errors';
 
 type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
@@ -17,13 +20,11 @@ type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' |
  * @returns Current balance
  */
 export async function getAccountBalance(accountId: string): Promise<number> {
-  const account = await prisma.account.findUnique({
-    where: {id: accountId},
-    select: {balance: true},
-  });
+  const accountRepository = new AccountRepository(prisma);
+  const account = await accountRepository.findById(accountId, '', {balance: true});
 
   if (!account) {
-    throw new Error(`Account ${accountId} not found`);
+    throw new NotFoundError('Account');
   }
 
   return Number(account.balance);
@@ -43,18 +44,8 @@ export async function incrementAccountBalance(
   tx?: PrismaTransaction | PrismaClient,
 ): Promise<number> {
   const client = tx ?? prisma;
-
-  const account = await client.account.update({
-    where: {id: accountId},
-    data: {
-      balance: {
-        increment: delta,
-      },
-    },
-    select: {balance: true},
-  });
-
-  return Number(account.balance);
+  const accountRepository = new AccountRepository(client);
+  return accountRepository.incrementBalance(accountId, delta, tx);
 }
 
 /**
@@ -70,32 +61,36 @@ export async function recalculateAccountBalance(
   tx?: PrismaTransaction | PrismaClient,
 ): Promise<number> {
   const client = tx ?? prisma;
+  const accountRepository = new AccountRepository(client);
+  const transactionRepository = new TransactionRepository(client);
 
-  const account = await client.account.findUnique({
-    where: {id: accountId},
-    select: {initBalance: true},
-  });
+  const account = await accountRepository.findById(accountId, '', {initBalance: true});
 
   if (!account) {
-    throw new Error(`Account ${accountId} not found`);
+    throw new NotFoundError('Account');
   }
 
   // Get all transactions with their categories
-  const transactions = await client.transaction.findMany({
-    where: {accountId},
-    include: {
-      category: {
-        select: {type: true},
+  const transactions = await transactionRepository.findMany(
+    {accountId},
+    {
+      include: {
+        category: {
+          select: {type: true},
+        },
       },
     },
-  });
+  );
 
   // Calculate balance delta from all transactions
   // Income categories add money, Expense categories (or no category) subtract money
   let transactionSum = 0;
   for (const transaction of transactions) {
     const value = Number(transaction.value);
-    const delta = transaction.category?.type === 'INCOME'
+    const transactionWithCategory = transaction as typeof transaction & {
+      category?: {type: 'INCOME' | 'EXPENSE'};
+    };
+    const delta = transactionWithCategory.category?.type === 'INCOME'
       ? value
       : -value;
     transactionSum += delta;
@@ -104,24 +99,10 @@ export async function recalculateAccountBalance(
   const newBalance = Number(account.initBalance) + transactionSum;
 
   // Update stored balance
-  await client.account.update({
-    where: {id: accountId},
-    data: {balance: newBalance},
-  });
+  await accountRepository.update(accountId, {balance: newBalance}, tx);
 
   return newBalance;
 }
 
-/**
- * Calculate account balance from initial balance and all transactions
- * Legacy function - kept for backward compatibility
- * Prefer using getAccountBalance() for better performance
- * @param accountId - Account ID
- * @returns Current balance
- * @deprecated Use getAccountBalance() instead for O(1) performance
- */
-export async function calculateAccountBalance(accountId: string): Promise<number> {
-  return recalculateAccountBalance(accountId);
-}
 
 

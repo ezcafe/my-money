@@ -3,11 +3,11 @@
  * Handles payee-related GraphQL operations
  */
 
- 
+
 import type {GraphQLContext} from '../middleware/context';
+import type {Payee} from '@prisma/client';
 import {NotFoundError, ValidationError} from '../utils/errors';
 import {z} from 'zod';
-import {validate} from '../utils/validation';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {sanitizeUserInput} from '../utils/sanitization';
 import {BaseResolver} from './BaseResolver';
@@ -22,75 +22,46 @@ const UpdatePayeeInputSchema = z.object({
 
 export class PayeeResolver extends BaseResolver {
   /**
-   * Ensure default payees exist
-   * Creates default payees if they don't exist
-   */
-  private async ensureDefaultPayees(context: GraphQLContext): Promise<void> {
-    const defaultPayeeNames = ['Default Payee'];
-
-    for (const name of defaultPayeeNames) {
-      const existing = await context.prisma.payee.findFirst({
-        where: {
-          name,
-          isDefault: true,
-          userId: null,
-        },
-        select: {id: true},
-      });
-
-      if (!existing) {
-        await withPrismaErrorHandling(
-          async () =>
-            await context.prisma.payee.create({
-              data: {
-                name,
-                isDefault: true,
-                userId: null,
-              },
-            }),
-          {resource: 'Payee', operation: 'create'},
-        );
-      }
-    }
-  }
-
-  /**
    * Get all payees (user-specific and default)
    */
-  async payees(_: unknown, __: unknown, context: GraphQLContext) {
+  async payees(_: unknown, __: unknown, context: GraphQLContext): Promise<Payee[]> {
     // Ensure default payees exist
     await this.ensureDefaultPayees(context);
-    const payees = await context.prisma.payee.findMany({
-      where: {
-        OR: [
-          {userId: context.userId},
-          {isDefault: true},
-        ],
-      },
-      orderBy: [
-        {isDefault: 'desc'},
-        {name: 'asc'},
-      ],
-    });
-
-    return payees;
+    return await withPrismaErrorHandling(
+      async () =>
+        await context.prisma.payee.findMany({
+          where: {
+            OR: [
+              {userId: context.userId},
+              {isDefault: true},
+            ],
+          },
+          orderBy: [
+            {isDefault: 'desc'},
+            {name: 'asc'},
+          ],
+        }),
+      {resource: 'Payee', operation: 'read'},
+    );
   }
 
   /**
    * Get payee by ID
    */
-  async payee(_: unknown, {id}: {id: string}, context: GraphQLContext) {
-    const payee = await context.prisma.payee.findFirst({
-      where: {
-        id,
-        OR: [
-          {userId: context.userId},
-          {isDefault: true},
-        ],
-      },
-    });
-
-    return payee;
+  async payee(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Payee | null> {
+    return await withPrismaErrorHandling(
+      async () =>
+        await context.prisma.payee.findFirst({
+          where: {
+            id,
+            OR: [
+              {userId: context.userId},
+              {isDefault: true},
+            ],
+          },
+        }),
+      {resource: 'Payee', operation: 'read'},
+    );
   }
 
   /**
@@ -100,19 +71,13 @@ export class PayeeResolver extends BaseResolver {
     _: unknown,
     {input}: {input: {name: string}},
     context: GraphQLContext,
-  ) {
-    const validatedInput = validate(CreatePayeeInputSchema, input);
+  ): Promise<Payee> {
+    const validatedInput = this.validateInput(CreatePayeeInputSchema, input);
 
     // Check if payee with same name already exists for this user
-    const existing = await context.prisma.payee.findFirst({
-      where: {
-        name: validatedInput.name,
-        userId: context.userId,
-      },
-      select: {id: true},
-    });
+    const nameExists = await this.checkNameUniqueness(context, 'payee', validatedInput.name, context.userId);
 
-    if (existing) {
+    if (nameExists) {
       throw new ValidationError('Payee with this name already exists');
     }
 
@@ -138,18 +103,22 @@ export class PayeeResolver extends BaseResolver {
     _: unknown,
     {id, input}: {id: string; input: {name?: string}},
     context: GraphQLContext,
-  ) {
-    const validatedInput = validate(UpdatePayeeInputSchema, input);
+  ): Promise<Payee> {
+    const validatedInput = this.validateInput(UpdatePayeeInputSchema, input);
 
     // Verify payee belongs to user (cannot update default payees)
-    const existing = await context.prisma.payee.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-        isDefault: false,
-      },
-      select: {id: true, name: true},
-    });
+    const existing = await withPrismaErrorHandling(
+      async () =>
+        await context.prisma.payee.findFirst({
+          where: {
+            id,
+            userId: context.userId,
+            isDefault: false,
+          },
+          select: {id: true, name: true},
+        }),
+      {resource: 'Payee', operation: 'read'},
+    );
 
     if (!existing) {
       throw new NotFoundError('Payee');
@@ -157,51 +126,54 @@ export class PayeeResolver extends BaseResolver {
 
     // Check name uniqueness if name is being updated
     if (validatedInput.name && validatedInput.name !== existing.name) {
-      const duplicate = await context.prisma.payee.findFirst({
-        where: {
-          name: validatedInput.name,
-          userId: context.userId,
-          id: {not: id},
-        },
-        select: {id: true},
-      });
+      const nameExists = await this.checkNameUniqueness(context, 'payee', validatedInput.name, context.userId, id);
 
-      if (duplicate) {
+      if (nameExists) {
         throw new ValidationError('Payee with this name already exists');
       }
     }
 
-    const payee = await context.prisma.payee.update({
-      where: {id},
-      data: {
-        ...(validatedInput.name !== undefined && {name: sanitizeUserInput(validatedInput.name)}),
-      },
-    });
-
-    return payee;
+    return await withPrismaErrorHandling(
+      async () =>
+        await context.prisma.payee.update({
+          where: {id},
+          data: {
+            ...(validatedInput.name !== undefined && {name: sanitizeUserInput(validatedInput.name)}),
+          },
+        }),
+      {resource: 'Payee', operation: 'update'},
+    );
   }
 
   /**
    * Delete payee (cannot delete default payees)
    */
-  async deletePayee(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async deletePayee(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
     // Verify payee belongs to user and is not default
-    const payee = await context.prisma.payee.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-        isDefault: false,
-      },
-      select: {id: true},
-    });
+    const payee = await withPrismaErrorHandling(
+      async () =>
+        await context.prisma.payee.findFirst({
+          where: {
+            id,
+            userId: context.userId,
+            isDefault: false,
+          },
+          select: {id: true},
+        }),
+      {resource: 'Payee', operation: 'read'},
+    );
 
     if (!payee) {
       throw new NotFoundError('Payee');
     }
 
-    await context.prisma.payee.delete({
-      where: {id},
-    });
+    await withPrismaErrorHandling(
+      async () =>
+        await context.prisma.payee.delete({
+          where: {id},
+        }),
+      {resource: 'Payee', operation: 'delete'},
+    );
 
     return true;
   }

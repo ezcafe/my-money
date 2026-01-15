@@ -3,7 +3,7 @@
  * Provides a single source of truth for API-related configuration
  */
 
-import {GRAPHQL_REQUEST_TIMEOUT_MS} from '../utils/constants';
+import {GRAPHQL_REQUEST_TIMEOUT_MS} from '../constants';
 
 /**
  * API configuration constants

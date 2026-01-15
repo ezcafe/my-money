@@ -13,7 +13,7 @@ import {
   Button,
 } from '@mui/material';
 
-interface DeleteConfirmDialogProps {
+export interface DeleteConfirmDialogProps {
   /**
    * Whether the dialog is open
    */

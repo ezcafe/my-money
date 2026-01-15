@@ -5,12 +5,17 @@
 
 import * as oidc from 'openid-client';
 import {LRUCache} from 'lru-cache';
+import {createHash} from 'crypto';
 import {UnauthorizedError} from '../utils/errors';
+import {logError} from '../utils/logger';
+import {TOKEN_CACHE_TTL_MS, DATALOADER_CACHE_SIZE_LIMIT} from '../utils/constants';
+import {config as appConfig} from '../config';
 
 // Type aliases for openid-client types
 type TokenSet = oidc.UserInfoResponse;
 
-let config: oidc.Configuration | null = null;
+let oidcConfig: oidc.Configuration | null = null;
+let tokenEndpointUrl: string | null = null;
 
 /**
  * Token cache entry
@@ -19,16 +24,26 @@ interface TokenCacheEntry {
   userInfo: {sub: string; email?: string};
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+/**
+ * Hash token for secure caching
+ * Uses SHA-256 to create a hash of the token before storing in cache
+ * This prevents full tokens from being stored in memory
+ * @param token - The OIDC token to hash
+ * @returns SHA-256 hash of the token
+ */
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * LRU token cache with TTL and size limit
  * Cache tokens for 5 minutes to reduce external OIDC provider calls
  * Maximum 1000 entries to prevent memory leaks
+ * Uses hashed tokens as keys for security
  */
 const tokenCache = new LRUCache<string, TokenCacheEntry>({
-  max: 1000, // Maximum number of entries
-  ttl: CACHE_TTL_MS, // Time to live in milliseconds
+  max: DATALOADER_CACHE_SIZE_LIMIT, // Maximum number of entries
+  ttl: TOKEN_CACHE_TTL_MS, // Time to live in milliseconds
 });
 
 /**
@@ -36,9 +51,7 @@ const tokenCache = new LRUCache<string, TokenCacheEntry>({
  * Authentication is required - the server will not start without proper OIDC configuration
  */
 export async function initializeOIDC(): Promise<void> {
-  const discoveryUrl = process.env.OPENID_DISCOVERY_URL;
-  const clientId = process.env.OPENID_CLIENT_ID;
-  const clientSecret = process.env.OPENID_CLIENT_SECRET;
+  const {discoveryUrl, clientId, clientSecret} = appConfig.oidc;
 
   if (!discoveryUrl || !clientId || !clientSecret) {
     const missingVars: string[] = [];
@@ -46,33 +59,56 @@ export async function initializeOIDC(): Promise<void> {
     if (!clientId) missingVars.push('OPENID_CLIENT_ID');
     if (!clientSecret) missingVars.push('OPENID_CLIENT_SECRET');
 
-    console.error('❌ OIDC configuration missing. Authentication is required.');
-    console.error('');
-    console.error('   Please update your .env file with the following variables:');
-    console.error('');
-    missingVars.forEach((varName) => {
-      console.error(`   ${varName}=<your-value>`);
-    });
-    console.error('');
-    console.error('   Example .env configuration:');
-    console.error('   OPENID_DISCOVERY_URL=https://your-oidc-provider/.well-known/openid-configuration');
-    console.error('   OPENID_CLIENT_ID=your-client-id');
-    console.error('   OPENID_CLIENT_SECRET=your-client-secret');
-    console.error('');
+    const errorMessage = `OIDC configuration missing: ${missingVars.join(', ')}. Please update your .env file.`;
+    logError('OIDC configuration missing. Authentication is required.', {
+      event: 'oidc_config_missing',
+      missingVars: missingVars.join(', '),
+      message: 'Please update your .env file with the following variables:',
+      exampleUrl: 'https://your-oidc-provider/.well-known/openid-configuration',
+      exampleClientId: 'your-client-id',
+      exampleClientSecret: 'your-client-secret',
+    }, new Error(errorMessage));
 
-    throw new Error(`OIDC configuration missing: ${missingVars.join(', ')}. Please update your .env file.`);
+    throw new Error(errorMessage);
   }
 
   try {
     const url = new URL(discoveryUrl);
-    config = await oidc.discovery(
+    oidcConfig = await oidc.discovery(
       url,
       clientId,
       clientSecret,
       oidc.ClientSecretPost(clientSecret)
     );
+
+    // Extract token_endpoint from Configuration object
+    // The Configuration type may not expose token_endpoint directly, so we access it via the object
+    const configObj = oidcConfig as unknown as {token_endpoint?: string; metadata?: {token_endpoint?: string}};
+    tokenEndpointUrl = configObj.token_endpoint ?? configObj.metadata?.token_endpoint ?? null;
+
+    // If still not found, fetch discovery document directly
+    if (!tokenEndpointUrl) {
+      try {
+        const discoveryResponse = await fetch(discoveryUrl);
+        if (discoveryResponse.ok) {
+          const discoveryDoc = (await discoveryResponse.json()) as {token_endpoint?: string};
+          tokenEndpointUrl = discoveryDoc.token_endpoint ?? null;
+        }
+      } catch {
+        // Ignore fetch errors, will throw below if tokenEndpointUrl is still null
+      }
+    }
+
+    if (!tokenEndpointUrl) {
+      throw new Error('Token endpoint not found in OIDC configuration');
+    }
   } catch (error) {
-    console.error('❌ Failed to initialize OIDC client:', error instanceof Error ? error.message : 'Unknown error');
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logError('Failed to initialize OIDC client', {
+      event: 'oidc_init_failed',
+      discoveryUrl,
+      clientId,
+    }, errorObj);
     throw error;
   }
 }
@@ -81,10 +117,21 @@ export async function initializeOIDC(): Promise<void> {
  * Get OIDC configuration instance
  */
 export function getOIDCConfig(): oidc.Configuration {
-  if (!config) {
+  if (!oidcConfig) {
     throw new Error('OIDC client not initialized. Call initializeOIDC() first.');
   }
-  return config;
+  return oidcConfig;
+}
+
+/**
+ * Get token endpoint URL
+ * @returns Token endpoint URL for OIDC token exchange
+ */
+export function getTokenEndpoint(): string {
+  if (!tokenEndpointUrl) {
+    throw new Error('Token endpoint not available. OIDC client may not be initialized.');
+  }
+  return tokenEndpointUrl;
 }
 
 /**
@@ -109,7 +156,7 @@ function extractToken(authHeader: string | undefined): string | null {
  * The openid-client library handles token validation automatically
  */
 export async function verifyToken(token: string): Promise<TokenSet> {
-  if (!config) {
+  if (!oidcConfig) {
     throw new Error('OIDC client not initialized. Call initializeOIDC() first.');
   }
 
@@ -119,7 +166,7 @@ export async function verifyToken(token: string): Promise<TokenSet> {
 
   try {
     // The fetchUserInfo() function validates the token and returns user data
-    const userInfo = await oidc.fetchUserInfo(config, token, oidc.skipSubjectCheck);
+    const userInfo = await oidc.fetchUserInfo(oidcConfig, token, oidc.skipSubjectCheck);
 
     // Additional validation: check if we got a valid subject
     if (!userInfo.sub) {
@@ -133,7 +180,10 @@ export async function verifyToken(token: string): Promise<TokenSet> {
       throw error;
     }
     // Log the error for debugging but don't expose details to client
-    console.error('Token verification failed:', error instanceof Error ? error.message : 'Unknown error');
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logError('Token verification failed', {
+      event: 'token_verification_failed',
+    }, errorObj);
     throw new UnauthorizedError('Invalid or expired token');
   }
 }
@@ -142,10 +192,14 @@ export async function verifyToken(token: string): Promise<TokenSet> {
  * Get user info from token
  * Validates OIDC token and returns user information
  * Uses caching to reduce external OIDC provider calls
+ * Tokens are hashed before caching for security
  */
 export async function getUserFromToken(token: string): Promise<{sub: string; email?: string}> {
-  // Check cache first
-  const cached = tokenCache.get(token);
+  // Hash token for secure caching
+  const tokenHash = hashToken(token);
+
+  // Check cache first using hashed token
+  const cached = tokenCache.get(tokenHash);
   if (cached) {
     return cached.userInfo;
   }
@@ -157,8 +211,8 @@ export async function getUserFromToken(token: string): Promise<{sub: string; ema
     email: tokenSet.email,
   };
 
-  // Cache the result (LRU cache handles TTL automatically)
-  tokenCache.set(token, {
+  // Cache the result using hashed token (LRU cache handles TTL automatically)
+  tokenCache.set(tokenHash, {
     userInfo,
   });
 

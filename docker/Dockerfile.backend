@@ -3,6 +3,8 @@ ARG BUILD_DATE
 ARG VCS_REF
 ARG VERSION=1.0.0
 ARG NODE_VERSION=25.2.1
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 # ============================================================================
 # Dependencies stage - Install all dependencies
@@ -105,6 +107,46 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --include-workspace-root
 
 # ============================================================================
+# Node modules preparation stage - Handle conditional copying
+# ============================================================================
+FROM node:${NODE_VERSION}-alpine AS node-modules-prep
+
+WORKDIR /app
+
+# Copy production dependencies
+COPY --from=prod-deps /app/node_modules ./node_modules
+
+# Create workspace directories and copy workspace-specific node_modules if they exist
+RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
+RUN --mount=from=prod-deps,source=/app,target=/tmp/prod-deps \
+    if [ -d "/tmp/prod-deps/backend/node_modules" ] && [ "$(ls -A /tmp/prod-deps/backend/node_modules 2>/dev/null)" ]; then \
+        cp -r /tmp/prod-deps/backend/node_modules/* /app/backend/node_modules/; \
+    fi
+
+# Copy Prisma CLI from builder (needed for migrations, it's in devDependencies)
+# Prisma CLI is required for running migrations programmatically
+RUN --mount=from=builder,source=/app,target=/tmp/builder \
+    if [ -d "/tmp/builder/node_modules/prisma" ]; then \
+        mkdir -p /app/node_modules/prisma && \
+        cp -r /tmp/builder/node_modules/prisma/* /app/node_modules/prisma/; \
+        mkdir -p /app/node_modules/.bin && \
+        if [ -f "/tmp/builder/node_modules/.bin/prisma" ]; then \
+            cp /tmp/builder/node_modules/.bin/prisma /app/node_modules/.bin/prisma; \
+        fi; \
+    fi
+
+# Copy Prisma generated client from builder
+RUN --mount=from=builder,source=/app,target=/tmp/builder \
+    mkdir -p /app/node_modules && \
+    if [ -d "/tmp/builder/node_modules/.prisma" ]; then \
+        cp -r /tmp/builder/node_modules/.prisma /app/node_modules/.prisma; \
+    elif [ -d "/tmp/builder/backend/node_modules/.prisma" ]; then \
+        cp -r /tmp/builder/backend/node_modules/.prisma /app/node_modules/.prisma; \
+    else \
+        echo "Error: Prisma client not found in builder stage" && exit 1; \
+    fi
+
+# ============================================================================
 # Production stage - Final runtime image
 # ============================================================================
 FROM node:${NODE_VERSION}-alpine
@@ -117,75 +159,51 @@ LABEL maintainer="my-money-app" \
       org.label-schema.description="My Money Backend Service" \
       org.label-schema.name="my-money-backend"
 
-# Install Prisma CLI globally (needed for migrations)
-RUN --mount=type=cache,target=/root/.npm \
-    npm install -g prisma@^7.2.0
-
-# Add non-root user for security
+# Create non-root user for security
+# Use fixed UID/GID for consistency
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 WORKDIR /app
 
-# Copy production dependencies
-# In npm workspaces, dependencies are hoisted to root node_modules
-COPY --from=prod-deps /app/node_modules ./node_modules
-# Create workspace node_modules directories (may not exist if all deps are hoisted)
-RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
-# Copy workspace-specific node_modules if they exist (some deps may not be hoisted)
-# Use a shell command to conditionally copy
-RUN --mount=from=prod-deps,source=/app,target=/tmp/prod-deps \
-    if [ -d "/tmp/prod-deps/backend/node_modules" ] && [ "$(ls -A /tmp/prod-deps/backend/node_modules 2>/dev/null)" ]; then \
-        cp -r /tmp/prod-deps/backend/node_modules/* /app/backend/node_modules/; \
-    fi
+# Copy production dependencies and Prisma CLI
+COPY --from=node-modules-prep --chown=nodejs:nodejs /app/node_modules ./node_modules
+# Copy workspace node_modules if they exist (may be empty, that's ok)
+COPY --from=node-modules-prep --chown=nodejs:nodejs /app/backend/node_modules ./backend/node_modules
+COPY --from=node-modules-prep --chown=nodejs:nodejs /app/shared/node_modules ./shared/node_modules
 
-# Copy Prisma generated client from builder
-# Use a mount to check both locations and copy to the correct place
-RUN --mount=from=builder,source=/app,target=/tmp/builder \
-    if [ -d "/tmp/builder/node_modules/.prisma" ]; then \
-        cp -r /tmp/builder/node_modules/.prisma /app/node_modules/.prisma; \
-    elif [ -d "/tmp/builder/backend/node_modules/.prisma" ]; then \
-        cp -r /tmp/builder/backend/node_modules/.prisma /app/node_modules/.prisma; \
-        cp -r /tmp/builder/backend/node_modules/.prisma /app/backend/node_modules/.prisma; \
-    else \
-        echo "Warning: Prisma client not found in builder stage"; \
-    fi
-
-# Copy Prisma schema and migrations (needed for migrations)
-COPY --from=builder /app/backend/prisma ./backend/prisma
+# Copy Prisma schema and migrations (needed for programmatic migrations)
+COPY --from=builder --chown=nodejs:nodejs /app/backend/prisma ./backend/prisma
 # Copy Prisma config file (required for Prisma 7+ migrations)
-COPY --from=builder /app/backend/prisma.config.ts ./backend/prisma.config.ts
+COPY --from=builder --chown=nodejs:nodejs /app/backend/prisma.config.ts ./backend/prisma.config.ts
 
 # Copy built application
-COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder --chown=nodejs:nodejs /app/backend/dist ./backend/dist
 
 # Copy GraphQL schema file (needed at runtime, not compiled by TypeScript)
-COPY --from=builder /app/backend/src/schema/schema.graphql ./backend/dist/schema/schema.graphql
+COPY --from=builder --chown=nodejs:nodejs /app/backend/src/schema/schema.graphql ./backend/dist/schema/schema.graphql
 
 # Copy shared built files (needed at runtime)
-COPY --from=builder /app/shared/dist ./shared/dist
-COPY --from=builder /app/shared/package.json ./shared/package.json
+COPY --from=builder --chown=nodejs:nodejs /app/shared/dist ./shared/dist
+COPY --from=builder --chown=nodejs:nodejs /app/shared/package.json ./shared/package.json
 
-# Copy entrypoint script for database migrations
-COPY docker/backend-entrypoint.sh /app/backend-entrypoint.sh
+# Ensure Prisma CLI is available in node_modules (needed for migrations)
+# Prisma should be in production dependencies, but verify it's copied
+# If not in prod deps, we need to copy it from builder
 
 WORKDIR /app/backend
-
-# Make entrypoint script executable and change ownership
-RUN chmod +x /app/backend-entrypoint.sh && \
-    chown -R nodejs:nodejs /app
 
 # Switch to non-root user
 USER nodejs
 
 EXPOSE 4000
 
-# Add health check
+# Health check using Node.js HTTP client
+# Health endpoint returns JSON with status field
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD ["node", "-e", "require('http').get('http://localhost:4000/health', (r) => {let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);process.exit(j.status==='ok'||j.status==='degraded'?0:1)}catch{process.exit(r.statusCode===200?0:1)}})}).on('error',()=>process.exit(1))"]
 
-# Use entrypoint script to run migrations before starting server
-ENTRYPOINT ["/app/backend-entrypoint.sh"]
+# Start application directly (migrations run programmatically in index.ts)
 CMD ["node", "dist/index.js"]
 
 

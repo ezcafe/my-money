@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import type {GraphQLContext} from '../middleware/context';
 import {NotFoundError, ValidationError} from '../utils/errors';
+import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {parsePDF} from '../services/PDFParser';
 import {promisify} from 'util';
 import {pipeline} from 'stream';
@@ -188,25 +189,30 @@ function normalizeDescription(description: string): string {
  * @returns Default account
  */
 async function getDefaultAccount(context: GraphQLContext) {
-  let account = await context.prisma.account.findFirst({
-    where: {
-      userId: context.userId,
-      isDefault: true,
-    },
-  });
+  return await withPrismaErrorHandling(
+    async () => {
+      let account = await context.prisma.account.findFirst({
+        where: {
+          userId: context.userId,
+          isDefault: true,
+        },
+      });
 
-  // Create default account if none exists
-  account ??= await context.prisma.account.create({
-    data: {
-      name: 'Cash',
-      initBalance: 0,
-      balance: 0,
-      isDefault: true,
-      userId: context.userId,
-    },
-  });
+      // Create default account if none exists
+      account ??= await context.prisma.account.create({
+        data: {
+          name: 'Cash',
+          initBalance: 0,
+          balance: 0,
+          isDefault: true,
+          userId: context.userId,
+        },
+      });
 
-  return account;
+      return account;
+    },
+    {resource: 'Account', operation: 'read'},
+  );
 }
 
 /**
@@ -215,26 +221,31 @@ async function getDefaultAccount(context: GraphQLContext) {
  * @returns Default category
  */
 async function getDefaultCategory(context: GraphQLContext) {
-  let category = await context.prisma.category.findFirst({
-    where: {
-      OR: [
-        {userId: context.userId, isDefault: true, name: 'Default Expense Category'},
-        {userId: null, isDefault: true, name: 'Default Expense Category'},
-      ],
-    },
-  });
+  return await withPrismaErrorHandling(
+    async () => {
+      let category = await context.prisma.category.findFirst({
+        where: {
+          OR: [
+            {userId: context.userId, isDefault: true, name: 'Default Expense Category'},
+            {userId: null, isDefault: true, name: 'Default Expense Category'},
+          ],
+        },
+      });
 
-  // Create default expense category if none exists
-  category ??= await context.prisma.category.create({
-    data: {
-      name: 'Default Expense Category',
-      type: 'EXPENSE',
-      isDefault: true,
-      userId: null,
-    },
-  });
+      // Create default expense category if none exists
+      category ??= await context.prisma.category.create({
+        data: {
+          name: 'Default Expense Category',
+          type: 'EXPENSE',
+          isDefault: true,
+          userId: null,
+        },
+      });
 
-  return category;
+      return category;
+    },
+    {resource: 'Category', operation: 'read'},
+  );
 }
 
 /**
@@ -243,25 +254,30 @@ async function getDefaultCategory(context: GraphQLContext) {
  * @returns Default payee
  */
 async function getDefaultPayee(context: GraphQLContext) {
-  let payee = await context.prisma.payee.findFirst({
-    where: {
-      OR: [
-        {userId: context.userId, isDefault: true},
-        {userId: null, isDefault: true},
-      ],
-    },
-  });
+  return await withPrismaErrorHandling(
+    async () => {
+      let payee = await context.prisma.payee.findFirst({
+        where: {
+          OR: [
+            {userId: context.userId, isDefault: true},
+            {userId: null, isDefault: true},
+          ],
+        },
+      });
 
-  // Create default payee if none exists
-  payee ??= await context.prisma.payee.create({
-    data: {
-      name: 'Default Payee',
-      isDefault: true,
-      userId: null,
-    },
-  });
+      // Create default payee if none exists
+      payee ??= await context.prisma.payee.create({
+        data: {
+          name: 'Default Payee',
+          isDefault: true,
+          userId: null,
+        },
+      });
 
-  return payee;
+      return payee;
+    },
+    {resource: 'Payee', operation: 'read'},
+  );
 }
 
 /**
@@ -347,45 +363,50 @@ async function findOrCreateImportedTransaction(
   // Normalize description for matching
   const normalizedDescription = normalizeDescription(parsed.description);
 
-  // Find candidates: unmapped transactions with same date and amount
-  const candidates = await context.prisma.importedTransaction.findMany({
-    where: {
-      userId: context.userId,
-      matched: false,
-      rawDate: parsed.date,
-      rawDebit: parsed.debit ?? null,
-      rawCredit: parsed.credit ?? null,
-    },
-  });
+  return await withPrismaErrorHandling(
+    async () => {
+      // Find candidates: unmapped transactions with same date and amount
+      const candidates = await context.prisma.importedTransaction.findMany({
+        where: {
+          userId: context.userId,
+          matched: false,
+          rawDate: parsed.date,
+          rawDebit: parsed.debit ?? null,
+          rawCredit: parsed.credit ?? null,
+        },
+      });
 
-  // Check if any candidate has matching normalized description
-  for (const candidate of candidates) {
-    const candidateNormalized = normalizeDescription(candidate.rawDescription);
-    if (candidateNormalized === normalizedDescription) {
+      // Check if any candidate has matching normalized description
+      for (const candidate of candidates) {
+        const candidateNormalized = normalizeDescription(candidate.rawDescription);
+        if (candidateNormalized === normalizedDescription) {
+          return {
+            ...candidate,
+            rawDebit: candidate.rawDebit ? Number(candidate.rawDebit) : null,
+            rawCredit: candidate.rawCredit ? Number(candidate.rawCredit) : null,
+          };
+        }
+      }
+
+      // Create new record
+      const imported = await context.prisma.importedTransaction.create({
+        data: {
+          rawDate: parsed.date,
+          rawDescription: parsed.description,
+          rawDebit: parsed.debit ?? null,
+          rawCredit: parsed.credit ?? null,
+          matched: false,
+          userId: context.userId,
+        },
+      });
       return {
-        ...candidate,
-        rawDebit: candidate.rawDebit ? Number(candidate.rawDebit) : null,
-        rawCredit: candidate.rawCredit ? Number(candidate.rawCredit) : null,
+        ...imported,
+        rawDebit: imported.rawDebit ? Number(imported.rawDebit) : null,
+        rawCredit: imported.rawCredit ? Number(imported.rawCredit) : null,
       };
-    }
-  }
-
-  // Create new record
-  const imported = await context.prisma.importedTransaction.create({
-    data: {
-      rawDate: parsed.date,
-      rawDescription: parsed.description,
-      rawDebit: parsed.debit ?? null,
-      rawCredit: parsed.credit ?? null,
-      matched: false,
-      userId: context.userId,
     },
-  });
-  return {
-    ...imported,
-    rawDebit: imported.rawDebit ? Number(imported.rawDebit) : null,
-    rawCredit: imported.rawCredit ? Number(imported.rawCredit) : null,
-  };
+    {resource: 'ImportedTransaction', operation: 'create'},
+  );
 }
 
 /**
@@ -429,12 +450,16 @@ export async function uploadPDF(
   if (fileData && typeof fileData === 'object' && Object.keys(fileData).length === 0) {
     // Try to get file from request context (stored in multipart handler)
     // Note: This is a fallback if Promise gets serialized
-    const request = context.request as {uploadFiles?: Record<string, {filename: string; mimetype?: string; encoding?: string; createReadStream: () => NodeJS.ReadableStream}>} | undefined;
-    if (request?.uploadFiles) {
-      // Get the first file (typically there's only one)
-      const fileKey = Object.keys(request.uploadFiles)[0];
-      if (fileKey && request.uploadFiles[fileKey]) {
-        fileData = request.uploadFiles[fileKey];
+    const request = context.request;
+    if (request) {
+      // Try to get from request.req.uploadFiles (stored directly on request object)
+      const uploadFiles = (request.req as {uploadFiles?: Record<string, {filename: string; mimetype?: string; encoding?: string; createReadStream: () => NodeJS.ReadableStream}>}).uploadFiles;
+      if (uploadFiles) {
+        // Get the first file (typically there's only one)
+        const fileKey = Object.keys(uploadFiles)[0];
+        if (fileKey && uploadFiles[fileKey]) {
+          fileData = uploadFiles[fileKey];
+        }
       }
     }
   }
@@ -532,9 +557,13 @@ export async function uploadPDF(
       getDefaultAccount(context),
       getDefaultCategory(context),
       getDefaultPayee(context),
-      context.prisma.importMatchRule.findMany({
-        where: {userId: context.userId},
-      }),
+      withPrismaErrorHandling(
+        async () =>
+          await context.prisma.importMatchRule.findMany({
+            where: {userId: context.userId},
+          }),
+        {resource: 'ImportMatchRule', operation: 'read'},
+      ),
     ]);
     const unmappedTransactions: Array<{
       id: string;
@@ -1080,12 +1109,17 @@ export async function deleteUnmappedImportedTransactions(
   __: unknown,
   context: GraphQLContext,
 ): Promise<boolean> {
-  await context.prisma.importedTransaction.deleteMany({
-    where: {
-      userId: context.userId,
-      matched: false,
+  await withPrismaErrorHandling(
+    async () => {
+      await context.prisma.importedTransaction.deleteMany({
+        where: {
+          userId: context.userId,
+          matched: false,
+        },
+      });
     },
-  });
+    {resource: 'ImportedTransaction', operation: 'delete'},
+  );
 
   return true;
 }
@@ -1109,54 +1143,52 @@ export async function matchImportedTransaction(
   createdAt: Date;
   updatedAt: Date;
 }> {
-  // Verify imported transaction belongs to user
-  const imported = await context.prisma.importedTransaction.findFirst({
-    where: {
-      id: importedId,
-      userId: context.userId,
+  return await withPrismaErrorHandling(
+    async () => {
+      // Verify imported transaction belongs to user
+      const imported = await context.prisma.importedTransaction.findFirst({
+        where: {
+          id: importedId,
+          userId: context.userId,
+        },
+      });
+
+      if (!imported) {
+        throw new NotFoundError('ImportedTransaction');
+      }
+
+      // Verify transaction belongs to user
+      const transaction = await context.prisma.transaction.findFirst({
+        where: {
+          id: transactionId,
+          userId: context.userId,
+        },
+      });
+
+      if (!transaction) {
+        throw new NotFoundError('Transaction');
+      }
+
+      // Update imported transaction
+      const updated = await context.prisma.importedTransaction.update({
+        where: {id: importedId},
+        data: {
+          matched: true,
+          transactionId,
+        },
+      });
+
+      return {
+        ...updated,
+        rawDebit: updated.rawDebit ? Number(updated.rawDebit) : null,
+        rawCredit: updated.rawCredit ? Number(updated.rawCredit) : null,
+      };
     },
-  });
-
-  if (!imported) {
-    throw new NotFoundError('ImportedTransaction');
-  }
-
-  // Verify transaction belongs to user
-  const transaction = await context.prisma.transaction.findFirst({
-    where: {
-      id: transactionId,
-      userId: context.userId,
-    },
-  });
-
-  if (!transaction) {
-    throw new NotFoundError('Transaction');
-  }
-
-  // Update imported transaction
-  const updated = await context.prisma.importedTransaction.update({
-    where: {id: importedId},
-    data: {
-      matched: true,
-      transactionId,
-    },
-  });
-
-  return {
-    ...updated,
-    rawDebit: updated.rawDebit ? Number(updated.rawDebit) : null,
-    rawCredit: updated.rawCredit ? Number(updated.rawCredit) : null,
-  };
+    {resource: 'ImportedTransaction', operation: 'update'},
+  );
 }
 
-/**
- * Parse CSV content into array of objects
- * Handles quoted fields and commas within quotes
- * @deprecated This function is no longer used. CSV parsing is now done via streaming.
- * @param csvContent - CSV file content as string
- * @returns Array of objects with keys from header row
- */
-// Removed unused _parseCSV function - CSV parsing is now done via streaming
+// CSV parsing is now done via streaming
 
 /**
  * Parse a single CSV line, handling quoted fields

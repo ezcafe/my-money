@@ -14,6 +14,7 @@ import {GET_BUDGET} from '../graphql/queries';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {useTitle} from '../contexts/TitleContext';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Budget data from GraphQL query
@@ -173,9 +174,7 @@ export function BudgetEditPage(): React.JSX.Element {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        width: {xs: '100%', sm: '100%'},
-        maxWidth: {xs: '100%', sm: '400px'},
-        mx: {xs: 0, sm: 'auto'},
+        ...pageContainerStyle,
       }}
     >
       <Card

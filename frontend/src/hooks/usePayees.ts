@@ -36,6 +36,7 @@ interface GetPayeesData {
 export function usePayees(): UsePayeesResult {
   const {data, loading, error, refetch} = useQuery<GetPayeesData>(GET_PAYEES, {
     errorPolicy: 'all',
+    fetchPolicy: 'network-only',
   });
 
   let errorResult: Error | undefined;
@@ -49,8 +50,10 @@ export function usePayees(): UsePayeesResult {
     }
   }
 
+  const payees = data?.payees ?? [];
+
   return {
-    payees: data?.payees ?? [],
+    payees,
     loading: Boolean(loading),
     error: errorResult,
     refetch: (): void => {

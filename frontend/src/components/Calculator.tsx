@@ -4,19 +4,10 @@
  */
 
 import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
-import {Box, Grid, Paper, Typography, Alert, Menu, MenuItem, ListItemIcon, ListItemText, Chip, Stack, FormControl, Select} from '@mui/material';
+import {Box, Grid, Paper, Alert, Stack} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useNavigate, useLocation} from 'react-router';
-import {Button} from './ui/Button';
 import {HistoryList} from './HistoryList';
-import {
-  MoreHorizOutlined as MoreIcon,
-  ArrowForward as GoIcon,
-  Assessment,
-  Upload,
-  Settings,
-} from '@mui/icons-material';
-import {BackspaceIcon} from './calculator/BackspaceIcon';
 import {CREATE_TRANSACTION} from '../graphql/mutations';
 import {GET_PREFERENCES, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
 import {useRecentTransactions} from '../hooks/useTransactions';
@@ -25,8 +16,10 @@ import {useCategories} from '../hooks/useCategories';
 import {usePayees} from '../hooks/usePayees';
 import {useTopUsedValues} from '../hooks/useTopUsedValues';
 import {useAutoScroll} from '../hooks/useAutoScroll';
-import {formatCurrencyPreserveDecimals} from '../utils/formatting';
-import {MAX_RECENT_TRANSACTIONS} from '../utils/constants';
+import {MAX_RECENT_TRANSACTIONS} from '../constants';
+import {CalculatorDisplay} from './calculator/CalculatorDisplay';
+import {CalculatorKeypad} from './calculator/CalculatorKeypad';
+import {CalculatorControls} from './calculator/CalculatorControls';
 
 interface CalculatorState {
   display: string;
@@ -155,23 +148,27 @@ export function Calculator(): React.JSX.Element {
   }, [payees]);
 
   // Initialize selected values with defaults
+  // Use accounts array length as trigger - when data loads, set defaults
   useEffect(() => {
-    if (defaultAccountId && !selectedAccountId) {
+    // Set selected value when accounts are loaded and default is available and selected is empty or different
+    if (accounts.length > 0 && defaultAccountId && (!selectedAccountId || selectedAccountId !== defaultAccountId)) {
       setSelectedAccountId(defaultAccountId);
     }
-  }, [defaultAccountId, selectedAccountId]);
+  }, [accounts.length, defaultAccountId, selectedAccountId]);
 
   useEffect(() => {
-    if (defaultCategoryId && !selectedCategoryId) {
+    // Set selected value when categories are loaded and default is available and selected is empty or different
+    if (categories.length > 0 && defaultCategoryId && (!selectedCategoryId || selectedCategoryId !== defaultCategoryId)) {
       setSelectedCategoryId(defaultCategoryId);
     }
-  }, [defaultCategoryId, selectedCategoryId]);
+  }, [categories.length, defaultCategoryId, selectedCategoryId]);
 
   useEffect(() => {
-    if (defaultPayeeId && !selectedPayeeId) {
+    // Set selected value when payees are loaded and default is available and selected is empty or different
+    if (payees.length > 0 && defaultPayeeId && (!selectedPayeeId || selectedPayeeId !== defaultPayeeId)) {
       setSelectedPayeeId(defaultPayeeId);
     }
-  }, [defaultPayeeId, selectedPayeeId]);
+  }, [payees.length, defaultPayeeId, selectedPayeeId]);
 
   const handleNumber = useCallback((num: string) => {
     setShowAmount(true);
@@ -404,11 +401,6 @@ export function Calculator(): React.JSX.Element {
     [navigate],
   );
 
-  const menuItems = [
-    {path: '/report', label: 'Report', icon: <Assessment />},
-    {path: '/import', label: 'Import Statement', icon: <Upload />},
-    {path: '/preferences', label: 'Preferences', icon: <Settings />},
-  ];
 
   // Transactions are fetched ordered by date descending (newest first) to get the 30 most recent,
   // then reversed for display (oldest first, newest at bottom)
@@ -422,7 +414,7 @@ export function Calculator(): React.JSX.Element {
         position: 'relative',
       }}
     >
-      {error && (
+      {error ? (
         <Alert
           severity="error"
           sx={{
@@ -436,7 +428,7 @@ export function Calculator(): React.JSX.Element {
         >
           {error}
         </Alert>
-      )}
+      ) : null}
 
       <Box
         ref={historyListRef}
@@ -476,271 +468,55 @@ export function Calculator(): React.JSX.Element {
           pb: {xs: 2, sm: 3},
         }}
       >
-        <Paper sx={{p: 2, width: '100%', maxWidth: '600px'}}>
-          {/* First Row: Backspace (when amount visible) + Amount or Top Used Values */}
-          <Box
-            sx={{
-              mb: 2,
-              minHeight: '64px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            {showAmount && (
-              <Button variant="text" onClick={handleBackspace}>
-                <BackspaceIcon />
-              </Button>
-            )}
-            <Box
-              sx={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-              }}
-            >
-              {showAmount ? (
-                <Typography
-                  variant="h4"
-                  component="div"
-                  sx={{
-                    textAlign: 'right',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                  }}
-                >
-                  {state.previousValue !== null && state.operation
-                    ? `${state.previousValue} ${state.operation} ${state.waitingForNewValue ? '' : state.display}`
-                    : state.display}
-                </Typography>
-              ) : (
-                topUsedValues.length > 0 && (
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{
-                      overflowX: 'auto',
-                      overflowY: 'hidden',
-                      width: '100%',
-                      justifyContent: 'flex-end',
-                    }}
-                  >
-                    {topUsedValues.slice(0, 5).map((item, index) => (
-                      <Chip
-                        key={`${item.value}-${index}`}
-                        label={formatCurrencyPreserveDecimals(item.value, currency)}
-                        variant="outlined"
-                        onClick={() => handleTopUsedValueClick(Number(item.value))}
-                        sx={{cursor: 'pointer'}}
-                      />
-                    ))}
-                  </Stack>
-                )
-              )}
-            </Box>
-          </Box>
+        <Paper sx={{p: 2, width: '400px'}}>
+          <CalculatorDisplay
+            display={state.display}
+            previousValue={state.previousValue}
+            operation={state.operation}
+            waitingForNewValue={state.waitingForNewValue}
+            showAmount={showAmount}
+            topUsedValues={topUsedValues.map((item) => ({value: Number.parseFloat(item.value), count: item.count}))}
+            currency={currency}
+            onBackspace={handleBackspace}
+            onTopUsedValueClick={handleTopUsedValueClick}
+          />
 
-        <Grid container spacing={1}>
-          {/* Row 1: Payee, Account, Category, ÷ */}
-          <Grid item xs={3}>
-            <FormControl
-              fullWidth
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  height: '36.5px',
-                },
-              }}
-            >
-              <Select
-                value={selectedPayeeId || ''}
-                onChange={(e) => setSelectedPayeeId(e.target.value)}
-                displayEmpty
-              >
-                {payees.map((payee) => (
-                  <MenuItem key={payee.id} value={payee.id}>
-                    {payee.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={3}>
-            <FormControl
-              fullWidth
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  height: '36.5px',
-                },
-              }}
-            >
-              <Select
-                value={selectedAccountId || ''}
-                onChange={(e) => setSelectedAccountId(e.target.value)}
-                displayEmpty
-              >
-                {accounts.map((account) => (
-                  <MenuItem key={account.id} value={account.id}>
-                    {account.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={3}>
-            <FormControl
-              fullWidth
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  height: '36.5px',
-                },
-              }}
-            >
-              <Select
-                value={selectedCategoryId || ''}
-                onChange={(e) => setSelectedCategoryId(e.target.value)}
-                displayEmpty
-              >
-                {categories.map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('/')}>
-              ÷
-            </Button>
-          </Grid>
-
-          {/* Row 2: 7, 8, 9, × */}
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('7')}>
-              7
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('8')}>
-              8
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('9')}>
-              9
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('*')}>
-              ×
-            </Button>
-          </Grid>
-
-          {/* Row 3: 4, 5, 6, − */}
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('4')}>
-              4
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('5')}>
-              5
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('6')}>
-              6
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('-')}>
-              −
-            </Button>
-          </Grid>
-
-          {/* Row 4: 1, 2, 3, + */}
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('1')}>
-              1
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('2')}>
-              2
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('3')}>
-              3
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={() => handleOperation('+')}>
-              +
-            </Button>
-          </Grid>
-
-          {/* Row 5: Settings, 0, 000/., = */}
-          <Grid item xs={3}>
-            <Button fullWidth variant="outlined" onClick={handleSettingsClick} aria-label="Preferences">
-              <MoreIcon />
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            <Button fullWidth variant="contained" onClick={() => handleNumber('0')}>
-              0
-            </Button>
-          </Grid>
-          <Grid item xs={3}>
-            {useThousandSeparator ? (
-              <Button fullWidth variant="contained" onClick={() => handleNumber('000')}>
-                000
-              </Button>
-            ) : (
-              <Button fullWidth variant="contained" onClick={() => handleNumber('.')}>
-                .
-              </Button>
-            )}
-          </Grid>
-          <Grid item xs={3}>
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              onClick={() => {
+          <Grid container spacing={1} sx={{width: '100%'}}>
+            <CalculatorKeypad
+              selectedPayeeId={selectedPayeeId}
+              selectedAccountId={selectedAccountId}
+              selectedCategoryId={selectedCategoryId}
+              payees={payees}
+              accounts={accounts}
+              categories={categories}
+              useThousandSeparator={useThousandSeparator}
+              creatingTransaction={creatingTransaction}
+              canSubmit={!(state.display === '0' && state.previousValue === null)}
+              onNumberClick={handleNumber}
+              onOperationClick={handleOperation}
+              onEqualsClick={() => {
                 void handleEquals();
               }}
-              disabled={
-                Boolean(creatingTransaction) ||
-                (state.display === '0' && state.previousValue === null)
-              }
-            >
-              {creatingTransaction ? '...' : <GoIcon />}
-            </Button>
+              onPayeeChange={(value) => {
+                setSelectedPayeeId(value);
+              }}
+              onAccountChange={(value) => {
+                setSelectedAccountId(value);
+              }}
+              onCategoryChange={(value) => {
+                setSelectedCategoryId(value);
+              }}
+              onSettingsClick={handleSettingsClick}
+            />
+            <CalculatorControls
+              menuAnchor={menuAnchor}
+              onMenuClose={handleMenuClose}
+              onMenuNavigation={handleMenuNavigation}
+            />
           </Grid>
-        </Grid>
         </Paper>
       </Box>
 
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleMenuClose}
-      >
-        {menuItems.map((item) => (
-          <MenuItem
-            key={item.path}
-            onClick={() => {
-              handleMenuNavigation(item.path);
-            }}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText>{item.label}</ListItemText>
-          </MenuItem>
-        ))}
-      </Menu>
     </Stack>
   );
 }

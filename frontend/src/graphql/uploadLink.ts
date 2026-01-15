@@ -6,8 +6,6 @@
 import {ApolloLink, Observable} from '@apollo/client';
 import type {FetchResult, Operation} from '@apollo/client';
 import {print} from 'graphql';
-import {getEncryptedToken} from '../utils/tokenEncryption';
-import {ensureValidToken} from '../utils/tokenRefresh';
 import {API_CONFIG} from '../config/api';
 
 /**
@@ -119,22 +117,13 @@ export const uploadLink = new ApolloLink((operation, forward) => {
     // Get auth token and URI from context
     const uri: string = (operation.getContext().uri as string | undefined) ?? API_CONFIG.graphqlUrl;
 
-    // Async token retrieval and upload
+    // Async upload with cookie-based authentication
     void (async (): Promise<void> => {
       try {
-        // Get encrypted token and ensure it's valid (refresh if needed)
-        let token: string | null = await getEncryptedToken('oidc_token');
-        if (token) {
-          token = await ensureValidToken(token);
-        }
-
+        // With cookie-based auth, tokens are sent automatically via credentials
+        // No need to add Authorization header
         const formData = createFormData(operation);
         const headers: Record<string, string> = {};
-
-        // Add auth token if available
-        if (token) {
-          headers.authorization = `Bearer ${token}`;
-        }
 
         // Add Apollo CSRF protection header for multipart requests
         // Apollo Server requires x-apollo-operation-name or apollo-require-preflight for multipart/form-data
@@ -154,6 +143,7 @@ export const uploadLink = new ApolloLink((operation, forward) => {
           method: 'POST',
           headers,
           body: formData as BodyInit,
+          credentials: 'include', // Include cookies for authentication
         });
 
         if (!response.ok) {

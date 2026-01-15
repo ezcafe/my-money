@@ -1,70 +1,61 @@
 /**
  * Optimistic Mutation Hook
- * Provides optimistic updates for mutations with automatic rollback on error
+ * Provides a hook for mutations with optimistic updates
  */
 
-import {useMutation, type MutationHookOptions, type MutationTuple} from '@apollo/client/react';
-import type {OperationVariables} from '@apollo/client';
-import {useCallback} from 'react';
-import {createOptimisticResponse} from '../utils/optimisticUpdates';
-import type {DocumentNode} from 'graphql';
+import {useMutation} from '@apollo/client/react';
+import type {DocumentNode, InMemoryCache, OperationVariables, FetchResult, ApolloCache} from '@apollo/client';
+import type {MutationHookOptions, MutationTuple} from '@apollo/client/react';
 
 /**
  * Options for optimistic mutation
  */
-interface OptimisticMutationOptions<TData, TVariables extends OperationVariables> extends Omit<MutationHookOptions<TData, TVariables>, 'optimisticResponse' | 'update'> {
-  /** Mutation name (e.g., 'createTransaction') */
-  mutationName: string;
-  /** Function to generate optimistic data from variables */
-  getOptimisticData: (variables: TVariables) => TData;
-  /** Optional function to update cache optimistically */
-  updateCache?: (cache: Parameters<NonNullable<MutationHookOptions<TData, TVariables>['update']>>[0], data: TData, variables: TVariables) => void;
-  /** GraphQL query to update in cache (if updateCache is provided) */
-  updateQuery?: DocumentNode;
-  /** Variables for the query to update */
-  updateQueryVariables?: unknown;
+interface OptimisticMutationOptions<TData, TVariables extends OperationVariables = OperationVariables> {
+  /**
+   * Function to create optimistic response from variables
+   */
+  optimisticResponse: (variables: TVariables) => TData;
+  /**
+   * Function to update cache after mutation
+   */
+  updateCache?: (cache: InMemoryCache, data: TData) => void;
+  /**
+   * Cache invalidation pattern to use
+   */
+  invalidateCache?: (cache: InMemoryCache) => void;
+  /**
+   * Additional mutation options
+   */
+  mutationOptions?: Omit<MutationHookOptions<TData, TVariables>, 'optimisticResponse' | 'update'>;
 }
 
 /**
  * Hook for mutations with optimistic updates
- * @param mutation - GraphQL mutation
+ * @param mutation - GraphQL mutation document
  * @param options - Optimistic mutation options
- * @returns Mutation tuple with optimistic updates
+ * @returns Mutation tuple [mutate function, mutation result]
  */
-export function useOptimisticMutation<TData = unknown, TVariables extends OperationVariables = OperationVariables>(
+export function useOptimisticMutation<TData, TVariables extends OperationVariables = OperationVariables>(
   mutation: DocumentNode,
   options: OptimisticMutationOptions<TData, TVariables>,
 ): MutationTuple<TData, TVariables> {
-  const {mutationName, getOptimisticData, updateCache, updateQueryVariables, ...mutationOptions} = options;
+  const {optimisticResponse, updateCache, invalidateCache, mutationOptions} = options;
 
-  const [mutate, result] = useMutation<TData, TVariables>(mutation, {
+  return useMutation<TData, TVariables>(mutation, {
     ...mutationOptions,
-    optimisticResponse: (variables: TVariables) => {
-      const optimisticData = getOptimisticData(variables);
-      return createOptimisticResponse(mutationName, optimisticData) as TData;
-    },
-    update: (cache, result) => {
-      const {data} = result;
-      // Call original update if provided (check if it exists in mutationOptions)
-      const originalUpdate = (mutationOptions as {update?: (cache: Parameters<NonNullable<MutationHookOptions<TData, TVariables>['update']>>[0], result: {data?: TData}) => void}).update;
-      if (originalUpdate && data) {
-        originalUpdate(cache, {data} as {data?: TData});
-      }
+    optimisticResponse: (variables: TVariables) => optimisticResponse(variables),
+    update: (cache: ApolloCache, result: FetchResult<TData>) => {
+      if (result.data) {
+        // Update cache with server response
+        if (updateCache) {
+          updateCache(cache as unknown as InMemoryCache, result.data);
+        }
 
-      // Update cache optimistically if updateCache is provided
-      if (updateCache && data && updateQueryVariables) {
-        updateCache(cache, data, updateQueryVariables as TVariables);
+        // Invalidate related cache entries
+        if (invalidateCache) {
+          invalidateCache(cache as unknown as InMemoryCache);
+        }
       }
     },
   });
-
-  const optimisticMutate = useCallback(
-    (...args: Parameters<typeof mutate>) => {
-      return mutate(...args);
-    },
-    [mutate],
-  );
-
-  return [optimisticMutate, result] as MutationTuple<TData, TVariables>;
 }
-

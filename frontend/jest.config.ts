@@ -7,6 +7,8 @@ const config: Config = {
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}', '**/*.test.{ts,tsx}'],
   clearMocks: true,
   restoreMocks: true,
+  maxWorkers: '50%', // Use half of available CPUs
+  testTimeout: 10000, // 10 second timeout
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@components/(.*)$': '<rootDir>/src/components/$1',
@@ -18,6 +20,12 @@ const config: Config = {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
   },
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup.ts'],
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@mui|@emotion|@babel)/)',
+  ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
@@ -37,6 +45,7 @@ const config: Config = {
       tsconfig: {
         jsx: 'react-jsx',
       },
+      isolatedModules: true, // Faster compilation
     }],
   },
 };

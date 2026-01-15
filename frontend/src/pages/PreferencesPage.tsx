@@ -30,6 +30,7 @@ import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, Re
 import {useNotifications} from '../contexts/NotificationContext';
 import type {DateFormat} from '../contexts/DateFormatContext';
 import {DEFAULT_DATE_FORMAT} from '../contexts/DateFormatContext';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Export data type from GraphQL
@@ -308,7 +309,7 @@ export function PreferencesPage(): React.JSX.Element {
    * Clears tokens and redirects to login page
    */
   const handleLogout = (): void => {
-    logout();
+    void logout();
     void navigate('/login', {replace: true});
   };
 
@@ -664,7 +665,7 @@ export function PreferencesPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{maxWidth: 800, mx: 'auto'}}>
+    <Box sx={pageContainerStyle}>
       {/* Management Section */}
       <Card sx={{mb: 3}}>
         <Box sx={{p: 3, pb: 2}}>

@@ -70,6 +70,7 @@ model Account {
   @@unique([userId, name])
   @@index([userId])
   @@index([userId, isDefault])
+  // Check constraint: balance >= 0 (enforced at database level via migration)
 }
 
 model Category {
@@ -135,6 +136,8 @@ model Transaction {
   @@index([userId, date])
   @@index([accountId, date])
   @@index([userId, accountId, date])
+  @@index([userId, categoryId, date])
+  // Check constraint: value != 0 (enforced at database level via migration)
 }
 
 model RecurringTransaction {
@@ -223,6 +226,7 @@ model Budget {
   @@index([accountId])
   @@index([categoryId])
   @@index([payeeId])
+  // Check constraint: amount > 0 (enforced at database level via migration)
 }
 
 model BudgetNotification {

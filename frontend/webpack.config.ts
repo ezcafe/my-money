@@ -106,19 +106,19 @@ const config: Configuration = {
       'process.env.REACT_APP_OPENID_CLIENT_ID': JSON.stringify(
         process.env.REACT_APP_OPENID_CLIENT_ID,
       ),
-      'process.env.REACT_APP_OPENID_CLIENT_SECRET': JSON.stringify(
-        process.env.REACT_APP_OPENID_CLIENT_SECRET,
-      ),
+      // SECURITY: Client secrets should NEVER be exposed in frontend code
+      // REACT_APP_OPENID_CLIENT_SECRET removed - use backend proxy for OIDC flows
       'process.env': JSON.stringify({
         REACT_APP_GRAPHQL_URL: process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql',
         REACT_APP_OPENID_DISCOVERY_URL: process.env.REACT_APP_OPENID_DISCOVERY_URL,
         REACT_APP_OPENID_CLIENT_ID: process.env.REACT_APP_OPENID_CLIENT_ID,
-        REACT_APP_OPENID_CLIENT_SECRET: process.env.REACT_APP_OPENID_CLIENT_SECRET,
+        // REACT_APP_OPENID_CLIENT_SECRET intentionally omitted for security
       }),
     }),
   ],
   optimization: {
     moduleIds: 'deterministic',
+    runtimeChunk: 'single', // Extract runtime to separate chunk for better caching
     splitChunks: {
       chunks: 'all',
       cacheGroups: {
@@ -126,6 +126,16 @@ const config: Configuration = {
           test: /[\\/]node_modules[\\/]/,
           name: 'vendors',
           priority: 10,
+        },
+        react: {
+          test: /[\\/]node_modules[\\/](react|react-dom|react-router)[\\/]/,
+          name: 'react-vendor',
+          priority: 20,
+        },
+        mui: {
+          test: /[\\/]node_modules[\\/]@mui[\\/]/,
+          name: 'mui-vendor',
+          priority: 15,
         },
         common: {
           minChunks: 2,

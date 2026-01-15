@@ -10,7 +10,7 @@ import {useMutation, useQuery} from '@apollo/client/react';
 import {useAccount} from '../hooks/useAccount';
 import {useTransactions, type TransactionOrderInput, type TransactionOrderByField} from '../hooks/useTransactions';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
-import {ITEMS_PER_PAGE} from '../utils/constants';
+import {ITEMS_PER_PAGE} from '../constants';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
@@ -19,6 +19,7 @@ import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
 import {Card} from '../components/ui/Card';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Account Details Page Component
@@ -29,7 +30,8 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   const location = useLocation();
   const prevLocationRef = useRef<string>(location.pathname);
   const [page, setPage] = useState(1);
-  const skip = (page - 1) * ITEMS_PER_PAGE;
+  // Cursor history: index 0 = first page (no cursor), index 1 = cursor for page 2, etc.
+  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([undefined]);
 
   // Sorting state
   const [sortField, setSortField] = useState<TransactionOrderByField>('date');
@@ -52,6 +54,9 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
       ? {field: sortField, direction: sortDirection}
       : undefined;
 
+  // Get cursor for current page (page 1 = undefined, page 2 = cursorHistory[1], etc.)
+  const currentCursor = page > 1 ? cursorHistory[page - 1] : undefined;
+
   const {account, loading: accountLoading, error: accountError, refetch: refetchAccount} =
     useAccount(id);
   const {
@@ -59,12 +64,21 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     loading: transactionsLoading,
     error: transactionsError,
     refetch: refetchTransactions,
-  } = useTransactions(id, undefined, undefined, skip, ITEMS_PER_PAGE, orderBy, searchQuery || undefined);
+  } = useTransactions(id, undefined, undefined, ITEMS_PER_PAGE, currentCursor, orderBy, searchQuery || undefined);
 
-  // Reset page when search changes
+  // Update cursor history when we get a new nextCursor
+  useEffect(() => {
+    if (transactions.nextCursor && page === cursorHistory.length) {
+      // We're on the last page we've visited, add the next cursor
+      setCursorHistory((prev) => [...prev, transactions.nextCursor]);
+    }
+  }, [transactions.nextCursor, page, cursorHistory.length]);
+
+  // Reset page and cursor history when search or sort changes
   useEffect(() => {
     setPage(1);
-  }, [searchQuery]);
+    setCursorHistory([undefined]);
+  }, [searchQuery, sortField, sortDirection]);
 
   // Set appbar title when account is loaded
   useEffect(() => {
@@ -93,7 +107,8 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     (field: TransactionOrderByField, direction: 'asc' | 'desc') => {
       setSortField(field);
       setSortDirection(direction);
-      setPage(1); // Reset to first page when sorting changes
+      setPage(1);
+      setCursorHistory([undefined]);
     },
     [],
   );
@@ -158,7 +173,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box>
+    <Box sx={pageContainerStyle}>
       <Card sx={{mb: 3, p: 3}}>
         <Typography variant="subtitle2" color="text.secondary" sx={{mb: 1}}>
           Balance

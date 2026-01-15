@@ -37,6 +37,7 @@ interface GetCategoriesData {
 export function useCategories(): UseCategoriesResult {
   const {data, loading, error, refetch} = useQuery<GetCategoriesData>(GET_CATEGORIES, {
     errorPolicy: 'all',
+    fetchPolicy: 'network-only',
   });
 
   let errorResult: Error | undefined;
@@ -50,8 +51,10 @@ export function useCategories(): UseCategoriesResult {
     }
   }
 
+  const categories = data?.categories ?? [];
+
   return {
-    categories: data?.categories ?? [],
+    categories,
     loading: Boolean(loading),
     error: errorResult,
     refetch: (): void => {

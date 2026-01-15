@@ -3,14 +3,17 @@
  * Handles all account-related GraphQL operations
  */
 
- 
+
 import type {GraphQLContext} from '../middleware/context';
+import type {Account} from '@prisma/client';
 import {NotFoundError, ForbiddenError} from '../utils/errors';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {recalculateAccountBalance} from '../services/AccountBalanceService';
 import {AccountService} from '../services/AccountService';
+import {AccountRepository} from '../repositories/AccountRepository';
 import {sanitizeUserInput} from '../utils/sanitization';
 import {BaseResolver} from './BaseResolver';
+import {balanceCache} from '../utils/cache';
 
 export class AccountResolver extends BaseResolver {
   /**
@@ -27,35 +30,32 @@ export class AccountResolver extends BaseResolver {
    * Reads balance directly from stored column for O(1) performance
    * Ensures a default account exists before returning results
    */
-  async accounts(_: unknown, __: unknown, context: GraphQLContext) {
+  async accounts(_: unknown, __: unknown, context: GraphQLContext): Promise<Array<Account & {initBalance: number; balance: number}>> {
     // Ensure a default account exists
     const accountService = this.getAccountService(context);
     await accountService.ensureDefaultAccount(context.userId);
 
-    const accounts = await context.prisma.account.findMany({
-      where: {userId: context.userId},
-      orderBy: {createdAt: 'desc'},
-    });
+    const accountRepository = new AccountRepository(context.prisma);
+    const accounts = await accountRepository.findMany(context.userId);
+
+    // Sort by createdAt descending
+    accounts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     // Return accounts with balance from stored column
     return accounts.map((account) => ({
       ...account,
       initBalance: Number(account.initBalance),
       balance: Number(account.balance),
-    }));
+    })) as Array<Account & {initBalance: number; balance: number}>;
   }
 
   /**
    * Get account by ID
    * Reads balance directly from stored column for O(1) performance
    */
-  async account(_: unknown, {id}: {id: string}, context: GraphQLContext) {
-    const account = await context.prisma.account.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-    });
+  async account(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<(Account & {initBalance: number; balance: number}) | null> {
+    const accountRepository = new AccountRepository(context.prisma);
+    const account = await accountRepository.findById(id, context.userId);
 
     if (!account) {
       return null;
@@ -65,28 +65,35 @@ export class AccountResolver extends BaseResolver {
       ...account,
       initBalance: Number(account.initBalance),
       balance: Number(account.balance),
-    };
+    } as Account & {initBalance: number; balance: number};
   }
 
   /**
    * Get account balance
+   * Uses field-level caching to reduce database queries
    */
-  async accountBalance(_: unknown, {accountId}: {accountId: string}, context: GraphQLContext) {
+  async accountBalance(_: unknown, {accountId}: {accountId: string}, context: GraphQLContext): Promise<number> {
+    // Check cache first
+    const cached = balanceCache.get(accountId);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     // Verify account belongs to user
-    const account = await context.prisma.account.findFirst({
-      where: {
-        id: accountId,
-        userId: context.userId,
-      },
-      select: {id: true},
-    });
+    const accountRepository = new AccountRepository(context.prisma);
+    const account = await accountRepository.findById(accountId, context.userId, {id: true});
 
     if (!account) {
       throw new NotFoundError('Account');
     }
 
     // Use DataLoader for efficient balance calculation
-    return context.accountBalanceLoader.load(accountId);
+    const balance = await context.accountBalanceLoader.load(accountId);
+
+    // Cache the result
+    balanceCache.set(accountId, balance);
+
+    return balance;
   }
 
   /**
@@ -96,17 +103,16 @@ export class AccountResolver extends BaseResolver {
     _: unknown,
     {input}: {input: {name: string; initBalance?: number}},
     context: GraphQLContext,
-  ) {
+  ): Promise<Account & {initBalance: number; balance: number}> {
     const initBalance = input.initBalance ?? 0;
+    const accountRepository = new AccountRepository(context.prisma);
     const account = await withPrismaErrorHandling(
       async () =>
-        await context.prisma.account.create({
-          data: {
-            name: sanitizeUserInput(input.name),
-            initBalance,
-            balance: initBalance, // New account has no transactions, balance equals initBalance
-            userId: context.userId,
-          },
+        await accountRepository.create({
+          name: sanitizeUserInput(input.name),
+          initBalance,
+          balance: initBalance, // New account has no transactions, balance equals initBalance
+          userId: context.userId,
         }),
       {resource: 'Account', operation: 'create'},
     );
@@ -115,7 +121,7 @@ export class AccountResolver extends BaseResolver {
       ...account,
       initBalance: Number(account.initBalance),
       balance: Number(account.balance),
-    };
+    } as Account & {initBalance: number; balance: number};
   }
 
   /**
@@ -125,71 +131,57 @@ export class AccountResolver extends BaseResolver {
     _: unknown,
     {id, input}: {id: string; input: {name?: string; initBalance?: number}},
     context: GraphQLContext,
-  ) {
+  ): Promise<Account & {initBalance: number; balance: number}> {
     // Verify account belongs to user
-    const existingAccount = await context.prisma.account.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-      select: {id: true},
-    });
+    const accountRepository = new AccountRepository(context.prisma);
+    const existingAccount = await accountRepository.findById(id, context.userId, {id: true});
 
     if (!existingAccount) {
       throw new NotFoundError('Account');
     }
 
     // Update account and recalculate balance if initBalance changed
-    const account = await context.prisma.$transaction(async (tx) => {
-      const updatedAccount = await tx.account.update({
-        where: {id},
-        data: {
-          ...(input.name !== undefined && {name: sanitizeUserInput(input.name)}),
-          ...(input.initBalance !== undefined && {initBalance: input.initBalance}),
-        },
+    await context.prisma.$transaction(async (tx) => {
+      const txAccountRepository = new AccountRepository(tx);
+      await txAccountRepository.update(id, {
+        ...(input.name !== undefined && {name: sanitizeUserInput(input.name)}),
+        ...(input.initBalance !== undefined && {initBalance: input.initBalance}),
       });
 
       // If initBalance changed, recalculate balance
       if (input.initBalance !== undefined) {
         await recalculateAccountBalance(id, tx);
       }
-
-      return updatedAccount;
     });
 
     // Fetch updated account with balance
-    const accountWithBalance = await context.prisma.account.findUnique({
-      where: {id: account.id},
-    });
+    const accountWithBalance = await accountRepository.findById(id, context.userId);
 
     return {
       ...accountWithBalance,
       initBalance: Number(accountWithBalance!.initBalance),
       balance: Number(accountWithBalance!.balance),
-    };
+    } as Account & {initBalance: number; balance: number};
   }
 
   /**
    * Delete account (cannot delete default account)
    */
-  async deleteAccount(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async deleteAccount(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
     // Verify account belongs to user
-    const account = await this.requireEntityOwnership<{id: string; isDefault: boolean}>(
-      context.prisma,
-      'account',
-      id,
-      context.userId,
-      {id: true, isDefault: true},
-    );
+    const accountRepository = new AccountRepository(context.prisma);
+    const account = await accountRepository.findById(id, context.userId, {id: true, isDefault: true});
+
+    if (!account) {
+      throw new NotFoundError('Account');
+    }
 
     // Cannot delete default account
     if (account.isDefault) {
       throw new ForbiddenError('Cannot delete default account');
     }
 
-    await context.prisma.account.delete({
-      where: {id},
-    });
+    await accountRepository.delete(id);
 
     return true;
   }

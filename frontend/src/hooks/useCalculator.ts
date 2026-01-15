@@ -11,7 +11,7 @@ import {useRecentTransactions} from './useTransactions';
 import {useAccounts} from './useAccounts';
 import {useCategories} from './useCategories';
 import {usePayees} from './usePayees';
-import {MAX_RECENT_TRANSACTIONS} from '../utils/constants';
+import {MAX_RECENT_TRANSACTIONS} from '../constants';
 
 /**
  * Calculator state interface

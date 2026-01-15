@@ -27,6 +27,21 @@ export function ProtectedRoute({children}: ProtectedRouteProps): React.JSX.Eleme
     });
   }, []);
 
+  // Monitor visibility changes to re-check auth when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = (): void => {
+      if (!document.hidden && authenticated === true) {
+        void isAuthenticated().then((isAuth) => {
+          setAuthenticated(isAuth);
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return (): void => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [authenticated]);
+
   if (authenticated === null) {
     return <LoadingSpinner message="Checking authentication..." />;
   }

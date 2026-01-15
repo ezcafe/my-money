@@ -3,81 +3,47 @@
  */
 
 import {gql} from '@apollo/client';
+import {ACCOUNT_FIELDS, CATEGORY_FIELDS, PAYEE_FIELDS, TRANSACTION_FIELDS, BUDGET_FIELDS, RECURRING_TRANSACTION_FIELDS} from './fragments';
 
 export const GET_ACCOUNTS = gql`
   query GetAccounts {
     accounts {
-      id
-      name
-      initBalance
-      isDefault
-      balance
+      ...AccountFields
     }
   }
+  ${ACCOUNT_FIELDS}
 `;
 
 export const GET_ACCOUNT = gql`
   query GetAccount($id: ID!) {
     account(id: $id) {
-      id
-      name
-      initBalance
-      isDefault
-      balance
+      ...AccountFields
     }
   }
+  ${ACCOUNT_FIELDS}
 `;
 
 export const GET_RECENT_TRANSACTIONS = gql`
   query GetRecentTransactions($limit: Int, $orderBy: TransactionOrderInput) {
     recentTransactions(limit: $limit, orderBy: $orderBy) {
-      id
-      value
-      date
-      account {
-        id
-        name
-      }
-      category {
-        id
-        name
-        type
-      }
-      payee {
-        id
-        name
-      }
-      note
+      ...TransactionFields
     }
   }
+  ${TRANSACTION_FIELDS}
 `;
 
 export const GET_TRANSACTIONS = gql`
-  query GetTransactions($accountId: ID, $categoryId: ID, $payeeId: ID, $skip: Int, $take: Int, $orderBy: TransactionOrderInput, $note: String) {
-    transactions(accountId: $accountId, categoryId: $categoryId, payeeId: $payeeId, skip: $skip, take: $take, orderBy: $orderBy, note: $note) {
+  query GetTransactions($accountId: ID, $categoryId: ID, $payeeId: ID, $first: Int, $after: String, $orderBy: TransactionOrderInput, $note: String) {
+    transactions(accountId: $accountId, categoryId: $categoryId, payeeId: $payeeId, first: $first, after: $after, orderBy: $orderBy, note: $note) {
       items {
-        id
-        value
-        date
-        account {
-          id
-          name
-        }
-        category {
-          id
-          name
-        }
-        payee {
-          id
-          name
-        }
-        note
+        ...TransactionFields
       }
       totalCount
       hasMore
       nextCursor
     }
   }
+  ${TRANSACTION_FIELDS}
 `;
 
 export const GET_ACCOUNT_BALANCE = gql`
@@ -110,84 +76,60 @@ export const GET_PREFERENCES = gql`
 
 export const GET_CATEGORIES = gql`
   query GetCategories {
-      categories {
-        id
-        name
-        type
-        isDefault
-      }
+    categories {
+      ...CategoryFields
+    }
   }
+  ${CATEGORY_FIELDS}
 `;
 
 export const GET_CATEGORY = gql`
   query GetCategory($id: ID!) {
-      category(id: $id) {
-        id
-        name
-        type
-        isDefault
-      }
+    category(id: $id) {
+      ...CategoryFields
+    }
   }
+  ${CATEGORY_FIELDS}
 `;
 
 export const GET_PAYEES = gql`
   query GetPayees {
-      payees {
-        id
-        name
-        isDefault
-      }
+    payees {
+      ...PayeeFields
+    }
   }
+  ${PAYEE_FIELDS}
 `;
 
 export const GET_CATEGORIES_AND_PAYEES = gql`
   query GetCategoriesAndPayees {
     categories {
-      id
-      name
-      type
-      isDefault
+      ...CategoryFields
     }
     payees {
-      id
-      name
-      isDefault
+      ...PayeeFields
     }
   }
+  ${CATEGORY_FIELDS}
+  ${PAYEE_FIELDS}
 `;
 
 export const GET_PAYEE = gql`
   query GetPayee($id: ID!) {
-      payee(id: $id) {
-        id
-        name
-        isDefault
-      }
+    payee(id: $id) {
+      ...PayeeFields
+    }
   }
+  ${PAYEE_FIELDS}
 `;
 
 export const GET_TRANSACTION = gql`
   query GetTransaction($id: ID!) {
     transaction(id: $id) {
-      id
-      value
-      date
-      account {
-        id
-        name
-      }
-      category {
-        id
-        name
-        type
-      }
-      payee {
-        id
-        name
-      }
-      note
+      ...TransactionFields
     }
   }
+  ${TRANSACTION_FIELDS}
 `;
 
 export const GET_REPORT_TRANSACTIONS = gql`
@@ -214,23 +156,7 @@ export const GET_REPORT_TRANSACTIONS = gql`
       take: $take
     ) {
       items {
-        id
-        value
-        date
-        account {
-          id
-          name
-        }
-        category {
-          id
-          name
-          type
-        }
-        payee {
-          id
-          name
-        }
-        note
+        ...TransactionFields
       }
       totalCount
       totalAmount
@@ -238,37 +164,16 @@ export const GET_REPORT_TRANSACTIONS = gql`
       totalExpense
     }
   }
+  ${TRANSACTION_FIELDS}
 `;
 
 export const GET_RECURRING_TRANSACTIONS = gql`
   query GetRecurringTransactions {
     recurringTransactions {
-      id
-      cronExpression
-      value
-      accountId
-      account {
-        id
-        name
-      }
-      categoryId
-      category {
-        id
-        name
-        type
-      }
-      payeeId
-      payee {
-        id
-        name
-      }
-      note
-      nextRunDate
-      userId
-      createdAt
-      updatedAt
+      ...RecurringTransactionFields
     }
   }
+  ${RECURRING_TRANSACTION_FIELDS}
 `;
 
 export const EXPORT_DATA = gql`
@@ -346,63 +251,19 @@ export const EXPORT_DATA = gql`
 export const GET_BUDGETS = gql`
   query GetBudgets {
     budgets {
-      id
-      userId
-      amount
-      currentSpent
-      accountId
-      categoryId
-      payeeId
-      account {
-        id
-        name
-      }
-      category {
-        id
-        name
-        type
-      }
-      payee {
-        id
-        name
-      }
-      percentageUsed
-      lastResetDate
-      createdAt
-      updatedAt
+      ...BudgetFields
     }
   }
+  ${BUDGET_FIELDS}
 `;
 
 export const GET_BUDGET = gql`
   query GetBudget($id: ID!) {
     budget(id: $id) {
-      id
-      userId
-      amount
-      currentSpent
-      accountId
-      categoryId
-      payeeId
-      account {
-        id
-        name
-      }
-      category {
-        id
-        name
-        type
-      }
-      payee {
-        id
-        name
-      }
-      percentageUsed
-      lastResetDate
-      createdAt
-      updatedAt
+      ...BudgetFields
     }
   }
+  ${BUDGET_FIELDS}
 `;
 
 export const GET_BUDGET_NOTIFICATIONS = gql`

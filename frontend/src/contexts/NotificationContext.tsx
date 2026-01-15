@@ -8,7 +8,7 @@ import {useQuery, useMutation} from '@apollo/client/react';
 import {Snackbar, Alert} from '@mui/material';
 import {GET_BUDGET_NOTIFICATIONS} from '../graphql/queries';
 import {MARK_BUDGET_NOTIFICATION_READ as MARK_READ_MUTATION} from '../graphql/mutations';
-import {NOTIFICATION_POLL_INTERVAL_MS, NOTIFICATION_AUTO_DISMISS_MS} from '../utils/constants';
+import {NOTIFICATION_POLL_INTERVAL_MS, NOTIFICATION_AUTO_DISMISS_MS} from '../constants';
 import {getUserFriendlyErrorMessage} from '../utils/errorNotification';
 
 interface BudgetNotification {

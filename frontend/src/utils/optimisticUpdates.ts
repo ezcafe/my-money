@@ -1,77 +1,91 @@
 /**
- * Optimistic Updates Utility
- * Provides helpers for implementing optimistic updates in Apollo mutations
+ * Optimistic Update Utilities
+ * Provides helper functions for creating optimistic responses
  */
-
-import type {FetchResult} from '@apollo/client';
 
 /**
  * Create an optimistic response for a mutation
- * This allows the UI to update immediately before the server responds
  * @param mutationName - Name of the mutation
- * @param data - Optimistic data to return
+ * @param data - Data to use for optimistic response
  * @returns Optimistic response object
  */
-export function createOptimisticResponse<TData = unknown>(
+export function createOptimisticResponse<TData>(
   mutationName: string,
   data: TData,
-): FetchResult<TData> {
+): Record<string, TData> {
   return {
-    data: {
-      [mutationName]: data,
-    } as FetchResult<TData>['data'],
-  } as FetchResult<TData>;
+    [mutationName]: data,
+  };
 }
 
 /**
- * Update cache optimistically for a mutation
- * This function can be used in the update function of useMutation
- * @param cache - Apollo cache instance
- * @param query - GraphQL query to update
- * @param variables - Query variables
- * @param updateFn - Function to update the cached data
+ * Create optimistic transaction response
+ * @param transaction - Transaction data
+ * @returns Optimistic transaction response
  */
-export function updateCacheOptimistically<TData = unknown>(
-  cache: {readQuery: (options: {query: unknown; variables?: unknown}) => TData | null; writeQuery: (options: {query: unknown; data: TData; variables?: unknown}) => void},
-  query: unknown,
-  variables: unknown,
-  updateFn: (existing: TData | null) => TData,
-): void {
-  try {
-    const existing = cache.readQuery({query, variables});
-    const updated = updateFn(existing);
-    cache.writeQuery({query, data: updated, variables});
-  } catch (error) {
-    // Silently handle cache update errors - mutation will still proceed
-    console.warn('Optimistic cache update failed:', error);
-  }
+export function createOptimisticTransaction(transaction: {
+  id?: string;
+  value: number;
+  date: Date | string;
+  accountId: string;
+  categoryId?: string | null;
+  payeeId?: string | null;
+  note?: string | null;
+}): {
+  id: string;
+  value: number;
+  date: string;
+  accountId: string;
+  categoryId: string | null;
+  payeeId: string | null;
+  note: string | null;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+} {
+  const now = new Date().toISOString();
+  return {
+    id: transaction.id || `temp-${Date.now()}`,
+    value: transaction.value,
+    date: typeof transaction.date === 'string' ? transaction.date : transaction.date.toISOString(),
+    accountId: transaction.accountId,
+    categoryId: transaction.categoryId ?? null,
+    payeeId: transaction.payeeId ?? null,
+    note: transaction.note ?? null,
+    userId: 'temp-user',
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 /**
- * Example usage:
- *
- * const [createTransaction] = useMutation(CREATE_TRANSACTION, {
- *   optimisticResponse: createOptimisticResponse('createTransaction', {
- *     id: 'temp-id',
- *     value: input.value,
- *     date: input.date,
- *     // ... other fields
- *   }),
- *   update: (cache, {data}) => {
- *     if (data?.createTransaction) {
- *       updateCacheOptimistically(
- *         cache,
- *         GET_RECENT_TRANSACTIONS,
- *         {},
- *         (existing) => ({
- *           recentTransactions: [
- *             data.createTransaction,
- *             ...(existing?.recentTransactions ?? []),
- *           ],
- *         }),
- *       );
- *     }
- *   },
- * });
+ * Create optimistic account response
+ * @param account - Account data
+ * @returns Optimistic account response
  */
-
+export function createOptimisticAccount(account: {
+  id?: string;
+  name: string;
+  initBalance?: number;
+}): {
+  id: string;
+  name: string;
+  initBalance: number;
+  balance: number;
+  isDefault: boolean;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+} {
+  const now = new Date().toISOString();
+  return {
+    id: account.id || `temp-${Date.now()}`,
+    name: account.name,
+    initBalance: account.initBalance ?? 0,
+    balance: account.initBalance ?? 0,
+    isDefault: false,
+    userId: 'temp-user',
+    createdAt: now,
+    updatedAt: now,
+  };
+}

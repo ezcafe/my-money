@@ -109,4 +109,19 @@ export const inputSchemas = {
   }),
 };
 
+/**
+ * Type inference from Zod schemas
+ * Provides TypeScript types that match the validation schemas
+ */
+export type CreateAccountInput = z.infer<typeof inputSchemas.createAccount>;
+export type UpdateAccountInput = z.infer<typeof inputSchemas.updateAccount>;
+export type CreateCategoryInput = z.infer<typeof inputSchemas.createCategory>;
+export type UpdateCategoryInput = z.infer<typeof inputSchemas.updateCategory>;
+export type CreatePayeeInput = z.infer<typeof inputSchemas.createPayee>;
+export type UpdatePayeeInput = z.infer<typeof inputSchemas.updatePayee>;
+export type CreateTransactionInput = z.infer<typeof inputSchemas.createTransaction>;
+export type UpdateTransactionInput = z.infer<typeof inputSchemas.updateTransaction>;
+export type CreateRecurringTransactionInput = z.infer<typeof inputSchemas.createRecurringTransaction>;
+export type UpdateRecurringTransactionInput = z.infer<typeof inputSchemas.updateRecurringTransaction>;
+
 

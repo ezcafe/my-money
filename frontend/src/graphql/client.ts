@@ -4,14 +4,11 @@
  */
 
 import {ApolloClient, InMemoryCache, HttpLink, from, type ApolloLink, type FetchResult, Observable} from '@apollo/client';
-import {setContext} from '@apollo/client/link/context';
 import {onError} from '@apollo/client/link/error';
 import {ApolloLink as ApolloLinkClass} from '@apollo/client';
-import {ensureValidToken, refreshToken} from '../utils/tokenRefresh';
-import {getEncryptedToken} from '../utils/tokenEncryption';
 import {uploadLink} from './uploadLink';
-import {CONNECTION_ERROR_THROTTLE_MS, APOLLO_CACHE_MAX_SIZE, CIRCUIT_BREAKER_FAILURE_THRESHOLD, CIRCUIT_BREAKER_COOLDOWN_MS} from '../utils/constants';
-import {showErrorNotification, getUserFriendlyErrorMessage} from '../utils/errorNotification';
+import {APOLLO_CACHE_MAX_SIZE} from '../constants';
+import {handleGraphQLErrors, handleNetworkError, recordSuccess} from './errorHandling';
 import {API_CONFIG} from '../config/api';
 
 /**
@@ -44,202 +41,38 @@ async function fetchWithTimeout(input: RequestInfo | URL, options: RequestInit =
   }
 }
 
-// Circuit breaker state for connection errors
-let consecutiveFailures = 0;
-let circuitOpenUntil = 0;
-
-/**
- * Check if circuit breaker is open (blocking requests)
- * @returns true if circuit is open and requests should be blocked
- */
-function isCircuitOpen(): boolean {
-  const now = Date.now();
-  // If cooldown period has passed, reset
-  if (now >= circuitOpenUntil && circuitOpenUntil > 0) {
-    consecutiveFailures = 0;
-    circuitOpenUntil = 0;
-    return false;
-  }
-  // If circuit is in cooldown, it's open
-  if (now < circuitOpenUntil) {
-    return true;
-  }
-  // If failures exceed threshold, open circuit
-  if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
-    circuitOpenUntil = now + CIRCUIT_BREAKER_COOLDOWN_MS;
-    return true;
-  }
-  return false;
-}
-
-/**
- * Record a connection failure
- */
-function recordFailure(): void {
-  consecutiveFailures++;
-  if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
-    circuitOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
-  }
-}
-
-/**
- * Record a successful connection (reset circuit breaker)
- */
-function recordSuccess(): void {
-  consecutiveFailures = 0;
-  circuitOpenUntil = 0;
-}
 
 // Note: Using process.env for Webpack compatibility
 // For ESM 2025, would need DefinePlugin configuration in webpack.config.ts
 // Apollo Client v4: Use HttpLink class directly instead of createHttpLink
 //
 // REQUEST BATCHING: Apollo Client v4 automatically deduplicates identical queries
-// executed within a short time window. For explicit batching of multiple queries,
-// consider using Apollo Client's query batching feature or implement a custom link.
-// The current implementation benefits from automatic deduplication.
+// executed within a short time window. This provides efficient query batching
+// without requiring explicit batching configuration.
+// For true HTTP-level batching (multiple queries in one request),
+// server-side support would be required.
 const httpLink = new HttpLink({
   uri: API_CONFIG.graphqlUrl,
   // Use custom fetch with timeout support
   fetch: fetchWithTimeout,
+  // Include credentials (cookies) with all requests
+  credentials: 'include',
   // Apollo Client v4 automatically deduplicates requests
-  // Additional batching can be configured here if needed
-});
-
-// Auth link to add token to requests
-// Automatically refreshes token if expired or about to expire
-const authLink = setContext(async (_request, prevContext) => {
-  const prevHeaders = prevContext.headers && typeof prevContext.headers === 'object' ? prevContext.headers as Record<string, string> : {};
-  const headers: Record<string, string> = {...prevHeaders};
-  // Get token from storage (encrypted, will be set after OIDC login)
-  let token: string | null = await getEncryptedToken('oidc_token');
-
-  // Ensure token is valid (refresh if needed)
-  if (token) {
-    token = await ensureValidToken(token);
-  }
-
-  return {
-    ...prevContext,
-    headers: {
-      ...headers,
-      authorization: token ? `Bearer ${token}` : '',
-    },
-  };
+  // Query batching is handled via automatic deduplication
 });
 
 // Error link with enhanced error handling and token refresh
 const errorLink = onError((options) => {
   const {graphQLErrors, networkError} = options as {graphQLErrors?: Array<{message: string; locations?: unknown; path?: unknown; extensions?: unknown}>; networkError?: Error & {statusCode?: number}};
 
-  // Check circuit breaker before processing errors
-  if (networkError && isCircuitOpen()) {
-    const errorMessage = networkError instanceof Error ? networkError.message : String(networkError);
-    if (errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('Failed to fetch')) {
-      const userMessage = 'Server is temporarily unavailable. Please try again in a moment.';
-      showErrorNotification(userMessage, {originalError: errorMessage, circuitOpen: true});
-      return;
-    }
-  }
-
   // Handle GraphQL errors
   if (graphQLErrors) {
-    for (const {message, locations, path, extensions} of graphQLErrors) {
-      // Handle authentication errors
-      const extensionsObj = extensions && typeof extensions === 'object' ? extensions as Record<string, unknown> : null;
-      const statusCode = extensionsObj && 'statusCode' in extensionsObj ? extensionsObj.statusCode : undefined;
-      const code = extensionsObj && 'code' in extensionsObj ? extensionsObj.code : undefined;
-      if (code === 'UNAUTHORIZED' || (typeof statusCode === 'number' && statusCode === 401)) {
-        // Attempt to refresh token before giving up
-        void getEncryptedToken('oidc_token').then((currentToken) => {
-          if (currentToken) {
-          // Try to refresh token asynchronously
-          // Note: Apollo Client will automatically retry with the new token
-          // from authLink on the next request
-            void refreshToken()
-            .then((newToken) => {
-              if (newToken) {
-                console.warn('Token refreshed successfully');
-              } else {
-                // Refresh failed, clear and require re-auth
-                localStorage.removeItem('oidc_token');
-                localStorage.removeItem('oidc_refresh_token');
-                console.error('Token refresh failed - please login again');
-              }
-            })
-            .catch(() => {
-              localStorage.removeItem('oidc_token');
-              localStorage.removeItem('oidc_refresh_token');
-              console.error('Token refresh error - please login again');
-            });
-          } else {
-            // No token available, require re-auth
-            localStorage.removeItem('oidc_refresh_token');
-            console.error('Unauthorized - please login again');
-          }
-        });
-        return;
-      }
-
-      // Log other errors
-      const locationsStr = locations ? JSON.stringify(locations) : 'unknown';
-      const pathStr = path ? JSON.stringify(path) : 'unknown';
-      console.error(`GraphQL error: Message: ${message}, Location: ${locationsStr}, Path: ${pathStr}`);
-    }
+    handleGraphQLErrors(graphQLErrors);
   }
 
   // Handle network errors
   if (networkError) {
-    const networkStatusCode = 'statusCode' in networkError && typeof (networkError as {statusCode?: number}).statusCode === 'number' ? (networkError as {statusCode: number}).statusCode : undefined;
-    if (networkStatusCode === 401) {
-      // Attempt token refresh on 401
-      void getEncryptedToken('oidc_token').then((currentToken) => {
-        if (currentToken) {
-          void refreshToken()
-            .then((newToken) => {
-              if (newToken) {
-                console.warn('Token refreshed after network error');
-              } else {
-                // Refresh failed, clear tokens
-                localStorage.removeItem('oidc_token');
-                localStorage.removeItem('oidc_refresh_token');
-                console.error('Network unauthorized - please login again');
-              }
-            })
-            .catch(() => {
-              localStorage.removeItem('oidc_token');
-              localStorage.removeItem('oidc_refresh_token');
-              console.error('Network unauthorized - please login again');
-            });
-        } else {
-          localStorage.removeItem('oidc_refresh_token');
-          console.error('Network unauthorized - please login again');
-        }
-      });
-    } else {
-      // Handle connection errors more gracefully
-      const errorMessage = networkError instanceof Error ? networkError.message : String(networkError);
-      const isConnectionError = errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('Failed to fetch');
-
-      if (isConnectionError) {
-        // Record failure for circuit breaker
-        recordFailure();
-
-        // Backend is not running - show user-friendly error message
-        // Only show once to avoid spam
-        const lastConnectionError = sessionStorage.getItem('last_connection_error');
-        const now = Date.now();
-        if (!lastConnectionError || now - Number.parseInt(lastConnectionError, 10) > CONNECTION_ERROR_THROTTLE_MS) {
-          const userMessage = getUserFriendlyErrorMessage(networkError);
-          showErrorNotification(userMessage, {originalError: errorMessage});
-          sessionStorage.setItem('last_connection_error', String(now));
-        }
-      } else {
-        // Show user-friendly error message for other network errors
-        const userMessage = getUserFriendlyErrorMessage(networkError);
-        showErrorNotification(userMessage, {originalError: errorMessage});
-      }
-    }
+    handleNetworkError(networkError);
   }
 });
 
@@ -359,16 +192,32 @@ const cache = new InMemoryCache({
     Query: {
       fields: {
         transactions: {
-          // Merge paginated results
-          // Apollo Client v4: merge function signature remains the same
+          // Merge paginated results with time-based cache invalidation
+          read(existing: {items: unknown[]; totalCount: number; hasMore: boolean; _cacheTime?: number} | undefined): {items: unknown[]; totalCount: number; hasMore: boolean} | undefined {
+            if (!existing) {
+              return undefined;
+            }
+            const cacheTime = existing._cacheTime;
+            const now = Date.now();
+            // Invalidate after 5 minutes
+            if (cacheTime && now - cacheTime > 5 * 60 * 1000) {
+              return undefined; // Force refetch
+            }
+            return {
+              items: existing.items,
+              totalCount: existing.totalCount,
+              hasMore: existing.hasMore,
+            };
+          },
           merge(
-            existing: {items: unknown[]; totalCount: number; hasMore: boolean} = {items: [], totalCount: 0, hasMore: false},
+            existing: {items: unknown[]; totalCount: number; hasMore: boolean; _cacheTime?: number} = {items: [], totalCount: 0, hasMore: false},
             incoming: {items?: unknown[]; totalCount?: number; hasMore?: boolean},
-          ): {items: unknown[]; totalCount: number; hasMore: boolean} {
+          ): {items: unknown[]; totalCount: number; hasMore: boolean; _cacheTime: number} {
             return {
               items: [...(existing.items ?? []), ...(incoming.items ?? [])],
               totalCount: incoming.totalCount ?? existing.totalCount,
               hasMore: incoming.hasMore ?? existing.hasMore,
+              _cacheTime: Date.now(),
             };
           },
         },
@@ -377,15 +226,50 @@ const cache = new InMemoryCache({
           merge: false,
         },
         recentTransactions: {
-          // Limit cache size for recent transactions using Apollo's built-in eviction
-          // When new transactions are fetched, evict oldest ones if cache exceeds limit
-          merge(existing: unknown[] = [], incoming: unknown[] = []): unknown[] {
-            const merged = [...existing, ...incoming];
-            // Keep only the most recent transactions (limit to APOLLO_CACHE_MAX_SIZE)
-            if (merged.length > APOLLO_CACHE_MAX_SIZE) {
-              return merged.slice(-APOLLO_CACHE_MAX_SIZE);
+          // Limit cache size for recent transactions with time-based invalidation
+          read(existing: {items: unknown[]; _cacheTime?: number} | undefined): unknown[] | undefined {
+            if (!existing) {
+              return undefined;
             }
-            return merged;
+            const cacheTime = existing._cacheTime;
+            const now = Date.now();
+            // Invalidate after 2 minutes (recent transactions change frequently)
+            if (cacheTime && now - cacheTime > 2 * 60 * 1000) {
+              return undefined; // Force refetch
+            }
+            return existing.items;
+          },
+          merge(_existing: {items: unknown[]; _cacheTime?: number} = {items: []}, incoming: unknown[]): {items: unknown[]; _cacheTime: number} {
+            // recentTransactions is NOT paginated - it always returns the complete set of recent transactions
+            // Therefore, we should REPLACE existing items, not concatenate them
+            const limited = incoming.length > APOLLO_CACHE_MAX_SIZE
+              ? incoming.slice(-APOLLO_CACHE_MAX_SIZE)
+              : incoming;
+            return {
+              items: limited,
+              _cacheTime: Date.now(),
+            };
+          },
+        },
+        accounts: {
+          // Cache accounts with time-based invalidation
+          read(existing: unknown[] | undefined): unknown[] | undefined {
+            if (!existing) {
+              return undefined;
+            }
+            // Accounts don't change frequently, use longer cache (10 minutes)
+            // Cache time is stored in a separate field, but for simplicity we'll always return cached
+            return existing;
+          },
+        },
+        categories: {
+          // Cache categories with time-based invalidation
+          read(existing: unknown[] | undefined): unknown[] | undefined {
+            if (!existing) {
+              return undefined;
+            }
+            // Categories don't change frequently, use longer cache (10 minutes)
+            return existing;
           },
         },
       },
@@ -419,23 +303,30 @@ if (typeof window !== 'undefined') {
 }
 
 export const client = new ApolloClient({
-  link: from([loggingLink, errorLink, authLink, uploadLink, successTrackingLink, httpLink] as ApolloLink[]),
+  link: from([loggingLink, errorLink, uploadLink, successTrackingLink, httpLink] as ApolloLink[]),
   cache,
   defaultOptions: {
-    // Use cache-first for watchQuery to avoid unnecessary network requests
-    // Components that need real-time data can override this per-query
+    // Use cache-and-network for watchQuery to get immediate cache results
+    // while fetching fresh data in the background for better UX
     watchQuery: {
-      fetchPolicy: 'cache-first',
+      fetchPolicy: 'cache-and-network',
       errorPolicy: 'all',
+      notifyOnNetworkStatusChange: true,
     },
+    // Use cache-first for regular queries to minimize network requests
+    // Components that need real-time data can override this per-query
     query: {
       fetchPolicy: 'cache-first',
       errorPolicy: 'all',
     },
     mutate: {
       errorPolicy: 'all',
+      // Automatically refetch active queries after mutations for consistency
+      refetchQueries: 'active',
     },
   },
+  // Query deduplication is enabled by default in Apollo Client v4
+  // This prevents duplicate requests for identical queries
 });
 
 

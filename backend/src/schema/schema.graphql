@@ -38,7 +38,7 @@ type Query {
   """
   Get all accounts for current user
   """
-  accounts: [Account!]!
+  accounts: [Account!]
 
   """
   Get account by ID
@@ -52,15 +52,29 @@ type Query {
 
   """
   Get transactions with pagination
+
+  **Pagination:**
+  - Use `first` and `after` for cursor-based pagination (forward pagination)
+  - Use `last` and `before` for backward pagination
+
+  **Filtering:**
+  - `accountId`: Filter by account
+  - `categoryId`: Filter by category
+  - `payeeId`: Filter by payee
+  - `note`: Search in transaction notes (case-insensitive)
+
+  **Performance:**
+  - Maximum 100 transactions per page
+  - Queries are cached for 5 minutes
   """
   transactions(
     accountId: ID
     categoryId: ID
     payeeId: ID
-    skip: Int
-    take: Int
     first: Int
     after: String
+    last: Int
+    before: String
     orderBy: TransactionOrderInput
     note: String
   ): TransactionConnection!
@@ -78,7 +92,7 @@ type Query {
   """
   Get all categories
   """
-  categories: [Category!]!
+  categories: [Category!]
 
   """
   Get category by ID

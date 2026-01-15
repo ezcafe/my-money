@@ -1,19 +1,10 @@
 /**
  * Token Refresh Utility
- * Handles OIDC token refresh and expiration checking
- *
- * SECURITY NOTE: Tokens are currently stored in localStorage, which is vulnerable to XSS attacks.
- * For production applications, consider:
- * 1. Using httpOnly cookies (requires backend changes to set cookies)
- * 2. Implementing token encryption before storing in localStorage
- * 3. Using secure storage mechanisms (e.g., Web Crypto API with encrypted storage)
- * 4. Implementing token rotation for enhanced security
- *
- * Current implementation uses localStorage for simplicity, but should be enhanced for production use.
+ * Handles OIDC token refresh using backend endpoint
+ * Tokens are stored in httpOnly cookies for enhanced security
  */
 
 import {TOKEN_EXPIRATION_BUFFER_SECONDS, TOKEN_REFRESH_MAX_RETRY_ATTEMPTS, TOKEN_REFRESH_INITIAL_RETRY_DELAY_MS} from './constants';
-import {storeEncryptedToken, getEncryptedToken} from './tokenEncryption';
 
 /**
  * Flag to prevent multiple simultaneous redirects
@@ -115,90 +106,26 @@ function isRetryableError(error: unknown): boolean {
 
 /**
  * Internal function to perform the actual token refresh
+ * Uses backend refresh endpoint which handles token refresh and updates httpOnly cookies
  * Throws errors for retryable failures, returns null for non-retryable failures
- * @returns New token string or null if refresh failed (non-retryable)
+ * @returns Token string (always returns a placeholder since cookies are used) or null if refresh failed
  * @throws Error for retryable failures (network errors, timeouts)
  */
 async function performTokenRefresh(): Promise<string | null> {
   try {
-    // Get refresh token from storage (encrypted)
-    const refreshTokenValue = await getEncryptedToken('oidc_refresh_token');
-    if (!refreshTokenValue) {
-      console.warn('No refresh token available for refresh. Possible reasons:', {
-        reason: 'Refresh token not found in localStorage',
-        possibleCauses: [
-          'Refresh token was never stored during initial login (OIDC provider may not have returned one)',
-          'Refresh token was cleared due to a previous error',
-          'Refresh token expired and was cleared',
-          'Missing "offline_access" scope in OIDC authorization request',
-        ],
-        action: 'User will need to re-authenticate',
-      });
-      // Clear all tokens and redirect to login page
-      localStorage.removeItem('oidc_token');
-      localStorage.removeItem('oidc_refresh_token');
-      localStorage.removeItem('oidc_token_expiration');
-      // Only redirect if we're not already on the login page and not already redirecting
-      if (!isRedirecting && window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
-        isRedirecting = true;
-        window.location.href = '/login';
-      }
-      return null;
-    }
-
-    // Get OIDC configuration from environment
-    const discoveryUrl: string | undefined = process.env.REACT_APP_OPENID_DISCOVERY_URL;
-    const clientId: string | undefined = process.env.REACT_APP_OPENID_CLIENT_ID;
-
-    if (!discoveryUrl || !clientId) {
-      console.warn('OIDC configuration missing - token refresh not available');
-      return null;
-    }
-
-    // Fetch token endpoint from discovery
-    let discovery: {token_endpoint?: string};
-    try {
-      const discoveryResponse = await fetch(discoveryUrl ?? '');
-      if (!discoveryResponse.ok) {
-        console.error('Failed to fetch OIDC discovery document:', discoveryResponse.status);
-        // Network errors are retryable, HTTP errors are not
-        throw new Error(`Failed to fetch OIDC discovery document: ${discoveryResponse.status}`);
-      }
-      discovery = (await discoveryResponse.json()) as {token_endpoint?: string};
-    } catch (error: unknown) {
-      console.error('Error fetching OIDC discovery document:', error);
-      // Re-throw retryable errors, return null for non-retryable
-      if (isRetryableError(error)) {
-        throw error;
-      }
-      return null;
-    }
-
-    if (!discovery.token_endpoint) {
-      console.error('Token endpoint not found in discovery document');
-      return null;
-    }
-
-    // Refresh the token
-    const tokenEndpoint = discovery.token_endpoint;
-    if (!tokenEndpoint) {
-      console.error('Token endpoint not found in discovery document');
-      return null;
-    }
+    // Call backend refresh endpoint
+    // Backend will use refresh token from cookie and update access token cookie
+    const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+    const refreshUrl = `${backendUrl}/auth/refresh`;
 
     let response: Response;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      response = await fetch(tokenEndpoint as string, {
+      response = await fetch(refreshUrl, {
         method: 'POST',
+        credentials: 'include', // Include cookies
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: refreshTokenValue,
-          client_id: clientId,
-        }),
       });
     } catch (error: unknown) {
       // Network errors are retryable
@@ -230,12 +157,9 @@ async function performTokenRefresh(): Promise<string | null> {
         ],
       });
 
-      // If refresh token is invalid, clear all tokens and redirect to login
+      // If refresh token is invalid, redirect to login
       if (response.status === 400 || response.status === 401) {
-        console.warn('Clearing invalid refresh token from storage');
-        localStorage.removeItem('oidc_token');
-        localStorage.removeItem('oidc_refresh_token');
-        localStorage.removeItem('oidc_token_expiration');
+        console.warn('Token refresh failed, redirecting to login');
         // Only redirect if we're not already on the login page and not already redirecting
         if (!isRedirecting && window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
           isRedirecting = true;
@@ -251,20 +175,10 @@ async function performTokenRefresh(): Promise<string | null> {
       return null;
     }
 
-    const tokenData = (await response.json()) as {
-      access_token?: string;
-      refresh_token?: string;
-    } | null;
-
-    // Store new tokens (encrypted)
-    if (tokenData?.access_token) {
-      await storeEncryptedToken('oidc_token', tokenData.access_token);
-    }
-    if (tokenData?.refresh_token) {
-      await storeEncryptedToken('oidc_refresh_token', tokenData.refresh_token);
-    }
-
-    return tokenData?.access_token ?? null;
+    // Token refresh successful - cookies are updated by backend
+    // Return a placeholder token string since we don't have direct access to the cookie value
+    // The actual token is in the httpOnly cookie and will be sent automatically with requests
+    return 'cookie-based-token';
   } catch (error) {
     // Re-throw retryable errors
     if (isRetryableError(error)) {
@@ -321,28 +235,17 @@ export async function refreshToken(): Promise<string | null> {
 
 /**
  * Check token and refresh if needed
- * @param token - Current token string
- * @returns Valid token string (refreshed if needed) or null if refresh failed
+ * With cookie-based auth, we can't directly check token expiration
+ * Instead, we rely on the backend to validate tokens and return 401 if expired
+ * This function is kept for compatibility but doesn't perform token validation
+ * @param token - Current token string (ignored for cookie-based auth)
+ * @returns Token placeholder or null if refresh failed
  */
 export async function ensureValidToken(token: string | null): Promise<string | null> {
-  if (!token) {
-    return null;
-  }
-
-  // Check if token is expired or about to expire
-  if (isTokenExpired(token)) {
-    console.warn('Token expired or about to expire, attempting refresh...');
-    const newToken = await refreshToken();
-    if (newToken) {
-      console.warn('Token refreshed successfully');
-      return newToken;
-    }
-    // If refresh failed, refreshToken() will have already handled redirect to login
-    // Return null to indicate token is invalid
-    console.warn('Token refresh failed, user will need to re-authenticate');
-    return null;
-  }
-
-  return token;
+  // With cookie-based auth, tokens are in httpOnly cookies
+  // We can't check expiration directly, so we return a placeholder
+  // The backend will validate the token and return 401 if expired
+  // The error handler will then trigger a refresh
+  return token ? 'cookie-based-token' : null;
 }
 

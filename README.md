@@ -90,7 +90,6 @@ npm run docker:up
 
 This will start:
 - PostgreSQL database on port 5432
-- Pocket ID (OIDC provider) on port 8080
 - Backend GraphQL server on port 4000
 - Frontend web app on port 3000
 
@@ -104,7 +103,6 @@ docker exec -it my-money-backend npm run prisma:migrate
 
 - Frontend: http://localhost:3000
 - Backend GraphQL: http://localhost:4000/graphql
-- Pocket ID: http://localhost:8080
 
 ## Development Setup (Without Docker)
 
@@ -116,11 +114,106 @@ npm install
 
 ### 2. Setup PostgreSQL
 
-Make sure PostgreSQL 18 is running locally and create a database:
+The project includes a Docker Compose configuration for PostgreSQL. This is the recommended approach for local development.
 
-```sql
-CREATE DATABASE mymoney;
+#### Configure Environment Variables
+
+First, ensure your `.env` file in the project root has the PostgreSQL configuration:
+
+```env
+# PostgreSQL Configuration
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=mymoney
+
+# Database Connection URL
+# For local development (connecting from host machine):
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mymoney
+# For Docker containers (connecting from backend service):
+# DATABASE_URL=postgresql://postgres:postgres@postgres:5432/mymoney
 ```
+
+#### Start PostgreSQL with Docker Compose
+
+Start only the PostgreSQL service:
+
+```bash
+docker-compose -f docker/docker-compose.yml --env-file .env up -d postgres
+```
+
+**Important:** The `--env-file .env` flag is required when using `-f docker/docker-compose.yml` because docker-compose needs to read the `.env` file from the project root for variable substitution (e.g., `${POSTGRES_USER}`) in the compose file. The docker-compose.yml also has `env_file: - ../.env` which loads variables into the container at runtime.
+
+**If you see warnings about missing environment variables:**
+
+The container may have been created before the .env file was configured. Recreate the container:
+
+```bash
+# Stop and remove the container (data is preserved in volume)
+docker-compose -f docker/docker-compose.yml --env-file .env down postgres
+
+# Start again with the updated .env file
+docker-compose -f docker/docker-compose.yml --env-file .env up -d postgres
+```
+
+#### Verify PostgreSQL is Running
+
+**Connect to the database:**
+```bash
+# Using docker exec (include --env-file to avoid warnings)
+docker-compose -f docker/docker-compose.yml --env-file .env exec postgres psql -U postgres -d mymoney
+
+# Or using psql from your host (if installed)
+psql postgresql://postgres:postgres@localhost:5432/mymoney
+```
+
+**Note:** Even though `docker-compose exec` uses the container's existing environment, it still parses the compose file and tries to substitute variables (like `${POSTGRES_USER}`), so you need to include `--env-file .env` to avoid warnings.
+
+#### Stop PostgreSQL
+
+```bash
+# Stop the container
+docker-compose -f docker/docker-compose.yml --env-file .env stop postgres
+```
+
+**To stop and remove the container (data is preserved in volume):**
+```bash
+docker-compose -f docker/docker-compose.yml --env-file .env down postgres
+```
+
+**To remove container and data volume (⚠️ deletes all data):**
+```bash
+docker-compose -f docker/docker-compose.yml --env-file .env down -v postgres
+```
+
+**Note:** Include `--env-file .env` in all docker-compose commands that use `-f docker/docker-compose.yml` to avoid warnings about missing environment variables.
+
+#### Alternative: Local PostgreSQL Installation
+
+If you prefer to install PostgreSQL locally instead of using Docker:
+
+**macOS (using Homebrew):**
+```bash
+brew install postgresql@18
+brew services start postgresql@18
+createdb -U postgres mymoney
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt update
+sudo apt install postgresql-18 postgresql-contrib-18
+sudo systemctl start postgresql
+createdb -U postgres mymoney
+```
+
+**Windows:**
+Download from [PostgreSQL official website](https://www.postgresql.org/download/windows/) or use Chocolatey:
+```bash
+choco install postgresql18
+createdb -U postgres mymoney
+```
+
+Then update your `DATABASE_URL` in `.env` to point to your local PostgreSQL instance.
 
 ### 3. Configure environment variables
 
@@ -236,6 +329,15 @@ npm run test:coverage
 ## Environment Variables
 
 See `.env.example` for all available environment variables.
+
+## Documentation
+
+Additional documentation is available in the `docs/` directory:
+
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Step-by-step production deployment instructions
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Monitoring Guide](docs/MONITORING.md)** - Monitoring and alerting setup
+- **[Production Readiness Review](PRODUCTION_READINESS_REVIEW.md)** - Pre-production review and checklist
 
 ## API Documentation
 

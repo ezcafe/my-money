@@ -14,6 +14,7 @@ import {LoadingSpinner} from './LoadingSpinner';
 import {ErrorAlert} from './ErrorAlert';
 import {useTitle} from '../../contexts/TitleContext';
 import {validateReturnUrl} from '../../utils/validation';
+import {pageContainerStyle} from '../../constants/ui';
 
 /**
  * Field configuration for form fields
@@ -375,9 +376,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        width: {xs: '100%', sm: '100%'},
-        maxWidth: {xs: '100%', sm: '400px'},
-        mx: {xs: 0, sm: 'auto'},
+        ...pageContainerStyle,
       }}
     >
       <Card

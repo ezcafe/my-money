@@ -3,8 +3,9 @@
  * Handles budget GraphQL operations
  */
 
- 
+
 import type {GraphQLContext} from '../middleware/context';
+import type {Budget, BudgetNotification} from '@prisma/client';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {NotFoundError, ValidationError} from '../utils/errors';
@@ -37,7 +38,7 @@ export class BudgetResolver {
   /**
    * Get all budgets for current user
    */
-  async budgets(_: unknown, __: unknown, context: GraphQLContext) {
+  async budgets(_: unknown, __: unknown, context: GraphQLContext): Promise<Budget[]> {
     validateContext(context);
     return await withPrismaErrorHandling(
       async () => {
@@ -60,7 +61,7 @@ export class BudgetResolver {
   /**
    * Get budget by ID
    */
-  async budget(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async budget(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Budget> {
     validateContext(context);
     return await withPrismaErrorHandling(
       async () => {
@@ -89,7 +90,7 @@ export class BudgetResolver {
   /**
    * Get budget notifications for current user
    */
-  async budgetNotifications(_: unknown, _args: unknown, context: GraphQLContext) {
+  async budgetNotifications(_: unknown, _args: unknown, context: GraphQLContext): Promise<Array<BudgetNotification & {budget: Budget | null}>> {
     const notifications = await getBudgetNotifications(context.userId, false);
 
     // Include budget relation
@@ -120,7 +121,7 @@ export class BudgetResolver {
     _: unknown,
     {input}: {input: unknown},
     context: GraphQLContext,
-  ) {
+  ): Promise<Budget> {
     const validatedInput = validate(CreateBudgetInputSchema, input);
 
     // Verify the referenced entity belongs to user
@@ -227,7 +228,7 @@ export class BudgetResolver {
     _: unknown,
     {id, input}: {id: string; input: unknown},
     context: GraphQLContext,
-  ) {
+  ): Promise<Budget> {
     const validatedInput = validate(UpdateBudgetInputSchema, input);
 
     // Verify budget belongs to user
@@ -260,7 +261,7 @@ export class BudgetResolver {
   /**
    * Delete budget
    */
-  async deleteBudget(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async deleteBudget(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
     // Verify budget belongs to user
     const budget = await context.prisma.budget.findFirst({
       where: {
@@ -287,7 +288,7 @@ export class BudgetResolver {
     _: unknown,
     {id}: {id: string},
     context: GraphQLContext,
-  ) {
+  ): Promise<boolean> {
     return await markNotificationRead(context.userId, id);
   }
 }

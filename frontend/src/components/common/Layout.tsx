@@ -3,7 +3,7 @@
  * Main layout wrapper with transparent toolbar and back button
  */
 
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, memo} from 'react';
 import {Box, AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Stack} from '@mui/material';
 import {ArrowBack, Search as SearchIcon, MoreVert, Edit, Delete} from '@mui/icons-material';
 import {useNavigate, useLocation} from 'react-router';
@@ -12,7 +12,7 @@ import {useTitle} from '../../contexts/TitleContext';
 import {FloatingSearchBox} from '../FloatingSearchBox';
 import {useKeyboardShortcuts} from '../../hooks/useKeyboardShortcuts';
 
-interface LayoutProps {
+export interface LayoutProps {
   children: React.ReactNode;
   title?: string;
   hideSearch?: boolean;
@@ -32,7 +32,7 @@ interface LayoutProps {
  * Layout Component
  * Provides main app structure with transparent toolbar and back button
  */
-export function Layout({children, title, hideSearch = false, actionButton, contextMenu}: LayoutProps): React.JSX.Element {
+function LayoutComponent({children, title, hideSearch = false, actionButton, contextMenu}: LayoutProps): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const isHomePage = location.pathname === '/';
@@ -192,3 +192,7 @@ export function Layout({children, title, hideSearch = false, actionButton, conte
   );
 }
 
+/**
+ * Memoized Layout component to prevent unnecessary re-renders
+ */
+export const Layout = memo(LayoutComponent);

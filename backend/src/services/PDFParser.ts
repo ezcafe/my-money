@@ -3,8 +3,6 @@
  * Extracts transaction data from credit card statement PDFs
  */
 
-// Use legacy build for Node.js environments (avoids DOMMatrix dependency)
-import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {logDebug} from '../utils/logger';
 
 export interface ParsedTransaction {
@@ -995,6 +993,10 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
  * @returns Extracted text content from all pages
  */
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
+  // Lazy load pdfjs-dist only when needed (not at server startup)
+  // Use legacy build for Node.js environments (avoids DOMMatrix dependency)
+  const {getDocument} = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
   // Load PDF document
   const loadingTask = getDocument({
     data: new Uint8Array(buffer),

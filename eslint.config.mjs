@@ -6,7 +6,7 @@ import prettier from 'eslint-config-prettier';
 /**
  * Root ESLint configuration for the monorepo.
  * Uses ESLint 9.x flat config format.
- * 
+ *
  * @type {import('eslint').Linter.Config[]}
  */
 export default [
@@ -77,7 +77,20 @@ export default [
       ],
       '@typescript-eslint/consistent-type-definitions': ['warn', 'interface'],
       '@typescript-eslint/no-import-type-side-effects': 'error',
-      
+      // Additional type safety rules
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
+      '@typescript-eslint/no-unsafe-return': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/restrict-template-expressions': 'warn',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: false, // Allow promises in void contexts
+        },
+      ],
+
       // General code quality rules (Google style inspired)
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-debugger': 'error',
@@ -90,6 +103,19 @@ export default [
       'object-shorthand': 'warn',
       'prefer-arrow-callback': 'warn',
       'prefer-template': 'warn',
+    },
+  },
+  // Override for .mjs config files to disable type checking
+  {
+    files: ['**/*.config.mjs', '**/eslint.config.mjs'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false, // Disable type checking for config files
+      },
+    },
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
     },
   },
   // Disable Prettier-conflicting rules (must be last)

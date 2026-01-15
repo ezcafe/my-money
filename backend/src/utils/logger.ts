@@ -1,6 +1,7 @@
 /**
  * Structured Logging Utility
  * Provides structured logging for better error tracking and alerting
+ * Supports log level filtering via LOG_LEVEL environment variable
  */
 
 export interface LogContext {
@@ -17,6 +18,91 @@ export interface StructuredLog {
     message: string;
     stack?: string;
   };
+}
+
+/**
+ * Log levels in order of severity (lower number = more severe)
+ */
+const LOG_LEVELS: Record<StructuredLog['level'], number> = {
+  error: 0,
+  warn: 1,
+  info: 2,
+  debug: 3,
+};
+
+/**
+ * Get minimum log level from environment variable
+ * Defaults to 'info' in production, 'debug' in development
+ */
+function getMinLogLevel(): StructuredLog['level'] {
+  const envLevel = process.env.LOG_LEVEL?.toLowerCase();
+  if (envLevel && ['error', 'warn', 'info', 'debug'].includes(envLevel)) {
+    return envLevel as StructuredLog['level'];
+  }
+  return process.env.NODE_ENV === 'production' ? 'info' : 'debug';
+}
+
+const MIN_LOG_LEVEL = getMinLogLevel();
+const MIN_LOG_LEVEL_VALUE = LOG_LEVELS[MIN_LOG_LEVEL];
+
+/**
+ * Check if a log level should be logged based on configured minimum level
+ */
+function shouldLog(level: StructuredLog['level']): boolean {
+  return LOG_LEVELS[level] <= MIN_LOG_LEVEL_VALUE;
+}
+
+/**
+ * List of sensitive keys that should never be logged
+ * These will be redacted from log context
+ */
+const SENSITIVE_KEYS = [
+  'password',
+  'secret',
+  'token',
+  'apiKey',
+  'api_key',
+  'accessToken',
+  'access_token',
+  'refreshToken',
+  'refresh_token',
+  'clientSecret',
+  'client_secret',
+  'authorization',
+  'auth',
+  'credentials',
+  'credential',
+  'privateKey',
+  'private_key',
+  'databaseUrl',
+  'database_url',
+  'connectionString',
+  'connection_string',
+];
+
+/**
+ * Sanitize context to remove sensitive information
+ * Replaces sensitive values with '[REDACTED]'
+ * @param context - Log context that may contain sensitive data
+ * @returns Sanitized context with sensitive values redacted
+ */
+function sanitizeContext(context?: LogContext): LogContext | undefined {
+  if (!context) {
+    return context;
+  }
+
+  const sanitized: LogContext = {};
+  for (const [key, value] of Object.entries(context)) {
+    const keyLower = key.toLowerCase();
+    const isSensitive = SENSITIVE_KEYS.some((sensitiveKey) => keyLower.includes(sensitiveKey.toLowerCase()));
+
+    if (isSensitive && value !== null && value !== undefined) {
+      sanitized[key] = '[REDACTED]';
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
 }
 
 /**
@@ -39,14 +125,21 @@ function createLogEntry(
     message,
   };
 
+  // Sanitize context to remove sensitive information
   if (context) {
-    logEntry.context = context;
+    logEntry.context = sanitizeContext(context);
   }
 
   if (error) {
+    // Sanitize error message if it might contain sensitive data
+    const errorMessage = error.message;
+    const sanitizedMessage = SENSITIVE_KEYS.some((key) => errorMessage.toLowerCase().includes(key.toLowerCase()))
+      ? '[REDACTED: Error message may contain sensitive data]'
+      : errorMessage;
+
     logEntry.error = {
       name: error.name,
-      message: error.message,
+      message: sanitizedMessage,
       stack: error.stack,
     };
   }
@@ -60,6 +153,9 @@ function createLogEntry(
  * @param context - Additional context data
  */
 export function logInfo(message: string, context?: LogContext): void {
+  if (!shouldLog('info')) {
+    return;
+  }
   const logEntry = createLogEntry('info', message, context);
   // eslint-disable-next-line no-console
   console.log(JSON.stringify(logEntry));
@@ -71,6 +167,9 @@ export function logInfo(message: string, context?: LogContext): void {
  * @param context - Additional context data
  */
 export function logWarn(message: string, context?: LogContext): void {
+  if (!shouldLog('warn')) {
+    return;
+  }
   const logEntry = createLogEntry('warn', message, context);
   console.warn(JSON.stringify(logEntry));
 }
@@ -82,20 +181,24 @@ export function logWarn(message: string, context?: LogContext): void {
  * @param error - Error object
  */
 export function logError(message: string, context?: LogContext, error?: Error): void {
+  if (!shouldLog('error')) {
+    return;
+  }
   const logEntry = createLogEntry('error', message, context, error);
   console.error(JSON.stringify(logEntry));
 }
 
 /**
- * Log a debug message (only in development)
+ * Log a debug message
  * @param message - Log message
  * @param context - Additional context data
  */
 export function logDebug(message: string, context?: LogContext): void {
-  if (process.env.NODE_ENV === 'development') {
-    const logEntry = createLogEntry('debug', message, context);
-    // eslint-disable-next-line no-console
-    console.debug(JSON.stringify(logEntry));
+  if (!shouldLog('debug')) {
+    return;
   }
+  const logEntry = createLogEntry('debug', message, context);
+  // eslint-disable-next-line no-console
+  console.debug(JSON.stringify(logEntry));
 }
 

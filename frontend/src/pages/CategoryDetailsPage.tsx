@@ -9,7 +9,7 @@ import {Box} from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useCategory} from '../hooks/useCategory';
 import {useTransactions, type TransactionOrderInput, type TransactionOrderByField} from '../hooks/useTransactions';
-import {ITEMS_PER_PAGE} from '../utils/constants';
+import {ITEMS_PER_PAGE} from '../constants';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
@@ -17,6 +17,7 @@ import {GET_PREFERENCES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_CATEGORY
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Category Details Page Component
@@ -27,7 +28,7 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
   const location = useLocation();
   const prevLocationRef = useRef<string>(location.pathname);
   const [page, setPage] = useState(1);
-  const skip = (page - 1) * ITEMS_PER_PAGE;
+  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([undefined]);
 
   // Sorting state
   const [sortField, setSortField] = useState<TransactionOrderByField>('date');
@@ -50,6 +51,8 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
       ? {field: sortField, direction: sortDirection}
       : undefined;
 
+  const currentCursor = page > 1 ? cursorHistory[page - 1] : undefined;
+
   const {category, loading: categoryLoading, error: categoryError, refetch: refetchCategory} =
     useCategory(id);
   const {
@@ -57,12 +60,18 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
     loading: transactionsLoading,
     error: transactionsError,
     refetch: refetchTransactions,
-  } = useTransactions(undefined, id, undefined, skip, ITEMS_PER_PAGE, orderBy, searchQuery || undefined, !id);
+  } = useTransactions(undefined, id, undefined, ITEMS_PER_PAGE, currentCursor, orderBy, searchQuery || undefined, !id);
 
-  // Reset page when search changes
+  useEffect(() => {
+    if (transactions.nextCursor && page === cursorHistory.length) {
+      setCursorHistory((prev) => [...prev, transactions.nextCursor]);
+    }
+  }, [transactions.nextCursor, page, cursorHistory.length]);
+
   useEffect(() => {
     setPage(1);
-  }, [searchQuery]);
+    setCursorHistory([undefined]);
+  }, [searchQuery, sortField, sortDirection]);
 
   // Set appbar title when category is loaded
   useEffect(() => {
@@ -91,7 +100,8 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
     (field: TransactionOrderByField, direction: 'asc' | 'desc') => {
       setSortField(field);
       setSortDirection(direction);
-      setPage(1); // Reset to first page when sorting changes
+      setPage(1);
+      setCursorHistory([undefined]);
     },
     [],
   );
@@ -156,7 +166,7 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
   }
 
   return (
-    <Box>
+    <Box sx={pageContainerStyle}>
       <TransactionList
         transactions={transactions}
         loading={transactionsLoading}

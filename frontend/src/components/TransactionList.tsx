@@ -39,7 +39,7 @@ import type {
   TransactionOrderByField,
 } from '../hooks/useTransactions';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
-import {ITEMS_PER_PAGE} from '../utils/constants';
+import {ITEMS_PER_PAGE} from '../constants';
 import {useDateFormat} from '../hooks/useDateFormat';
 
 /**

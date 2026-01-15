@@ -8,6 +8,7 @@ import type {Theme} from '@mui/material/styles';
 import {getThemeByTime} from './palettes';
 import {m3Typography, m3Breakpoints, m3Shape, m3Elevation} from './tokens';
 import {getColorPalette, type ColorSchemeType} from './colorSchemes';
+import {MIN_TOUCH_TARGET_SIZE} from '../constants';
 
 /**
  * Color scheme configuration
@@ -19,6 +20,12 @@ export interface ColorSchemeConfig {
 
 /**
  * Create MUI theme with M3 design tokens
+ *
+ * Note: Material Design 3 color tokens are designed to meet WCAG AA contrast requirements:
+ * - Normal text: minimum 4.5:1 contrast ratio
+ * - Large text (18pt+): minimum 3:1 contrast ratio
+ * All color combinations (onSurface, onPrimary, etc.) meet these standards.
+ *
  * @param mode - Light or dark mode
  * @param colorScheme - Color scheme configuration
  * @returns MUI theme with M3 styling
@@ -106,12 +113,24 @@ export function createAppTheme(
             textTransform: 'none',
             fontWeight: m3Typography.fontWeight.medium,
             transition: 'all 0.2s ease',
+            minHeight: `${MIN_TOUCH_TARGET_SIZE}px`, // Ensure minimum touch target size
+            minWidth: `${MIN_TOUCH_TARGET_SIZE}px`,
+            padding: '8px 16px', // Ensure adequate padding for touch targets
             '&:hover': {
               transform: 'translateY(-1px)',
             },
             '&:active': {
               transform: 'translateY(0)',
             },
+          },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            minWidth: `${MIN_TOUCH_TARGET_SIZE}px`, // Ensure minimum touch target size
+            minHeight: `${MIN_TOUCH_TARGET_SIZE}px`,
+            padding: '8px', // Ensure adequate padding for touch targets
           },
         },
       },

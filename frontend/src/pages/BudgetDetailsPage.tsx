@@ -13,7 +13,7 @@ import {Card} from '../components/ui/Card';
 import {useBudget} from '../hooks/useBudget';
 import type {TransactionOrderInput, TransactionOrderByField} from '../hooks/useTransactions';
 import {formatCurrencyPreserveDecimals} from '../utils/formatting';
-import {ITEMS_PER_PAGE} from '../utils/constants';
+import {ITEMS_PER_PAGE} from '../constants';
 import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {DELETE_TRANSACTION} from '../graphql/mutations';
@@ -21,6 +21,7 @@ import {GET_PREFERENCES, GET_REPORT_TRANSACTIONS, GET_TRANSACTIONS, GET_RECENT_T
 import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Budget Details Page Component
@@ -309,7 +310,7 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   const isOverBudget = percentage >= 100;
 
   return (
-    <Box>
+    <Box sx={pageContainerStyle}>
       {/* Budget Summary Card */}
       <Card sx={{mb: 3, p: 3}}>
         {/* Header Section */}

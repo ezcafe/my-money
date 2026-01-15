@@ -3,7 +3,8 @@
  * Provides user information and database access to resolvers
  */
 
-import type {FastifyRequest} from 'fastify';
+import type {Context} from 'hono';
+import {getCookie} from 'hono/cookie';
 import {randomUUID} from 'crypto';
 import {prisma} from '../utils/prisma';
 import {getUserFromToken} from './auth';
@@ -17,32 +18,44 @@ export interface GraphQLContext extends DataLoaderContext {
   userEmail?: string;
   requestId: string;
   prisma: typeof prisma;
-  request?: FastifyRequest;
+  request?: Context;
 }
 
 /**
  * Create GraphQL context from request
  * Requires authentication for all operations
+ * Supports both cookie-based (preferred) and Authorization header (fallback) authentication
  */
-export async function createContext(req: FastifyRequest): Promise<GraphQLContext | null> {
-  const authHeader = req.headers.authorization;
+export async function createContext(c: Context): Promise<GraphQLContext | null> {
+  // Try to get token from cookie first (preferred method)
+  // Cookie name matches COOKIE_NAMES.ACCESS_TOKEN from cookies.ts
+  const accessToken = getCookie(c, 'access_token');
+  const authHeader = c.req.header('Authorization');
 
-  if (!authHeader) {
-    logAuthFailure('No authorization header provided', {
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
+  // Fallback to Authorization header if no cookie (for backward compatibility during migration)
+  const token = accessToken ?? (authHeader ? authHeader.replace('Bearer ', '') : null);
+
+  if (!token) {
+    const ip = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown';
+    const userAgent = c.req.header('User-Agent') ?? 'unknown';
+    logAuthFailure('No authentication token provided', {
+      ip,
+      userAgent,
+      hasCookie: !!accessToken,
+      hasHeader: !!authHeader,
     });
-    throw new UnauthorizedError('No authorization header provided');
+    throw new UnauthorizedError('No authentication token provided');
   }
 
-  const token = authHeader.replace('Bearer ', '');
   let userInfo: {sub: string; email?: string};
   try {
     userInfo = await getUserFromToken(token);
   } catch (error) {
+    const ip = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown';
+    const userAgent = c.req.header('User-Agent') ?? 'unknown';
     logAuthFailure('Token validation failed', {
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
+      ip,
+      userAgent,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;
@@ -77,7 +90,7 @@ export async function createContext(req: FastifyRequest): Promise<GraphQLContext
     userEmail: user.email,
     requestId,
     prisma,
-    request: req,
+    request: c,
     ...dataLoaders,
   };
 }

@@ -21,51 +21,24 @@
  */
 
 import {gql} from '@apollo/client';
+import {ACCOUNT_FIELDS, CATEGORY_FIELDS, PAYEE_FIELDS, TRANSACTION_FIELDS, BUDGET_FIELDS, RECURRING_TRANSACTION_FIELDS} from './fragments';
 
 export const CREATE_TRANSACTION = gql`
   mutation CreateTransaction($input: CreateTransactionInput!) {
     createTransaction(input: $input) {
-      id
-      value
-      date
-      account {
-        id
-        name
-      }
-      category {
-        id
-        name
-      }
-      payee {
-        id
-        name
-      }
-      note
+      ...TransactionFields
     }
   }
+  ${TRANSACTION_FIELDS}
 `;
 
 export const UPDATE_TRANSACTION = gql`
   mutation UpdateTransaction($id: ID!, $input: UpdateTransactionInput!) {
     updateTransaction(id: $id, input: $input) {
-      id
-      value
-      date
-      account {
-        id
-        name
-      }
-      category {
-        id
-        name
-      }
-      payee {
-        id
-        name
-      }
-      note
+      ...TransactionFields
     }
   }
+  ${TRANSACTION_FIELDS}
 `;
 
 export const DELETE_TRANSACTION = gql`
@@ -77,13 +50,10 @@ export const DELETE_TRANSACTION = gql`
 export const CREATE_ACCOUNT = gql`
   mutation CreateAccount($input: CreateAccountInput!) {
     createAccount(input: $input) {
-      id
-      name
-      initBalance
-      isDefault
-      balance
+      ...AccountFields
     }
   }
+  ${ACCOUNT_FIELDS}
 `;
 
 export const UPDATE_PREFERENCES = gql`
@@ -102,44 +72,19 @@ export const UPDATE_PREFERENCES = gql`
 export const CREATE_RECURRING_TRANSACTION = gql`
   mutation CreateRecurringTransaction($input: CreateRecurringTransactionInput!) {
     createRecurringTransaction(input: $input) {
-      id
-      cronExpression
-      value
-      accountId
-      account {
-        id
-        name
-      }
-      categoryId
-      category {
-        id
-        name
-        type
-      }
-      payeeId
-      payee {
-        id
-        name
-      }
-      note
-      nextRunDate
-      userId
-      createdAt
-      updatedAt
+      ...RecurringTransactionFields
     }
   }
+  ${RECURRING_TRANSACTION_FIELDS}
 `;
 
 export const UPDATE_ACCOUNT = gql`
   mutation UpdateAccount($id: ID!, $input: UpdateAccountInput!) {
     updateAccount(id: $id, input: $input) {
-      id
-      name
-      initBalance
-      isDefault
-      balance
+      ...AccountFields
     }
   }
+  ${ACCOUNT_FIELDS}
 `;
 
 export const DELETE_ACCOUNT = gql`
@@ -150,24 +95,20 @@ export const DELETE_ACCOUNT = gql`
 
 export const CREATE_CATEGORY = gql`
   mutation CreateCategory($input: CreateCategoryInput!) {
-      createCategory(input: $input) {
-        id
-        name
-        type
-        isDefault
-      }
+    createCategory(input: $input) {
+      ...CategoryFields
+    }
   }
+  ${CATEGORY_FIELDS}
 `;
 
 export const UPDATE_CATEGORY = gql`
   mutation UpdateCategory($id: ID!, $input: UpdateCategoryInput!) {
-      updateCategory(id: $id, input: $input) {
-        id
-        name
-        type
-        isDefault
-      }
+    updateCategory(id: $id, input: $input) {
+      ...CategoryFields
+    }
   }
+  ${CATEGORY_FIELDS}
 `;
 
 export const DELETE_CATEGORY = gql`
@@ -178,22 +119,20 @@ export const DELETE_CATEGORY = gql`
 
 export const CREATE_PAYEE = gql`
   mutation CreatePayee($input: CreatePayeeInput!) {
-      createPayee(input: $input) {
-        id
-        name
-        isDefault
-      }
+    createPayee(input: $input) {
+      ...PayeeFields
+    }
   }
+  ${PAYEE_FIELDS}
 `;
 
 export const UPDATE_PAYEE = gql`
   mutation UpdatePayee($id: ID!, $input: UpdatePayeeInput!) {
-      updatePayee(id: $id, input: $input) {
-        id
-        name
-        isDefault
-      }
+    updatePayee(id: $id, input: $input) {
+      ...PayeeFields
+    }
   }
+  ${PAYEE_FIELDS}
 `;
 
 export const DELETE_PAYEE = gql`
@@ -259,63 +198,19 @@ export const DELETE_UNMAPPED_IMPORTED_TRANSACTIONS = gql`
 export const CREATE_BUDGET = gql`
   mutation CreateBudget($input: CreateBudgetInput!) {
     createBudget(input: $input) {
-      id
-      userId
-      amount
-      currentSpent
-      accountId
-      categoryId
-      payeeId
-      account {
-        id
-        name
-      }
-      category {
-        id
-        name
-        type
-      }
-      payee {
-        id
-        name
-      }
-      percentageUsed
-      lastResetDate
-      createdAt
-      updatedAt
+      ...BudgetFields
     }
   }
+  ${BUDGET_FIELDS}
 `;
 
 export const UPDATE_BUDGET = gql`
   mutation UpdateBudget($id: ID!, $input: UpdateBudgetInput!) {
     updateBudget(id: $id, input: $input) {
-      id
-      userId
-      amount
-      currentSpent
-      accountId
-      categoryId
-      payeeId
-      account {
-        id
-        name
-      }
-      category {
-        id
-        name
-        type
-      }
-      payee {
-        id
-        name
-      }
-      percentageUsed
-      lastResetDate
-      createdAt
-      updatedAt
+      ...BudgetFields
     }
   }
+  ${BUDGET_FIELDS}
 `;
 
 export const DELETE_BUDGET = gql`

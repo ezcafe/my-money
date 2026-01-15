@@ -38,21 +38,43 @@ export function AuthCallbackPage(): React.JSX.Element {
         return;
       }
 
+      // Check if this is a success redirect from backend
+      const successParam = searchParams.get('success');
+      if (successParam === 'true') {
+        // Validate state for CSRF protection
+        const state = searchParams.get('state');
+        const storedState = sessionStorage.getItem('oidc_state');
+
+        if (state && storedState && state === storedState) {
+          // State matches, clear it and redirect to home
+          sessionStorage.removeItem('oidc_state');
+          setLoading(false);
+          void navigate('/', {replace: true});
+          return;
+        } else if (!state || !storedState) {
+          // Missing state - might be a direct visit or session expired
+          setError('Authentication state validation failed. Please try logging in again.');
+          setLoading(false);
+          return;
+        } else {
+          // State mismatch - possible CSRF attack
+          setError('Invalid authentication state. Please try logging in again.');
+          setLoading(false);
+          return;
+        }
+      }
+
       if (!code || !state) {
         setError('Missing authorization code or state parameter');
         setLoading(false);
         return;
       }
 
-      const success = await handleCallback(code, state);
+      // Redirect to backend callback endpoint
+      await handleCallback(code, state);
+      // handleCallback will redirect to backend, so we won't reach here
+      // But set loading to false just in case
       setLoading(false);
-
-      if (success) {
-        // Redirect to home page
-        void navigate('/', {replace: true});
-      } else {
-        setError('Failed to exchange authorization code for tokens. Please try again.');
-      }
     };
 
     void processCallback();

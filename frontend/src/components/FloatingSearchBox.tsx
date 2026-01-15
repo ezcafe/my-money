@@ -12,7 +12,7 @@ import {useSearch} from '../contexts/SearchContext';
 /**
  * Floating Search Box Component
  */
-export function FloatingSearchBox(): React.JSX.Element {
+export function FloatingSearchBox(): React.JSX.Element | null {
   const theme = useTheme();
   const location = useLocation();
   const {isSearchOpen, closeSearch, setSearchQuery, clearSearch, searchQuery} = useSearch();
@@ -77,7 +77,7 @@ export function FloatingSearchBox(): React.JSX.Element {
   };
 
   if (!isSearchOpen) {
-    return <></>;
+    return null;
   }
 
   return (

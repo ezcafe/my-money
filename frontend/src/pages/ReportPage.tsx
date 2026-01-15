@@ -39,9 +39,6 @@ import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, {type Dayjs} from 'dayjs';
 import {useQuery, useMutation} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
-import {LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, type TooltipProps} from 'recharts';
-import {jsPDF} from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {TextField} from '../components/ui/TextField';
@@ -55,9 +52,10 @@ import {DELETE_TRANSACTION} from '../graphql/mutations';
 import {useAccounts} from '../hooks/useAccounts';
 import {useDateFormat} from '../hooks/useDateFormat';
 import type {TransactionOrderInput, TransactionOrderByField} from '../hooks/useTransactions';
-import {ITEMS_PER_PAGE} from '../utils/constants';
+import {ITEMS_PER_PAGE} from '../constants';
 import {TransactionList} from '../components/TransactionList';
 import {SankeyChart} from '../components/SankeyChart';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Transaction type from report query
@@ -283,6 +281,48 @@ export function ReportPage(): React.JSX.Element {
 
   // Pagination state
   const [page, setPage] = useState(1);
+
+  // Dynamic imports for heavy dependencies
+  const [rechartsLoaded, setRechartsLoaded] = useState(false);
+  const [rechartsComponents, setRechartsComponents] = useState<{
+    LineChart: typeof import('recharts').LineChart;
+    Line: typeof import('recharts').Line;
+    BarChart: typeof import('recharts').BarChart;
+    Bar: typeof import('recharts').Bar;
+    PieChart: typeof import('recharts').PieChart;
+    Pie: typeof import('recharts').Pie;
+    Cell: typeof import('recharts').Cell;
+    XAxis: typeof import('recharts').XAxis;
+    YAxis: typeof import('recharts').YAxis;
+    CartesianGrid: typeof import('recharts').CartesianGrid;
+    Tooltip: typeof import('recharts').Tooltip;
+    Legend: typeof import('recharts').Legend;
+    ResponsiveContainer: typeof import('recharts').ResponsiveContainer;
+  } | null>(null);
+
+  // Load recharts dynamically when component mounts
+  useEffect(() => {
+    if (!rechartsLoaded) {
+      void import('recharts').then((recharts) => {
+        setRechartsComponents({
+          LineChart: recharts.LineChart,
+          Line: recharts.Line,
+          BarChart: recharts.BarChart,
+          Bar: recharts.Bar,
+          PieChart: recharts.PieChart,
+          Pie: recharts.Pie,
+          Cell: recharts.Cell,
+          XAxis: recharts.XAxis,
+          YAxis: recharts.YAxis,
+          CartesianGrid: recharts.CartesianGrid,
+          Tooltip: recharts.Tooltip,
+          Legend: recharts.Legend,
+          ResponsiveContainer: recharts.ResponsiveContainer,
+        });
+        setRechartsLoaded(true);
+      });
+    }
+  }, [rechartsLoaded]);
 
 
   // Date picker popover state
@@ -827,7 +867,7 @@ export function ReportPage(): React.JSX.Element {
    * Custom chart tooltip formatter for multiple series
    */
   const CustomTooltip = useCallback(
-    ({active, payload}: TooltipProps<number, string>) => {
+    ({active, payload}: {active?: boolean; payload?: Array<{name: string; value: number; dataKey: string; color?: string; payload?: ChartDataPoint}>}) => {
       if (active && payload && payload.length > 0) {
         const payloadData = payload[0]?.payload as ChartDataPoint | undefined;
         const date = payloadData?.date ?? '';
@@ -853,7 +893,7 @@ export function ReportPage(): React.JSX.Element {
                 <Typography
                   key={index}
                   variant="body2"
-                  sx={{color: entry.color, mb: 0.5}}
+                  sx={{color: entry.color ?? 'text.primary', mb: 0.5}}
                 >
                   {entry.name}: {formatCurrencyAbbreviated(Number(entry.value), currency)}
                 </Typography>
@@ -1200,7 +1240,13 @@ export function ReportPage(): React.JSX.Element {
   /**
    * Generate and download PDF
    */
-  const handleDownloadPDF = useCallback(() => {
+  const handleDownloadPDF = useCallback(async () => {
+    // Dynamically import jspdf and autotable
+    const [jsPDFModule, autoTable] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+    const jsPDF = jsPDFModule.default || (jsPDFModule as {jsPDF: typeof jsPDFModule.default}).jsPDF || jsPDFModule;
     const doc = new jsPDF();
     const margin = 20;
     let yPosition = margin;
@@ -1272,7 +1318,7 @@ export function ReportPage(): React.JSX.Element {
     ]);
 
     // Add table
-    autoTable(doc, {
+    autoTable.default(doc, {
       head: [['Date', 'Value', 'Account', 'Category', 'Payee', 'Note']],
       body: tableData,
       startY: yPosition,
@@ -1313,7 +1359,7 @@ export function ReportPage(): React.JSX.Element {
   const datePresets = getDatePresets();
 
   return (
-    <Box sx={{maxWidth: '1400px', mx: 'auto'}}>
+    <Box sx={pageContainerStyle}>
       {/* Filters Section */}
       <Card sx={{p: 3, mb: 3}}>
         <Box
@@ -1573,14 +1619,18 @@ export function ReportPage(): React.JSX.Element {
             </ToggleButtonGroup>
           </Box>
           <Box sx={{width: '100%', height: 400}}>
-            {chartType === 'sankey' ? (
+            {!rechartsLoaded || !rechartsComponents ? (
+              <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%'}}>
+                <CircularProgress />
+              </Box>
+            ) : chartType === 'sankey' ? (
               sankeyData && (
                 <SankeyChart data={sankeyData} height={400} currency={currency} />
               )
             ) : chartType === 'pie' ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
+              <rechartsComponents.ResponsiveContainer width="100%" height="100%">
+                <rechartsComponents.PieChart>
+                  <rechartsComponents.Pie
                     data={pieChartData}
                     cx="50%"
                     cy="50%"
@@ -1594,13 +1644,13 @@ export function ReportPage(): React.JSX.Element {
                       const baseColor = getSeriesColor(index);
                       // Reduce opacity if item is in hiddenSeries (toggled state)
                       const opacity = hiddenSeries.has(item.name) ? 0.3 : 1;
-                      return <Cell key={`cell-${item.name}`} fill={baseColor} opacity={opacity} />;
+                      return <rechartsComponents.Cell key={`cell-${item.name}`} fill={baseColor} opacity={opacity} />;
                     })}
-                  </Pie>
-                  <Tooltip
+                  </rechartsComponents.Pie>
+                  <rechartsComponents.Tooltip
                     formatter={(value: unknown): string => formatCurrencyAbbreviated(Number(value), currency)}
                   />
-                  <Legend
+                  <rechartsComponents.Legend
                     onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
                       const payload = data as {value?: unknown; dataKey?: string | number};
                       if (payload.value && typeof payload.value === 'string') {
@@ -1618,25 +1668,25 @@ export function ReportPage(): React.JSX.Element {
                     iconSize={12}
                     wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
                   />
-                </PieChart>
-              </ResponsiveContainer>
+                </rechartsComponents.PieChart>
+              </rechartsComponents.ResponsiveContainer>
             ) : chartType === 'stacked' ? (
               budgetChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={budgetChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
-                    <XAxis
+                <rechartsComponents.ResponsiveContainer width="100%" height="100%">
+                  <rechartsComponents.BarChart data={budgetChartData}>
+                    <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+                    <rechartsComponents.XAxis
                       dataKey="month"
                       stroke={theme.palette.text.secondary}
                       tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
                     />
-                    <YAxis
+                    <rechartsComponents.YAxis
                       tickFormatter={formatYAxisTick}
                       stroke={theme.palette.text.secondary}
                       tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
                     />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend
+                    <rechartsComponents.Tooltip content={<CustomTooltip />} />
+                    <rechartsComponents.Legend
                       onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
                         const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
                         if (payload.dataKey && typeof payload.dataKey === 'string') {
@@ -1657,7 +1707,7 @@ export function ReportPage(): React.JSX.Element {
                         const actualOpacity = hiddenSeries.has(actualKey) ? 0.3 : 1;
                         return (
                           <React.Fragment key={budget.id}>
-                            <Bar
+                            <rechartsComponents.Bar
                               dataKey={budgetKey}
                               stackId="budget"
                               fill={getSeriesColor(index * 2)}
@@ -1665,7 +1715,7 @@ export function ReportPage(): React.JSX.Element {
                               radius={[0, 0, 0, 0]}
                               opacity={budgetOpacity}
                             />
-                            <Bar
+                            <rechartsComponents.Bar
                               dataKey={actualKey}
                               stackId="actual"
                               fill={getSeriesColor(index * 2 + 1)}
@@ -1676,8 +1726,8 @@ export function ReportPage(): React.JSX.Element {
                           </React.Fragment>
                         );
                       })}
-                  </BarChart>
-                </ResponsiveContainer>
+                  </rechartsComponents.BarChart>
+                </rechartsComponents.ResponsiveContainer>
               ) : (
                 <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 2}}>
                   <Typography variant="body2" color="text.secondary">
@@ -1689,22 +1739,22 @@ export function ReportPage(): React.JSX.Element {
                 </Box>
               )
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <rechartsComponents.ResponsiveContainer width="100%" height="100%">
                 {chartType === 'line' ? (
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
-                    <XAxis
+                  <rechartsComponents.LineChart data={chartData}>
+                    <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+                    <rechartsComponents.XAxis
                       dataKey="date"
                       stroke={theme.palette.text.secondary}
                       tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
                     />
-                    <YAxis
+                    <rechartsComponents.YAxis
                       tickFormatter={formatYAxisTick}
                       stroke={theme.palette.text.secondary}
                       tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
                     />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend
+                    <rechartsComponents.Tooltip content={<CustomTooltip />} />
+                    <rechartsComponents.Legend
                       onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
                         const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
                         if (payload.dataKey && typeof payload.dataKey === 'string') {
@@ -1715,7 +1765,7 @@ export function ReportPage(): React.JSX.Element {
                       iconSize={12}
                       wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
                     />
-                    <Line
+                    <rechartsComponents.Line
                       type="monotone"
                       dataKey="income"
                       stroke={theme.palette.success.main}
@@ -1726,7 +1776,7 @@ export function ReportPage(): React.JSX.Element {
                       connectNulls
                       strokeOpacity={hiddenSeries.has('income') ? 0.3 : 1}
                     />
-                    <Line
+                    <rechartsComponents.Line
                       type="monotone"
                       dataKey="expense"
                       stroke={theme.palette.error.main}
@@ -1737,22 +1787,22 @@ export function ReportPage(): React.JSX.Element {
                       connectNulls
                       strokeOpacity={hiddenSeries.has('expense') ? 0.3 : 1}
                     />
-                  </LineChart>
+                  </rechartsComponents.LineChart>
                 ) : (
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
-                    <XAxis
+                  <rechartsComponents.BarChart data={chartData}>
+                    <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+                    <rechartsComponents.XAxis
                       dataKey="date"
                       stroke={theme.palette.text.secondary}
                       tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
                     />
-                    <YAxis
+                    <rechartsComponents.YAxis
                       tickFormatter={formatYAxisTick}
                       stroke={theme.palette.text.secondary}
                       tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
                     />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend
+                    <rechartsComponents.Tooltip content={<CustomTooltip />} />
+                    <rechartsComponents.Legend
                       onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
                         const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
                         if (payload.dataKey && typeof payload.dataKey === 'string') {
@@ -1766,7 +1816,7 @@ export function ReportPage(): React.JSX.Element {
                     {chartSeriesKeys.map((seriesKey, index) => {
                       const opacity = hiddenSeries.has(seriesKey) ? 0.3 : 1;
                       return (
-                        <Bar
+                        <rechartsComponents.Bar
                           key={seriesKey}
                           dataKey={seriesKey}
                           fill={getSeriesColor(index)}
@@ -1776,9 +1826,9 @@ export function ReportPage(): React.JSX.Element {
                         />
                       );
                     })}
-                  </BarChart>
+                  </rechartsComponents.BarChart>
                 )}
-              </ResponsiveContainer>
+              </rechartsComponents.ResponsiveContainer>
             )}
           </Box>
           {/* Chart Descriptions */}

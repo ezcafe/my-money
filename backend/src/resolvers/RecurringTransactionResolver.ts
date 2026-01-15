@@ -3,14 +3,16 @@
  * Handles recurring transaction-related GraphQL operations
  */
 
- 
+
 import type {GraphQLContext} from '../middleware/context';
+import type {RecurringTransaction} from '@prisma/client';
 import {NotFoundError} from '../utils/errors';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
 import cronValidator from 'cron-validator';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {validateContext} from '../utils/baseResolver';
+import {BaseResolver} from './BaseResolver';
 
 /**
  * Validate cron expression
@@ -54,11 +56,11 @@ const UpdateRecurringTransactionInputSchema = z.object({
   nextRunDate: z.date().optional(),
 });
 
-export class RecurringTransactionResolver {
+export class RecurringTransactionResolver extends BaseResolver {
   /**
    * Get all recurring transactions for current user
    */
-  async recurringTransactions(_: unknown, __: unknown, context: GraphQLContext) {
+  async recurringTransactions(_: unknown, __: unknown, context: GraphQLContext): Promise<RecurringTransaction[]> {
     validateContext(context);
     return await withPrismaErrorHandling(
       async () => {
@@ -97,56 +99,38 @@ export class RecurringTransactionResolver {
       };
     },
     context: GraphQLContext,
-  ) {
+  ): Promise<RecurringTransaction> {
     const validatedInput = validate(CreateRecurringTransactionInputSchema, input);
 
     // Verify account belongs to user
-    const account = await context.prisma.account.findFirst({
-      where: {
-        id: validatedInput.accountId,
-        userId: context.userId,
-      },
-      select: {id: true},
-    });
-
-    if (!account) {
-      throw new NotFoundError('Account');
-    }
+    await this.requireEntityOwnership(
+      context.prisma,
+      'account',
+      validatedInput.accountId,
+      context.userId,
+      {id: true},
+    );
 
     // Verify category if provided
     if (validatedInput.categoryId) {
-      const category = await context.prisma.category.findFirst({
-        where: {
-          id: validatedInput.categoryId,
-          OR: [
-            {userId: context.userId},
-            {isDefault: true},
-          ],
-        },
-        select: {id: true},
-      });
-
-      if (!category) {
-        throw new NotFoundError('Category');
-      }
+      await this.requireEntityOwnership(
+        context.prisma,
+        'category',
+        validatedInput.categoryId,
+        context.userId,
+        {id: true},
+      );
     }
 
     // Verify payee if provided
     if (validatedInput.payeeId) {
-      const payee = await context.prisma.payee.findFirst({
-        where: {
-          id: validatedInput.payeeId,
-          OR: [
-            {userId: context.userId},
-            {isDefault: true},
-          ],
-        },
-        select: {id: true},
-      });
-
-      if (!payee) {
-        throw new NotFoundError('Payee');
-      }
+      await this.requireEntityOwnership(
+        context.prisma,
+        'payee',
+        validatedInput.payeeId,
+        context.userId,
+        {id: true},
+      );
     }
 
     const recurringTransaction = await context.prisma.recurringTransaction.create({
@@ -191,7 +175,7 @@ export class RecurringTransactionResolver {
       };
     },
     context: GraphQLContext,
-  ) {
+  ): Promise<RecurringTransaction> {
     const validatedInput = validate(UpdateRecurringTransactionInputSchema, input);
 
     // Verify recurring transaction belongs to user
@@ -248,7 +232,7 @@ export class RecurringTransactionResolver {
   /**
    * Delete recurring transaction
    */
-  async deleteRecurringTransaction(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async deleteRecurringTransaction(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
     const recurringTransaction = await context.prisma.recurringTransaction.findFirst({
       where: {
         id,

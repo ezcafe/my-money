@@ -11,14 +11,12 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
-  Paper,
   useMediaQuery,
   useTheme,
   LinearProgress,
@@ -29,14 +27,15 @@ import {Upload as UploadIcon, Description as DescriptionIcon, CheckCircle as Che
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
 import {validateFileType, validateFileSize} from '../utils/validation';
-import {ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES} from '../utils/constants';
+import {ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES} from '../constants';
 import {useMutation} from '@apollo/client/react';
 import {UPLOAD_PDF, SAVE_IMPORTED_TRANSACTIONS, DELETE_UNMAPPED_IMPORTED_TRANSACTIONS} from '../graphql/mutations';
 import {GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS} from '../graphql/queries';
 import {useAccounts} from '../hooks/useAccounts';
 import {useCategories} from '../hooks/useCategories';
 import {usePayees} from '../hooks/usePayees';
-import {MAX_RECENT_TRANSACTIONS} from '../utils/constants';
+import {MAX_RECENT_TRANSACTIONS} from '../constants';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Unmapped transaction type
@@ -254,7 +253,7 @@ export function ImportPage(): React.JSX.Element {
     setError(null);
     setSuccessMessage(null);
 
-    if (!validateFileType(selectedFile, ALLOWED_FILE_TYPES)) {
+    if (!validateFileType(selectedFile, [...ALLOWED_FILE_TYPES])) {
       setError('Please select a PDF file');
       return;
     }
@@ -399,163 +398,161 @@ export function ImportPage(): React.JSX.Element {
   };
 
   return (
-    <Box sx={{display: 'flex', flexDirection: 'column', gap: 3, maxWidth: {xs: '100%', md: '900px'}, mx: 'auto'}}>
+    <Box sx={{display: 'flex', flexDirection: 'column', gap: 3, ...pageContainerStyle}}>
       {/* Upload Section */}
       <Card>
-        <Box sx={{p: 3, pb: 2}}>
+        <Box sx={{p: 3}}>
           <Typography variant="h6" component="h2" gutterBottom>
             Upload Credit Card Statement
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
             Upload a PDF statement from your credit card provider. The system will automatically extract and categorize transactions.
           </Typography>
-        </Box>
 
-        {error && (
-          <Alert severity="error" sx={{mb: 2, mx: 3}} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-        {successMessage && (
-          <Alert severity="success" sx={{mb: 2, mx: 3}} onClose={() => setSuccessMessage(null)}>
-            {successMessage}
-          </Alert>
-        )}
+          {error ? (
+            <Alert severity="error" sx={{mb: 3}} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          ) : null}
+          {successMessage ? (
+            <Alert severity="success" sx={{mb: 3}} onClose={() => setSuccessMessage(null)}>
+              {successMessage}
+            </Alert>
+          ) : null}
 
-        <Box sx={{px: 3, pb: 3}}>
-        {/* Date Format Selection */}
-        <Box sx={{mb: 3}}>
-          <FormControl fullWidth>
-            <InputLabel>Date Format in PDF</InputLabel>
-            <Select
-              value={dateFormat}
-              label="Date Format in PDF"
-              onChange={(e): void => {
-                setDateFormat(e.target.value);
-              }}
-            >
-              <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
-              <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
-              <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
-              <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
-              <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
-            </Select>
-            <Typography variant="caption" color="text.secondary" sx={{mt: 1, display: 'block'}}>
-              Select the date format used in your PDF statement
-            </Typography>
-          </FormControl>
-        </Box>
+          {/* Date Format Selection */}
+          <Box sx={{mb: 3}}>
+            <FormControl fullWidth>
+              <InputLabel>Date Format in PDF</InputLabel>
+              <Select
+                value={dateFormat}
+                label="Date Format in PDF"
+                onChange={(e): void => {
+                  setDateFormat(e.target.value);
+                }}
+              >
+                <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
+                <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
+                <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
+                <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
+                <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
+              </Select>
+              <Typography variant="caption" color="text.secondary" sx={{mt: 1, display: 'block'}}>
+                Select the date format used in your PDF statement
+              </Typography>
+            </FormControl>
+          </Box>
 
-        {/* File Upload Area */}
-        <Box
-          onDragOver={!isMobile ? handleDragOver : undefined}
-          onDragLeave={!isMobile ? handleDragLeave : undefined}
-          onDrop={!isMobile ? handleDrop : undefined}
-          sx={{
-            border: `2px dashed ${isDragging && !isMobile ? theme.palette.primary.main : theme.palette.divider}`,
-            borderRadius: 0, // Flat style: no rounded corners
-            p: 4,
-            textAlign: 'center',
-            backgroundColor: isDragging && !isMobile ? theme.palette.action.hover : 'transparent',
-            transition: 'all 0.2s ease-in-out',
-            cursor: 'pointer',
-            mb: 2,
-          }}
-          onClick={(): void => {
-            document.getElementById('pdf-upload-input')?.click();
-          }}
-        >
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={handleFileChange}
-            style={{display: 'none'}}
-            id="pdf-upload-input"
-          />
+          {/* File Upload Area */}
+          <Box
+            onDragOver={!isMobile ? handleDragOver : undefined}
+            onDragLeave={!isMobile ? handleDragLeave : undefined}
+            onDrop={!isMobile ? handleDrop : undefined}
+            sx={{
+              border: `2px dashed ${isDragging && !isMobile ? theme.palette.primary.main : theme.palette.divider}`,
+              borderRadius: 0,
+              p: 4,
+              textAlign: 'center',
+              backgroundColor: isDragging && !isMobile ? theme.palette.action.hover : 'transparent',
+              transition: 'all 0.2s ease-in-out',
+              cursor: 'pointer',
+              mb: 3,
+            }}
+            onClick={(): void => {
+              document.getElementById('pdf-upload-input')?.click();
+            }}
+          >
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handleFileChange}
+              style={{display: 'none'}}
+              id="pdf-upload-input"
+            />
+            {file ? (
+              <Box>
+                <CheckCircleIcon color="success" sx={{fontSize: 48, mb: 1}} />
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  sx={{
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    px: 1,
+                  }}
+                  title={file.name}
+                >
+                  {file.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+                  {formatFileSize(file.size)}
+                </Typography>
+                <Button
+                  variant="outlined"
+                  startIcon={<CancelIcon />}
+                  onClick={(e): void => {
+                    e.stopPropagation();
+                    setFile(null);
+                    setError(null);
+                    setSuccessMessage(null);
+                  }}
+                >
+                  Remove File
+                </Button>
+              </Box>
+            ) : (
+              <Box>
+                <UploadIcon sx={{fontSize: 48, color: 'text.secondary', mb: 2}} />
+                <Typography variant="h6" gutterBottom>
+                  {!isMobile && isDragging
+                    ? 'Drop PDF file here'
+                    : !isMobile
+                      ? 'Drag and drop PDF file here'
+                      : 'Select PDF File'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+                  {!isMobile ? 'or click to browse' : 'Tap to browse files'}
+                </Typography>
+                <Button variant="outlined" startIcon={<UploadIcon />} component="span">
+                  Select PDF File
+                </Button>
+                <Typography variant="caption" color="text.secondary" sx={{mt: 2, display: 'block'}}>
+                  Maximum file size: {MAX_FILE_SIZE_BYTES / 1024 / 1024}MB
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Upload Button */}
           {file ? (
             <Box>
-              <CheckCircleIcon color="success" sx={{fontSize: 48, mb: 1}} />
-              <Typography
-                variant="h6"
-                gutterBottom
-                sx={{
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                  maxWidth: '100%',
-                  overflow: 'hidden',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  px: 1,
-                }}
-                title={file.name}
-              >
-                {file.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
-                {formatFileSize(file.size)}
-              </Typography>
+              {uploading ? <LinearProgress sx={{mb: 2}} /> : null}
               <Button
-                variant="outlined"
-                startIcon={<CancelIcon />}
-                onClick={(e): void => {
-                  e.stopPropagation();
-                  setFile(null);
-                  setError(null);
-                  setSuccessMessage(null);
+                variant="contained"
+                fullWidth
+                size="large"
+                onClick={(): void => {
+                  void handleUpload();
                 }}
+                disabled={!file || uploading}
+                startIcon={uploading ? undefined : <DescriptionIcon />}
               >
-                Remove File
+                {uploading ? 'Uploading and Parsing...' : 'Upload and Parse Statement'}
               </Button>
             </Box>
-          ) : (
-            <Box>
-              <UploadIcon sx={{fontSize: 48, color: 'text.secondary', mb: 2}} />
-              <Typography variant="h6" gutterBottom>
-                {!isMobile && isDragging
-                  ? 'Drop PDF file here'
-                  : !isMobile
-                    ? 'Drag and drop PDF file here'
-                    : 'Select PDF File'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
-                {!isMobile ? 'or click to browse' : 'Tap to browse files'}
-              </Typography>
-              <Button variant="outlined" startIcon={<UploadIcon />} component="span">
-                Select PDF File
-              </Button>
-              <Typography variant="caption" color="text.secondary" sx={{mt: 2, display: 'block'}}>
-                Maximum file size: {MAX_FILE_SIZE_BYTES / 1024 / 1024}MB
-              </Typography>
-            </Box>
-          )}
-        </Box>
-
-        {/* Upload Button */}
-        {file && (
-          <Box>
-            {uploading && <LinearProgress sx={{mb: 2}} />}
-            <Button
-              variant="contained"
-              fullWidth
-              size="large"
-              onClick={(): void => {
-                void handleUpload();
-              }}
-              disabled={!file || uploading}
-              startIcon={uploading ? undefined : <DescriptionIcon />}
-            >
-              {uploading ? 'Uploading and Parsing...' : 'Upload and Parse Statement'}
-            </Button>
-          </Box>
-        )}
+          ) : null}
         </Box>
       </Card>
 
       {/* Mapping Section */}
       {unmappedTransactions.length > 0 && (
         <Card>
-          <Box sx={{p: 3, mb: 3}}>
+          <Box sx={{p: 3}}>
             <Box sx={{display: 'flex', alignItems: 'center', gap: 2, mb: 1, flexWrap: 'wrap'}}>
               <Typography variant="h6" component="h2">
                 Map Transactions
@@ -563,54 +560,52 @@ export function ImportPage(): React.JSX.Element {
               <Chip label={`${unmappedTransactions.length} transaction${unmappedTransactions.length !== 1 ? 's' : ''}`} size="small" color="primary" />
               <Chip label={`${uniqueDescriptions.length} unique description${uniqueDescriptions.length !== 1 ? 's' : ''}`} size="small" />
             </Box>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
               Some transactions need manual mapping. Please assign an account, category, and payee for each unique transaction description.
             </Typography>
-          </Box>
-          <Box sx={{px: 3, pb: 3}}>
-          {/* Card number mapping */}
-          {cardNumber && (
-            <Box sx={{mb: 3, p: 2, backgroundColor: 'action.hover', borderRadius: 1, mx: 3}}>
-              <Typography variant="subtitle2" gutterBottom>
-                Card Number Mapping
+
+            {/* Card number mapping */}
+            {cardNumber ? (
+              <Box sx={{mb: 3, p: 2, backgroundColor: 'action.hover', borderRadius: 1}}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Card Number Mapping
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{mb: 2, display: 'block'}}>
+                  Card Number: <strong>{cardNumber}</strong>
+                </Typography>
+                <FormControl fullWidth>
+                  <InputLabel>Select Account</InputLabel>
+                  <Select
+                    value={cardAccountId}
+                    label="Select Account"
+                    onChange={(e): void => {
+                      setCardAccountId(e.target.value);
+                    }}
+                  >
+                    {accounts.map((account) => (
+                      <MenuItem key={account.id} value={account.id}>
+                        {account.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            ) : null}
+
+            {cardNumber ? <Divider sx={{my: 3}} /> : null}
+
+            {/* Description mappings table */}
+            <Box sx={{mb: 2}}>
+              <Typography variant="subtitle1" gutterBottom>
+                Transaction Descriptions
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{mb: 2, display: 'block'}}>
-                Card Number: <strong>{cardNumber}</strong>
+              <Typography variant="caption" color="text.secondary">
+                Map each unique description to an account (required), category, and payee
               </Typography>
-              <FormControl fullWidth>
-                <InputLabel>Select Account</InputLabel>
-                <Select
-                  value={cardAccountId}
-                  label="Select Account"
-                  onChange={(e): void => {
-                    setCardAccountId(e.target.value);
-                  }}
-                >
-                  {accounts.map((account) => (
-                    <MenuItem key={account.id} value={account.id}>
-                      {account.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </Box>
-          )}
-
-          <Divider sx={{my: 3, mx: 3}} />
-
-          {/* Description mappings table */}
-          <Box sx={{mb: 2, mx: 3}}>
-            <Typography variant="subtitle1" gutterBottom>
-              Transaction Descriptions
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Map each unique description to an account (required), category, and payee
-            </Typography>
-          </Box>
-          <TableContainer component={Paper} sx={{mb: 3, mx: 3}}>
             {isMobile ? (
               // Mobile view: vertical stacking
-              <Box sx={{p: 1}}>
+              <Box sx={{mb: 3, backgroundColor: 'action.hover', borderRadius: 1, p: 1}}>
                 {uniqueDescriptions.map((desc) => {
                   const mapping = descriptionMappings.get(desc);
                   if (!mapping) return null;
@@ -623,12 +618,7 @@ export function ImportPage(): React.JSX.Element {
                       key={desc}
                       sx={{
                         p: 2.5,
-                        mb: 2,
-                        // border: '1px solid',
-                        // borderColor: 'divider',
-                        // borderRadius: 0, // Flat style: no rounded corners
-                        backgroundColor: 'background.paper',
-                        boxShadow: 'none', // Flat style: no shadows
+                        mb: 2
                       }}
                     >
                       <Box sx={{mb: 2, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider'}}>
@@ -693,115 +683,126 @@ export function ImportPage(): React.JSX.Element {
               </Box>
             ) : (
               // Desktop view: horizontal table
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Transaction Description</TableCell>
-                    <TableCell>Account</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Payee</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {uniqueDescriptions.map((desc) => {
-                    const mapping = descriptionMappings.get(desc);
-                    if (!mapping) return null;
+              <Box
+                sx={{
+                  mb: 3,
+                  backgroundColor: 'action.hover',
+                  borderRadius: 1,
+                  width: '100%',
+                  maxWidth: '100%',
+                  overflow: 'auto',
+                }}
+              >
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Transaction Description</TableCell>
+                      <TableCell>Account</TableCell>
+                      <TableCell>Category</TableCell>
+                      <TableCell>Payee</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {uniqueDescriptions.map((desc) => {
+                      const mapping = descriptionMappings.get(desc);
+                      if (!mapping) return null;
 
-                    // Count transactions with this description
-                    const count = unmappedTransactions.filter((txn) => txn.rawDescription === desc).length;
+                      // Count transactions with this description
+                      const count = unmappedTransactions.filter((txn) => txn.rawDescription === desc).length;
 
-                    return (
-                      <TableRow key={desc}>
-                        <TableCell>
-                          <Typography variant="body2">{desc}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            ({count} transaction{count !== 1 ? 's' : ''})
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <FormControl size="small" fullWidth required>
-                            <InputLabel>Account</InputLabel>
-                            <Select
-                              value={mapping.accountId}
-                              label="Account"
-                              onChange={(e): void => {
-                                handleDescriptionMappingChange(desc, 'accountId', e.target.value);
-                              }}
-                            >
-                              {accounts.map((account) => (
-                                <MenuItem key={account.id} value={account.id}>
-                                  {account.name}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        </TableCell>
-                        <TableCell>
-                          <FormControl size="small" fullWidth>
-                            <InputLabel>Category</InputLabel>
-                            <Select
-                              value={mapping.categoryId}
-                              label="Category"
-                              onChange={(e): void => {
-                                handleDescriptionMappingChange(desc, 'categoryId', e.target.value);
-                              }}
-                            >
-                              {categories.map((category) => (
-                                <MenuItem key={category.id} value={category.id}>
-                                  {category.name}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        </TableCell>
-                        <TableCell>
-                          <FormControl size="small" fullWidth>
-                            <InputLabel>Payee</InputLabel>
-                            <Select
-                              value={mapping.payeeId}
-                              label="Payee"
-                              onChange={(e): void => {
-                                handleDescriptionMappingChange(desc, 'payeeId', e.target.value);
-                              }}
-                            >
-                              {payees.map((payee) => (
-                                <MenuItem key={payee.id} value={payee.id}>
-                                  {payee.name}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                      return (
+                        <TableRow key={desc}>
+                          <TableCell>
+                            <Typography variant="body2">{desc}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              ({count} transaction{count !== 1 ? 's' : ''})
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <FormControl size="small" fullWidth required>
+                              <InputLabel>Account</InputLabel>
+                              <Select
+                                value={mapping.accountId}
+                                label="Account"
+                                onChange={(e): void => {
+                                  handleDescriptionMappingChange(desc, 'accountId', e.target.value);
+                                }}
+                              >
+                                {accounts.map((account) => (
+                                  <MenuItem key={account.id} value={account.id}>
+                                    {account.name}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                          <TableCell>
+                            <FormControl size="small" fullWidth>
+                              <InputLabel>Category</InputLabel>
+                              <Select
+                                value={mapping.categoryId}
+                                label="Category"
+                                onChange={(e): void => {
+                                  handleDescriptionMappingChange(desc, 'categoryId', e.target.value);
+                                }}
+                              >
+                                {categories.map((category) => (
+                                  <MenuItem key={category.id} value={category.id}>
+                                    {category.name}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                          <TableCell>
+                            <FormControl size="small" fullWidth>
+                              <InputLabel>Payee</InputLabel>
+                              <Select
+                                value={mapping.payeeId}
+                                label="Payee"
+                                onChange={(e): void => {
+                                  handleDescriptionMappingChange(desc, 'payeeId', e.target.value);
+                                }}
+                              >
+                                {payees.map((payee) => (
+                                  <MenuItem key={payee.id} value={payee.id}>
+                                    {payee.name}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Box>
             )}
-          </TableContainer>
-          <Divider sx={{my: 3, mx: 3}} />
 
-          {/* Action Buttons */}
-          <Box sx={{display: 'flex', flexDirection: {xs: 'column', sm: 'row'}, gap: 2, justifyContent: 'flex-end', px: 3, pb: 3}}>
-            <Button
-              variant="outlined"
-              onClick={(): void => void handleIgnore()}
-              disabled={deleting || saving}
-              fullWidth={isMobile}
-            >
-              {deleting ? 'Ignoring...' : 'Ignore All'}
-            </Button>
-            <Button
-              variant="contained"
-              onClick={(): void => void handleSave()}
-              disabled={saving || deleting}
-              fullWidth={isMobile}
-              size="large"
-            >
-              {saving ? 'Saving Transactions...' : 'Save All Transactions'}
-            </Button>
-          </Box>
-          {saving && <LinearProgress sx={{mt: 2, mx: 3}} />}
+            <Divider sx={{my: 3}} />
+
+            {/* Action Buttons */}
+            <Box sx={{display: 'flex', flexDirection: {xs: 'column', sm: 'row'}, gap: 2, justifyContent: 'flex-end'}}>
+              <Button
+                variant="outlined"
+                onClick={(): void => void handleIgnore()}
+                disabled={deleting || saving}
+                fullWidth={isMobile}
+              >
+                {deleting ? 'Ignoring...' : 'Ignore All'}
+              </Button>
+              <Button
+                variant="contained"
+                onClick={(): void => void handleSave()}
+                disabled={saving || deleting}
+                fullWidth={isMobile}
+                size="large"
+              >
+                {saving ? 'Saving Transactions...' : 'Save All Transactions'}
+              </Button>
+            </Box>
+            {saving ? <LinearProgress sx={{mt: 2}} /> : null}
           </Box>
         </Card>
       )}

@@ -7,6 +7,8 @@ const config: Config = {
   testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
   clearMocks: true,
   restoreMocks: true,
+  maxWorkers: '50%', // Use half of available CPUs
+  testTimeout: 10000, // 10 second timeout
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@resolvers/(.*)$': '<rootDir>/src/resolvers/$1',
@@ -19,6 +21,7 @@ const config: Config = {
     '!src/**/*.d.ts',
     '!src/**/__tests__/**',
     '!src/index.ts',
+    '!src/**/*.interface.ts', // Exclude type-only files
   ],
   coverageThreshold: {
     global: {
@@ -33,8 +36,10 @@ const config: Config = {
       tsconfig: {
         module: 'ESNext',
       },
+      isolatedModules: true, // Faster compilation
     }],
   },
+  moduleFileExtensions: ['ts', 'js', 'json'],
 };
 
 export default config;

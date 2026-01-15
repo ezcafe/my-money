@@ -3,16 +3,22 @@
  * Handles all transaction-related GraphQL operations
  */
 
- 
+
 import type {GraphQLContext} from '../middleware/context';
+import type {Transaction} from '@prisma/client';
 import {NotFoundError} from '../utils/errors';
 import {z} from 'zod';
 import {validate} from '../utils/validation';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {incrementAccountBalance} from '../services/AccountBalanceService';
-import {updateTransactionWithBalance} from '../services/TransactionService';
+import {createTransaction, updateTransactionWithBalance} from '../services/TransactionService';
 import {updateBudgetForTransaction} from '../services/BudgetService';
-import {sanitizeUserInput} from '../utils/sanitization';
+import {TransactionRepository} from '../repositories/TransactionRepository';
+import {CategoryRepository} from '../repositories/CategoryRepository';
+import {PayeeRepository} from '../repositories/PayeeRepository';
+import {AccountRepository} from '../repositories/AccountRepository';
+import {buildOrderBy} from '../utils/queryBuilder';
+import {BaseResolver} from './BaseResolver';
 
 const CreateTransactionInputSchema = z.object({
   value: z.number().finite(),
@@ -32,7 +38,7 @@ const UpdateTransactionInputSchema = z.object({
   note: z.string().max(1000).optional(),
 });
 
-export class TransactionResolver {
+export class TransactionResolver extends BaseResolver {
   /**
    * Get transactions with pagination
    */
@@ -42,26 +48,51 @@ export class TransactionResolver {
       accountId,
       categoryId,
       payeeId,
-      skip,
-      take,
       first,
+      after,
+      last,
+      before,
       orderBy,
       note,
     }: {
       accountId?: string;
       categoryId?: string;
       payeeId?: string;
-      skip?: number;
-      take?: number;
       first?: number;
       after?: string;
+      last?: number;
+      before?: string;
       orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'};
       note?: string;
     },
     context: GraphQLContext,
-  ) {
-    const limit = take ?? first ?? 20;
-    const offset = skip ?? 0;
+  ): Promise<{items: Transaction[]; totalCount: number; hasMore: boolean; nextCursor: string | null}> {
+    // Cursor-based pagination
+    let limit = first ?? last ?? 20;
+    let offset = 0;
+
+    // Parse cursor (base64 encoded offset)
+    if (after) {
+      try {
+        offset = Number.parseInt(Buffer.from(after, 'base64').toString('utf-8'), 10);
+      } catch {
+        offset = 0;
+      }
+    } else if (before) {
+      try {
+        const beforeOffset = Number.parseInt(Buffer.from(before, 'base64').toString('utf-8'), 10);
+        offset = Math.max(0, beforeOffset - (last ?? 20));
+      } catch {
+        offset = 0;
+      }
+    }
+
+    // Enforce maximum page size
+    const MAX_PAGE_SIZE = 100;
+    limit = Math.min(limit, MAX_PAGE_SIZE);
+    const transactionRepository = new TransactionRepository(context.prisma);
+    const categoryRepository = new CategoryRepository(context.prisma);
+    const payeeRepository = new PayeeRepository(context.prisma);
 
     const where: {
       userId: string;
@@ -81,16 +112,7 @@ export class TransactionResolver {
 
     if (categoryId) {
       // Verify category exists and is accessible to user (user-specific or default)
-      const category = await context.prisma.category.findFirst({
-        where: {
-          id: categoryId,
-          OR: [
-            {userId: context.userId},
-            {isDefault: true},
-          ],
-        },
-        select: {id: true},
-      });
+      const category = await categoryRepository.findById(categoryId, context.userId, {id: true});
 
       if (!category) {
         throw new NotFoundError('Category');
@@ -101,16 +123,7 @@ export class TransactionResolver {
 
     if (payeeId) {
       // Verify payee exists and is accessible to user (user-specific or default)
-      const payee = await context.prisma.payee.findFirst({
-        where: {
-          id: payeeId,
-          OR: [
-            {userId: context.userId},
-            {isDefault: true},
-          ],
-        },
-        select: {id: true},
-      });
+      const payee = await payeeRepository.findById(payeeId, context.userId, {id: true});
 
       if (!payee) {
         throw new NotFoundError('Payee');
@@ -128,51 +141,32 @@ export class TransactionResolver {
     }
 
     // Build orderBy based on field type
-    const orderField = orderBy?.field ?? 'date';
-    const orderDirection = orderBy?.direction ?? 'desc';
-
-    let prismaOrderBy: Record<string, string | Record<string, string>>;
-
-    switch (orderField) {
-      case 'date':
-        prismaOrderBy = {date: orderDirection};
-        break;
-      case 'value':
-        prismaOrderBy = {value: orderDirection};
-        break;
-      case 'category':
-        prismaOrderBy = {category: {name: orderDirection}};
-        break;
-      case 'account':
-        prismaOrderBy = {account: {name: orderDirection}};
-        break;
-      case 'payee':
-        prismaOrderBy = {payee: {name: orderDirection}};
-        break;
-      default:
-        prismaOrderBy = {date: orderDirection};
-    }
+    const prismaOrderBy = buildOrderBy(orderBy);
 
     const [items, totalCount] = await Promise.all([
-      context.prisma.transaction.findMany({
-        where,
+      transactionRepository.findMany(where, {
         skip: offset,
         take: limit + 1, // Fetch one extra to determine hasMore
         orderBy: prismaOrderBy,
         // Relations are loaded via DataLoaders in GraphQL field resolvers
         // This prevents N+1 query problems
       }),
-      context.prisma.transaction.count({where}),
+      transactionRepository.count(where),
     ]);
 
     const hasMore = items.length > limit;
     const transactions = hasMore ? items.slice(0, limit) : items;
 
+    // Generate cursor for next page (base64 encoded offset)
+    const nextCursor = hasMore
+      ? Buffer.from(String(offset + limit), 'utf-8').toString('base64')
+      : null;
+
     return {
       items: transactions,
       totalCount,
       hasMore,
-      nextCursor: hasMore ? String(offset + limit) : null,
+      nextCursor,
     };
   }
 
@@ -191,42 +185,22 @@ export class TransactionResolver {
       orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'};
     },
     context: GraphQLContext,
-  ) {
-    // Default to date descending (most recent first)
-    const orderField = orderBy?.field ?? 'date';
-    const orderDirection = orderBy?.direction ?? 'desc';
-
+  ): Promise<Transaction[]> {
     // Build Prisma orderBy based on field type
-    let prismaOrderBy: Record<string, string | Record<string, string>>;
+    const prismaOrderBy = buildOrderBy(orderBy);
 
-    switch (orderField) {
-      case 'date':
-        prismaOrderBy = {date: orderDirection};
-        break;
-      case 'value':
-        prismaOrderBy = {value: orderDirection};
-        break;
-      case 'category':
-        prismaOrderBy = {category: {name: orderDirection}};
-        break;
-      case 'account':
-        prismaOrderBy = {account: {name: orderDirection}};
-        break;
-      case 'payee':
-        prismaOrderBy = {payee: {name: orderDirection}};
-        break;
-      default:
-        prismaOrderBy = {date: orderDirection};
-    }
+    const transactionRepository = new TransactionRepository(context.prisma);
 
     // Get transactions with ordering
     // Relations are loaded via DataLoaders in GraphQL field resolvers
     // This prevents N+1 query problems and reduces memory usage
-    const transactions = await context.prisma.transaction.findMany({
-      where: {userId: context.userId},
-      take: limit,
-      orderBy: prismaOrderBy,
-    });
+    const transactions = await transactionRepository.findMany(
+      {userId: context.userId},
+      {
+        take: limit,
+        orderBy: prismaOrderBy,
+      },
+    );
 
     return transactions;
   }
@@ -235,17 +209,17 @@ export class TransactionResolver {
    * Get transaction by ID
    */
   async transaction(_: unknown, {id}: {id: string}, context: GraphQLContext) {
-    const transaction = await context.prisma.transaction.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-      include: {
+    const transactionRepository = new TransactionRepository(context.prisma);
+    const transaction = await transactionRepository.findById(
+      id,
+      context.userId,
+      undefined,
+      {
         account: true,
         category: true,
         payee: true,
       },
-    });
+    );
 
     return transaction;
   }
@@ -259,124 +233,21 @@ export class TransactionResolver {
     _: unknown,
     {input}: {input: unknown},
     context: GraphQLContext,
-  ) {
+  ): Promise<Transaction> {
     // Validate input
     const validatedInput = validate(CreateTransactionInputSchema, input);
 
-    // Verify account belongs to user
-    const account = await context.prisma.account.findFirst({
-      where: {
-        id: validatedInput.accountId,
-        userId: context.userId,
-      },
-      select: {id: true},
-    });
-
-    if (!account) {
-      throw new NotFoundError('Account');
-    }
-
-    // Verify category and payee in parallel if both are provided
-    // This reduces database round-trips from 2 to 1 when both are present
-    let category: {type: 'INCOME' | 'EXPENSE'} | null = null;
-
-    const [foundCategory, foundPayee] = await Promise.all([
-      validatedInput.categoryId
-        ? context.prisma.category.findFirst({
-            where: {
-              id: validatedInput.categoryId,
-              OR: [
-                {userId: context.userId},
-                {isDefault: true},
-              ],
-            },
-            select: {id: true, type: true},
-          })
-        : Promise.resolve(null),
-      validatedInput.payeeId
-        ? context.prisma.payee.findFirst({
-            where: {
-              id: validatedInput.payeeId,
-              OR: [
-                {userId: context.userId},
-                {isDefault: true},
-              ],
-            },
-            select: {id: true},
-          })
-        : Promise.resolve(null),
-    ]);
-
-    if (validatedInput.categoryId && !foundCategory) {
-      throw new NotFoundError('Category');
-    }
-    category = foundCategory;
-
-    if (validatedInput.payeeId && !foundPayee) {
-      throw new NotFoundError('Payee');
-    }
-
-    // Calculate balance delta based on category type
-    // Income categories add money, Expense categories (or no category) subtract money
-    const balanceDelta = category?.type === 'INCOME'
-      ? validatedInput.value
-      : -validatedInput.value;
-
-    // Create transaction and update account balance atomically
+    // Use service layer for business logic
     const transaction = await withPrismaErrorHandling(
-      async () =>
-        await context.prisma.$transaction(async (tx) => {
-          // Create transaction
-          const newTransaction = await tx.transaction.create({
-            data: {
-              value: validatedInput.value,
-              date: validatedInput.date ?? new Date(),
-              accountId: validatedInput.accountId,
-              categoryId: validatedInput.categoryId,
-              payeeId: validatedInput.payeeId,
-              note: validatedInput.note ? sanitizeUserInput(validatedInput.note) : null,
-              userId: context.userId,
-            },
-          });
-
-          // Update account balance incrementally based on category type
-          await incrementAccountBalance(validatedInput.accountId, balanceDelta, tx);
-
-          // Return transaction with relations
-          const transactionWithRelations = await tx.transaction.findUnique({
-            where: {id: newTransaction.id},
-            include: {
-              account: true,
-              category: true,
-              payee: true,
-            },
-          });
-
-          // Update budgets for this transaction
-          if (transactionWithRelations) {
-            await updateBudgetForTransaction(
-              {
-                id: transactionWithRelations.id,
-                accountId: transactionWithRelations.accountId,
-                categoryId: transactionWithRelations.categoryId,
-                payeeId: transactionWithRelations.payeeId,
-                userId: transactionWithRelations.userId,
-                value: Number(transactionWithRelations.value),
-                date: transactionWithRelations.date,
-                categoryType: category?.type ?? null,
-              },
-              'create',
-              undefined,
-              tx,
-            );
-          }
-
-          return transactionWithRelations;
-        }),
+      async () => {
+        return await context.prisma.$transaction(async (tx) => {
+          return await createTransaction(validatedInput, context.userId, tx);
+        });
+      },
       {resource: 'Transaction', operation: 'create'},
     );
 
-    return transaction;
+    return transaction as unknown as Transaction;
   }
 
   /**
@@ -386,34 +257,36 @@ export class TransactionResolver {
     _: unknown,
     {id, input}: {id: string; input: unknown},
     context: GraphQLContext,
-  ) {
+  ): Promise<Transaction> {
     // Validate input
     const validatedInput = validate(UpdateTransactionInputSchema, input);
 
+    const transactionRepository = new TransactionRepository(context.prisma);
+    const categoryRepository = new CategoryRepository(context.prisma);
+    const accountRepository = new AccountRepository(context.prisma);
+
     // Verify transaction belongs to user and fetch with category
-    const existingTransaction = await context.prisma.transaction.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-      include: {
+    const existingTransactionRaw = await transactionRepository.findById(
+      id,
+      context.userId,
+      undefined,
+      {
         category: true,
       },
-    });
+    );
 
-    if (!existingTransaction) {
+    if (!existingTransactionRaw) {
       throw new NotFoundError('Transaction');
     }
 
+    // Type assertion for transaction with category relation
+    const existingTransaction = existingTransactionRaw as typeof existingTransactionRaw & {
+      category: {type: 'INCOME' | 'EXPENSE'} | null;
+    };
+
     // Verify account if changed
     if (validatedInput.accountId) {
-      const account = await context.prisma.account.findFirst({
-        where: {
-          id: validatedInput.accountId,
-          userId: context.userId,
-        },
-        select: {id: true},
-      });
+      const account = await accountRepository.findById(validatedInput.accountId, context.userId, {id: true});
 
       if (!account) {
         throw new NotFoundError('Account');
@@ -424,16 +297,11 @@ export class TransactionResolver {
     let newCategory: {type: 'INCOME' | 'EXPENSE'} | null = null;
     if (validatedInput.categoryId !== undefined) {
       if (validatedInput.categoryId) {
-        const foundCategory = await context.prisma.category.findFirst({
-          where: {
-            id: validatedInput.categoryId,
-            OR: [
-              {userId: context.userId},
-              {isDefault: true},
-            ],
-          },
-          select: {id: true, type: true},
-        });
+        const foundCategory = await categoryRepository.findById(
+          validatedInput.categoryId,
+          context.userId,
+          {id: true, type: true},
+        );
 
         if (!foundCategory) {
           throw new NotFoundError('Category');
@@ -464,27 +332,33 @@ export class TransactionResolver {
       );
     });
 
-    return transaction;
+    return transaction as unknown as Transaction;
   }
 
   /**
    * Delete transaction
    */
-  async deleteTransaction(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async deleteTransaction(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
+    const transactionRepository = new TransactionRepository(context.prisma);
+
     // Verify transaction belongs to user and fetch with category
-    const transaction = await context.prisma.transaction.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-      include: {
+    const transactionRaw = await transactionRepository.findById(
+      id,
+      context.userId,
+      undefined,
+      {
         category: true,
       },
-    });
+    );
 
-    if (!transaction) {
+    if (!transactionRaw) {
       throw new NotFoundError('Transaction');
     }
+
+    // Type assertion for transaction with category relation
+    const transaction = transactionRaw as typeof transactionRaw & {
+      category: {type: 'INCOME' | 'EXPENSE'} | null;
+    };
 
     // Calculate balance delta to reverse based on category type
     const transactionValue = Number(transaction.value);
@@ -494,6 +368,8 @@ export class TransactionResolver {
 
     // Delete transaction and update account balance atomically
     await context.prisma.$transaction(async (tx) => {
+      const txTransactionRepository = new TransactionRepository(tx);
+
       // Update budgets before deleting (need transaction data)
       await updateBudgetForTransaction(
         {
@@ -512,9 +388,7 @@ export class TransactionResolver {
       );
 
       // Delete transaction
-      await tx.transaction.delete({
-        where: {id},
-      });
+      await txTransactionRepository.delete(id, tx);
 
       // Reverse the balance change
       await incrementAccountBalance(transaction.accountId, balanceDelta, tx);
@@ -532,40 +406,44 @@ export class TransactionResolver {
     _: unknown,
     {days = 90}: {days?: number},
     context: GraphQLContext,
-  ) {
+  ): Promise<Array<{value: string; count: number}>> {
     // Calculate start date
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
+
+    const transactionRepository = new TransactionRepository(context.prisma);
 
     // Use Prisma groupBy to get values with counts
     // Note: Prisma groupBy doesn't support orderBy with _count, so we sort in JavaScript
     const results = await withPrismaErrorHandling(
       async () =>
-        await context.prisma.transaction.groupBy({
-          by: ['value'],
-          where: {
+        await transactionRepository.groupBy(
+          ['value'],
+          {
             userId: context.userId,
             date: {
               gte: startDate,
             },
           },
-          _count: {
-            value: true,
+          {
+            _count: {
+              value: true,
+            },
           },
-        }),
+        ),
       {resource: 'Transaction', operation: 'topUsedValues'},
     );
 
     // Sort by count descending and take top 5
     const sortedResults = results
-      .sort((a, b) => b._count.value - a._count.value)
+      .sort((a, b) => (b._count?.value ?? 0) - (a._count?.value ?? 0))
       .slice(0, 5);
 
     // Transform results to match GraphQL schema
     // Convert Decimal to string to preserve decimal precision (.00)
     return sortedResults.map((result) => ({
       value: String(result.value),
-      count: result._count.value,
+      count: result._count?.value ?? 0,
     }));
   }
 }

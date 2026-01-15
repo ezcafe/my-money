@@ -10,20 +10,32 @@
  */
 
 /**
+ * Error notification details
+ */
+export interface ErrorNotificationDetails {
+  originalError?: string;
+  code?: string;
+  retryable?: boolean;
+  retryAfter?: number;
+  path?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Show a user-friendly error message
  * Dispatches a custom 'app-error' event that is handled by NotificationContext,
  * which displays the error in a Snackbar/Alert component.
  *
  * @param message - Error message to display
- * @param details - Optional error details (logged but not displayed to user)
+ * @param details - Optional error details including retry information
  *
  * @example
  * ```typescript
  * showErrorNotification('Failed to save transaction');
- * showErrorNotification('Network error', {status: 500});
+ * showErrorNotification('Network error', {code: 'NETWORK_ERROR', retryable: true});
  * ```
  */
-export function showErrorNotification(message: string, details?: unknown): void {
+export function showErrorNotification(message: string, details?: ErrorNotificationDetails): void {
   // Log error for debugging
   console.error('Error notification:', message, details);
 

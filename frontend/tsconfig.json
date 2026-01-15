@@ -9,6 +9,7 @@
     "resolveJsonModule": true,
     "allowJs": true,
     "outDir": "./dist",
+    "rootDir": "..",
     "baseUrl": "./src",
     "paths": {
       "@/*": ["./*"],
@@ -20,10 +21,18 @@
       "@theme/*": ["./theme/*"],
       "@my-money/shared": ["../shared/src/index.ts"]
     },
-    "types": ["jest", "@testing-library/jest-dom", "node"]
+    "types": ["jest", "@testing-library/jest-dom", "node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "composite": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
   "include": ["src/**/*", "../shared/src/**/*"],
-  "exclude": ["node_modules", "dist", "__tests__", "**/*.test.ts", "**/*.test.tsx"]
+  "exclude": ["node_modules", "dist", "__tests__", "**/*.test.ts", "**/*.test.tsx"],
+  "references": [
+    { "path": "../shared" }
+  ]
 }
 
 

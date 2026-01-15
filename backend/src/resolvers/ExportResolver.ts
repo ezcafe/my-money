@@ -3,8 +3,9 @@
  * Handles data export for CSV generation
  */
 
- 
+
 import type {GraphQLContext} from '../middleware/context';
+import type {Account, Category, Payee, Transaction, RecurringTransaction, UserPreferences, Budget, ImportMatchRule} from '@prisma/client';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 
 /**
@@ -21,7 +22,16 @@ export class ExportResolver {
    * @param context - GraphQL context with user and Prisma client
    * @returns Export data containing all user entities
    */
-  async exportData(_: unknown, __: unknown, context: GraphQLContext) {
+  async exportData(_: unknown, __: unknown, context: GraphQLContext): Promise<{
+    accounts: Account[];
+    categories: Category[];
+    payees: Payee[];
+    transactions: Transaction[];
+    recurringTransactions: RecurringTransaction[];
+    preferences: UserPreferences | null;
+    budgets: Budget[];
+    importMatchRules: ImportMatchRule[];
+  }> {
     return await withPrismaErrorHandling(
       async () => {
         // Fetch all user data in parallel

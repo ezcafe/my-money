@@ -5,9 +5,160 @@
  */
 
 import type {PrismaClient} from '@prisma/client';
+import {TransactionRepository} from '../repositories/TransactionRepository';
+import {CategoryRepository} from '../repositories/CategoryRepository';
+import {PayeeRepository} from '../repositories/PayeeRepository';
+import {AccountRepository} from '../repositories/AccountRepository';
 import {incrementAccountBalance} from './AccountBalanceService';
 import {updateBudgetForTransaction} from './BudgetService';
+import {transactionEventEmitter} from '../events';
 import {sanitizeUserInput} from '../utils/sanitization';
+import {NotFoundError} from '../utils/errors';
+
+/**
+ * Create a new transaction with balance and budget updates
+ * Handles complex business logic for creating transactions including:
+ * - Category type verification
+ * - Balance delta calculations based on category types
+ * - Account balance updates
+ * - Budget updates
+ * @param validatedInput - Validated input data
+ * @param userId - User ID
+ * @param tx - Prisma transaction client
+ * @returns Created transaction with relations
+ */
+export async function createTransaction(
+  validatedInput: {
+    value: number;
+    date?: Date;
+    accountId: string;
+    categoryId?: string | null;
+    payeeId?: string | null;
+    note?: string | null;
+  },
+  userId: string,
+  tx: PrismaClient | Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+): Promise<{
+  id: string;
+  value: number | string;
+  date: Date;
+  accountId: string;
+  categoryId: string | null;
+  payeeId: string | null;
+  note: string | null;
+  userId: string;
+  account: unknown;
+  category: unknown;
+  payee: unknown;
+}> {
+  const transactionRepository = new TransactionRepository(tx);
+  const categoryRepository = new CategoryRepository(tx);
+  const payeeRepository = new PayeeRepository(tx);
+  const accountRepository = new AccountRepository(tx);
+
+  // Verify account belongs to user
+  const account = await accountRepository.findById(validatedInput.accountId, userId, {id: true});
+  if (!account) {
+    throw new NotFoundError('Account');
+  }
+
+  // Verify category and payee in parallel if both are provided
+  let category: {type: 'INCOME' | 'EXPENSE'} | null = null;
+
+  const [foundCategory, foundPayee] = await Promise.all([
+    validatedInput.categoryId
+      ? categoryRepository.findById(validatedInput.categoryId, userId, {id: true, type: true})
+      : Promise.resolve(null),
+    validatedInput.payeeId
+      ? payeeRepository.findById(validatedInput.payeeId, userId, {id: true})
+      : Promise.resolve(null),
+  ]);
+
+  if (validatedInput.categoryId && !foundCategory) {
+    throw new NotFoundError('Category');
+  }
+  category = foundCategory;
+
+  if (validatedInput.payeeId && !foundPayee) {
+    throw new NotFoundError('Payee');
+  }
+
+  // Calculate balance delta based on category type
+  // Income categories add money, Expense categories (or no category) subtract money
+  const balanceDelta = category?.type === 'INCOME'
+    ? validatedInput.value
+    : -validatedInput.value;
+
+  // Create transaction
+  const newTransaction = await transactionRepository.create({
+    value: validatedInput.value,
+    date: validatedInput.date ?? new Date(),
+    accountId: validatedInput.accountId,
+    categoryId: validatedInput.categoryId,
+    payeeId: validatedInput.payeeId,
+    note: validatedInput.note ? sanitizeUserInput(validatedInput.note) : null,
+    userId,
+  });
+
+  // Update account balance incrementally based on category type
+  await incrementAccountBalance(validatedInput.accountId, balanceDelta, tx);
+
+  // Return transaction with relations
+  const transactionWithRelations = await transactionRepository.findById(
+    newTransaction.id,
+    userId,
+    undefined,
+    {
+      account: true,
+      category: true,
+      payee: true,
+    },
+  );
+
+  if (!transactionWithRelations) {
+    throw new Error('Transaction not found after creation');
+  }
+
+  // Update budgets for this transaction
+  await updateBudgetForTransaction(
+    {
+      id: transactionWithRelations.id,
+      accountId: transactionWithRelations.accountId,
+      categoryId: transactionWithRelations.categoryId,
+      payeeId: transactionWithRelations.payeeId,
+      userId: transactionWithRelations.userId,
+      value: Number(transactionWithRelations.value),
+      date: transactionWithRelations.date,
+      categoryType: category?.type ?? null,
+    },
+    'create',
+    undefined,
+    tx,
+  );
+
+  const result = {
+    ...transactionWithRelations,
+    value: Number(transactionWithRelations.value),
+  } as unknown as {
+    id: string;
+    value: number | string;
+    date: Date;
+    accountId: string;
+    categoryId: string | null;
+    payeeId: string | null;
+    note: string | null;
+    userId: string;
+    account: unknown;
+    category: unknown;
+    payee: unknown;
+  };
+
+  // Emit event after transaction creation (for additional side effects)
+  // Note: Balance and budget updates are done synchronously above for data integrity
+  transactionEventEmitter.emit('transaction.created', transactionWithRelations);
+
+  return result;
+}
 
 /**
  * Update transaction with balance adjustment logic
@@ -42,7 +193,7 @@ export async function updateTransactionWithBalance(
   },
   newCategory: {type: 'INCOME' | 'EXPENSE'} | null,
   userId: string,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  tx: PrismaClient | Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
 ): Promise<{
   id: string;
   value: number | string;
@@ -72,17 +223,16 @@ export async function updateTransactionWithBalance(
     ? newValue
     : -newValue;
 
+  const transactionRepository = new TransactionRepository(tx);
+
   // Update transaction
-  const updatedTransaction = await tx.transaction.update({
-    where: {id: transactionId},
-    data: {
-      ...(validatedInput.value !== undefined && {value: validatedInput.value}),
-      ...(validatedInput.date !== undefined && {date: validatedInput.date}),
-      ...(validatedInput.accountId !== undefined && {accountId: validatedInput.accountId}),
-      ...(validatedInput.categoryId !== undefined && {categoryId: validatedInput.categoryId}),
-      ...(validatedInput.payeeId !== undefined && {payeeId: validatedInput.payeeId}),
-      ...(validatedInput.note !== undefined && {note: validatedInput.note ? sanitizeUserInput(validatedInput.note) : null}),
-    },
+  const updatedTransaction = await transactionRepository.update(transactionId, {
+    ...(validatedInput.value !== undefined && {value: validatedInput.value}),
+    ...(validatedInput.date !== undefined && {date: validatedInput.date}),
+    ...(validatedInput.accountId !== undefined && {accountId: validatedInput.accountId}),
+    ...(validatedInput.categoryId !== undefined && {categoryId: validatedInput.categoryId}),
+    ...(validatedInput.payeeId !== undefined && {payeeId: validatedInput.payeeId}),
+    ...(validatedInput.note !== undefined && {note: validatedInput.note ? sanitizeUserInput(validatedInput.note) : null}),
   });
 
   // Adjust account balances
@@ -132,19 +282,34 @@ export async function updateTransactionWithBalance(
     tx,
   );
 
-  // Return transaction with relations
-  const result = await tx.transaction.findUnique({
-    where: {id: updatedTransaction.id},
-    include: {
+  // Get old transaction for event (before update)
+  const oldTransaction = await transactionRepository.findById(
+    transactionId,
+    userId,
+    undefined,
+    {
       account: true,
       category: true,
       payee: true,
     },
-  });
+  );
+
+  // Return transaction with relations
+  const result = await transactionRepository.findById(
+    updatedTransaction.id,
+    userId,
+    undefined,
+    {
+      account: true,
+      category: true,
+      payee: true,
+    },
+  );
   if (!result) {
     throw new Error('Transaction not found after update');
   }
-  return {
+
+  const newTransaction = {
     ...result,
     value: Number(result.value),
   } as unknown as {
@@ -160,5 +325,12 @@ export async function updateTransactionWithBalance(
     category: unknown;
     payee: unknown;
   };
+
+  // Emit event after transaction update (for additional side effects)
+  if (oldTransaction) {
+    transactionEventEmitter.emit('transaction.updated', oldTransaction, result);
+  }
+
+  return newTransaction;
 }
 

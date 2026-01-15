@@ -4,9 +4,11 @@
  * Tracks spending against budgets for accounts, categories, or payees
  */
 
- 
 import type {PrismaClient} from '@prisma/client';
 import {prisma} from '../utils/prisma';
+import {BudgetRepository} from '../repositories/BudgetRepository';
+import {TransactionRepository} from '../repositories/TransactionRepository';
+import {CategoryRepository} from '../repositories/CategoryRepository';
 import {createBudgetNotification} from './NotificationService';
 
 type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
@@ -67,27 +69,8 @@ async function findAffectedBudgets(
   transaction: {accountId: string; categoryId: string | null; payeeId: string | null; userId: string},
   tx: PrismaTransaction | PrismaClient,
 ): Promise<Array<{id: string; amount: number; currentSpent: number}>> {
-  const budgets = await tx.budget.findMany({
-    where: {
-      userId: transaction.userId,
-      OR: [
-        {accountId: transaction.accountId},
-        {categoryId: transaction.categoryId},
-        {payeeId: transaction.payeeId},
-      ],
-    },
-    select: {
-      id: true,
-      amount: true,
-      currentSpent: true,
-    },
-  });
-
-  return budgets.map((b) => ({
-    id: b.id,
-    amount: Number(b.amount),
-    currentSpent: Number(b.currentSpent),
-  }));
+  const budgetRepository = new BudgetRepository(tx);
+  return budgetRepository.findAffectedByTransaction(transaction, tx);
 }
 
 /**
@@ -152,19 +135,22 @@ export async function recalculateBudgetBalance(
   tx?: PrismaTransaction | PrismaClient,
 ): Promise<number> {
   const client = tx ?? prisma;
+  const budgetRepository = new BudgetRepository(client);
+  const transactionRepository = new TransactionRepository(client);
 
   // Get budget with its criteria
-  const budget = await client.budget.findFirst({
-    where: {
+  const budget = await budgetRepository.findFirst(
+    {
       id: budgetId,
       userId,
     },
-    select: {
+    {
       accountId: true,
       categoryId: true,
       payeeId: true,
     },
-  });
+    tx,
+  );
 
   if (!budget) {
     throw new Error(`Budget ${budgetId} not found`);
@@ -201,8 +187,8 @@ export async function recalculateBudgetBalance(
 
   // Get all matching transactions with their categories
   // Filter by: userId, date range, category type EXPENSE, and budget criteria
-  const transactions = await client.transaction.findMany({
-    where: {
+  const transactions = await transactionRepository.findMany(
+    {
       userId,
       date: {
         gte: monthStart,
@@ -213,34 +199,33 @@ export async function recalculateBudgetBalance(
       },
       ...(orConditions.length > 0 && {OR: orConditions}),
     },
-    include: {
-      category: {
-        select: {type: true},
+    {
+      include: {
+        category: {
+          select: {type: true},
+        },
       },
     },
-  });
+  );
 
   // Calculate total spending (only EXPENSE transactions in current month)
   let totalSpent = 0;
   for (const transaction of transactions) {
     // Double-check category type (should already be filtered, but be safe)
-    if (transaction.category?.type === 'EXPENSE' && isCurrentMonth(transaction.date)) {
+    const transactionWithCategory = transaction as typeof transaction & {
+      category?: {type: 'INCOME' | 'EXPENSE'};
+    };
+    if (transactionWithCategory.category?.type === 'EXPENSE' && isCurrentMonth(transaction.date)) {
       const value = Number(transaction.value);
       totalSpent += Math.abs(value);
     }
   }
 
   // Update budget with recalculated amount
-  await client.budget.update({
-    where: {id: budgetId},
-    data: {currentSpent: totalSpent},
-  });
+  await budgetRepository.update(budgetId, {currentSpent: totalSpent}, tx);
 
   // Check thresholds with updated budget
-  const budgetAmount = await client.budget.findUnique({
-    where: {id: budgetId},
-    select: {amount: true},
-  });
+  const budgetAmount = await budgetRepository.findUnique(budgetId, {amount: true}, tx);
 
   if (budgetAmount) {
     const updatedBudget = {
@@ -286,12 +271,10 @@ export async function updateBudgetForTransaction(
   const client = tx ?? prisma;
 
   // Get category type if not provided
+  const categoryRepository = new CategoryRepository(client);
   let categoryType: 'INCOME' | 'EXPENSE' | null = transaction.categoryType ?? null;
   if (!categoryType && transaction.categoryId) {
-    const category = await client.category.findUnique({
-      where: {id: transaction.categoryId},
-      select: {type: true},
-    });
+    const category = await categoryRepository.findById(transaction.categoryId, transaction.userId, {type: true});
     categoryType = category?.type ?? null;
   }
 
@@ -324,16 +307,14 @@ export async function updateBudgetForTransaction(
   }
 
   // Find affected budgets
+  const budgetRepository = new BudgetRepository(client);
   const affectedBudgets = await findAffectedBudgets(transaction, client);
 
   // Update each affected budget
   for (const budget of affectedBudgets) {
     const newSpent = Math.max(0, budget.currentSpent + spendingChange);
 
-    await client.budget.update({
-      where: {id: budget.id},
-      data: {currentSpent: newSpent},
-    });
+    await budgetRepository.update(budget.id, {currentSpent: newSpent}, tx);
 
     // Check thresholds with updated budget
     const updatedBudget = {

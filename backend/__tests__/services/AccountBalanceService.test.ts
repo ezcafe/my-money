@@ -6,7 +6,6 @@
 import {describe, it, expect, beforeEach, afterEach} from '@jest/globals';
 import {prisma} from '../../src/utils/prisma';
 import {
-  calculateAccountBalance,
   incrementAccountBalance,
   getAccountBalance,
   recalculateAccountBalance,
@@ -45,9 +44,9 @@ describe('AccountBalanceService', () => {
     await prisma.user.deleteMany({where: {id: testUserId}});
   });
 
-  describe('calculateAccountBalance', () => {
+  describe('recalculateAccountBalance (legacy calculateAccountBalance tests)', () => {
     it('should return initial balance when no transactions exist', async () => {
-      const balance = await calculateAccountBalance(testAccountId);
+      const balance = await recalculateAccountBalance(testAccountId);
       expect(balance).toBe(1000);
     });
 
@@ -64,7 +63,7 @@ describe('AccountBalanceService', () => {
         await incrementAccountBalance(testAccountId, 200, tx);
       });
 
-      const balance = await calculateAccountBalance(testAccountId);
+      const balance = await recalculateAccountBalance(testAccountId);
       expect(balance).toBe(1200); // 1000 + 200
     });
 
@@ -81,7 +80,7 @@ describe('AccountBalanceService', () => {
         await incrementAccountBalance(testAccountId, -100, tx);
       });
 
-      const balance = await calculateAccountBalance(testAccountId);
+      const balance = await recalculateAccountBalance(testAccountId);
       expect(balance).toBe(900); // 1000 - 100
     });
 
@@ -100,12 +99,12 @@ describe('AccountBalanceService', () => {
         await incrementAccountBalance(testAccountId, 300, tx);
       });
 
-      const balance = await calculateAccountBalance(testAccountId);
+      const balance = await recalculateAccountBalance(testAccountId);
       expect(balance).toBe(1450); // 1000 + 200 - 50 + 300
     });
 
     it('should throw error if account does not exist', async () => {
-      await expect(calculateAccountBalance('non-existent-id')).rejects.toThrow();
+      await expect(recalculateAccountBalance('non-existent-id')).rejects.toThrow();
     });
   });
 

@@ -22,6 +22,7 @@ import {Button} from '../components/ui/Button';
 import {CREATE_BUDGET} from '../graphql/mutations';
 import {GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
 import {useTitle} from '../contexts/TitleContext';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Budget Add Page Component
@@ -144,9 +145,7 @@ export function BudgetAddPage(): React.JSX.Element {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        width: {xs: '100%', sm: '100%'},
-        maxWidth: {xs: '100%', sm: '400px'},
-        mx: {xs: 0, sm: 'auto'},
+        ...pageContainerStyle,
       }}
     >
       <Card

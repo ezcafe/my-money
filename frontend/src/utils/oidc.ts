@@ -106,12 +106,16 @@ export async function initiateLogin(): Promise<void> {
   const state = generateState();
   const {verifier, challenge} = await generatePKCE();
 
-  // Store state and verifier for callback verification
+  // Store state in sessionStorage for callback verification
   sessionStorage.setItem('oidc_state', state);
-  sessionStorage.setItem('oidc_verifier', verifier);
+  // Store verifier in a temporary cookie for backend callback
+  // Cookie expires in 10 minutes (enough time for OIDC flow)
+  document.cookie = `oidc_verifier=${verifier}; path=/; max-age=600; SameSite=Lax`;
 
   // Build authorization URL
-  const redirectUri = `${window.location.origin}/auth/callback`;
+  // Redirect URI points to backend callback endpoint which handles token exchange
+  const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+  const redirectUri = `${backendUrl}/auth/callback`;
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: clientId,
@@ -127,10 +131,11 @@ export async function initiateLogin(): Promise<void> {
 }
 
 /**
- * Handle OIDC callback and exchange authorization code for tokens
+ * Handle OIDC callback
+ * Redirects to backend callback endpoint which handles token exchange and sets httpOnly cookies
  * @param code - Authorization code from OIDC provider
  * @param state - State parameter for CSRF protection
- * @returns True if successful, false otherwise
+ * @returns True if redirect was initiated, false otherwise
  */
 export async function handleCallback(code: string, state: string): Promise<boolean> {
   // Verify state - check before doing anything else
@@ -149,120 +154,83 @@ export async function handleCallback(code: string, state: string): Promise<boole
     return false;
   }
 
-  const verifier = sessionStorage.getItem('oidc_verifier');
-  if (!verifier) {
-    console.error('Code verifier not found in sessionStorage');
-    return false;
-  }
+  // Clean up session storage
+  sessionStorage.removeItem('oidc_state');
+  sessionStorage.removeItem('oidc_verifier');
 
-  const clientId = process.env.REACT_APP_OPENID_CLIENT_ID;
-  if (!clientId) {
-    console.error('REACT_APP_OPENID_CLIENT_ID is not configured');
-    return false;
-  }
+  // Redirect to backend callback endpoint
+  // Backend will exchange code for tokens and set httpOnly cookies
+  const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+  const redirectUrl = `${backendUrl}/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+  window.location.href = redirectUrl;
 
-  const config = await getOIDCConfig();
-  const redirectUri = `${window.location.origin}/auth/callback`;
-
-  // Clean up session storage only after successful validation
-  // Keep it until after token exchange in case we need to retry
-  try {
-    // Prepare token exchange request with PKCE
-    // Include client_secret if configured (required by some OIDC providers)
-    const clientSecret = process.env.REACT_APP_OPENID_CLIENT_SECRET;
-    const tokenParams = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri,
-      client_id: clientId,
-      code_verifier: verifier,
-    });
-
-    // Add client_secret if provided (required by confidential clients)
-    if (clientSecret) {
-      tokenParams.append('client_secret', clientSecret);
-    }
-
-    // Exchange authorization code for tokens
-    const response = await fetch(config.token_endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: tokenParams,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      let errorDetails: unknown;
-      try {
-        errorDetails = JSON.parse(errorText);
-      } catch {
-        errorDetails = errorText;
-      }
-
-      console.error('Token exchange failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorDetails,
-      });
-      return false;
-    }
-
-    const tokenData = (await response.json()) as {
-      access_token?: string;
-      refresh_token?: string;
-      expires_in?: number;
-    };
-
-    // Store tokens (encrypted)
-    if (tokenData.access_token) {
-      // Import encryption utility
-      const {storeEncryptedToken} = await import('./tokenEncryption');
-      await storeEncryptedToken('oidc_token', tokenData.access_token);
-
-      // Store expiration if provided
-      if (tokenData.expires_in) {
-        const expiration = Date.now() + tokenData.expires_in * 1000;
-        localStorage.setItem('oidc_token_expiration', expiration.toString());
-      }
-    }
-
-    if (tokenData.refresh_token) {
-      const {storeEncryptedToken} = await import('./tokenEncryption');
-      await storeEncryptedToken('oidc_refresh_token', tokenData.refresh_token);
-    } else {
-      console.warn('No refresh token received from OIDC provider. Token refresh will not be available. Ensure "offline_access" scope is included in the authorization request.');
-    }
-
-    // Clean up session storage only after successful token exchange
-    sessionStorage.removeItem('oidc_state');
-    sessionStorage.removeItem('oidc_verifier');
-
-    return true;
-  } catch (error) {
-    console.error('Error exchanging authorization code:', error);
-    // Don't clean up session storage on error - allow retry
-    return false;
-  }
+  return true;
 }
 
 /**
  * Check if user is authenticated
- * @returns True if user has a valid token, false otherwise
+ * With cookie-based auth, we can't directly check token presence
+ * This function makes a lightweight request to the backend to verify authentication
+ * The backend will return 401 if not authenticated
+ * @returns True if authenticated, false otherwise
  */
 export async function isAuthenticated(): Promise<boolean> {
-  const {getEncryptedToken} = await import('./tokenEncryption');
-  const token = await getEncryptedToken('oidc_token');
-  return !!token;
+  try {
+    // Check authentication by making a request to verify token presence
+    // We check the access token cookie by making a lightweight request
+    // The backend GraphQL endpoint requires authentication, so we can use a simple query
+    // However, to avoid unnecessary GraphQL overhead, we check if refresh token exists
+    // If refresh token exists, user is authenticated (or was recently authenticated)
+    const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+    const checkUrl = `${backendUrl}/auth/refresh`;
+
+    // Make a POST request to check authentication
+    // The endpoint will return 401 if no refresh token (not authenticated)
+    // It will return 200 if refresh token exists (authenticated)
+    // Note: This may refresh the token, but that's acceptable for auth checking
+    const response = await fetch(checkUrl, {
+      method: 'POST',
+      credentials: 'include', // Include cookies
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // If status is 401 or 404, user is not authenticated
+    // 401 = no auth token, 404 = endpoint not found (shouldn't happen but treat as not authenticated)
+    // If status is 200, user is authenticated (refresh token exists)
+    return response.status === 200;
+  } catch {
+    // On network errors, assume not authenticated to be safe
+    return false;
+  }
 }
 
 /**
- * Logout user by clearing tokens
+ * Logout user by calling backend logout endpoint
+ * Backend will clear httpOnly cookies
  */
-export function logout(): void {
-  localStorage.removeItem('oidc_token');
-  localStorage.removeItem('oidc_refresh_token');
-  localStorage.removeItem('oidc_token_expiration');
+export async function logout(): Promise<void> {
+  try {
+    // Call backend logout endpoint to clear cookies
+    const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+    await fetch(`${backendUrl}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include', // Include cookies
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Continue with logout even if backend call fails
+  }
+
+  // Clear any remaining localStorage data (for cleanup)
+  localStorage.clear();
+  sessionStorage.clear();
+
+  // Redirect to login page
+  window.location.href = '/login';
 }
 

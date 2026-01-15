@@ -5,36 +5,19 @@
 
 import React, {useState, useEffect} from 'react';
 import {Snackbar, Alert} from '@mui/material';
+import {useOfflineSync} from '../../hooks/useOfflineSync';
 
 /**
  * Offline Indicator Component
- * Displays a notification when the app goes offline
+ * Displays a notification when the app goes offline and shows queue status
  */
 export function OfflineIndicator(): React.JSX.Element {
   const [showOffline, setShowOffline] = useState(false);
+  const {networkStatus} = useOfflineSync({autoSync: true});
 
   useEffect(() => {
-    const handleOnline = (): void => {
-      setShowOffline(false);
-    };
-
-    const handleOffline = (): void => {
-      setShowOffline(true);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Check initial state
-    if (!navigator.onLine) {
-      setShowOffline(true);
-    }
-
-    return (): void => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+    setShowOffline(!networkStatus.isOnline || networkStatus.queueSize > 0);
+  }, [networkStatus.isOnline, networkStatus.queueSize]);
 
   const handleClose = (_event?: React.SyntheticEvent | Event, reason?: string): void => {
     if (reason === 'clickaway') {
@@ -43,14 +26,28 @@ export function OfflineIndicator(): React.JSX.Element {
     setShowOffline(false);
   };
 
+  const getMessage = (): string => {
+    if (!networkStatus.isOnline) {
+      return 'You are currently offline. Some features may not be available.';
+    }
+    if (networkStatus.queueSize > 0) {
+      return `${networkStatus.queueSize} mutation(s) queued. Syncing...`;
+    }
+    return '';
+  };
+
+  const getSeverity = (): 'warning' | 'info' => {
+    return !networkStatus.isOnline ? 'warning' : 'info';
+  };
+
   return (
     <Snackbar
       open={showOffline}
       anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
       onClose={handleClose}
     >
-      <Alert onClose={handleClose} severity="warning" sx={{width: '100%'}}>
-        You are currently offline. Some features may not be available.
+      <Alert onClose={handleClose} severity={getSeverity()} sx={{width: '100%'}}>
+        {getMessage()}
       </Alert>
     </Snackbar>
   );

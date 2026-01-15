@@ -120,8 +120,8 @@ interface GetTransactionsData {
  * @param accountId - Optional account ID to filter by
  * @param categoryId - Optional category ID to filter by
  * @param payeeId - Optional payee ID to filter by
- * @param skip - Number of items to skip
- * @param take - Number of items to take
+ * @param first - Number of items to fetch (default: 20)
+ * @param after - Cursor for pagination (from previous page's nextCursor)
  * @param orderBy - Optional ordering configuration
  * @param note - Optional note filter for searching
  * @param querySkip - Whether to skip the query (e.g., when required filter is missing)
@@ -131,14 +131,14 @@ export function useTransactions(
   accountId?: string,
   categoryId?: string,
   payeeId?: string,
-  skip: number = 0,
-  take: number = 20,
+  first: number = 20,
+  after?: string,
   orderBy?: TransactionOrderInput,
   note?: string,
   querySkip?: boolean,
 ): UseTransactionsResult {
   const {data, loading, error, refetch} = useQuery<GetTransactionsData>(GET_TRANSACTIONS, {
-    variables: {accountId, categoryId, payeeId, skip, take, orderBy, note},
+    variables: {accountId, categoryId, payeeId, first, after, orderBy, note},
     errorPolicy: 'all',
     skip: querySkip ?? false,
   });

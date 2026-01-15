@@ -17,6 +17,7 @@ import {Card} from '../components/ui/Card';
 import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {getRecurringTypeOptions, type RecurringType} from '../utils/recurringTypes';
 import {useDateFormat} from '../hooks/useDateFormat';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Recurring transaction type from GraphQL
@@ -117,7 +118,7 @@ export function SchedulePage(): React.JSX.Element {
   }
 
   return (
-    <Box>
+    <Box sx={pageContainerStyle}>
       <Card>
         <List disablePadding>
           {recurringTransactions.map((transaction, index) => {

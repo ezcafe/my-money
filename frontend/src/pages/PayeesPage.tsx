@@ -14,6 +14,7 @@ import {LoadingSpinner} from '../components/common/LoadingSpinner';
 import {ErrorAlert} from '../components/common/ErrorAlert';
 import {EmptyState} from '../components/common/EmptyState';
 import {Card} from '../components/ui/Card';
+import {pageContainerStyle} from '../constants/ui';
 
 /**
  * Payees Page Component
@@ -72,7 +73,7 @@ const PayeesPageComponent = (): React.JSX.Element => {
   const hasNoSearchResults = searchQuery.trim() && !hasSearchResults;
 
   return (
-    <Box>
+    <Box sx={pageContainerStyle}>
       {hasNoSearchResults && (
         <EmptyState
           title="No payees found"
