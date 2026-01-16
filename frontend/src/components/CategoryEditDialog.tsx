@@ -32,7 +32,7 @@ export function CategoryEditDialog({
   onSuccess,
 }: CategoryEditDialogProps): React.JSX.Element {
   const [name, setName] = useState('');
-  const [categoryType, setCategoryType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
+  const [categoryType, setCategoryType] = useState<'Income' | 'Expense'>('Expense');
   const [error, setError] = useState<string | null>(null);
 
   const [createCategory, {loading: creating}] = useMutation(CREATE_CATEGORY, {
@@ -65,10 +65,10 @@ export function CategoryEditDialog({
   useEffect(() => {
     if (category) {
       setName(category.name);
-      setCategoryType(category.type);
+      setCategoryType(category.categoryType);
     } else {
       setName('');
-      setCategoryType('EXPENSE');
+      setCategoryType('Expense');
     }
     setError(null);
   }, [category, open]);
@@ -86,7 +86,7 @@ export function CategoryEditDialog({
           id: category.id,
           input: {
             name,
-            type: categoryType,
+            categoryType,
           },
         },
       });
@@ -96,7 +96,7 @@ export function CategoryEditDialog({
         variables: {
           input: {
             name,
-            type: categoryType,
+            categoryType,
           },
         },
       });
@@ -122,11 +122,9 @@ export function CategoryEditDialog({
       actions={actions}
     >
       <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-        {error && (
-          <Typography color="error" variant="body2">
+        {error ? <Typography color="error" variant="body2">
             {error}
-          </Typography>
-        )}
+          </Typography> : null}
 
         <TextField
           label="Name"
@@ -144,17 +142,17 @@ export function CategoryEditDialog({
             value={categoryType}
             exclusive
             onChange={(_, newValue: string | null) => {
-              if (newValue !== null && (newValue === 'INCOME' || newValue === 'EXPENSE')) {
+              if (newValue !== null && (newValue === 'Income' || newValue === 'Expense')) {
                 setCategoryType(newValue);
               }
             }}
             aria-label="category type"
             fullWidth
           >
-            <ToggleButton value="INCOME" aria-label="income">
+            <ToggleButton value="Income" aria-label="income">
               Income
             </ToggleButton>
-            <ToggleButton value="EXPENSE" aria-label="expense">
+            <ToggleButton value="Expense" aria-label="expense">
               Expense
             </ToggleButton>
           </ToggleButtonGroup>

@@ -20,8 +20,16 @@ enum TransactionOrderBy {
 }
 
 enum CategoryType {
-  INCOME
-  EXPENSE
+  Income
+  Expense
+}
+
+enum AccountType {
+  Cash
+  CreditCard
+  Bank
+  Saving
+  Loans
 }
 
 input TransactionOrderInput {
@@ -138,6 +146,11 @@ type Query {
   Get top 5 most used transaction values from recent transactions
   """
   topUsedValues(days: Int = 90): [TopUsedValue!]!
+
+  """
+  Get most commonly used account, payee, and category for a specific amount
+  """
+  mostUsedTransactionDetails(amount: Decimal!, days: Int = 90): MostUsedTransactionDetails
 
   """
   Export all user data for CSV export
@@ -272,6 +285,11 @@ type Mutation {
   resetData: Boolean!
 
   """
+  Add example data to database (accounts, categories, payees)
+  """
+  addExampleData: Boolean!
+
+  """
   Create a new budget
   """
   createBudget(input: CreateBudgetInput!): Budget!
@@ -305,6 +323,7 @@ type Account {
   name: String!
   initBalance: Decimal!
   isDefault: Boolean!
+  accountType: AccountType!
   userId: ID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -337,7 +356,7 @@ type TransactionConnection {
 type Category {
   id: ID!
   name: String!
-  type: CategoryType!
+  categoryType: CategoryType!
   isDefault: Boolean!
   userId: ID
   createdAt: DateTime!
@@ -428,6 +447,13 @@ type TopUsedValue {
   count: Int!
 }
 
+type MostUsedTransactionDetails {
+  accountId: ID
+  payeeId: ID
+  categoryId: ID
+  count: Int!
+}
+
 type ExportData {
   accounts: [Account!]!
   categories: [Category!]!
@@ -488,11 +514,13 @@ type ImportResult {
 input CreateAccountInput {
   name: String!
   initBalance: Decimal
+  accountType: AccountType
 }
 
 input UpdateAccountInput {
   name: String
   initBalance: Decimal
+  accountType: AccountType
 }
 
 input CreateTransactionInput {
@@ -515,12 +543,12 @@ input UpdateTransactionInput {
 
 input CreateCategoryInput {
   name: String!
-  type: CategoryType!
+  categoryType: CategoryType!
 }
 
 input UpdateCategoryInput {
   name: String
-  type: CategoryType
+  categoryType: CategoryType
 }
 
 input CreatePayeeInput {

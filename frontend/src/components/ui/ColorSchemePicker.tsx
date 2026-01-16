@@ -99,8 +99,7 @@ function ColorSchemePreview({
             />
           </Box>
         </Box>
-        {isSelected && (
-          <CheckCircle
+        {isSelected ? <CheckCircle
             sx={{
               color: 'primary.main',
               position: 'absolute',
@@ -108,8 +107,7 @@ function ColorSchemePreview({
               right: 2,
               fontSize: '1rem',
             }}
-          />
-        )}
+          /> : null}
         <Typography
           variant="caption"
           sx={{

@@ -25,9 +25,9 @@ export interface DialogProps extends Omit<MUIDialogProps, 'ref' | 'title'> {
 export const Dialog: React.FC<DialogProps> = ({children, title, actions, ...props}) => {
   return (
     <MUIDialog {...props}>
-      {title && <DialogTitle>{title}</DialogTitle>}
+      {title ? <DialogTitle>{title}</DialogTitle> : null}
       <DialogContent>{children}</DialogContent>
-      {actions && <DialogActions>{actions}</DialogActions>}
+      {actions ? <DialogActions>{actions}</DialogActions> : null}
     </MUIDialog>
   );
 };

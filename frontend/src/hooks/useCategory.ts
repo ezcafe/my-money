@@ -12,7 +12,7 @@ import {useEntity} from './useEntity';
 export interface Category {
   id: string;
   name: string;
-  type: 'INCOME' | 'EXPENSE';
+  categoryType: 'Income' | 'Expense';
   isDefault: boolean;
 }
 

@@ -80,8 +80,8 @@ export class TimestampStrategy<T extends {updatedAt?: string; createdAt?: string
    * @returns Data with most recent timestamp
    */
   resolve(local: T, server: T): T {
-    const localTime = local.updatedAt || local.createdAt || '0';
-    const serverTime = server.updatedAt || server.createdAt || '0';
+    const localTime = local.updatedAt ?? local.createdAt ?? '0';
+    const serverTime = server.updatedAt ?? server.createdAt ?? '0';
 
     return new Date(localTime) > new Date(serverTime) ? local : server;
   }

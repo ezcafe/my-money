@@ -99,6 +99,7 @@ export class AccountRepository extends BaseRepository {
       initBalance?: number;
       balance?: number;
       isDefault?: boolean;
+      accountType?: 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
       userId: string;
     },
     tx?: PrismaTransaction,
@@ -121,6 +122,7 @@ export class AccountRepository extends BaseRepository {
       initBalance?: number;
       balance?: number;
       isDefault?: boolean;
+      accountType?: 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
     },
     tx?: PrismaTransaction,
   ): Promise<Account> {

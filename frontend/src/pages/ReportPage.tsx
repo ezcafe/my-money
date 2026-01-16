@@ -71,7 +71,7 @@ interface ReportTransaction {
   category: {
     id: string;
     name: string;
-    type?: string;
+    categoryType?: string;
   } | null;
   payee: {
     id: string;
@@ -285,18 +285,31 @@ export function ReportPage(): React.JSX.Element {
   // Dynamic imports for heavy dependencies
   const [rechartsLoaded, setRechartsLoaded] = useState(false);
   const [rechartsComponents, setRechartsComponents] = useState<{
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     LineChart: typeof import('recharts').LineChart;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     Line: typeof import('recharts').Line;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     BarChart: typeof import('recharts').BarChart;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     Bar: typeof import('recharts').Bar;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     PieChart: typeof import('recharts').PieChart;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     Pie: typeof import('recharts').Pie;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     Cell: typeof import('recharts').Cell;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     XAxis: typeof import('recharts').XAxis;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     YAxis: typeof import('recharts').YAxis;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     CartesianGrid: typeof import('recharts').CartesianGrid;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     Tooltip: typeof import('recharts').Tooltip;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     Legend: typeof import('recharts').Legend;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     ResponsiveContainer: typeof import('recharts').ResponsiveContainer;
   } | null>(null);
 
@@ -732,8 +745,8 @@ export function ReportPage(): React.JSX.Element {
     const groupingType = getDateGroupingType(appliedFilters.startDate, appliedFilters.endDate);
 
     // Separate income and expense transactions
-    const incomeTransactions = transactions.filter((t) => t.category?.type === 'INCOME');
-    const expenseTransactions = transactions.filter((t) => !t.category || t.category.type === 'EXPENSE');
+    const incomeTransactions = transactions.filter((t) => t.category?.categoryType === 'Income');
+    const expenseTransactions = transactions.filter((t) => !t.category || t.category.categoryType === 'Expense');
 
     // Group by date period
     // Structure: Map<groupKey, {income: number, expense: number}>
@@ -869,7 +882,7 @@ export function ReportPage(): React.JSX.Element {
   const CustomTooltip = useCallback(
     ({active, payload}: {active?: boolean; payload?: Array<{name: string; value: number; dataKey: string; color?: string; payload?: ChartDataPoint}>}) => {
       if (active && payload && payload.length > 0) {
-        const payloadData = payload[0]?.payload as ChartDataPoint | undefined;
+        const payloadData = payload[0]?.payload;
         const date = payloadData?.date ?? '';
         return (
           <Box
@@ -1001,7 +1014,7 @@ export function ReportPage(): React.JSX.Element {
 
     for (const transaction of transactions) {
       // Only process expense transactions
-      if (transaction.category?.type === 'EXPENSE' && transaction.category?.id) {
+      if (transaction.category?.categoryType === 'Expense' && transaction.category?.id) {
         const monthKey = dayjs(transaction.date).format('YYYY-MM');
         if (!transactionsByMonth.has(monthKey)) {
           transactionsByMonth.set(monthKey, new Map());
@@ -1072,10 +1085,10 @@ export function ReportPage(): React.JSX.Element {
 
     // Separate income and expense transactions
     const incomeTransactions = transactions.filter(
-      (t) => t.category?.type === 'INCOME',
+      (t) => t.category?.categoryType === 'Income',
     );
     const expenseTransactions = transactions.filter(
-      (t) => !t.category || t.category.type === 'EXPENSE',
+      (t) => !t.category || t.category.categoryType === 'Expense',
     );
 
     // Build node map and links
@@ -1384,20 +1397,16 @@ export function ReportPage(): React.JSX.Element {
         </Box>
         <Collapse in={filterPanelExpanded}>
           <Box sx={{mt: 2}}>
-            {validationError && (
-              <Box sx={{mb: 2, color: 'error.main'}}>
+            {validationError ? <Box sx={{mb: 2, color: 'error.main'}}>
                 <Typography variant="body2" color="error">
                   {validationError}
                 </Typography>
-              </Box>
-            )}
-            {error && (
-              <Box sx={{mb: 2, color: 'error.main'}}>
+              </Box> : null}
+            {error ? <Box sx={{mb: 2, color: 'error.main'}}>
                 <Typography variant="body2" color="error">
                   {error?.message ?? 'Error loading report data'}
                 </Typography>
-              </Box>
-            )}
+              </Box> : null}
 
             {/* Quick Date Presets */}
             <Box sx={{mb: 3}}>
@@ -1421,8 +1430,7 @@ export function ReportPage(): React.JSX.Element {
 
             <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
               {/* Date Range - Two Separate Buttons */}
-              {showDatePickers && (
-                <Grid container spacing={2}>
+              {showDatePickers ? <Grid container spacing={2}>
                   <Grid item xs={6}>
                     <Button
                       variant="outlined"
@@ -1445,8 +1453,7 @@ export function ReportPage(): React.JSX.Element {
                       {endDateText}
                     </Button>
                   </Grid>
-                </Grid>
-              )}
+                </Grid> : null}
 
               {/* Multi-select Filters */}
               <MultiSelect
@@ -1521,8 +1528,7 @@ export function ReportPage(): React.JSX.Element {
       )}
 
       {/* Actions Card with Transaction Count */}
-      {hasFilters && transactions.length > 0 && (
-        <Card sx={{p: 3, mb: 3}}>
+      {hasFilters && transactions.length > 0 ? <Card sx={{p: 3, mb: 3}}>
           <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between'}}>
             <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
               <Receipt color="primary" />
@@ -1534,12 +1540,10 @@ export function ReportPage(): React.JSX.Element {
               Download PDF
             </Button>
           </Box>
-        </Card>
-      )}
+        </Card> : null}
 
       {/* Summary Cards */}
-      {hasFilters && totalCount > 0 && (
-        <Grid container spacing={2} sx={{mb: 3}}>
+      {hasFilters && totalCount > 0 ? <Grid container spacing={2} sx={{mb: 3}}>
           <Grid item xs={4}>
             <Card sx={{p: 3, height: '100%'}}>
               <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
@@ -1579,12 +1583,10 @@ export function ReportPage(): React.JSX.Element {
               </Typography>
             </Card>
           </Grid>
-        </Grid>
-      )}
+        </Grid> : null}
 
       {/* Chart Section */}
-      {hasFilters && !loading && transactions.length > 0 && ((chartType !== 'sankey' && chartType !== 'pie' && chartType !== 'stacked' && chartData.length > 0) || (chartType === 'pie' && pieChartData.length > 0) || (chartType === 'sankey' && sankeyData !== null) || (chartType === 'stacked' && shouldShowStackedChart)) && (
-        <Card sx={{p: 3, mb: 3}}>
+      {hasFilters && !loading && transactions.length > 0 && ((chartType !== 'sankey' && chartType !== 'pie' && chartType !== 'stacked' && chartData.length > 0) || (chartType === 'pie' && pieChartData.length > 0) || (chartType === 'sankey' && sankeyData !== null) || (chartType === 'stacked' && shouldShowStackedChart)) ? <Card sx={{p: 3, mb: 3}}>
           <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
             <Typography variant="h6" component="h2">
               Trends
@@ -1608,11 +1610,9 @@ export function ReportPage(): React.JSX.Element {
               <ToggleButton value="bar" aria-label="Bar chart">
                 <BarChartIcon />
               </ToggleButton>
-              {shouldShowStackedChart && (
-                <ToggleButton value="stacked" aria-label="Stacked column chart">
+              {shouldShowStackedChart ? <ToggleButton value="stacked" aria-label="Stacked column chart">
                   <Layers />
-                </ToggleButton>
-              )}
+                </ToggleButton> : null}
               <ToggleButton value="sankey" aria-label="Cash flow chart">
                 <Timeline />
               </ToggleButton>
@@ -1841,8 +1841,7 @@ export function ReportPage(): React.JSX.Element {
               {chartType === 'bar' && 'Displays transaction data in bar format for easy comparison'}
             </Typography>
           </Box>
-        </Card>
-      )}
+        </Card> : null}
 
       {/* Results Section */}
       {!hasFilters ? (

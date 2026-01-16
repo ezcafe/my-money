@@ -52,7 +52,7 @@ export class PreferencesResolver {
     _: unknown,
     {input}: {input: {currency?: string; useThousandSeparator?: boolean; colorScheme?: string | null; colorSchemeValue?: string | null; dateFormat?: string | null}},
     context: GraphQLContext,
-  ) {
+  ): Promise<UserPreferences> {
     const validatedInput = validate(UpdatePreferencesInputSchema, input);
 
     return await withPrismaErrorHandling(

@@ -3,15 +3,16 @@
  * Dialog for editing transaction details
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {
   Box,
   TextField,
-  Select,
-  MenuItem,
+  Typography,
+  Autocomplete,
   FormControl,
   InputLabel,
-  Typography,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {Dialog} from './ui/Dialog';
@@ -20,6 +21,13 @@ import {UPDATE_TRANSACTION} from '../graphql/mutations';
 import {GET_CATEGORIES, GET_PAYEES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
 import {useAccounts} from '../hooks/useAccounts';
 import type {Transaction} from '../hooks/useTransactions';
+import {
+  getAccountTypeLabel,
+  getCategoryTypeLabel,
+  GROUP_HEADER_STYLES,
+} from '../utils/groupSelectOptions';
+import type {Account} from '../hooks/useAccounts';
+import type {Category} from '../hooks/useCategories';
 
 /**
  * Transaction edit dialog props
@@ -41,15 +49,19 @@ export function TransactionEditDialog({
   onSuccess,
 }: TransactionEditDialogProps): React.JSX.Element {
   const {accounts} = useAccounts();
-  const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string}>}>(
+  const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string; categoryType: string}>}>(
     GET_CATEGORIES,
   );
   const {data: payeesData} = useQuery<{payees?: Array<{id: string; name: string}>}>(
     GET_PAYEES,
   );
 
-  const categories = categoriesData?.categories ?? [];
+  const categories = useMemo(() => (categoriesData?.categories ?? []) as Category[], [categoriesData?.categories]);
   const payees = payeesData?.payees ?? [];
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = accounts.find((acc) => acc.id === accountId) ?? null;
+  const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
 
   const [value, setValue] = useState<string>('');
   const [date, setDate] = useState<string>('');
@@ -161,11 +173,9 @@ export function TransactionEditDialog({
   return (
     <Dialog open={open} onClose={onClose} title="Edit Transaction" actions={actions}>
       <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-        {error && (
-          <Typography color="error" variant="body2">
+        {error ? <Typography color="error" variant="body2">
             {error}
-          </Typography>
-        )}
+          </Typography> : null}
 
         <TextField
           label="Value"
@@ -187,31 +197,39 @@ export function TransactionEditDialog({
           InputLabelProps={{shrink: true}}
         />
 
-        <FormControl fullWidth>
-          <InputLabel>Account</InputLabel>
-          <Select value={accountId} onChange={(e) => setAccountId(e.target.value)} label="Account">
-            {accounts.map((account) => (
-              <MenuItem key={account.id} value={account.id}>
-                {account.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Autocomplete<Account, false, false, false>
+          options={accounts}
+          getOptionLabel={(option) => option.name}
+          groupBy={(option) => getAccountTypeLabel(option.accountType)}
+          value={selectedAccount}
+          onChange={(_, value) => {
+            setAccountId(value?.id ?? '');
+          }}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          componentsProps={{
+            popper: {
+              sx: GROUP_HEADER_STYLES,
+            },
+          }}
+          renderInput={(params) => <TextField {...params} label="Account" />}
+        />
 
-        <FormControl fullWidth>
-          <InputLabel>Category</InputLabel>
-          <Select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            label="Category"
-          >
-            {categories.map((category) => (
-              <MenuItem key={category.id} value={category.id}>
-                {category.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Autocomplete<Category, false, false, false>
+          options={categories}
+          getOptionLabel={(option) => option.name}
+          groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+          value={selectedCategory}
+          onChange={(_, value) => {
+            setCategoryId(value?.id ?? '');
+          }}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          componentsProps={{
+            popper: {
+              sx: GROUP_HEADER_STYLES,
+            },
+          }}
+          renderInput={(params) => <TextField {...params} label="Category" />}
+        />
 
         <FormControl fullWidth>
           <InputLabel>Payee</InputLabel>

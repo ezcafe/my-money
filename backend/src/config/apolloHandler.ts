@@ -91,9 +91,9 @@ export function createApolloHandler(
       // executeOperation returns a GraphQLResponse with { body: { kind: 'single', singleResult: { data?, errors? } } } structure
       // Extract the singleResult from the body
       const response: {data?: unknown; errors?: unknown[]} = {};
-      if (result && typeof result === 'object' && 'body' in result) {
+      if (result && typeof result === 'object' && result.body) {
         const bodyResult = (result as {body?: {kind?: string; singleResult?: {data?: unknown; errors?: unknown[]}}}).body;
-        if (bodyResult && bodyResult.kind === 'single' && bodyResult.singleResult) {
+        if (bodyResult?.kind === 'single' && bodyResult.singleResult) {
           if ('data' in bodyResult.singleResult && bodyResult.singleResult.data !== undefined) {
             response.data = bodyResult.singleResult.data;
           }

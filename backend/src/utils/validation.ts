@@ -43,7 +43,7 @@ export const schemas = {
     return num;
   })),
   nonEmptyString: z.string().min(1, 'String cannot be empty'),
-  maxLengthString: (maxLength: number) => z.string().max(maxLength, `String must be at most ${maxLength} characters`),
+  maxLengthString: (maxLength: number): z.ZodString => z.string().max(maxLength, `String must be at most ${maxLength} characters`),
   userInputString: z.string().max(MAX_USER_INPUT_LENGTH, `Input must be at most ${MAX_USER_INPUT_LENGTH} characters`),
   optionalUuid: z.string().uuid('Invalid UUID format').nullable().optional(),
   cronExpression: z.string().regex(/^(\*|([0-9]|[1-5][0-9])|\*\/([0-9]|[1-5][0-9])) (\*|([0-9]|1[0-9]|2[0-3])|\*\/([0-9]|1[0-9]|2[0-3])) (\*|([1-9]|[12][0-9]|3[01])|\*\/([1-9]|[12][0-9]|3[01])) (\*|([1-9]|1[0-2])|\*\/([1-9]|1[0-2])) (\*|([0-6])|\*\/([0-6]))$/, 'Invalid cron expression'),
@@ -56,18 +56,20 @@ export const inputSchemas = {
   createAccount: z.object({
     name: schemas.nonEmptyString.max(255, 'Account name must be at most 255 characters'),
     initBalance: z.number().finite().optional(),
+    accountType: z.enum(['Cash', 'CreditCard', 'Bank', 'Saving', 'Loans'], {errorMap: () => ({message: 'AccountType must be Cash, CreditCard, Bank, Saving, or Loans'})}).optional(),
   }),
   updateAccount: z.object({
     name: schemas.nonEmptyString.max(255, 'Account name must be at most 255 characters').optional(),
     initBalance: z.number().finite().optional(),
+    accountType: z.enum(['Cash', 'CreditCard', 'Bank', 'Saving', 'Loans'], {errorMap: () => ({message: 'AccountType must be Cash, CreditCard, Bank, Saving, or Loans'})}).optional(),
   }),
   createCategory: z.object({
     name: schemas.nonEmptyString.max(255, 'Category name must be at most 255 characters'),
-    type: z.enum(['INCOME', 'EXPENSE'], {errorMap: () => ({message: 'Type must be INCOME or EXPENSE'})}),
+    categoryType: z.enum(['Income', 'Expense'], {errorMap: () => ({message: 'Category type must be Income or Expense'})}),
   }),
   updateCategory: z.object({
     name: schemas.nonEmptyString.max(255, 'Category name must be at most 255 characters').optional(),
-    type: z.enum(['INCOME', 'EXPENSE'], {errorMap: () => ({message: 'Type must be INCOME or EXPENSE'})}).optional(),
+    categoryType: z.enum(['Income', 'Expense'], {errorMap: () => ({message: 'Category type must be Income or Expense'})}).optional(),
   }),
   createPayee: z.object({
     name: schemas.nonEmptyString.max(255, 'Payee name must be at most 255 characters'),

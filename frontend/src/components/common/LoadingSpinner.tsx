@@ -43,11 +43,9 @@ export function LoadingSpinner({
       }}
     >
       <CircularProgress />
-      {message && (
-        <Typography variant="body1" color="text.secondary">
+      {message ? <Typography variant="body1" color="text.secondary">
           {message}
-        </Typography>
-      )}
+        </Typography> : null}
     </Box>
   );
 

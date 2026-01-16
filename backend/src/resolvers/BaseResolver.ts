@@ -186,8 +186,8 @@ export abstract class BaseResolver {
    */
   protected async ensureDefaultCategories(context: GraphQLContext): Promise<void> {
     const defaultCategories = [
-      {name: 'Default Expense Category', type: 'EXPENSE' as const},
-      {name: 'Default Income Category', type: 'INCOME' as const},
+      {name: 'Food & Groceries', categoryType: 'Expense' as const},
+      {name: 'Salary', categoryType: 'Income' as const},
     ];
 
     for (const categoryData of defaultCategories) {
@@ -210,7 +210,7 @@ export abstract class BaseResolver {
             await context.prisma.category.create({
               data: {
                 name: categoryData.name,
-                type: categoryData.type,
+                categoryType: categoryData.categoryType,
                 isDefault: true,
                 userId: null,
               },
@@ -227,7 +227,7 @@ export abstract class BaseResolver {
    * @param context - GraphQL context
    */
   protected async ensureDefaultPayees(context: GraphQLContext): Promise<void> {
-    const defaultPayeeNames = ['Default Payee'];
+    const defaultPayeeNames = ['Neccesities'];
 
     for (const name of defaultPayeeNames) {
       const existing = await withPrismaErrorHandling(

@@ -61,6 +61,17 @@ export const GET_TOP_USED_VALUES = gql`
   }
 `;
 
+export const GET_MOST_USED_TRANSACTION_DETAILS = gql`
+  query GetMostUsedTransactionDetails($amount: Decimal!, $days: Int) {
+    mostUsedTransactionDetails(amount: $amount, days: $days) {
+      accountId
+      payeeId
+      categoryId
+      count
+    }
+  }
+`;
+
 export const GET_PREFERENCES = gql`
   query GetPreferences {
     preferences {
@@ -188,7 +199,7 @@ export const EXPORT_DATA = gql`
       categories {
         id
         name
-        type
+        categoryType
         isDefault
       }
       payees {

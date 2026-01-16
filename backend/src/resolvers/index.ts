@@ -1,7 +1,9 @@
 /**
  * Resolver exports
+ * Note: Return types are inferred from resolver methods
  */
 
+/* eslint-disable @typescript-eslint/explicit-function-return-type, @typescript-eslint/explicit-module-boundary-types */
 import {AccountResolver} from './AccountResolver';
 import {TransactionResolver} from './TransactionResolver';
 import {UserResolver} from './UserResolver';
@@ -12,6 +14,7 @@ import {RecurringTransactionResolver} from './RecurringTransactionResolver';
 import {ReportResolver} from './ReportResolver';
 import {ExportResolver} from './ExportResolver';
 import {ResetDataResolver} from './ResetDataResolver';
+import {ExampleDataResolver} from './ExampleDataResolver';
 import {BudgetResolver} from './BudgetResolver';
 import {uploadPDF, matchImportedTransaction, importCSV, saveImportedTransactions, deleteUnmappedImportedTransactions} from './ImportResolver';
 import type {GraphQLContext} from '../middleware/context';
@@ -28,6 +31,7 @@ const recurringTransactionResolver = new RecurringTransactionResolver();
 const reportResolver = new ReportResolver();
 const exportResolver = new ExportResolver();
 const resetDataResolver = new ResetDataResolver();
+const exampleDataResolver = new ExampleDataResolver();
 const budgetResolver = new BudgetResolver();
 
 export const resolvers = {
@@ -65,6 +69,8 @@ export const resolvers = {
       transactionResolver.transaction(parent, args as {id: string}, context),
     topUsedValues: (parent: unknown, args: unknown, context: GraphQLContext) =>
       transactionResolver.topUsedValues(parent, args as {days?: number}, context),
+    mostUsedTransactionDetails: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      transactionResolver.mostUsedTransactionDetails(parent, args as {amount: number; days?: number}, context),
 
     // Category queries
     categories: (parent: unknown, args: unknown, context: GraphQLContext) =>
@@ -135,9 +141,9 @@ export const resolvers = {
 
     // Category mutations
     createCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      categoryResolver.createCategory(parent, args as {input: {name: string; type: 'INCOME' | 'EXPENSE'}}, context),
+      categoryResolver.createCategory(parent, args as {input: {name: string; categoryType: 'Income' | 'Expense'}}, context),
     updateCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      categoryResolver.updateCategory(parent, args as {id: string; input: {name?: string; type?: 'INCOME' | 'EXPENSE'}}, context),
+      categoryResolver.updateCategory(parent, args as {id: string; input: {name?: string; categoryType?: 'Income' | 'Expense'}}, context),
     deleteCategory: (parent: unknown, args: unknown, context: GraphQLContext) =>
       categoryResolver.deleteCategory(parent, args as {id: string}, context),
 
@@ -244,6 +250,10 @@ export const resolvers = {
     // Reset data mutation
     resetData: (parent: unknown, args: unknown, context: GraphQLContext) =>
       resetDataResolver.resetData(parent, args, context),
+
+    // Example data mutation
+    addExampleData: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      exampleDataResolver.addExampleData(parent, args, context),
 
     // Budget mutations
     createBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>

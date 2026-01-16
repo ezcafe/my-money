@@ -17,6 +17,7 @@ import {EmptyState} from '../components/common/EmptyState';
 import {Card} from '../components/ui/Card';
 import {TextField} from '../components/ui/TextField';
 import {PageContainer} from '../components/common/PageContainer';
+import {getAccountTypeLabel, getCategoryTypeLabel, GROUP_HEADER_STYLES} from '../utils/groupSelectOptions';
 
 /**
  * Budgets Page Component
@@ -52,8 +53,8 @@ export function BudgetsPage(): React.JSX.Element {
     fetchPolicy: 'cache-and-network',
   });
 
-  const {data: accountsData} = useQuery<{accounts: Array<{id: string; name: string}>}>(GET_ACCOUNTS);
-  const {data: categoriesData} = useQuery<{categories: Array<{id: string; name: string; type: string}>}>(GET_CATEGORIES);
+  const {data: accountsData} = useQuery<{accounts: Array<{id: string; name: string; accountType: string}>}>(GET_ACCOUNTS);
+  const {data: categoriesData} = useQuery<{categories: Array<{id: string; name: string; categoryType: string}>}>(GET_CATEGORIES);
   const {data: payeesData} = useQuery<{payees: Array<{id: string; name: string}>}>(GET_PAYEES);
 
   const [createBudget] = useMutation(CREATE_BUDGET, {
@@ -69,7 +70,7 @@ export function BudgetsPage(): React.JSX.Element {
   const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
 
   const accounts = accountsData?.accounts ?? [];
-  const categories = (categoriesData?.categories ?? []).filter((c) => c.type === 'EXPENSE');
+  const categories = (categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense');
   const payees = payeesData?.payees ?? [];
 
 
@@ -314,14 +315,20 @@ export function BudgetsPage(): React.JSX.Element {
             )}
 
             {budgetType === 'account' && (
-              <Autocomplete<{id: string; name: string}, false, false, false>
+              <Autocomplete<{id: string; name: string; accountType: string}, false, false, false>
                 options={accounts}
                 getOptionLabel={(option) => option.name}
+                groupBy={(option) => getAccountTypeLabel(option.accountType as 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans')}
                 value={accounts.find((a) => a.id === selectedEntityId) ?? null}
                 onChange={(_, value) => {
                   setSelectedEntityId(value?.id ?? '');
                 }}
                 disabled={!!editingBudget}
+                componentsProps={{
+                  popper: {
+                    sx: GROUP_HEADER_STYLES,
+                  },
+                }}
                 renderInput={(params) => (
                   <TextField {...params} label="Account" required />
                 )}
@@ -329,14 +336,20 @@ export function BudgetsPage(): React.JSX.Element {
             )}
 
             {budgetType === 'category' && (
-              <Autocomplete<{id: string; name: string; type: string}, false, false, false>
+              <Autocomplete<{id: string; name: string; categoryType: string}, false, false, false>
                 options={categories}
                 getOptionLabel={(option) => option.name}
+                groupBy={(option) => getCategoryTypeLabel(option.categoryType as 'Income' | 'Expense')}
                 value={categories.find((c) => c.id === selectedEntityId) ?? null}
                 onChange={(_, value) => {
                   setSelectedEntityId(value?.id ?? '');
                 }}
                 disabled={!!editingBudget}
+                componentsProps={{
+                  popper: {
+                    sx: GROUP_HEADER_STYLES,
+                  },
+                }}
                 renderInput={(params) => (
                   <TextField {...params} label="Category" required />
                 )}

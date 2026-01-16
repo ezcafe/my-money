@@ -3,17 +3,18 @@
  * Page for editing transaction details
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {useParams, useNavigate, useSearchParams} from 'react-router';
 import {
   Box,
   TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Typography,
   Button,
+  Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
@@ -25,6 +26,13 @@ import {ErrorAlert} from '../components/common/ErrorAlert';
 import {useTitle} from '../contexts/TitleContext';
 import type {Transaction} from '../hooks/useTransactions';
 import {PageContainer} from '../components/common/PageContainer';
+import {
+  getAccountTypeLabel,
+  getCategoryTypeLabel,
+  GROUP_HEADER_STYLES,
+} from '../utils/groupSelectOptions';
+import type {Account} from '../hooks/useAccounts';
+import type {Category} from '../hooks/useCategories';
 
 /**
  * Transaction data from GraphQL query
@@ -44,7 +52,7 @@ export function TransactionEditPage(): React.JSX.Element {
   const {setTitle} = useTitle();
 
   const {accounts} = useAccounts();
-  const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string}>}>(
+  const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string; categoryType: string}>}>(
     GET_CATEGORIES,
   );
   const {data: payeesData} = useQuery<{payees?: Array<{id: string; name: string}>}>(
@@ -59,9 +67,13 @@ export function TransactionEditPage(): React.JSX.Element {
     },
   );
 
-  const categories = categoriesData?.categories ?? [];
+  const categories = useMemo(() => (categoriesData?.categories ?? []) as Category[], [categoriesData?.categories]);
   const payees = payeesData?.payees ?? [];
   const transaction = transactionData?.transaction;
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = accounts.find((acc) => acc.id === accountId) ?? null;
+  const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
 
   const [value, setValue] = useState<string>('');
   const [date, setDate] = useState<string>('');
@@ -236,11 +248,9 @@ export function TransactionEditPage(): React.JSX.Element {
         }}
       >
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
-          {error && (
-            <Typography color="error" variant="body2">
+          {error ? <Typography color="error" variant="body2">
               {error}
-            </Typography>
-          )}
+            </Typography> : null}
 
           <TextField
             label="Value"
@@ -262,31 +272,39 @@ export function TransactionEditPage(): React.JSX.Element {
             InputLabelProps={{shrink: true}}
           />
 
-          <FormControl fullWidth>
-            <InputLabel>Account</InputLabel>
-            <Select value={accountId} onChange={(e) => setAccountId(e.target.value)} label="Account">
-              {accounts.map((account) => (
-                <MenuItem key={account.id} value={account.id}>
-                  {account.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete<Account, false, false, false>
+            options={accounts}
+            getOptionLabel={(option) => option.name}
+            groupBy={(option) => getAccountTypeLabel(option.accountType)}
+            value={selectedAccount}
+            onChange={(_, value) => {
+              setAccountId(value?.id ?? '');
+            }}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            componentsProps={{
+              popper: {
+                sx: GROUP_HEADER_STYLES,
+              },
+            }}
+            renderInput={(params) => <TextField {...params} label="Account" />}
+          />
 
-          <FormControl fullWidth>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              label="Category"
-            >
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete<Category, false, false, false>
+            options={categories}
+            getOptionLabel={(option) => option.name}
+            groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+            value={selectedCategory}
+            onChange={(_, value) => {
+              setCategoryId(value?.id ?? '');
+            }}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            componentsProps={{
+              popper: {
+                sx: GROUP_HEADER_STYLES,
+              },
+            }}
+            renderInput={(params) => <TextField {...params} label="Category" />}
+          />
 
           <FormControl fullWidth>
             <InputLabel>Payee</InputLabel>

@@ -208,7 +208,7 @@ export class TransactionResolver extends BaseResolver {
   /**
    * Get transaction by ID
    */
-  async transaction(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async transaction(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Transaction | null> {
     const transactionRepository = new TransactionRepository(context.prisma);
     const transaction = await transactionRepository.findById(
       id,
@@ -281,7 +281,7 @@ export class TransactionResolver extends BaseResolver {
 
     // Type assertion for transaction with category relation
     const existingTransaction = existingTransactionRaw as typeof existingTransactionRaw & {
-      category: {type: 'INCOME' | 'EXPENSE'} | null;
+      category: {categoryType: 'Income' | 'Expense'} | null;
     };
 
     // Verify account if changed
@@ -294,13 +294,13 @@ export class TransactionResolver extends BaseResolver {
     }
 
     // Verify and fetch new category if changed
-    let newCategory: {type: 'INCOME' | 'EXPENSE'} | null = null;
+    let newCategory: {categoryType: 'Income' | 'Expense'} | null = null;
     if (validatedInput.categoryId !== undefined) {
       if (validatedInput.categoryId) {
         const foundCategory = await categoryRepository.findById(
           validatedInput.categoryId,
           context.userId,
-          {id: true, type: true},
+          {id: true, categoryType: true},
         );
 
         if (!foundCategory) {
@@ -357,12 +357,12 @@ export class TransactionResolver extends BaseResolver {
 
     // Type assertion for transaction with category relation
     const transaction = transactionRaw as typeof transactionRaw & {
-      category: {type: 'INCOME' | 'EXPENSE'} | null;
+      category: {categoryType: 'Income' | 'Expense'} | null;
     };
 
     // Calculate balance delta to reverse based on category type
     const transactionValue = Number(transaction.value);
-    const balanceDelta = transaction.category?.type === 'INCOME'
+    const balanceDelta = transaction.category?.categoryType === 'Income'
       ? -transactionValue  // Reverse income: subtract
       : transactionValue;  // Reverse expense: add back
 
@@ -380,7 +380,7 @@ export class TransactionResolver extends BaseResolver {
           userId: transaction.userId,
           value: Number(transaction.value),
           date: transaction.date,
-          categoryType: transaction.category?.type ?? null,
+          categoryType: transaction.category?.categoryType ?? null,
         },
         'delete',
         undefined,
@@ -445,6 +445,93 @@ export class TransactionResolver extends BaseResolver {
       value: String(result.value),
       count: result._count?.value ?? 0,
     }));
+  }
+
+  /**
+   * Get most commonly used account, payee, and category for a specific amount
+   * @param amount - Transaction amount to match
+   * @param days - Number of days to look back (default: 90)
+   * @returns Most used transaction details or null if no matches
+   */
+  async mostUsedTransactionDetails(
+    _: unknown,
+    {amount, days = 90}: {amount: number; days?: number},
+    context: GraphQLContext,
+  ): Promise<{accountId: string | null; payeeId: string | null; categoryId: string | null; count: number} | null> {
+    // Calculate start date
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const transactionRepository = new TransactionRepository(context.prisma);
+
+    // Use Prisma groupBy to get combinations with counts
+    // Group by accountId, payeeId, categoryId to find most common combination
+    const results = await withPrismaErrorHandling(
+      async () =>
+        await transactionRepository.groupBy(
+          ['accountId', 'payeeId', 'categoryId'],
+          {
+            userId: context.userId,
+            value: amount, // Exact amount match
+            date: {
+              gte: startDate,
+            },
+          },
+          {
+            _count: {
+              accountId: true,
+            },
+            _max: {
+              date: true,
+            },
+          },
+        ),
+      {resource: 'Transaction', operation: 'mostUsedTransactionDetails'},
+    );
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    // Sort by count descending, then by most recent date for tie-breaking
+    const sortedResults = results.sort((a, b) => {
+      const countA = a._count?.accountId ?? 0;
+      const countB = b._count?.accountId ?? 0;
+
+      // First sort by count (descending)
+      if (countB !== countA) {
+        return countB - countA;
+      }
+
+      // If counts are equal, sort by most recent date (descending)
+      const dateA = a._max?.date;
+      const dateB = b._max?.date;
+
+      if (!dateA && !dateB) {
+        return 0;
+      }
+      if (!dateA) {
+        return 1;
+      }
+      if (!dateB) {
+        return -1;
+      }
+
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    // Get the top result
+    const topResult = sortedResults[0];
+    if (!topResult) {
+      return null;
+    }
+
+    return {
+      accountId: topResult.accountId ?? null,
+      payeeId: topResult.payeeId ?? null,
+      categoryId: topResult.categoryId ?? null,
+      count: topResult._count?.accountId ?? 0,
+    };
   }
 }
 

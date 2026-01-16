@@ -74,14 +74,11 @@ const PayeesPageComponent = (): React.JSX.Element => {
 
   return (
     <PageContainer>
-      {hasNoSearchResults && (
-        <EmptyState
+      {hasNoSearchResults ? <EmptyState
           title="No payees found"
           description="Try adjusting your search query"
-        />
-      )}
-      {hasSearchResults && (
-        <Card>
+        /> : null}
+      {hasSearchResults ? <Card>
           <List disablePadding>
             {filteredPayees.map((payee, index) => (
             <React.Fragment key={payee.id}>
@@ -110,8 +107,7 @@ const PayeesPageComponent = (): React.JSX.Element => {
             </React.Fragment>
           ))}
           </List>
-        </Card>
-      )}
+        </Card> : null}
     </PageContainer>
   );
 };

@@ -14,6 +14,7 @@ export interface Account {
   name: string;
   initBalance: number;
   isDefault: boolean;
+  accountType: 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
   balance: number;
 }
 

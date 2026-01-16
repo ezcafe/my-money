@@ -17,7 +17,7 @@ interface CategoryData {
   category?: {
     id: string;
     name: string;
-    type: 'INCOME' | 'EXPENSE';
+    categoryType: 'Income' | 'Expense';
     isDefault: boolean;
   } | null;
 }
@@ -28,7 +28,7 @@ interface CategoryData {
 export function CategoryEditPage(): React.JSX.Element {
   const {id} = useParams<{id: string}>();
 
-  const config: EntityEditFormConfig<CategoryData, {name: string; type: 'INCOME' | 'EXPENSE'}> = {
+  const config: EntityEditFormConfig<CategoryData, {name: string; categoryType: 'Income' | 'Expense'}> = {
     entityType: 'Category',
     defaultReturnUrl: '/categories',
     getQuery: GET_CATEGORY,
@@ -44,13 +44,13 @@ export function CategoryEditPage(): React.JSX.Element {
         defaultValue: '',
       },
       {
-        key: 'type',
+        key: 'categoryType',
         label: 'Category Type',
         type: 'custom',
         required: true,
-        defaultValue: 'EXPENSE',
+        defaultValue: 'Expense',
         render: (value: unknown, onChange: (value: unknown) => void): React.JSX.Element => {
-          const categoryType: 'INCOME' | 'EXPENSE' = value === 'INCOME' || value === 'EXPENSE' ? value : 'EXPENSE';
+          const categoryType: 'Income' | 'Expense' = value === 'Income' || value === 'Expense' ? value : 'Expense';
           return (
             <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
               <Typography variant="body2" color="text.secondary">
@@ -60,17 +60,17 @@ export function CategoryEditPage(): React.JSX.Element {
                 value={categoryType}
                 exclusive
                 onChange={(_, newValue: string | null) => {
-                  if (newValue !== null && (newValue === 'INCOME' || newValue === 'EXPENSE')) {
+                  if (newValue !== null && (newValue === 'Income' || newValue === 'Expense')) {
                     onChange(newValue);
                   }
                 }}
                 aria-label="category type"
                 fullWidth
               >
-                <ToggleButton value="INCOME" aria-label="income">
+                <ToggleButton value="Income" aria-label="income">
                   Income
                 </ToggleButton>
-                <ToggleButton value="EXPENSE" aria-label="expense">
+                <ToggleButton value="Expense" aria-label="expense">
                   Expense
                 </ToggleButton>
               </ToggleButtonGroup>
@@ -85,7 +85,7 @@ export function CategoryEditPage(): React.JSX.Element {
       const nameStr = typeof nameValue === 'string' ? nameValue : typeof nameValue === 'number' ? String(nameValue) : '';
       return {
         name: nameStr,
-        type: (values.type as 'INCOME' | 'EXPENSE') ?? 'EXPENSE',
+        categoryType: (values.categoryType as 'Income' | 'Expense') ?? 'Expense',
       };
     },
   };

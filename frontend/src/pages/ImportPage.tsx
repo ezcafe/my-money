@@ -13,19 +13,21 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   useMediaQuery,
   useTheme,
   LinearProgress,
   Chip,
   Divider,
+  Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {Upload as UploadIcon, Description as DescriptionIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon} from '@mui/icons-material';
 import {Card} from '../components/ui/Card';
 import {Button} from '../components/ui/Button';
+import {TextField} from '../components/ui/TextField';
 import {validateFileType, validateFileSize} from '../utils/validation';
 import {ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES} from '../constants';
 import {useMutation} from '@apollo/client/react';
@@ -36,6 +38,13 @@ import {useCategories} from '../hooks/useCategories';
 import {usePayees} from '../hooks/usePayees';
 import {MAX_RECENT_TRANSACTIONS} from '../constants';
 import {PageContainer} from '../components/common/PageContainer';
+import {
+  getAccountTypeLabel,
+  getCategoryTypeLabel,
+  GROUP_HEADER_STYLES,
+} from '../utils/groupSelectOptions';
+import type {Account} from '../hooks/useAccounts';
+import type {Category} from '../hooks/useCategories';
 
 /**
  * Unmapped transaction type
@@ -83,6 +92,9 @@ export function ImportPage(): React.JSX.Element {
   const {categories} = useCategories();
   const {payees} = usePayees();
 
+  // Find selected account and category objects for Autocomplete
+  const selectedCardAccount = accounts.find((acc) => acc.id === cardAccountId) ?? null;
+
   // Group transactions by unique description
   const uniqueDescriptions = useMemo(() => {
     const descriptions = new Set<string>();
@@ -107,13 +119,13 @@ export function ImportPage(): React.JSX.Element {
         // Find first transaction with this description for suggested values
         const firstTxn = unmappedTransactions.find((txn) => txn.rawDescription === desc);
         if (firstTxn && !newMappings.has(desc)) {
-          // Determine default categories
+          // Determine default categories (Salary for income, Food & Groceries for expense)
           const defaultIncomeCategory = categories.find(
-            (category) => category.isDefault && category.type === 'INCOME',
+            (category) => category.isDefault && category.categoryType === 'Income',
           );
 
           const defaultExpenseCategory = categories.find(
-            (category) => category.isDefault && category.type === 'EXPENSE',
+            (category) => category.isDefault && category.categoryType === 'Expense',
           );
 
           // Determine initial category based on transaction type
@@ -123,10 +135,10 @@ export function ImportPage(): React.JSX.Element {
 
           if (!initialCategoryId) {
             if (isCredit && defaultIncomeCategory) {
-              // For credit transactions, prefer Default Income Category
+              // For credit transactions, prefer default income category (Salary)
               initialCategoryId = defaultIncomeCategory.id;
             } else if (!isCredit && defaultExpenseCategory) {
-              // For non-credit transactions, prefer Default Expense Category when available
+              // For non-credit transactions, prefer default expense category (Food & Groceries) when available
               initialCategoryId = defaultExpenseCategory.id;
             } else if (categories[0]?.id) {
               // Fallback to the first available category
@@ -573,22 +585,22 @@ export function ImportPage(): React.JSX.Element {
                 <Typography variant="caption" color="text.secondary" sx={{mb: 2, display: 'block'}}>
                   Card Number: <strong>{cardNumber}</strong>
                 </Typography>
-                <FormControl fullWidth>
-                  <InputLabel>Select Account</InputLabel>
-                  <Select
-                    value={cardAccountId}
-                    label="Select Account"
-                    onChange={(e): void => {
-                      setCardAccountId(e.target.value);
-                    }}
-                  >
-                    {accounts.map((account) => (
-                      <MenuItem key={account.id} value={account.id}>
-                        {account.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Autocomplete<Account, false, false, false>
+                  options={accounts}
+                  getOptionLabel={(option) => option.name}
+                  groupBy={(option) => getAccountTypeLabel(option.accountType)}
+                  value={selectedCardAccount}
+                  onChange={(_, value): void => {
+                    setCardAccountId(value?.id ?? '');
+                  }}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  componentsProps={{
+                    popper: {
+                      sx: GROUP_HEADER_STYLES,
+                    },
+                  }}
+                  renderInput={(params) => <TextField {...params} label="Select Account" />}
+                />
               </Box>
             ) : null}
 
@@ -628,38 +640,38 @@ export function ImportPage(): React.JSX.Element {
                         <Chip label={`${count} transaction${count !== 1 ? 's' : ''}`} size="small" variant="outlined" />
                       </Box>
                       <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-                        <FormControl fullWidth required>
-                          <InputLabel>Account *</InputLabel>
-                          <Select
-                            value={mapping.accountId}
-                            label="Account *"
-                            onChange={(e): void => {
-                              handleDescriptionMappingChange(desc, 'accountId', e.target.value);
-                            }}
-                          >
-                            {accounts.map((account) => (
-                              <MenuItem key={account.id} value={account.id}>
-                                {account.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <FormControl fullWidth>
-                          <InputLabel>Category</InputLabel>
-                          <Select
-                            value={mapping.categoryId}
-                            label="Category"
-                            onChange={(e): void => {
-                              handleDescriptionMappingChange(desc, 'categoryId', e.target.value);
-                            }}
-                          >
-                            {categories.map((category) => (
-                              <MenuItem key={category.id} value={category.id}>
-                                {category.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                        <Autocomplete<Account, false, false, false>
+                          options={accounts}
+                          getOptionLabel={(option) => option.name}
+                          groupBy={(option) => getAccountTypeLabel(option.accountType)}
+                          value={accounts.find((acc) => acc.id === mapping.accountId) ?? null}
+                          onChange={(_, value): void => {
+                            handleDescriptionMappingChange(desc, 'accountId', value?.id ?? '');
+                          }}
+                          isOptionEqualToValue={(option, value) => option.id === value.id}
+                          componentsProps={{
+                            popper: {
+                              sx: GROUP_HEADER_STYLES,
+                            },
+                          }}
+                          renderInput={(params) => <TextField {...params} label="Account *" required />}
+                        />
+                        <Autocomplete<Category, false, false, false>
+                          options={categories}
+                          getOptionLabel={(option) => option.name}
+                          groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+                          value={categories.find((cat) => cat.id === mapping.categoryId) ?? null}
+                          onChange={(_, value): void => {
+                            handleDescriptionMappingChange(desc, 'categoryId', value?.id ?? '');
+                          }}
+                          isOptionEqualToValue={(option, value) => option.id === value.id}
+                          componentsProps={{
+                            popper: {
+                              sx: GROUP_HEADER_STYLES,
+                            },
+                          }}
+                          renderInput={(params) => <TextField {...params} label="Category" />}
+                        />
                         <FormControl fullWidth>
                           <InputLabel>Payee</InputLabel>
                           <Select
@@ -719,40 +731,42 @@ export function ImportPage(): React.JSX.Element {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <FormControl size="small" fullWidth required>
-                              <InputLabel>Account</InputLabel>
-                              <Select
-                                value={mapping.accountId}
-                                label="Account"
-                                onChange={(e): void => {
-                                  handleDescriptionMappingChange(desc, 'accountId', e.target.value);
-                                }}
-                              >
-                                {accounts.map((account) => (
-                                  <MenuItem key={account.id} value={account.id}>
-                                    {account.name}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <Autocomplete<Account, false, false, false>
+                              size="small"
+                              options={accounts}
+                              getOptionLabel={(option) => option.name}
+                              groupBy={(option) => getAccountTypeLabel(option.accountType)}
+                              value={accounts.find((acc) => acc.id === mapping.accountId) ?? null}
+                              onChange={(_, value): void => {
+                                handleDescriptionMappingChange(desc, 'accountId', value?.id ?? '');
+                              }}
+                              isOptionEqualToValue={(option, value) => option.id === value.id}
+                              componentsProps={{
+                                popper: {
+                                  sx: GROUP_HEADER_STYLES,
+                                },
+                              }}
+                              renderInput={(params) => <TextField {...params} label="Account" required size="small" />}
+                            />
                           </TableCell>
                           <TableCell>
-                            <FormControl size="small" fullWidth>
-                              <InputLabel>Category</InputLabel>
-                              <Select
-                                value={mapping.categoryId}
-                                label="Category"
-                                onChange={(e): void => {
-                                  handleDescriptionMappingChange(desc, 'categoryId', e.target.value);
-                                }}
-                              >
-                                {categories.map((category) => (
-                                  <MenuItem key={category.id} value={category.id}>
-                                    {category.name}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <Autocomplete<Category, false, false, false>
+                              size="small"
+                              options={categories}
+                              getOptionLabel={(option) => option.name}
+                              groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+                              value={categories.find((cat) => cat.id === mapping.categoryId) ?? null}
+                              onChange={(_, value): void => {
+                                handleDescriptionMappingChange(desc, 'categoryId', value?.id ?? '');
+                              }}
+                              isOptionEqualToValue={(option, value) => option.id === value.id}
+                              componentsProps={{
+                                popper: {
+                                  sx: GROUP_HEADER_STYLES,
+                                },
+                              }}
+                              renderInput={(params) => <TextField {...params} label="Category" size="small" />}
+                            />
                           </TableCell>
                           <TableCell>
                             <FormControl size="small" fullWidth>

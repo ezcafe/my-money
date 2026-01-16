@@ -103,7 +103,7 @@ export function createApolloServer(
             extensions: {
               code: ErrorCode.INTERNAL_SERVER_ERROR,
               statusCode: 500,
-              timestamp: timestamp || new Date().toISOString(),
+              timestamp: timestamp ?? new Date().toISOString(),
               requestId,
             },
           });
@@ -118,12 +118,12 @@ export function createApolloServer(
           .replace(/Error:\s*/g, '') // Remove error prefixes
           .substring(0, 200); // Limit message length
 
-        return new GraphQLError(sanitizedMessage || 'An error occurred', {
+        return new GraphQLError(sanitizedMessage ?? 'An error occurred', {
           extensions: {
             ...extensions,
-            code: code || ErrorCode.INTERNAL_SERVER_ERROR,
-            statusCode: statusCode || 500,
-            timestamp: timestamp || new Date().toISOString(),
+            code: code ?? ErrorCode.INTERNAL_SERVER_ERROR,
+            statusCode: statusCode ?? 500,
+            timestamp: timestamp ?? new Date().toISOString(),
             requestId,
           },
         });
@@ -143,9 +143,9 @@ export function createApolloServer(
         originalError,
         {
           ...extensions,
-          code: code || ErrorCode.INTERNAL_SERVER_ERROR,
-          statusCode: statusCode || 500,
-          timestamp: timestamp || new Date().toISOString(),
+          code: code ?? ErrorCode.INTERNAL_SERVER_ERROR,
+          statusCode: statusCode ?? 500,
+          timestamp: timestamp ?? new Date().toISOString(),
           requestId,
           path: error.path,
           // Include validation errors if present

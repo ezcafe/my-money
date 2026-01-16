@@ -14,7 +14,7 @@ import {createWriteStream} from 'fs';
 import {join} from 'path';
 import {tmpdir} from 'os';
 import {randomUUID} from 'crypto';
-import type {PrismaClient, CategoryType} from '@prisma/client';
+import type {PrismaClient, CategoryType, Account, Category, Payee} from '@prisma/client';
 import {incrementAccountBalance} from '../services/AccountBalanceService';
 import {updateBudgetForTransaction} from '../services/BudgetService';
 import {TRANSACTION_BATCH_SIZE, MAX_PDF_FILE_SIZE, MAX_CSV_FILE_SIZE} from '../utils/constants';
@@ -188,7 +188,7 @@ function normalizeDescription(description: string): string {
  * @param context - GraphQL context
  * @returns Default account
  */
-async function getDefaultAccount(context: GraphQLContext) {
+async function getDefaultAccount(context: GraphQLContext): Promise<Account> {
   return await withPrismaErrorHandling(
     async () => {
       let account = await context.prisma.account.findFirst({
@@ -205,6 +205,7 @@ async function getDefaultAccount(context: GraphQLContext) {
           initBalance: 0,
           balance: 0,
           isDefault: true,
+          accountType: 'Cash',
           userId: context.userId,
         },
       });
@@ -218,16 +219,16 @@ async function getDefaultAccount(context: GraphQLContext) {
 /**
  * Get default category for user
  * @param context - GraphQL context
- * @returns Default category
+ * @returns Default category (Food & Groceries)
  */
-async function getDefaultCategory(context: GraphQLContext) {
+async function getDefaultCategory(context: GraphQLContext): Promise<Category> {
   return await withPrismaErrorHandling(
     async () => {
       let category = await context.prisma.category.findFirst({
         where: {
           OR: [
-            {userId: context.userId, isDefault: true, name: 'Default Expense Category'},
-            {userId: null, isDefault: true, name: 'Default Expense Category'},
+            {userId: context.userId, isDefault: true, name: 'Food & Groceries'},
+            {userId: null, isDefault: true, name: 'Food & Groceries'},
           ],
         },
       });
@@ -235,8 +236,8 @@ async function getDefaultCategory(context: GraphQLContext) {
       // Create default expense category if none exists
       category ??= await context.prisma.category.create({
         data: {
-          name: 'Default Expense Category',
-          type: 'EXPENSE',
+          name: 'Food & Groceries',
+          categoryType: 'Expense',
           isDefault: true,
           userId: null,
         },
@@ -251,9 +252,9 @@ async function getDefaultCategory(context: GraphQLContext) {
 /**
  * Get default payee for user
  * @param context - GraphQL context
- * @returns Default payee
+ * @returns Default payee (Neccesities)
  */
-async function getDefaultPayee(context: GraphQLContext) {
+async function getDefaultPayee(context: GraphQLContext): Promise<Payee> {
   return await withPrismaErrorHandling(
     async () => {
       let payee = await context.prisma.payee.findFirst({
@@ -268,7 +269,7 @@ async function getDefaultPayee(context: GraphQLContext) {
       // Create default payee if none exists
       payee ??= await context.prisma.payee.create({
         data: {
-          name: 'Default Payee',
+          name: 'Neccesities',
           isDefault: true,
           userId: null,
         },
@@ -553,7 +554,7 @@ export async function uploadPDF(
     const {cardNumber, transactions} = parsedData;
 
     // Get defaults and match rules
-    const [defaultAccount, _defaultCategory, _defaultPayee, matchRules] = await Promise.all([
+    const [defaultAccount, _defaultCategory, _defaultPayee, matchRules, creditCardAccount] = await Promise.all([
       getDefaultAccount(context),
       getDefaultCategory(context),
       getDefaultPayee(context),
@@ -564,6 +565,16 @@ export async function uploadPDF(
           }),
         {resource: 'ImportMatchRule', operation: 'read'},
       ),
+      // Find first CreditCard account for fallback
+      context.prisma.account.findFirst({
+        where: {
+          userId: context.userId,
+          accountType: 'CreditCard',
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
     ]);
     const unmappedTransactions: Array<{
       id: string;
@@ -592,7 +603,8 @@ export async function uploadPDF(
 
       // Match account from card number
       const matchedAccountId = matchAccount(cardNumber, matchRules);
-      const accountId = matchedAccountId ?? defaultAccount.id;
+      // If no Card Number Mapping match, use first CreditCard account, otherwise default account
+      const accountId = matchedAccountId ?? creditCardAccount?.id ?? defaultAccount.id;
 
       // Match category and payee from description
       const matchedCategoryId = matchCategory(parsed.description, matchRules);
@@ -611,11 +623,11 @@ export async function uploadPDF(
           // Get category to determine balance delta
           const category = await context.prisma.category.findUnique({
             where: {id: matchedCategoryId},
-            select: {type: true},
+            select: {categoryType: true},
           });
 
           // Calculate balance delta based on category type
-          const balanceDelta = category?.type === 'INCOME' ? value : -value;
+          const balanceDelta = category?.categoryType === 'Income' ? value : -value;
 
           // Create transaction and update balance atomically
           await context.prisma.$transaction(async (tx) => {
@@ -643,7 +655,7 @@ export async function uploadPDF(
                 userId: newTransaction.userId,
                 value: Number(newTransaction.value),
                 date: newTransaction.date,
-                categoryType: category?.type ?? null,
+                categoryType: category?.categoryType ?? null,
               },
               'create',
               undefined,
@@ -997,7 +1009,7 @@ export async function saveImportedTransactions(
     const categories = categoryIds.size > 0
       ? await tx.category.findMany({
           where: {id: {in: Array.from(categoryIds)}},
-          select: {id: true, type: true},
+          select: {id: true, categoryType: true},
         })
       : [];
     const categoryMap = new Map(categories.map((c) => [c.id, c]));
@@ -1037,7 +1049,7 @@ export async function saveImportedTransactions(
         const category = descMapping.categoryId ? categoryMap.get(descMapping.categoryId) ?? null : null;
 
         // Calculate balance delta based on category type
-        const balanceDelta = category?.type === 'INCOME' ? value : -value;
+        const balanceDelta = category?.categoryType === 'Income' ? value : -value;
 
         transactionsToCreate.push({
           value,
@@ -1283,7 +1295,7 @@ export async function importCSV(
   // Extract file properties - handle both standard and alternative property names
   const filename = 'filename' in fileData && typeof fileData.filename === 'string' ? fileData.filename : (fileData as {name?: string}).name ?? '';
   const mimetype = ('mimetype' in fileData && typeof fileData.mimetype === 'string' ? fileData.mimetype : (fileData as {type?: string}).type) ?? undefined;
-  const createUploadStream = ('createReadStream' in fileData && typeof fileData.createReadStream === 'function' ? fileData.createReadStream : () => {
+  const createUploadStream: () => NodeJS.ReadableStream = ('createReadStream' in fileData && typeof fileData.createReadStream === 'function' ? fileData.createReadStream : (): NodeJS.ReadableStream => {
     throw new ValidationError('File stream is not available. The file may have been corrupted during upload.');
   });
 
@@ -1579,7 +1591,7 @@ async function importCategory(
 
   const data = {
     name: row.name,
-    type: ((row.type === 'INCOME' || row.type === 'EXPENSE') ? row.type : 'EXPENSE') as CategoryType,
+    categoryType: ((row.type === 'INCOME' || row.type === 'Income') ? 'Income' : (row.type === 'EXPENSE' || row.type === 'Expense') ? 'Expense' : 'Expense') as CategoryType,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
     userId,
   };

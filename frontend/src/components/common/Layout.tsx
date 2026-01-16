@@ -126,32 +126,25 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
             <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back">
               <ArrowBack />
             </IconButton>
-            {displayTitle && (
-              <Typography variant="h6" component="h1" sx={{flexGrow: 1}}>
+            {displayTitle ? <Typography variant="h6" component="h1" sx={{flexGrow: 1}}>
                 {displayTitle}
-              </Typography>
-            )}
+              </Typography> : null}
             {!displayTitle && <Box sx={{flexGrow: 1}} />}
             {!hideSearch && (
               <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
                 <SearchIcon />
               </IconButton>
             )}
-            {contextMenu && (
-              <IconButton edge="end" color="inherit" onClick={handleContextMenuOpen} aria-label="More options">
+            {contextMenu ? <IconButton edge="end" color="inherit" onClick={handleContextMenuOpen} aria-label="More options">
                 <MoreVert />
-              </IconButton>
-            )}
-            {!contextMenu && actionButton && (
-              <IconButton edge="end" color="inherit" onClick={actionButton.onClick} aria-label={actionButton.ariaLabel}>
+              </IconButton> : null}
+            {!contextMenu && actionButton ? <IconButton edge="end" color="inherit" onClick={actionButton.onClick} aria-label={actionButton.ariaLabel}>
                 {actionButton.icon}
-              </IconButton>
-            )}
+              </IconButton> : null}
           </Toolbar>
         </AppBar>
       )}
-      {contextMenu && (
-        <Menu
+      {contextMenu ? <Menu
           anchorEl={menuAnchor}
           open={Boolean(menuAnchor)}
           onClose={handleContextMenuClose}
@@ -166,8 +159,7 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
             <Box component="span" sx={{ml: 1}} />
             Delete
           </MenuItem>
-        </Menu>
-      )}
+        </Menu> : null}
       <Box
         component="main"
         sx={{

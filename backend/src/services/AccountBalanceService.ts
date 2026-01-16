@@ -76,7 +76,7 @@ export async function recalculateAccountBalance(
     {
       include: {
         category: {
-          select: {type: true},
+          select: {categoryType: true},
         },
       },
     },
@@ -88,9 +88,9 @@ export async function recalculateAccountBalance(
   for (const transaction of transactions) {
     const value = Number(transaction.value);
     const transactionWithCategory = transaction as typeof transaction & {
-      category?: {type: 'INCOME' | 'EXPENSE'};
+      category?: {categoryType: 'Income' | 'Expense'};
     };
-    const delta = transactionWithCategory.category?.type === 'INCOME'
+    const delta = transactionWithCategory.category?.categoryType === 'Income'
       ? value
       : -value;
     transactionSum += delta;

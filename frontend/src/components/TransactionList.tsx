@@ -316,26 +316,18 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
               </IconButton>
             </Box>
             <Stack spacing={0.5} sx={{mt: 1}}>
-              {showAccountColumn && transaction.account && (
-                <Typography variant="caption" color="text.secondary">
+              {showAccountColumn && transaction.account ? <Typography variant="caption" color="text.secondary">
                   Account: {transaction.account.name}
-                </Typography>
-              )}
-              {showCategoryColumn && transaction.category && (
-                <Typography variant="caption" color="text.secondary">
+                </Typography> : null}
+              {showCategoryColumn && transaction.category ? <Typography variant="caption" color="text.secondary">
                   Category: {transaction.category.name}
-                </Typography>
-              )}
-              {showPayeeColumn && transaction.payee && (
-                <Typography variant="caption" color="text.secondary">
+                </Typography> : null}
+              {showPayeeColumn && transaction.payee ? <Typography variant="caption" color="text.secondary">
                   Payee: {transaction.payee.name}
-                </Typography>
-              )}
-              {transaction.note && (
-                <Typography variant="caption" color="text.secondary" sx={{mt: 0.5}}>
+                </Typography> : null}
+              {transaction.note ? <Typography variant="caption" color="text.secondary" sx={{mt: 0.5}}>
                   Note: {transaction.note}
-                </Typography>
-              )}
+                </Typography> : null}
             </Stack>
           </Box>
         ))}
@@ -360,16 +352,14 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
         <Typography variant="h6" component="h2" gutterBottom sx={{mb: 0}}>
           {isSearchMode ? `Search Results (${transactions.totalCount})` : 'Transactions'}
         </Typography>
-        {isSearchMode && onClearSearch && (
-          <Button
+        {isSearchMode && onClearSearch ? <Button
             startIcon={<Clear />}
             onClick={onClearSearch}
             variant="outlined"
             size="small"
           >
             Clear Search
-          </Button>
-        )}
+          </Button> : null}
       </Box>
       {renderSortControls()}
       {loading ? (
@@ -395,9 +385,9 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                   <TableRow>
                     <TableCell>Date</TableCell>
                     <TableCell>Value</TableCell>
-                    {showAccountColumn && <TableCell>Account</TableCell>}
-                    {showCategoryColumn && <TableCell>Category</TableCell>}
-                    {showPayeeColumn && <TableCell>Payee</TableCell>}
+                    {showAccountColumn ? <TableCell>Account</TableCell> : null}
+                    {showCategoryColumn ? <TableCell>Category</TableCell> : null}
+                    {showPayeeColumn ? <TableCell>Payee</TableCell> : null}
                     <TableCell>Note</TableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
@@ -419,9 +409,9 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                       >
                         <TableCell>{formatDateShort(transaction.date, dateFormat)}</TableCell>
                         <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
-                        {showAccountColumn && <TableCell>{transaction.account?.name ?? '-'}</TableCell>}
-                        {showCategoryColumn && <TableCell>{transaction.category?.name ?? '-'}</TableCell>}
-                        {showPayeeColumn && <TableCell>{transaction.payee?.name ?? '-'}</TableCell>}
+                        {showAccountColumn ? <TableCell>{transaction.account?.name ?? '-'}</TableCell> : null}
+                        {showCategoryColumn ? <TableCell>{transaction.category?.name ?? '-'}</TableCell> : null}
+                        {showPayeeColumn ? <TableCell>{transaction.payee?.name ?? '-'}</TableCell> : null}
                         <TableCell>{transaction.note ?? '-'}</TableCell>
                         <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                           <IconButton

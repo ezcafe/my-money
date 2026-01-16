@@ -234,7 +234,7 @@ export function registerAuthRoutes(app: Hono): void {
    * Logout Endpoint
    * Clears all authentication cookies
    */
-  app.post('/auth/logout', async (c) => {
+  app.post('/auth/logout', (c) => {
     try {
       clearAuthCookies(c);
       return c.json({

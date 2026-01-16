@@ -4,18 +4,26 @@
  */
 
 import React from 'react';
-import {Grid, FormControl, Select, MenuItem} from '@mui/material';
+import {Grid, FormControl, Select, MenuItem, Autocomplete} from '@mui/material';
 import {ArrowForward as GoIcon} from '@mui/icons-material';
 import {MoreHorizOutlined as MoreIcon} from '@mui/icons-material';
 import {Button} from '../ui/Button';
+import {TextField} from '../ui/TextField';
+import {
+  getAccountTypeLabel,
+  getCategoryTypeLabel,
+  GROUP_HEADER_STYLES,
+} from '../../utils/groupSelectOptions';
+import type {Account} from '../../hooks/useAccounts';
+import type {Category} from '../../hooks/useCategories';
 
 interface CalculatorKeypadProps {
   selectedPayeeId: string;
   selectedAccountId: string;
   selectedCategoryId: string;
   payees: Array<{id: string; name: string}>;
-  accounts: Array<{id: string; name: string}>;
-  categories: Array<{id: string; name: string}>;
+  accounts: Account[];
+  categories: Category[];
   useThousandSeparator: boolean;
   creatingTransaction: boolean;
   canSubmit: boolean;
@@ -51,6 +59,11 @@ export function CalculatorKeypad({
 }: CalculatorKeypadProps): React.JSX.Element {
   const buttonHeight = '40px';
   const selectHeight = '44px';
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = accounts.find((acc) => acc.id === selectedAccountId) ?? null;
+  const selectedCategory = categories.find((cat) => cat.id === selectedCategoryId) ?? null;
+
   return (
     <>
       {/* Row 1: Payee, Account, Category, ÷ */}
@@ -79,52 +92,58 @@ export function CalculatorKeypad({
         </FormControl>
       </Grid>
       <Grid item xs={3}>
-        <FormControl
-          fullWidth
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              height: selectHeight,
+        <Autocomplete<Account, false, false, false>
+          options={accounts}
+          getOptionLabel={(option) => option.name}
+          groupBy={(option) => getAccountTypeLabel(option.accountType)}
+          value={selectedAccount}
+          onChange={(_, value) => {
+            onAccountChange(value?.id ?? '');
+          }}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          componentsProps={{
+            popper: {
+              sx: GROUP_HEADER_STYLES,
             },
           }}
-        >
-          <Select
-            value={selectedAccountId || ''}
-            onChange={(e) => {
-              onAccountChange(e.target.value);
-            }}
-            displayEmpty
-          >
-            {accounts.map((account) => (
-              <MenuItem key={account.id} value={account.id}>
-                {account.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  height: selectHeight,
+                },
+              }}
+            />
+          )}
+        />
       </Grid>
       <Grid item xs={3}>
-        <FormControl
-          fullWidth
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              height: selectHeight,
+        <Autocomplete<Category, false, false, false>
+          options={categories}
+          getOptionLabel={(option) => option.name}
+          groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+          value={selectedCategory}
+          onChange={(_, value) => {
+            onCategoryChange(value?.id ?? '');
+          }}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          componentsProps={{
+            popper: {
+              sx: GROUP_HEADER_STYLES,
             },
           }}
-        >
-          <Select
-            value={selectedCategoryId || ''}
-            onChange={(e) => {
-              onCategoryChange(e.target.value);
-            }}
-            displayEmpty
-          >
-            {categories.map((category) => (
-              <MenuItem key={category.id} value={category.id}>
-                {category.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  height: selectHeight,
+                },
+              }}
+            />
+          )}
+        />
       </Grid>
       <Grid item xs={3}>
         <Button

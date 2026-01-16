@@ -3,18 +3,15 @@
  * Page for adding new budgets
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {useNavigate, useSearchParams} from 'react-router';
 import {
   Box,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Typography,
   ToggleButtonGroup,
   ToggleButton,
+  Autocomplete,
 } from '@mui/material';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {Card} from '../components/ui/Card';
@@ -23,6 +20,13 @@ import {CREATE_BUDGET} from '../graphql/mutations';
 import {GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
 import {useTitle} from '../contexts/TitleContext';
 import {PageContainer} from '../components/common/PageContainer';
+import {
+  getAccountTypeLabel,
+  getCategoryTypeLabel,
+  GROUP_HEADER_STYLES,
+} from '../utils/groupSelectOptions';
+import type {Account} from '../hooks/useAccounts';
+import type {Category} from '../hooks/useCategories';
 
 /**
  * Budget Add Page Component
@@ -33,15 +37,20 @@ export function BudgetAddPage(): React.JSX.Element {
   const returnTo = searchParams.get('returnTo') ?? '/budgets';
   const {setTitle} = useTitle();
 
-  const {data: accountsData} = useQuery<{accounts: Array<{id: string; name: string}>}>(GET_ACCOUNTS);
-  const {data: categoriesData} = useQuery<{categories: Array<{id: string; name: string; type: string}>}>(
+  const {data: accountsData} = useQuery<{accounts: Array<{id: string; name: string; accountType: string}>}>(GET_ACCOUNTS);
+  const {data: categoriesData} = useQuery<{categories: Array<{id: string; name: string; categoryType: string}>}>(
     GET_CATEGORIES,
   );
   const {data: payeesData} = useQuery<{payees: Array<{id: string; name: string}>}>(GET_PAYEES);
 
-  const accounts = accountsData?.accounts ?? [];
-  const categories = (categoriesData?.categories ?? []).filter((c) => c.type === 'EXPENSE');
+  const accounts = useMemo(() => (accountsData?.accounts ?? []) as Account[], [accountsData?.accounts]);
+  const categories = useMemo(() => ((categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense')) as Category[], [categoriesData?.categories]);
   const payees = payeesData?.payees ?? [];
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = accounts.find((acc) => acc.id === selectedEntityId) ?? null;
+  const selectedCategory = categories.find((cat) => cat.id === selectedEntityId) ?? null;
+  const selectedPayee = payees.find((p) => p.id === selectedEntityId) ?? null;
 
   const [budgetType, setBudgetType] = useState<'account' | 'category' | 'payee'>('account');
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');
@@ -156,11 +165,9 @@ export function BudgetAddPage(): React.JSX.Element {
         }}
       >
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
-          {error && (
-            <Typography color="error" variant="body2">
+          {error ? <Typography color="error" variant="body2">
               {error}
-            </Typography>
-          )}
+            </Typography> : null}
 
           <Typography variant="body2" color="text.secondary">
             Select the type of budget you want to create
@@ -181,35 +188,56 @@ export function BudgetAddPage(): React.JSX.Element {
             <ToggleButton value="payee">Payee</ToggleButton>
           </ToggleButtonGroup>
 
-          <FormControl fullWidth required>
-            <InputLabel>
-              {budgetType === 'account' ? 'Account' : budgetType === 'category' ? 'Category' : 'Payee'}
-            </InputLabel>
-            <Select
-              value={selectedEntityId}
-              onChange={(e) => setSelectedEntityId(e.target.value)}
-              label={budgetType === 'account' ? 'Account' : budgetType === 'category' ? 'Category' : 'Payee'}
-            >
-              {budgetType === 'account' &&
-                accounts.map((account) => (
-                  <MenuItem key={account.id} value={account.id}>
-                    {account.name}
-                  </MenuItem>
-                ))}
-              {budgetType === 'category' &&
-                categories.map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              {budgetType === 'payee' &&
-                payees.map((payee) => (
-                  <MenuItem key={payee.id} value={payee.id}>
-                    {payee.name}
-                  </MenuItem>
-                ))}
-            </Select>
-          </FormControl>
+          {budgetType === 'account' && (
+            <Autocomplete<Account, false, false, false>
+              options={accounts}
+              getOptionLabel={(option) => option.name}
+              groupBy={(option) => getAccountTypeLabel(option.accountType)}
+              value={selectedAccount}
+              onChange={(_, value) => {
+                setSelectedEntityId(value?.id ?? '');
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              componentsProps={{
+                popper: {
+                  sx: GROUP_HEADER_STYLES,
+                },
+              }}
+              renderInput={(params) => <TextField {...params} label="Account" required />}
+            />
+          )}
+
+          {budgetType === 'category' && (
+            <Autocomplete<Category, false, false, false>
+              options={categories}
+              getOptionLabel={(option) => option.name}
+              groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+              value={selectedCategory}
+              onChange={(_, value) => {
+                setSelectedEntityId(value?.id ?? '');
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              componentsProps={{
+                popper: {
+                  sx: GROUP_HEADER_STYLES,
+                },
+              }}
+              renderInput={(params) => <TextField {...params} label="Category" required />}
+            />
+          )}
+
+          {budgetType === 'payee' && (
+            <Autocomplete<{id: string; name: string}, false, false, false>
+              options={payees}
+              getOptionLabel={(option) => option.name}
+              value={selectedPayee}
+              onChange={(_, value) => {
+                setSelectedEntityId(value?.id ?? '');
+              }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={(params) => <TextField {...params} label="Payee" required />}
+            />
+          )}
 
           <TextField
             label="Budget Amount"

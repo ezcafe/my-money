@@ -45,7 +45,7 @@ export function createOptimisticTransaction(transaction: {
 } {
   const now = new Date().toISOString();
   return {
-    id: transaction.id || `temp-${Date.now()}`,
+    id: transaction.id ?? `temp-${Date.now()}`,
     value: transaction.value,
     date: typeof transaction.date === 'string' ? transaction.date : transaction.date.toISOString(),
     accountId: transaction.accountId,
@@ -79,7 +79,7 @@ export function createOptimisticAccount(account: {
 } {
   const now = new Date().toISOString();
   return {
-    id: account.id || `temp-${Date.now()}`,
+    id: account.id ?? `temp-${Date.now()}`,
     name: account.name,
     initBalance: account.initBalance ?? 0,
     balance: account.initBalance ?? 0,

@@ -5,9 +5,20 @@
 
 import React from 'react';
 import {useParams} from 'react-router';
+import {FormControl, InputLabel, Select, MenuItem} from '@mui/material';
 import {EntityEditForm, type EntityEditFormConfig} from '../components/common/EntityEditForm';
 import {CREATE_ACCOUNT, UPDATE_ACCOUNT} from '../graphql/mutations';
 import {GET_ACCOUNT, GET_ACCOUNTS} from '../graphql/queries';
+
+type AccountType = 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
+
+const ACCOUNT_TYPES: Array<{value: AccountType; label: string}> = [
+  {value: 'Cash', label: 'Cash'},
+  {value: 'CreditCard', label: 'Credit Card'},
+  {value: 'Bank', label: 'Bank'},
+  {value: 'Saving', label: 'Saving'},
+  {value: 'Loans', label: 'Loans'},
+];
 
 /**
  * Account data from GraphQL query
@@ -18,6 +29,7 @@ interface AccountData {
     name: string;
     initBalance: number;
     isDefault: boolean;
+    accountType: AccountType;
     balance: number;
   } | null;
 }
@@ -28,7 +40,7 @@ interface AccountData {
 export function AccountEditPage(): React.JSX.Element {
   const {id} = useParams<{id: string}>();
 
-  const config: EntityEditFormConfig<AccountData, {name: string; initBalance?: number}> = {
+  const config: EntityEditFormConfig<AccountData, {name: string; initBalance?: number; accountType?: AccountType}> = {
     entityType: 'Account',
     defaultReturnUrl: '/accounts',
     getQuery: GET_ACCOUNT,
@@ -67,6 +79,29 @@ export function AccountEditPage(): React.JSX.Element {
           return null;
         },
       },
+      {
+        key: 'accountType',
+        label: 'Account Type',
+        type: 'custom',
+        required: false,
+        defaultValue: 'Cash',
+        render: (value: unknown, onChange: (value: unknown) => void) => (
+          <FormControl fullWidth>
+            <InputLabel>Account Type</InputLabel>
+            <Select
+              value={value ?? 'Cash'}
+              label="Account Type"
+              onChange={(e) => onChange(e.target.value)}
+            >
+              {ACCOUNT_TYPES.map((type) => (
+                <MenuItem key={type.value} value={type.value}>
+                  {type.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        ),
+      },
     ],
     extractEntity: (data: AccountData): {id: string; [key: string]: unknown} | null => data?.account ?? null,
     transformToInput: (values: Record<string, unknown>) => {
@@ -84,10 +119,16 @@ export function AccountEditPage(): React.JSX.Element {
         }
       }
 
+      // Handle accountType
+      const accountTypeValue = values.accountType;
+      const accountType = accountTypeValue && typeof accountTypeValue === 'string' ? accountTypeValue as AccountType : undefined;
+
       // If initBalance is undefined, backend will default to 0
+      // If accountType is undefined, backend will default to Cash
       return {
         name: nameStr,
         ...(initBalance !== undefined ? {initBalance} : {}),
+        ...(accountType !== undefined ? {accountType} : {}),
       };
     },
   };

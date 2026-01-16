@@ -117,11 +117,9 @@ export function PayeeEditDialog({
       actions={actions}
     >
       <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-        {error && (
-          <Typography color="error" variant="body2">
+        {error ? <Typography color="error" variant="body2">
             {error}
-          </Typography>
-        )}
+          </Typography> : null}
 
         <TextField
           label="Name"

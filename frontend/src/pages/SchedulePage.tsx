@@ -136,26 +136,18 @@ export function SchedulePage(): React.JSX.Element {
                       <Typography variant="body1" fontWeight={500}>
                         {formatCurrencyPreserveDecimals(transaction.value, currency)}
                       </Typography>
-                      {transaction.account && (
-                        <Typography variant="body2" color="text.secondary">
+                      {transaction.account ? <Typography variant="body2" color="text.secondary">
                           Account: {transaction.account.name}
-                        </Typography>
-                      )}
-                      {transaction.category && (
-                        <Typography variant="body2" color="text.secondary">
+                        </Typography> : null}
+                      {transaction.category ? <Typography variant="body2" color="text.secondary">
                           Category: {transaction.category.name}
-                        </Typography>
-                      )}
-                      {transaction.payee && (
-                        <Typography variant="body2" color="text.secondary">
+                        </Typography> : null}
+                      {transaction.payee ? <Typography variant="body2" color="text.secondary">
                           Payee: {transaction.payee.name}
-                        </Typography>
-                      )}
-                      {transaction.note && (
-                        <Typography variant="body2" color="text.secondary">
+                        </Typography> : null}
+                      {transaction.note ? <Typography variant="body2" color="text.secondary">
                           Note: {transaction.note}
-                        </Typography>
-                      )}
+                        </Typography> : null}
                     </Stack>
                     <Stack spacing={1} alignItems="flex-end">
                       <Chip label={typeLabel} size="small" color="primary" variant="outlined" />

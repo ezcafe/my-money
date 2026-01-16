@@ -36,17 +36,17 @@ export function isCurrentMonth(date: Date): boolean {
 
 /**
  * Calculate spending change for a transaction
- * Only counts EXPENSE transactions from current month
+ * Only counts Expense transactions from current month
  * @param transaction - Transaction data
- * @param categoryType - Category type (INCOME or EXPENSE)
+ * @param categoryType - Category type (Income or Expense)
  * @returns Spending change (positive for expenses, 0 for income or non-current-month)
  */
 function calculateSpendingChange(
   transaction: {value: number | string; date: Date; categoryId: string | null},
-  categoryType: 'INCOME' | 'EXPENSE' | null,
+  categoryType: 'Income' | 'Expense' | null,
 ): number {
-  // Only count EXPENSE transactions
-  if (categoryType !== 'EXPENSE') {
+  // Only count Expense transactions
+  if (categoryType !== 'Expense') {
     return 0;
   }
 
@@ -195,14 +195,14 @@ export async function recalculateBudgetBalance(
         lte: monthEnd,
       },
       category: {
-        type: 'EXPENSE',
+        categoryType: 'Expense',
       },
       ...(orConditions.length > 0 && {OR: orConditions}),
     },
     {
       include: {
         category: {
-          select: {type: true},
+          select: {categoryType: true},
         },
       },
     },
@@ -213,9 +213,9 @@ export async function recalculateBudgetBalance(
   for (const transaction of transactions) {
     // Double-check category type (should already be filtered, but be safe)
     const transactionWithCategory = transaction as typeof transaction & {
-      category?: {type: 'INCOME' | 'EXPENSE'};
+      category?: {categoryType: 'Income' | 'Expense'};
     };
-    if (transactionWithCategory.category?.type === 'EXPENSE' && isCurrentMonth(transaction.date)) {
+    if (transactionWithCategory.category?.categoryType === 'Expense' && isCurrentMonth(transaction.date)) {
       const value = Number(transaction.value);
       totalSpent += Math.abs(value);
     }
@@ -255,7 +255,7 @@ export async function updateBudgetForTransaction(
     userId: string;
     value: number | string;
     date: Date;
-    categoryType?: 'INCOME' | 'EXPENSE' | null;
+    categoryType?: 'Income' | 'Expense' | null;
   },
   operation: 'create' | 'update' | 'delete',
   oldTransaction?: {
@@ -264,7 +264,7 @@ export async function updateBudgetForTransaction(
     payeeId: string | null;
     value: number | string;
     date: Date;
-    categoryType?: 'INCOME' | 'EXPENSE' | null;
+    categoryType?: 'Income' | 'Expense' | null;
   },
   tx?: PrismaTransaction | PrismaClient,
 ): Promise<void> {
@@ -272,10 +272,10 @@ export async function updateBudgetForTransaction(
 
   // Get category type if not provided
   const categoryRepository = new CategoryRepository(client);
-  let categoryType: 'INCOME' | 'EXPENSE' | null = transaction.categoryType ?? null;
+  let categoryType: 'Income' | 'Expense' | null = transaction.categoryType ?? null;
   if (!categoryType && transaction.categoryId) {
-    const category = await categoryRepository.findById(transaction.categoryId, transaction.userId, {type: true});
-    categoryType = category?.type ?? null;
+    const category = await categoryRepository.findById(transaction.categoryId, transaction.userId, {categoryType: true});
+    categoryType = category?.categoryType ?? null;
   }
 
   // Calculate spending change for current transaction

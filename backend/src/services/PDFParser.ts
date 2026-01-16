@@ -40,17 +40,19 @@ function extractLast4Digits(cardNumber: string): string | null {
  * @returns Extracted card number (last 4 digits) or null
  */
 export function extractCardNumber(text: string): string | null {
-  // Approach 1: Search for "Card Number:" label followed by digits
+  // Approach 1: Search for "Card Number:" label followed by full card number string
+  // Capture everything after the label until newline or end, then normalize and extract last 4
   const labelPatterns = [
-    /Card\s+Number[:\s]+(\d{4,})/i,
-    /Card\s*#\s*[:\s]+(\d{4,})/i,
-    /Card\s+ending\s+in[:\s]+(\d{4,})/i,
-    /Account\s+Number[:\s]+(\d{4,})/i,
+    /Card\s+Number[:\s]+([^\n\r]+)/i,
+    /Card\s*#\s*[:\s]+([^\n\r]+)/i,
+    /Card\s+ending\s+in[:\s]+([^\n\r]+)/i,
+    /Account\s+Number[:\s]+([^\n\r]+)/i,
   ];
 
   for (const pattern of labelPatterns) {
     const match = text.match(pattern);
     if (match?.[1]) {
+      // Normalize the entire matched string (remove all non-digits) and extract last 4
       const last4 = extractLast4Digits(match[1].trim());
       if (last4) {
         return last4;
@@ -59,18 +61,43 @@ export function extractCardNumber(text: string): string | null {
   }
 
   // Approach 2: Look for masked patterns like ****1234 or **** **** **** 1234
+  // For patterns with leading digits and x's, capture the full pattern including leading digits
   const maskedPatterns = [
     /\*{4}\s*\*{4}\s*\*{4}\s*(\d{4})/, // **** **** **** 1234
     /\*{3,}\s*(\d{4})/, // ***1234 or ****1234
     /x{4}\s*x{4}\s*x{4}\s*(\d{4})/i, // xxxx xxxx xxxx 1234
-    /\d+x{4,}\s*(\d{4})/, // 402737xxxxxx9656 -> captures 9656
-    /\d+\s*x{4,}\s*(\d{4})/, // handles spaces between digits and x's
+    // For patterns like "402737xxxxxx9656", capture the full string including leading digits
+    /(\d+[x*]{4,}\d{4})/i, // 402737xxxxxx9656 -> captures full string
+    /(\d+\s*[x*]{4,}\s*\d{4})/i, // handles spaces: 402737 xxxxxx 9656
   ];
 
   for (const pattern of maskedPatterns) {
     const match = text.match(pattern);
     if (match?.[1]) {
-      return match[1].trim();
+      // Normalize the entire matched string and extract last 4
+      const last4 = extractLast4Digits(match[1].trim());
+      if (last4) {
+        return last4;
+      }
+    }
+  }
+
+  // Approach 3: Look for account number patterns with spaces (e.g., "3103 060 517")
+  // Match sequences of digits separated by spaces
+  const spacedPatterns = [
+    /(?:Card|Account)\s+(?:Number|#)[:\s]+(\d+(?:\s+\d+)+)/i, // "Card Number: 3103 060 517"
+    /(\d{4}\s+\d{3}\s+\d{3})/, // "3103 060 517" format
+    /(\d{4}\s+\d{3}\s+\d{4})/, // "1234 567 8901" format
+  ];
+
+  for (const pattern of spacedPatterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      // Normalize the entire matched string and extract last 4
+      const last4 = extractLast4Digits(match[1].trim());
+      if (last4) {
+        return last4;
+      }
     }
   }
 
@@ -515,7 +542,7 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
             const amountMatch = beforeSuffix.match(/([\d.,]+)\s*$/);
             if (amountMatch?.[1]) {
               amountStr = amountMatch[1];
-              isCredit = /CR|CREDIT/i.test(suffixMatch?.[1] || '');
+              isCredit = /CR|CREDIT/i.test(suffixMatch?.[1] ?? '');
             }
           } else {
             // No suffix: take the last number sequence
@@ -536,7 +563,7 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
         let description: string;
         if (drCrMatch) {
           // For DR/CR format, description is everything before the DR amount
-          const drAmountStart = afterDates.indexOf(drCrMatch?.[1] || '');
+          const drAmountStart = afterDates.indexOf(drCrMatch?.[1] ?? '');
           description = afterDates.substring(0, drAmountStart).trim();
         } else {
           // For other formats, use lastIndexOf to find amount

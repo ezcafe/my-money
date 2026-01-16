@@ -193,11 +193,9 @@ export function BudgetEditPage(): React.JSX.Element {
             Budget for: {budgetName}
           </Typography>
 
-          {error && (
-            <Typography color="error" variant="body2">
+          {error ? <Typography color="error" variant="body2">
               {error}
-            </Typography>
-          )}
+            </Typography> : null}
 
           <TextField
             label="Budget Amount"

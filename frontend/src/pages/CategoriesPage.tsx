@@ -56,11 +56,11 @@ const CategoriesPageComponent = (): React.JSX.Element => {
    * Group categories by type, with Income first
    */
   const groupedCategories = useMemo(() => {
-    const incomeCategories = filteredCategories.filter((cat) => cat.type === 'INCOME');
-    const expenseCategories = filteredCategories.filter((cat) => cat.type === 'EXPENSE');
+    const incomeCategories = filteredCategories.filter((cat) => cat.categoryType === 'Income');
+    const expenseCategories = filteredCategories.filter((cat) => cat.categoryType === 'Expense');
     return [
-      {type: 'INCOME' as const, label: 'Income', categories: incomeCategories, icon: TrendingUp},
-      {type: 'EXPENSE' as const, label: 'Expense', categories: expenseCategories, icon: TrendingDown},
+      {type: 'Income' as const, label: 'Income', categories: incomeCategories, icon: TrendingUp},
+      {type: 'Expense' as const, label: 'Expense', categories: expenseCategories, icon: TrendingDown},
     ];
   }, [filteredCategories]);
 
@@ -68,8 +68,8 @@ const CategoriesPageComponent = (): React.JSX.Element => {
    * Get total counts for each type
    */
   const totalCounts = useMemo(() => {
-    const incomeCount = categories.filter((cat) => cat.type === 'INCOME').length;
-    const expenseCount = categories.filter((cat) => cat.type === 'EXPENSE').length;
+    const incomeCount = categories.filter((cat) => cat.categoryType === 'Income').length;
+    const expenseCount = categories.filter((cat) => cat.categoryType === 'Expense').length;
     return {income: incomeCount, expense: expenseCount};
   }, [categories]);
 
@@ -105,16 +105,13 @@ const CategoriesPageComponent = (): React.JSX.Element => {
   return (
     <PageContainer>
       {/* No Search Results */}
-      {hasNoSearchResults && (
-        <EmptyState
+      {hasNoSearchResults ? <EmptyState
           title="No categories found"
           description="Try adjusting your search query"
-        />
-      )}
+        /> : null}
 
       {/* Categories List */}
-      {hasSearchResults && (
-        <Card>
+      {hasSearchResults ? <Card>
           <List disablePadding>
             {groupedCategories.map((group, groupIndex) => {
               if (group.categories.length === 0) {
@@ -122,7 +119,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
               }
 
               const IconComponent = group.icon;
-              const totalCount = group.type === 'INCOME' ? totalCounts.income : totalCounts.expense;
+              const totalCount = group.type === 'Income' ? totalCounts.income : totalCounts.expense;
               const filteredCount = group.categories.length;
 
               return (
@@ -139,18 +136,16 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                       gap: 1,
                     }}
                   >
-                    <IconComponent fontSize="small" color={group.type === 'INCOME' ? 'success' : 'error'} />
+                    <IconComponent fontSize="small" color={group.type === 'Income' ? 'success' : 'error'} />
                     <Typography variant="subtitle2" color="text.secondary" sx={{fontWeight: 600}}>
                       {group.label}
                     </Typography>
-                    {searchQuery && filteredCount < totalCount && (
-                      <Chip
+                    {searchQuery && filteredCount < totalCount ? <Chip
                         label={`${filteredCount} of ${totalCount}`}
                         size="small"
                         variant="outlined"
                         sx={{ml: 'auto', height: 20, fontSize: '0.7rem'}}
-                      />
-                    )}
+                      /> : null}
                     {!searchQuery && (
                       <Chip
                         label={totalCount}
@@ -182,8 +177,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                               <Typography variant="body1" fontWeight={500}>
                                 {category.name}
                               </Typography>
-                              {category.isDefault && (
-                                <Chip
+                              {category.isDefault ? <Chip
                                   icon={<Star fontSize="inherit" />}
                                   label="Default"
                                   size="small"
@@ -196,8 +190,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                                       fontSize: '0.75rem',
                                     },
                                   }}
-                                />
-                              )}
+                                /> : null}
                             </Stack>
                           }
                         />
@@ -208,8 +201,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
               );
             })}
           </List>
-        </Card>
-      )}
+        </Card> : null}
     </PageContainer>
   );
 };

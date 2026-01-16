@@ -34,8 +34,7 @@ export function EmptyState({icon, title, description, action}: EmptyStateProps):
   return (
     <Card sx={{p: 4}}>
       <Box sx={{textAlign: 'center', py: 4}}>
-        {icon && (
-          <Box
+        {icon ? <Box
             sx={{
               display: 'flex',
               justifyContent: 'center',
@@ -48,17 +47,14 @@ export function EmptyState({icon, title, description, action}: EmptyStateProps):
             }}
           >
             {icon}
-          </Box>
-        )}
+          </Box> : null}
         <Typography variant="h6" color="text.secondary" sx={{mb: 1}}>
           {title}
         </Typography>
-        {description && (
-          <Typography variant="body2" color="text.secondary" sx={{mb: 3, maxWidth: '500px', mx: 'auto'}}>
+        {description ? <Typography variant="body2" color="text.secondary" sx={{mb: 3, maxWidth: '500px', mx: 'auto'}}>
             {description}
-          </Typography>
-        )}
-        {action && <Box sx={{mt: 2}}>{action}</Box>}
+          </Typography> : null}
+        {action ? <Box sx={{mt: 2}}>{action}</Box> : null}
       </Box>
     </Card>
   );

@@ -23,11 +23,12 @@ const UpdatePayeeInputSchema = z.object({
 export class PayeeResolver extends BaseResolver {
   /**
    * Get all payees (user-specific and default)
+   * Sorted by: isDefault (desc) → transaction count (desc) → name (asc)
    */
   async payees(_: unknown, __: unknown, context: GraphQLContext): Promise<Payee[]> {
     // Ensure default payees exist
     await this.ensureDefaultPayees(context);
-    return await withPrismaErrorHandling(
+    const payees = await withPrismaErrorHandling(
       async () =>
         await context.prisma.payee.findMany({
           where: {
@@ -36,13 +37,39 @@ export class PayeeResolver extends BaseResolver {
               {isDefault: true},
             ],
           },
-          orderBy: [
-            {isDefault: 'desc'},
-            {name: 'asc'},
-          ],
+          include: {
+            _count: {
+              select: {
+                transactions: true,
+              },
+            },
+          },
         }),
       {resource: 'Payee', operation: 'read'},
     );
+
+    // Sort: isDefault desc → transaction count desc → name asc
+    payees.sort((a, b) => {
+      // Default items first
+      if (a.isDefault !== b.isDefault) {
+        return b.isDefault ? 1 : -1;
+      }
+      // Then by transaction count (most used first)
+      const countDiff = (b._count.transactions ?? 0) - (a._count.transactions ?? 0);
+      if (countDiff !== 0) return countDiff;
+      // Finally alphabetical
+      return a.name.localeCompare(b.name);
+    });
+
+    // Map to return type without _count
+    return payees.map((payee) => ({
+      id: payee.id,
+      name: payee.name,
+      isDefault: payee.isDefault,
+      userId: payee.userId,
+      createdAt: payee.createdAt,
+      updatedAt: payee.updatedAt,
+    }));
   }
 
   /**

@@ -14,22 +14,23 @@ import {BaseResolver} from './BaseResolver';
 
 const CreateCategoryInputSchema = z.object({
   name: z.string().min(1).max(255),
-  type: z.enum(['INCOME', 'EXPENSE']),
+  categoryType: z.enum(['Income', 'Expense']),
 });
 
 const UpdateCategoryInputSchema = z.object({
   name: z.string().min(1).max(255).optional(),
-  type: z.enum(['INCOME', 'EXPENSE']).optional(),
+  categoryType: z.enum(['Income', 'Expense']).optional(),
 });
 
 export class CategoryResolver extends BaseResolver {
   /**
    * Get all categories (user-specific and default)
+   * Sorted by: isDefault (desc) → transaction count (desc) → name (asc)
    */
   async categories(_: unknown, __: unknown, context: GraphQLContext): Promise<Category[]> {
     // Ensure default categories exist
     await this.ensureDefaultCategories(context);
-    return await withPrismaErrorHandling(
+    const categories = await withPrismaErrorHandling(
       async () =>
         await context.prisma.category.findMany({
           where: {
@@ -38,13 +39,35 @@ export class CategoryResolver extends BaseResolver {
               {isDefault: true},
             ],
           },
-          orderBy: [
-            {isDefault: 'desc'},
-            {name: 'asc'},
-          ],
+          include: {
+            _count: {
+              select: {
+                transactions: true,
+              },
+            },
+          },
         }),
       {resource: 'Category', operation: 'read'},
     );
+
+    // Sort: isDefault desc → transaction count desc → name asc
+    categories.sort((a, b) => {
+      // Default items first
+      if (a.isDefault !== b.isDefault) {
+        return b.isDefault ? 1 : -1;
+      }
+      // Then by transaction count (most used first)
+      const countDiff = (b._count.transactions ?? 0) - (a._count.transactions ?? 0);
+      if (countDiff !== 0) return countDiff;
+      // Finally alphabetical
+      return a.name.localeCompare(b.name);
+    });
+
+    // Map to return type without _count
+    return categories.map((category) => {
+      const {_count, ...categoryWithoutCount} = category;
+      return categoryWithoutCount;
+    });
   }
 
   /**
@@ -71,7 +94,7 @@ export class CategoryResolver extends BaseResolver {
    */
   async createCategory(
     _: unknown,
-    {input}: {input: {name: string; type: 'INCOME' | 'EXPENSE'}},
+    {input}: {input: {name: string; categoryType: 'Income' | 'Expense'}},
     context: GraphQLContext,
   ): Promise<Category> {
     const validatedInput = this.validateInput(CreateCategoryInputSchema, input);
@@ -88,7 +111,7 @@ export class CategoryResolver extends BaseResolver {
         await context.prisma.category.create({
           data: {
             name: sanitizeUserInput(validatedInput.name),
-            type: validatedInput.type,
+            categoryType: validatedInput.categoryType,
             userId: context.userId,
             isDefault: false,
           },
@@ -104,7 +127,7 @@ export class CategoryResolver extends BaseResolver {
    */
   async updateCategory(
     _: unknown,
-    {id, input}: {id: string; input: {name?: string; type?: 'INCOME' | 'EXPENSE'}},
+    {id, input}: {id: string; input: {name?: string; categoryType?: 'Income' | 'Expense'}},
     context: GraphQLContext,
   ): Promise<Category> {
     const validatedInput = this.validateInput(UpdateCategoryInputSchema, input);
@@ -142,7 +165,7 @@ export class CategoryResolver extends BaseResolver {
           where: {id},
           data: {
             ...(validatedInput.name !== undefined && {name: sanitizeUserInput(validatedInput.name)}),
-            ...(validatedInput.type !== undefined && {type: validatedInput.type}),
+            ...(validatedInput.categoryType !== undefined && {categoryType: validatedInput.categoryType}),
           },
         }),
       {resource: 'Category', operation: 'update'},

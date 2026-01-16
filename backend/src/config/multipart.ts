@@ -42,7 +42,7 @@ export function registerMultipartHandler(app: Hono): void {
         // Already a Node.js IncomingMessage
         nodeReq = rawReq as unknown as IncomingMessage;
         nodeStream = nodeReq;
-      } else if (rawReq && rawReq.body) {
+      } else if (rawReq?.body) {
         // Web API Request - convert body to Node.js stream
         const webStream = rawReq.body;
         if (!webStream) {
@@ -88,9 +88,7 @@ export function registerMultipartHandler(app: Hono): void {
         const busboy = Busboy({headers: nodeReq.headers as Record<string, string>});
 
         busboy.on('field', (name: string, value: string) => {
-          if (!fields[name]) {
-            fields[name] = [];
-          }
+          fields[name] ??= [];
           fields[name].push(value);
         });
 
@@ -105,9 +103,7 @@ export function registerMultipartHandler(app: Hono): void {
               reject(new Error(`File size exceeds maximum allowed size of ${MAX_MULTIPART_FILE_SIZE / 1024 / 1024}MB`));
               return;
             }
-            if (!parsedFiles[name]) {
-              parsedFiles[name] = [];
-            }
+            parsedFiles[name] ??= [];
             parsedFiles[name].push({
               buffer,
               filename: info.filename,
@@ -145,11 +141,11 @@ export function registerMultipartHandler(app: Hono): void {
       }
 
       // Process fields (operations and map)
-      if (fields.operations && fields.operations[0]) {
+      if (fields.operations?.[0]) {
         Object.assign(operations, JSON.parse(fields.operations[0]));
       }
 
-      if (fields.map && fields.map[0]) {
+      if (fields.map?.[0]) {
         Object.assign(map, JSON.parse(fields.map[0]));
       }
 

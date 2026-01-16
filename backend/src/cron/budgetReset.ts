@@ -92,7 +92,6 @@ export async function processBudgetResets(): Promise<{
  */
 export function startBudgetResetCron(): void {
   // Run monthly on the first day at 00:00 (server timezone)
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   cron.schedule('0 0 1 * *', async (): Promise<void> => {
     try {
       logInfo('Cron job started: Processing budget resets');

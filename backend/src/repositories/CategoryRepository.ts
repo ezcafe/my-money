@@ -89,7 +89,7 @@ export class CategoryRepository extends BaseRepository {
   async create(
     data: {
       name: string;
-      type: 'INCOME' | 'EXPENSE';
+      categoryType: 'Income' | 'Expense';
       isDefault?: boolean;
       userId?: string | null;
     },
@@ -110,7 +110,7 @@ export class CategoryRepository extends BaseRepository {
     id: string,
     data: {
       name?: string;
-      type?: 'INCOME' | 'EXPENSE';
+      categoryType?: 'Income' | 'Expense';
       isDefault?: boolean;
     },
     tx?: PrismaTransaction,

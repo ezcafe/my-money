@@ -15,6 +15,7 @@ import {useAccounts} from '../hooks/useAccounts';
 import {useCategories} from '../hooks/useCategories';
 import {usePayees} from '../hooks/usePayees';
 import {useTopUsedValues} from '../hooks/useTopUsedValues';
+import {useMostUsedTransactionDetails} from '../hooks/useMostUsedTransactionDetails';
 import {useAutoScroll} from '../hooks/useAutoScroll';
 import {MAX_RECENT_TRANSACTIONS} from '../constants';
 import {CalculatorDisplay} from './calculator/CalculatorDisplay';
@@ -80,6 +81,19 @@ export function Calculator(): React.JSX.Element {
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
 
+  // Calculate current amount from display for auto-selection
+  const currentAmount = useMemo(() => {
+    if (!showAmount || state.display === '0') {
+      return null;
+    }
+    const parsed = parseFloat(state.display);
+    return Number.isNaN(parsed) || parsed <= 0 ? null : parsed;
+  }, [showAmount, state.display]);
+
+  // Fetch most used transaction details for current amount
+  const {accountId: autoAccountId, payeeId: autoPayeeId, categoryId: autoCategoryId} =
+    useMostUsedTransactionDetails(currentAmount, 90);
+
   // Auto-scroll to bottom when transactions are loaded or new ones are added
   useAutoScroll(historyListRef, transactions, transactionsLoading);
 
@@ -131,10 +145,10 @@ export function Calculator(): React.JSX.Element {
     return defaultAccount?.id ?? null;
   }, [accounts]);
 
-  // Get default category ID
+  // Get default category ID (Food & Groceries)
   const defaultCategoryId = useMemo(() => {
     const defaultCategory = categories.find(
-      (cat) => cat.name === 'Default Expense Category' && cat.type === 'EXPENSE',
+      (cat) => cat.name === 'Food & Groceries' && cat.categoryType === 'Expense',
     );
     return defaultCategory?.id ?? null;
   }, [categories]);
@@ -148,28 +162,51 @@ export function Calculator(): React.JSX.Element {
     return defaultPayee?.id ?? null;
   }, [payees]);
 
-  // Initialize selected values with defaults
-  // Use accounts array length as trigger - when data loads, set defaults
+  // Initialize selected values with defaults on first load
+  // Set defaults when data is available and no selection has been made
   useEffect(() => {
-    // Set selected value when accounts are loaded and default is available and selected is empty or different
-    if (accounts.length > 0 && defaultAccountId && (!selectedAccountId || selectedAccountId !== defaultAccountId)) {
+    // Set default account when accounts are loaded and no account is selected
+    if (accounts.length > 0 && defaultAccountId && selectedAccountId === '') {
       setSelectedAccountId(defaultAccountId);
     }
-  }, [accounts.length, defaultAccountId, selectedAccountId]);
+  }, [accounts, defaultAccountId, selectedAccountId]);
 
   useEffect(() => {
-    // Set selected value when categories are loaded and default is available and selected is empty or different
-    if (categories.length > 0 && defaultCategoryId && (!selectedCategoryId || selectedCategoryId !== defaultCategoryId)) {
+    // Set default category when categories are loaded and no category is selected
+    if (categories.length > 0 && defaultCategoryId && selectedCategoryId === '') {
       setSelectedCategoryId(defaultCategoryId);
     }
-  }, [categories.length, defaultCategoryId, selectedCategoryId]);
+  }, [categories, defaultCategoryId, selectedCategoryId]);
 
   useEffect(() => {
-    // Set selected value when payees are loaded and default is available and selected is empty or different
-    if (payees.length > 0 && defaultPayeeId && (!selectedPayeeId || selectedPayeeId !== defaultPayeeId)) {
+    // Set default payee when payees are loaded and no payee is selected
+    if (payees.length > 0 && defaultPayeeId && selectedPayeeId === '') {
       setSelectedPayeeId(defaultPayeeId);
     }
-  }, [payees.length, defaultPayeeId, selectedPayeeId]);
+  }, [payees, defaultPayeeId, selectedPayeeId]);
+
+  // Auto-select account, payee, and category when most used details are fetched
+  useEffect(() => {
+    // Only auto-select if we have a valid amount and fetched details
+    if (currentAmount === null) {
+      return;
+    }
+
+    // Auto-select account if available and valid
+    if (autoAccountId && accounts.some((acc) => acc.id === autoAccountId)) {
+      setSelectedAccountId(autoAccountId);
+    }
+
+    // Auto-select category if available and valid
+    if (autoCategoryId && categories.some((cat) => cat.id === autoCategoryId)) {
+      setSelectedCategoryId(autoCategoryId);
+    }
+
+    // Auto-select payee if available and valid
+    if (autoPayeeId && payees.some((payee) => payee.id === autoPayeeId)) {
+      setSelectedPayeeId(autoPayeeId);
+    }
+  }, [autoAccountId, autoCategoryId, autoPayeeId, currentAmount, accounts, categories, payees]);
 
   const handleNumber = useCallback((num: string) => {
     setShowAmount(true);
@@ -431,36 +468,38 @@ export function Calculator(): React.JSX.Element {
         </Alert>
       ) : null}
 
-      <Card
-        sx={{
-          mb: {xs: 2, sm: 3},
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-      >
-        <Box
-          ref={historyListRef}
+      {(transactions.length > 0) ? (
+        <Card
           sx={{
-            height: calculatorHeight > 0
-              ? {
-                  xs: `calc(100vh - ${calculatorHeight}px - 16px)`,
-                  sm: `calc(100vh - ${calculatorHeight}px - 24px)`,
-                }
-              : '100vh',
-            overflowY: 'auto',
-            overflowX: 'hidden',
+            mb: {xs: 2, sm: 3},
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
-          <HistoryList
-            transactions={[...transactions].reverse().map((t) => ({
-              ...t,
-              date: typeof t.date === 'string' ? new Date(t.date) : t.date,
-            }))}
-            onTransactionClick={handleTransactionClick}
-          />
-        </Box>
-      </Card>
+          <Box
+            ref={historyListRef}
+            sx={{
+              height: calculatorHeight > 0
+                ? {
+                    xs: `calc(100vh - ${calculatorHeight}px - 16px)`,
+                    sm: `calc(100vh - ${calculatorHeight}px - 24px)`,
+                  }
+                : '100vh',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+            }}
+          >
+            <HistoryList
+              transactions={[...transactions].reverse().map((t) => ({
+                ...t,
+                date: typeof t.date === 'string' ? new Date(t.date) : t.date,
+              }))}
+              onTransactionClick={handleTransactionClick}
+            />
+          </Box>
+        </Card>
+      ) : null}
 
       <Box
         ref={calculatorRef}

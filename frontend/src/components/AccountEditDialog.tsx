@@ -4,7 +4,7 @@
  */
 
 import React, {useState, useEffect} from 'react';
-import {Box, Typography} from '@mui/material';
+import {Box, Typography, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
 import {useMutation} from '@apollo/client/react';
 import {Dialog} from './ui/Dialog';
 import {Button} from './ui/Button';
@@ -12,6 +12,16 @@ import {TextField} from './ui/TextField';
 import {CREATE_ACCOUNT, UPDATE_ACCOUNT} from '../graphql/mutations';
 import {GET_ACCOUNTS, GET_ACCOUNT} from '../graphql/queries';
 import type {Account} from '../hooks/useAccounts';
+
+type AccountType = 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
+
+const ACCOUNT_TYPES: Array<{value: AccountType; label: string}> = [
+  {value: 'Cash', label: 'Cash'},
+  {value: 'CreditCard', label: 'Credit Card'},
+  {value: 'Bank', label: 'Bank'},
+  {value: 'Saving', label: 'Saving'},
+  {value: 'Loans', label: 'Loans'},
+];
 
 /**
  * Account edit dialog props
@@ -34,6 +44,7 @@ export function AccountEditDialog({
 }: AccountEditDialogProps): React.JSX.Element {
   const [name, setName] = useState('');
   const [initBalance, setInitBalance] = useState('0');
+  const [accountType, setAccountType] = useState<AccountType>('Cash');
   const [error, setError] = useState<string | null>(null);
 
   const [createAccount, {loading: creating}] = useMutation(CREATE_ACCOUNT, {
@@ -67,9 +78,11 @@ export function AccountEditDialog({
     if (account) {
       setName(account.name);
       setInitBalance(String(account.initBalance));
+      setAccountType(account.accountType);
     } else {
       setName('');
       setInitBalance('');
+      setAccountType('Cash');
     }
     setError(null);
   }, [account, open]);
@@ -99,6 +112,7 @@ export function AccountEditDialog({
           input: {
             name,
             ...(balance !== undefined ? {initBalance: balance} : {}),
+            accountType,
           },
         },
       });
@@ -109,6 +123,7 @@ export function AccountEditDialog({
           input: {
             name,
             ...(balance !== undefined ? {initBalance: balance} : {}),
+            accountType,
           },
         },
       });
@@ -134,11 +149,9 @@ export function AccountEditDialog({
       actions={actions}
     >
       <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-        {error && (
-          <Typography color="error" variant="body2">
+        {error ? <Typography color="error" variant="body2">
             {error}
-          </Typography>
-        )}
+          </Typography> : null}
 
         <TextField
           label="Name"
@@ -157,6 +170,21 @@ export function AccountEditDialog({
           required={false}
           inputProps={{step: '0.01'}}
         />
+
+        <FormControl fullWidth>
+          <InputLabel>Account Type</InputLabel>
+          <Select
+            value={accountType}
+            label="Account Type"
+            onChange={(e) => setAccountType(e.target.value as AccountType)}
+          >
+            {ACCOUNT_TYPES.map((type) => (
+              <MenuItem key={type.value} value={type.value}>
+                {type.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
     </Dialog>
   );

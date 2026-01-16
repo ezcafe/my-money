@@ -387,11 +387,9 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
         }}
       >
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
-          {error && (
-            <Typography color="error" variant="body2">
+          {error ? <Typography color="error" variant="body2">
               {error}
-            </Typography>
-          )}
+            </Typography> : null}
 
           {config.fields.map((field) => {
             if (field.type === 'custom' && field.render) {

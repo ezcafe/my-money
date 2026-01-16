@@ -96,10 +96,12 @@ export function queryCostPlugin(config: Partial<QueryCostConfig> = {}): {
   const finalConfig = {...DEFAULT_CONFIG, ...config};
 
   return {
+    // eslint-disable-next-line @typescript-eslint/require-await
     async requestDidStart(
       _requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
     ): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>> {
       return {
+        // eslint-disable-next-line @typescript-eslint/require-await
         async didResolveOperation(
           requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
         ): Promise<void> {

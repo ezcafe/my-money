@@ -45,11 +45,9 @@ export function CalculatorDisplay({
         justifyContent: 'space-between',
       }}
     >
-      {showAmount && (
-        <Button variant="text" onClick={onBackspace}>
+      {showAmount ? <Button variant="text" onClick={onBackspace}>
           <BackspaceIcon />
-        </Button>
-      )}
+        </Button> : null}
       <Box
         sx={{
           flex: 1,

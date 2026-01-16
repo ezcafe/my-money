@@ -87,10 +87,10 @@ export function useCalculator(): UseCalculatorReturn {
     return defaultAccount?.id ?? null;
   }, [accounts]);
 
-  // Get default category ID
+  // Get default category ID (Food & Groceries)
   const defaultCategoryId = useMemo(() => {
     const defaultCategory = categories.find(
-      (cat) => cat.name === 'Default Expense Category' && cat.type === 'EXPENSE',
+      (cat) => cat.name === 'Food & Groceries' && cat.categoryType === 'Expense',
     );
     return defaultCategory?.id ?? null;
   }, [categories]);

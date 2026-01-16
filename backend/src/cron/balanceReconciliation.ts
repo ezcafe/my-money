@@ -170,7 +170,6 @@ export async function reconcileAccountBalances(): Promise<{
  */
 export function startBalanceReconciliationCron(): void {
   // Run weekly on Sunday at 2 AM
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   cron.schedule('0 2 * * 0', async (): Promise<void> => {
     try {
       logInfo('Cron job started: Balance reconciliation');

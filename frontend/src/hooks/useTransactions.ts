@@ -20,6 +20,7 @@ export interface Transaction {
   category?: {
     id: string;
     name: string;
+    categoryType?: string;
   } | null;
   payee?: {
     id: string;

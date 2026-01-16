@@ -67,14 +67,11 @@ const AccountsPageComponent = (): React.JSX.Element => {
 
   return (
     <PageContainer>
-      {hasNoSearchResults && (
-        <EmptyState
+      {hasNoSearchResults ? <EmptyState
           title="No accounts found"
           description="Try adjusting your search query"
-        />
-      )}
-      {hasSearchResults && (
-        <Card>
+        /> : null}
+      {hasSearchResults ? <Card>
           <List disablePadding>
             {filteredAccounts.map((account, index) => (
             <React.Fragment key={account.id}>
@@ -106,8 +103,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
             </React.Fragment>
           ))}
           </List>
-        </Card>
-      )}
+        </Card> : null}
     </PageContainer>
   );
 };

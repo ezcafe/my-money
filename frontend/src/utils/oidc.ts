@@ -137,6 +137,7 @@ export async function initiateLogin(): Promise<void> {
  * @param state - State parameter for CSRF protection
  * @returns True if redirect was initiated, false otherwise
  */
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function handleCallback(code: string, state: string): Promise<boolean> {
   // Verify state - check before doing anything else
   const storedState = sessionStorage.getItem('oidc_state');

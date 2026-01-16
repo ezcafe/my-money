@@ -12,7 +12,7 @@ import {GET_CATEGORIES} from '../graphql/queries';
 export interface Category {
   id: string;
   name: string;
-  type: 'INCOME' | 'EXPENSE';
+  categoryType: 'Income' | 'Expense';
   isDefault: boolean;
 }
 

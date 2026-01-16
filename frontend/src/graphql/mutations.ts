@@ -158,6 +158,12 @@ export const RESET_DATA = gql`
   }
 `;
 
+export const ADD_EXAMPLE_DATA = gql`
+  mutation AddExampleData {
+    addExampleData
+  }
+`;
+
 export const UPLOAD_PDF = gql`
   mutation UploadPDF($file: Upload!, $dateFormat: String) {
     uploadPDF(file: $file, dateFormat: $dateFormat) {

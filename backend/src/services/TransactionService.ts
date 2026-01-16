@@ -63,11 +63,11 @@ export async function createTransaction(
   }
 
   // Verify category and payee in parallel if both are provided
-  let category: {type: 'INCOME' | 'EXPENSE'} | null = null;
+  let category: {categoryType: 'Income' | 'Expense'} | null = null;
 
   const [foundCategory, foundPayee] = await Promise.all([
     validatedInput.categoryId
-      ? categoryRepository.findById(validatedInput.categoryId, userId, {id: true, type: true})
+      ? categoryRepository.findById(validatedInput.categoryId, userId, {id: true, categoryType: true})
       : Promise.resolve(null),
     validatedInput.payeeId
       ? payeeRepository.findById(validatedInput.payeeId, userId, {id: true})
@@ -85,7 +85,7 @@ export async function createTransaction(
 
   // Calculate balance delta based on category type
   // Income categories add money, Expense categories (or no category) subtract money
-  const balanceDelta = category?.type === 'INCOME'
+  const balanceDelta = category?.categoryType === 'Income'
     ? validatedInput.value
     : -validatedInput.value;
 
@@ -129,7 +129,7 @@ export async function createTransaction(
       userId: transactionWithRelations.userId,
       value: Number(transactionWithRelations.value),
       date: transactionWithRelations.date,
-      categoryType: category?.type ?? null,
+      categoryType: category?.categoryType ?? null,
     },
     'create',
     undefined,
@@ -188,10 +188,10 @@ export async function updateTransactionWithBalance(
     value: number;
     accountId: string;
     categoryId: string | null;
-    category: {type: 'INCOME' | 'EXPENSE'} | null;
+    category: {categoryType: 'Income' | 'Expense'} | null;
     date: Date;
   },
-  newCategory: {type: 'INCOME' | 'EXPENSE'} | null,
+  newCategory: {categoryType: 'Income' | 'Expense'} | null,
   userId: string,
   tx: PrismaClient | Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
 ): Promise<{
@@ -210,7 +210,7 @@ export async function updateTransactionWithBalance(
   // Calculate old balance delta based on old category type
   const oldCategory = existingTransaction.category;
   const oldValue = Number(existingTransaction.value);
-  const oldBalanceDelta = oldCategory?.type === 'INCOME'
+  const oldBalanceDelta = oldCategory?.categoryType === 'Income'
     ? oldValue
     : -oldValue;
 
@@ -219,7 +219,7 @@ export async function updateTransactionWithBalance(
   const newAccountId = validatedInput.accountId ?? oldAccountId;
 
   // Calculate new balance delta based on new category type
-  const newBalanceDelta = newCategory?.type === 'INCOME'
+  const newBalanceDelta = newCategory?.categoryType === 'Income'
     ? newValue
     : -newValue;
 
@@ -268,7 +268,7 @@ export async function updateTransactionWithBalance(
       userId,
       value: Number(updatedTransaction.value),
       date: updatedTransaction.date,
-      categoryType: newCategory?.type ?? null,
+      categoryType: newCategory?.categoryType ?? null,
     },
     'update',
     {
@@ -277,7 +277,7 @@ export async function updateTransactionWithBalance(
       payeeId: null,
       value: oldValue,
       date: existingTransaction.date,
-      categoryType: oldCategory?.type ?? null,
+      categoryType: oldCategory?.categoryType ?? null,
     },
     tx,
   );

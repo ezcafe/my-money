@@ -15,6 +15,14 @@ import {sanitizeUserInput} from '../utils/sanitization';
 import {BaseResolver} from './BaseResolver';
 import {balanceCache} from '../utils/cache';
 
+/**
+ * Account with numeric balance for GraphQL responses
+ */
+type AccountWithNumericBalance = Omit<Account, 'initBalance' | 'balance'> & {
+  initBalance: number;
+  balance: number;
+};
+
 export class AccountResolver extends BaseResolver {
   /**
    * Get account service instance with context
@@ -29,31 +37,63 @@ export class AccountResolver extends BaseResolver {
    * Get all accounts for the current user
    * Reads balance directly from stored column for O(1) performance
    * Ensures a default account exists before returning results
+   * Sorted by: isDefault (desc) → transaction count (desc) → name (asc)
    */
-  async accounts(_: unknown, __: unknown, context: GraphQLContext): Promise<Array<Account & {initBalance: number; balance: number}>> {
+  async accounts(_: unknown, __: unknown, context: GraphQLContext): Promise<Array<AccountWithNumericBalance>> {
     // Ensure a default account exists
     const accountService = this.getAccountService(context);
     await accountService.ensureDefaultAccount(context.userId);
 
-    const accountRepository = new AccountRepository(context.prisma);
-    const accounts = await accountRepository.findMany(context.userId);
+    // Fetch accounts with transaction counts
+    const accounts = await withPrismaErrorHandling(
+      async () =>
+        await context.prisma.account.findMany({
+          where: {
+            userId: context.userId,
+          },
+          include: {
+            _count: {
+              select: {
+                transactions: true,
+              },
+            },
+          },
+        }),
+      {resource: 'Account', operation: 'read'},
+    );
 
-    // Sort by createdAt descending
-    accounts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    // Sort: isDefault desc → transaction count desc → name asc
+    accounts.sort((a, b) => {
+      // Default items first
+      if (a.isDefault !== b.isDefault) {
+        return b.isDefault ? 1 : -1;
+      }
+      // Then by transaction count (most used first)
+      const countDiff = (b._count.transactions ?? 0) - (a._count.transactions ?? 0);
+      if (countDiff !== 0) return countDiff;
+      // Finally alphabetical
+      return a.name.localeCompare(b.name);
+    });
 
     // Return accounts with balance from stored column
     return accounts.map((account) => ({
-      ...account,
+      id: account.id,
+      name: account.name,
       initBalance: Number(account.initBalance),
       balance: Number(account.balance),
-    })) as Array<Account & {initBalance: number; balance: number}>;
+      isDefault: account.isDefault,
+      accountType: account.accountType,
+      userId: account.userId,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+    })) as Array<AccountWithNumericBalance>;
   }
 
   /**
    * Get account by ID
    * Reads balance directly from stored column for O(1) performance
    */
-  async account(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<(Account & {initBalance: number; balance: number}) | null> {
+  async account(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<AccountWithNumericBalance | null> {
     const accountRepository = new AccountRepository(context.prisma);
     const account = await accountRepository.findById(id, context.userId);
 
@@ -65,7 +105,8 @@ export class AccountResolver extends BaseResolver {
       ...account,
       initBalance: Number(account.initBalance),
       balance: Number(account.balance),
-    } as Account & {initBalance: number; balance: number};
+      accountType: account.accountType,
+    } as AccountWithNumericBalance;
   }
 
   /**
@@ -101,10 +142,11 @@ export class AccountResolver extends BaseResolver {
    */
   async createAccount(
     _: unknown,
-    {input}: {input: {name: string; initBalance?: number}},
+    {input}: {input: {name: string; initBalance?: number; accountType?: string}},
     context: GraphQLContext,
-  ): Promise<Account & {initBalance: number; balance: number}> {
+  ): Promise<AccountWithNumericBalance> {
     const initBalance = input.initBalance ?? 0;
+    const accountType = (input.accountType as 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans') ?? 'Cash';
     const accountRepository = new AccountRepository(context.prisma);
     const account = await withPrismaErrorHandling(
       async () =>
@@ -112,6 +154,7 @@ export class AccountResolver extends BaseResolver {
           name: sanitizeUserInput(input.name),
           initBalance,
           balance: initBalance, // New account has no transactions, balance equals initBalance
+          accountType,
           userId: context.userId,
         }),
       {resource: 'Account', operation: 'create'},
@@ -121,7 +164,8 @@ export class AccountResolver extends BaseResolver {
       ...account,
       initBalance: Number(account.initBalance),
       balance: Number(account.balance),
-    } as Account & {initBalance: number; balance: number};
+      accountType: account.accountType,
+    } as AccountWithNumericBalance;
   }
 
   /**
@@ -129,9 +173,9 @@ export class AccountResolver extends BaseResolver {
    */
   async updateAccount(
     _: unknown,
-    {id, input}: {id: string; input: {name?: string; initBalance?: number}},
+    {id, input}: {id: string; input: {name?: string; initBalance?: number; accountType?: string}},
     context: GraphQLContext,
-  ): Promise<Account & {initBalance: number; balance: number}> {
+  ): Promise<AccountWithNumericBalance> {
     // Verify account belongs to user
     const accountRepository = new AccountRepository(context.prisma);
     const existingAccount = await accountRepository.findById(id, context.userId, {id: true});
@@ -146,6 +190,7 @@ export class AccountResolver extends BaseResolver {
       await txAccountRepository.update(id, {
         ...(input.name !== undefined && {name: sanitizeUserInput(input.name)}),
         ...(input.initBalance !== undefined && {initBalance: input.initBalance}),
+        ...(input.accountType !== undefined && {accountType: input.accountType as 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans'}),
       });
 
       // If initBalance changed, recalculate balance
@@ -161,7 +206,8 @@ export class AccountResolver extends BaseResolver {
       ...accountWithBalance,
       initBalance: Number(accountWithBalance!.initBalance),
       balance: Number(accountWithBalance!.balance),
-    } as Account & {initBalance: number; balance: number};
+      accountType: accountWithBalance!.accountType,
+    } as AccountWithNumericBalance;
   }
 
   /**

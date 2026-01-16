@@ -11,11 +11,14 @@ export interface User {
   updatedAt: Date;
 }
 
+export type AccountType = 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
+
 export interface Account {
   id: string;
   name: string;
   initBalance: number;
   isDefault: boolean;
+  accountType: AccountType;
   userId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -37,7 +40,7 @@ export interface Transaction {
 export interface Category {
   id: string;
   name: string;
-  type: 'INCOME' | 'EXPENSE';
+  categoryType: 'Income' | 'Expense';
   isDefault: boolean;
   userId?: string | null;
   createdAt: Date;

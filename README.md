@@ -93,11 +93,23 @@ This will start:
 - Backend GraphQL server on port 4000
 - Frontend web app on port 3000
 
-### 4. Run database migrations
+### 4. Set up database schema
+
+The application uses a hybrid approach:
+- **Automatic schema sync** (via `prisma db push`) runs on startup when `RUN_MIGRATIONS=true` or in production
+- **Manual migrations** are used for data migrations and production deployments
+
+**For Docker setup:**
+
+The schema will automatically sync when the backend starts (if `RUN_MIGRATIONS=true` or `NODE_ENV=production`).
+
+**To manually run migrations instead:**
 
 ```bash
 docker exec -it my-money-backend npm run prisma:migrate
 ```
+
+**Note:** If you see migration drift errors, see the [Migration Guide](backend/prisma/MIGRATION_GUIDE.md) for resolution steps.
 
 ### 5. Access the application
 
@@ -219,13 +231,27 @@ Then update your `DATABASE_URL` in `.env` to point to your local PostgreSQL inst
 
 Create `.env` files in root, `frontend/`, and `backend/` directories with appropriate values.
 
-### 4. Run database migrations
+### 4. Set up database schema
+
+The application uses a hybrid approach:
+- **Automatic schema sync** (via `prisma db push`) runs on startup when `RUN_MIGRATIONS=true` or in production
+- **Manual migrations** are used for data migrations and production deployments
+
+**For first-time setup:**
 
 ```bash
 cd backend
 npm run prisma:generate
+
+# Option 1: Use automatic schema sync (recommended for development)
+# Set RUN_MIGRATIONS=true in .env or let it run automatically in production
+# The schema will sync on application startup
+
+# Option 2: Use manual migrations (recommended for production)
 npm run prisma:migrate
 ```
+
+**Note:** If you see migration drift errors, see the [Migration Guide](backend/prisma/MIGRATION_GUIDE.md) for resolution steps.
 
 ### 5. Start development servers
 
@@ -334,6 +360,7 @@ See `.env.example` for all available environment variables.
 
 Additional documentation is available in the `docs/` directory:
 
+- **[Migration Guide](backend/prisma/MIGRATION_GUIDE.md)** - Complete guide to database migrations, drift resolution, and best practices
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Step-by-step production deployment instructions
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Monitoring Guide](docs/MONITORING.md)** - Monitoring and alerting setup
@@ -389,6 +416,20 @@ npm run docker:up
 - Ensure PostgreSQL is running
 - Check `DATABASE_URL` in `.env`
 - Verify database exists and user has permissions
+
+### Migration Issues
+
+**Migration drift errors:**
+- See [Migration Guide](backend/prisma/MIGRATION_GUIDE.md#handling-migration-drift) for detailed resolution steps
+- Common causes: Database created with `db push` but migrations exist, or empty migration directories
+
+**P3015 Error (Missing migration file):**
+- Check for empty migration directories: `ls -la backend/prisma/migrations/`
+- Remove empty directories and re-run migration
+
+**Migration fails because tables don't exist:**
+- Data migrations should use conditional checks (see [Migration Guide](backend/prisma/MIGRATION_GUIDE.md#data-migration-workflow))
+- Ensure base schema is applied before data migrations
 
 ### OIDC Authentication Issues
 

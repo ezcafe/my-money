@@ -8,15 +8,16 @@ import {useNavigate, useSearchParams} from 'react-router';
 import {
   Box,
   TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Typography,
   Switch,
   FormControlLabel,
   Popover,
   Checkbox,
+  Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {CalendarToday} from '@mui/icons-material';
 import {DateCalendar} from '@mui/x-date-pickers/DateCalendar';
@@ -33,6 +34,13 @@ import {useTitle} from '../contexts/TitleContext';
 import {getRecurringTypeOptions, getCronExpression, type RecurringType} from '../utils/recurringTypes';
 import {validateReturnUrl} from '../utils/validation';
 import {PageContainer} from '../components/common/PageContainer';
+import {
+  getAccountTypeLabel,
+  getCategoryTypeLabel,
+  GROUP_HEADER_STYLES,
+} from '../utils/groupSelectOptions';
+import type {Account} from '../hooks/useAccounts';
+import type {Category} from '../hooks/useCategories';
 
 /**
  * Transaction Add Page Component
@@ -45,12 +53,16 @@ export function TransactionAddPage(): React.JSX.Element {
 
   const {accounts} = useAccounts();
   const {data: combinedData} = useQuery<{
-    categories?: Array<{id: string; name: string; type: string; isDefault: boolean}>;
+    categories?: Array<{id: string; name: string; categoryType: string; isDefault: boolean}>;
     payees?: Array<{id: string; name: string; isDefault: boolean}>;
   }>(GET_CATEGORIES_AND_PAYEES);
 
-  const categories = combinedData?.categories ?? [];
+  const categories = useMemo(() => (combinedData?.categories ?? []) as Category[], [combinedData?.categories]);
   const payees = combinedData?.payees ?? [];
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = accounts.find((acc) => acc.id === accountId) ?? null;
+  const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
 
   const [value, setValue] = useState<string>('');
   const [accountId, setAccountId] = useState<string>('');
@@ -297,11 +309,9 @@ export function TransactionAddPage(): React.JSX.Element {
         }}
       >
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
-          {error && (
-            <Typography color="error" variant="body2">
+          {error ? <Typography color="error" variant="body2">
               {error}
-            </Typography>
-          )}
+            </Typography> : null}
 
           <TextField
             label="Value"
@@ -333,52 +343,58 @@ export function TransactionAddPage(): React.JSX.Element {
             inputProps={{step: '0.01'}}
           />
 
-          <FormControl fullWidth required error={Boolean(accountError)}>
-            <InputLabel>Account</InputLabel>
-            <Select
-              value={accountId}
-              onChange={(e) => {
-                setAccountId(e.target.value);
-                // Real-time validation
-                if (!e.target.value) {
-                  setAccountError('Account is required');
-                } else {
-                  setAccountError(null);
-                }
-                // Clear general error when user selects
-                if (error) {
-                  setError(null);
-                }
-              }}
-              label="Account"
-            >
-              {accounts.map((account) => (
-                <MenuItem key={account.id} value={account.id}>
-                  {account.name}
-                </MenuItem>
-              ))}
-            </Select>
-            {accountError && (
-              <Typography variant="caption" color="error" sx={{mt: 0.5, ml: 1.75}}>
-                {accountError}
-              </Typography>
+          <Autocomplete<Account, false, false, false>
+            options={accounts}
+            getOptionLabel={(option) => option.name}
+            groupBy={(option) => getAccountTypeLabel(option.accountType)}
+            value={selectedAccount}
+            onChange={(_, value) => {
+              const newAccountId = value?.id ?? '';
+              setAccountId(newAccountId);
+              // Real-time validation
+              if (!newAccountId) {
+                setAccountError('Account is required');
+              } else {
+                setAccountError(null);
+              }
+              // Clear general error when user selects
+              if (error) {
+                setError(null);
+              }
+            }}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            componentsProps={{
+              popper: {
+                sx: GROUP_HEADER_STYLES,
+              },
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Account"
+                required
+                error={Boolean(accountError)}
+                helperText={accountError}
+              />
             )}
-          </FormControl>
+          />
 
-          <FormControl fullWidth>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              label="Category"
-            >
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete<Category, false, false, false>
+            options={categories}
+            getOptionLabel={(option) => option.name}
+            groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+            value={selectedCategory}
+            onChange={(_, value) => {
+              setCategoryId(value?.id ?? '');
+            }}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            componentsProps={{
+              popper: {
+                sx: GROUP_HEADER_STYLES,
+              },
+            }}
+            renderInput={(params) => <TextField {...params} label="Category" />}
+          />
 
           <FormControl fullWidth>
             <InputLabel>Payee</InputLabel>
@@ -407,8 +423,7 @@ export function TransactionAddPage(): React.JSX.Element {
             label="Recurring Transaction"
           />
 
-          {isRecurring && (
-            <>
+          {isRecurring ? <>
               <FormControl fullWidth>
                 <InputLabel>Recurring Type</InputLabel>
                 <Select
@@ -444,8 +459,7 @@ export function TransactionAddPage(): React.JSX.Element {
                 }
                 label="Also create transaction now"
               />
-            </>
-          )}
+            </> : null}
 
           <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto'}}>
             <Button

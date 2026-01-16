@@ -47,7 +47,7 @@ export function ErrorAlert({
           ) : undefined
         }
       >
-        {title && <AlertTitle>{title}</AlertTitle>}
+        {title ? <AlertTitle>{title}</AlertTitle> : null}
         {message}
       </Alert>
     </Box>

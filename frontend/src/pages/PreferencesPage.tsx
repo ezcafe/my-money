@@ -25,7 +25,7 @@ import {
   GET_TRANSACTIONS,
   GET_REPORT_TRANSACTIONS,
 } from '../graphql/queries';
-import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA} from '../graphql/mutations';
+import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA, ADD_EXAMPLE_DATA} from '../graphql/mutations';
 import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt, AttachMoney, HelpOutline, Settings, DataObject, Security} from '@mui/icons-material';
 import {useNotifications} from '../contexts/NotificationContext';
 import type {DateFormat} from '../contexts/DateFormatContext';
@@ -276,6 +276,14 @@ export function PreferencesPage(): React.JSX.Element {
       }
     },
   });
+  const [addExampleDataMutation, {loading: addingExampleData}] = useMutation(ADD_EXAMPLE_DATA, {
+    refetchQueries: [
+      {query: GET_ACCOUNTS},
+      {query: GET_CATEGORIES},
+      {query: GET_PAYEES},
+    ],
+    awaitRefetchQueries: true,
+  });
 
   // Initialize state from loaded preferences
   useEffect(() => {
@@ -336,6 +344,21 @@ export function PreferencesPage(): React.JSX.Element {
       const errorMessage = error instanceof Error ? error.message : 'Reset failed';
       console.error('Reset failed:', error);
       showErrorNotification(`Reset failed: ${errorMessage}`);
+    }
+  };
+
+  /**
+   * Handle add example data
+   * Adds example accounts, categories, and payees to the database
+   */
+  const handleAddExampleData = async (): Promise<void> => {
+    try {
+      await addExampleDataMutation();
+      showSuccessNotification('Example data added successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add example data';
+      console.error('Add example data failed:', error);
+      showErrorNotification(`Failed to add example data: ${errorMessage}`);
     }
   };
 
@@ -762,7 +785,7 @@ export function PreferencesPage(): React.JSX.Element {
                 primary={importing ? 'Importing...' : 'Import Data'}
                 secondary={importing ? 'Please wait while we import your data' : 'Import accounts, transactions, and more from CSV files'}
               />
-              {importing && <CircularProgress size={20} sx={{ml: 'auto'}} />}
+              {importing ? <CircularProgress size={20} sx={{ml: 'auto'}} /> : null}
             </ListItemButton>
             <input
               ref={fileInputRef}
@@ -787,7 +810,7 @@ export function PreferencesPage(): React.JSX.Element {
                 primary={exporting ? 'Exporting...' : 'Export Data'}
                 secondary={exporting ? 'Preparing your data for download' : 'Download all your data as CSV files for backup'}
               />
-              {exporting && <CircularProgress size={20} sx={{ml: 'auto'}} />}
+              {exporting ? <CircularProgress size={20} sx={{ml: 'auto'}} /> : null}
             </ListItemButton>
           </ListItem>
         </List>
@@ -837,14 +860,12 @@ export function PreferencesPage(): React.JSX.Element {
                 </Box>
               </ToggleButton>
             </ToggleButtonGroup>
-            {(preferencesLoading || updating) && (
-              <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mt: 1}}>
+            {(preferencesLoading || updating) ? <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mt: 1}}>
                 <CircularProgress size={16} />
                 <Typography variant="caption" color="text.secondary">
                   {updating ? 'Saving...' : 'Loading...'}
                 </Typography>
-              </Box>
-            )}
+              </Box> : null}
           </Box>
 
           {/* Currency Setting */}
@@ -915,14 +936,12 @@ export function PreferencesPage(): React.JSX.Element {
                 <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
                 <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
               </Select>
-              {updating && (
-                <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mt: 1}}>
+              {updating ? <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mt: 1}}>
                   <CircularProgress size={16} />
                   <Typography variant="caption" color="text.secondary">
                     Saving...
                   </Typography>
-                </Box>
-              )}
+                </Box> : null}
             </FormControl>
           </Box>
 
@@ -955,6 +974,24 @@ export function PreferencesPage(): React.JSX.Element {
           </Typography>
         </Box>
         <List disablePadding>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={handleAddExampleData}
+              disabled={addingExampleData}
+              sx={{color: 'primary.main'}}
+            >
+              {addingExampleData ? (
+                <CircularProgress size={20} sx={{mr: 2}} />
+              ) : (
+                <DataObject sx={{mr: 2}} />
+              )}
+              <ListItemText
+                primary={addingExampleData ? 'Adding Example Data...' : 'Add Example Data'}
+                secondary="Add sample accounts, categories, and payees to get started"
+              />
+            </ListItemButton>
+          </ListItem>
+          <Divider />
           <ListItem disablePadding>
             <ListItemButton
               onClick={handleResetDataClick}

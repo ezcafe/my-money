@@ -110,37 +110,20 @@ async function startServer(): Promise<void> {
     // eslint-disable-next-line no-console
     console.log(`[${Date.now() - envValidationStart}ms] Environment validated`);
 
-    // Determine if migrations should run
-    // Run migrations if explicitly requested or in production
-    const shouldRunMigrations = process.env.RUN_MIGRATIONS === 'true' ||
-                                process.env.NODE_ENV === 'production';
-
     // Run migrations and OIDC initialization in parallel (they're independent)
     const parallelStart = Date.now();
     const [migrationResult, oidcResult] = await Promise.allSettled([
-      shouldRunMigrations
-        ? (async (): Promise<void> => {
-            const migrationStart = Date.now();
-            try {
-              await runMigrationsWithRetry();
-              // eslint-disable-next-line no-console
-              console.log(`[${Date.now() - migrationStart}ms] Database migrations completed`);
-            } catch (error) {
-              console.error(`[${Date.now() - migrationStart}ms] Database migrations failed:`, error);
-              throw error;
-            }
-          })()
-        : (async (): Promise<void> => {
-            const healthCheckStart = Date.now();
-            // Just verify database connectivity
-            const dbHealth = await checkDatabaseHealth();
-            if (!dbHealth.healthy) {
-              console.warn(`[${Date.now() - healthCheckStart}ms] Database health check failed, but continuing startup...`);
-            } else {
-              // eslint-disable-next-line no-console
-              console.log(`[${Date.now() - healthCheckStart}ms] Database health check passed (migrations skipped in development)`);
-            }
-          })(),
+      (async (): Promise<void> => {
+        const migrationStart = Date.now();
+        try {
+          await runMigrationsWithRetry();
+          // eslint-disable-next-line no-console
+          console.log(`[${Date.now() - migrationStart}ms] Database migrations completed`);
+        } catch (error) {
+          console.error(`[${Date.now() - migrationStart}ms] Database migrations failed:`, error);
+          throw error;
+        }
+      })(),
       (async (): Promise<void> => {
         const oidcStart = Date.now();
         try {
@@ -157,12 +140,19 @@ async function startServer(): Promise<void> {
     // eslint-disable-next-line no-console
     console.log(`[${Date.now() - parallelStart}ms] Parallel initialization completed`);
 
-    // Check results and fail fast if either failed
+    // Check results - migrations are critical, OIDC can fail gracefully in development
     if (migrationResult.status === 'rejected') {
       throw migrationResult.reason;
     }
     if (oidcResult.status === 'rejected') {
-      throw oidcResult.reason;
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+      if (isDevelopment) {
+        console.warn('⚠️  OIDC initialization failed, but continuing in development mode. Authentication may not work until OIDC is available.');
+        console.warn('   Error:', oidcResult.reason instanceof Error ? oidcResult.reason.message : String(oidcResult.reason));
+      } else {
+        // In production, OIDC is required
+        throw oidcResult.reason;
+      }
     }
 
     // Register multipart handler for file uploads (must be registered BEFORE security plugins

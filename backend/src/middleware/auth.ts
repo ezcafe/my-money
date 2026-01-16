@@ -47,10 +47,12 @@ const tokenCache = new LRUCache<string, TokenCacheEntry>({
 });
 
 /**
- * Initialize OIDC client
+ * Initialize OIDC client with retry logic
  * Authentication is required - the server will not start without proper OIDC configuration
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @param retryDelayMs - Delay between retries in milliseconds (default: 2000)
  */
-export async function initializeOIDC(): Promise<void> {
+export async function initializeOIDC(maxRetries: number = 3, retryDelayMs: number = 2000): Promise<void> {
   const {discoveryUrl, clientId, clientSecret} = appConfig.oidc;
 
   if (!discoveryUrl || !clientId || !clientSecret) {
@@ -72,45 +74,120 @@ export async function initializeOIDC(): Promise<void> {
     throw new Error(errorMessage);
   }
 
-  try {
-    const url = new URL(discoveryUrl);
-    oidcConfig = await oidc.discovery(
-      url,
-      clientId,
-      clientSecret,
-      oidc.ClientSecretPost(clientSecret)
-    );
+  let lastError: Error | null = null;
 
-    // Extract token_endpoint from Configuration object
-    // The Configuration type may not expose token_endpoint directly, so we access it via the object
-    const configObj = oidcConfig as unknown as {token_endpoint?: string; metadata?: {token_endpoint?: string}};
-    tokenEndpointUrl = configObj.token_endpoint ?? configObj.metadata?.token_endpoint ?? null;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // First, try to fetch discovery document directly to verify connectivity
+      if (attempt === 1) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+          const discoveryResponse = await fetch(discoveryUrl, {
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
 
-    // If still not found, fetch discovery document directly
-    if (!tokenEndpointUrl) {
-      try {
-        const discoveryResponse = await fetch(discoveryUrl);
-        if (discoveryResponse.ok) {
-          const discoveryDoc = (await discoveryResponse.json()) as {token_endpoint?: string};
-          tokenEndpointUrl = discoveryDoc.token_endpoint ?? null;
+          if (!discoveryResponse.ok) {
+            throw new Error(`Discovery endpoint returned ${discoveryResponse.status}: ${discoveryResponse.statusText}`);
+          }
+
+          const discoveryDoc = (await discoveryResponse.json()) as {token_endpoint?: string; issuer?: string};
+          // Store token endpoint if found
+          if (discoveryDoc.token_endpoint) {
+            tokenEndpointUrl = discoveryDoc.token_endpoint;
+          }
+        } catch (fetchError) {
+          const fetchErrorObj = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
+          logError('Failed to fetch discovery document directly', {
+            event: 'oidc_discovery_fetch_failed',
+            attempt,
+            discoveryUrl,
+            error: fetchErrorObj.message,
+          }, fetchErrorObj);
+          // Continue to try openid-client discovery
         }
-      } catch {
-        // Ignore fetch errors, will throw below if tokenEndpointUrl is still null
       }
-    }
 
-    if (!tokenEndpointUrl) {
-      throw new Error('Token endpoint not found in OIDC configuration');
+      // Use openid-client library for discovery
+      const url = new URL(discoveryUrl);
+      oidcConfig = await oidc.discovery(
+        url,
+        clientId,
+        clientSecret,
+        oidc.ClientSecretPost(clientSecret)
+      );
+
+      // Extract token_endpoint from Configuration object
+      // The Configuration type may not expose token_endpoint directly, so we access it via the object
+      const configObj = oidcConfig as unknown as {token_endpoint?: string; metadata?: {token_endpoint?: string}};
+      tokenEndpointUrl = configObj.token_endpoint ?? configObj.metadata?.token_endpoint ?? tokenEndpointUrl ?? null;
+
+      // If still not found, fetch discovery document directly as fallback
+      if (!tokenEndpointUrl) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          const discoveryResponse = await fetch(discoveryUrl, {
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (discoveryResponse.ok) {
+            const discoveryDoc = (await discoveryResponse.json()) as {token_endpoint?: string};
+            tokenEndpointUrl = discoveryDoc.token_endpoint ?? null;
+          }
+        } catch {
+          // Ignore fetch errors, will throw below if tokenEndpointUrl is still null
+        }
+      }
+
+      if (!tokenEndpointUrl) {
+        throw new Error('Token endpoint not found in OIDC configuration');
+      }
+
+      // Success - break out of retry loop
+      return;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      const isLastAttempt = attempt === maxRetries;
+
+      logError(`Failed to initialize OIDC client (attempt ${attempt}/${maxRetries})`, {
+        event: 'oidc_init_failed',
+        attempt,
+        maxRetries,
+        discoveryUrl,
+        clientId,
+        isLastAttempt,
+        error: lastError.message,
+        errorType: lastError.constructor.name,
+      }, lastError);
+
+      if (isLastAttempt) {
+        // Add diagnostic information
+        const diagnosticInfo = {
+          discoveryUrl,
+          error: lastError.message,
+          suggestion: 'Check network connectivity, firewall settings, or OIDC provider availability',
+        };
+        logError('OIDC initialization failed after all retries', {
+          event: 'oidc_init_final_failure',
+          ...diagnosticInfo,
+        }, lastError);
+        throw lastError;
+      }
+
+      // Wait before retrying (exponential backoff)
+      const delay = retryDelayMs * attempt;
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
-  } catch (error) {
-    const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to initialize OIDC client', {
-      event: 'oidc_init_failed',
-      discoveryUrl,
-      clientId,
-    }, errorObj);
-    throw error;
   }
+
+  // This should never be reached, but TypeScript needs it
+  if (lastError) {
+    throw lastError;
+  }
+  throw new Error('OIDC initialization failed for unknown reason');
 }
 
 /**

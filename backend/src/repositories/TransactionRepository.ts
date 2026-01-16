@@ -196,7 +196,7 @@ export class TransactionRepository extends BaseRepository {
     if (aggregate) {
       Object.assign(args, aggregate);
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     return this.prisma.transaction.groupBy(args as any);
   }
 
@@ -269,12 +269,12 @@ export class TransactionRepository extends BaseRepository {
     }
 
     // Use raw SQL with CASE statement for efficient aggregation
-    // Income: sum of absolute values where category type is INCOME
-    // Expense: sum of absolute values where category type is EXPENSE or NULL
+    // Income: sum of absolute values where category type is Income
+    // Expense: sum of absolute values where category type is Expense or NULL
     const query = PrismaNamespace.sql`
       SELECT
-        COALESCE(SUM(CASE WHEN c.type = 'INCOME' THEN ABS(t.value) ELSE 0 END), 0) as "totalIncome",
-        COALESCE(SUM(CASE WHEN c.type = 'EXPENSE' OR c.type IS NULL THEN ABS(t.value) ELSE 0 END), 0) as "totalExpense"
+        COALESCE(SUM(CASE WHEN c."categoryType" = 'Income' THEN ABS(t.value) ELSE 0 END), 0) as "totalIncome",
+        COALESCE(SUM(CASE WHEN c."categoryType" = 'Expense' OR c."categoryType" IS NULL THEN ABS(t.value) ELSE 0 END), 0) as "totalExpense"
       FROM "Transaction" t
       LEFT JOIN "Category" c ON t."categoryId" = c.id
       ${whereClause}

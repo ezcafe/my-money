@@ -14,6 +14,7 @@ export const ACCOUNT_FIELDS = gql`
     name
     initBalance
     isDefault
+    accountType
     balance
   }
 `;
@@ -25,7 +26,7 @@ export const CATEGORY_FIELDS = gql`
   fragment CategoryFields on Category {
     id
     name
-    type
+    categoryType
     isDefault
   }
 `;

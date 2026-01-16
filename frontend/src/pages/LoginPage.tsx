@@ -71,16 +71,14 @@ export function LoginPage(): React.JSX.Element {
               Sign in to manage your expenses
             </Typography>
 
-            {error && (
-              <Box sx={{width: '100%'}}>
+            {error ? <Box sx={{width: '100%'}}>
                 <ErrorAlert
                   message={error}
                   onClose={() => {
                     setError(null);
                   }}
                 />
-              </Box>
-            )}
+              </Box> : null}
 
             <Stack spacing={2} sx={{width: '100%', mt: 2}}>
               <Button

@@ -241,6 +241,7 @@ export async function refreshToken(): Promise<string | null> {
  * @param token - Current token string (ignored for cookie-based auth)
  * @returns Token placeholder or null if refresh failed
  */
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function ensureValidToken(token: string | null): Promise<string | null> {
   // With cookie-based auth, tokens are in httpOnly cookies
   // We can't check expiration directly, so we return a placeholder
