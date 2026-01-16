@@ -10,6 +10,7 @@ import {prisma} from '../utils/prisma';
 import {AccountRepository} from '../repositories/AccountRepository';
 import {TransactionRepository} from '../repositories/TransactionRepository';
 import {NotFoundError} from '../utils/errors';
+import {invalidateAccountBalance} from '../utils/cache';
 
 type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
@@ -45,7 +46,17 @@ export async function incrementAccountBalance(
 ): Promise<number> {
   const client = tx ?? prisma;
   const accountRepository = new AccountRepository(client);
-  return accountRepository.incrementBalance(accountId, delta, tx);
+  const balance = await accountRepository.incrementBalance(accountId, delta, tx);
+
+  // Invalidate cache after balance update (only if not in transaction)
+  // If in transaction, cache will be invalidated after transaction commits
+  if (!tx) {
+    await invalidateAccountBalance(accountId).catch(() => {
+      // Ignore cache invalidation errors
+    });
+  }
+
+  return balance;
 }
 
 /**
@@ -100,6 +111,13 @@ export async function recalculateAccountBalance(
 
   // Update stored balance
   await accountRepository.update(accountId, {balance: newBalance}, tx);
+
+  // Invalidate cache after balance update (only if not in transaction)
+  if (!tx) {
+    await invalidateAccountBalance(accountId).catch(() => {
+      // Ignore cache invalidation errors
+    });
+  }
 
   return newBalance;
 }

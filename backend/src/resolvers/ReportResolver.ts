@@ -16,6 +16,8 @@ import {AccountRepository} from '../repositories/AccountRepository';
 import {CategoryRepository} from '../repositories/CategoryRepository';
 import {PayeeRepository} from '../repositories/PayeeRepository';
 import {TransactionRepository} from '../repositories/TransactionRepository';
+import * as postgresCache from '../utils/postgresCache';
+import {reportKey, hashFilters} from '../utils/cacheKeys';
 
 const ReportTransactionsInputSchema = z.object({
   accountIds: z.array(z.string().uuid()).optional(),
@@ -134,32 +136,72 @@ export class ReportResolver {
     const limit = validatedInput.take ?? 100;
     const offset = validatedInput.skip ?? 0;
 
-    // Run all queries in parallel to minimize database round-trips
-    // Use database-level aggregation for income/expense totals (optimized)
-    const [items, totalCount, totalAmountResult, incomeExpenseTotals] = await Promise.all([
-      transactionRepository.findMany(where, {
-        skip: offset,
-        take: limit,
-        orderBy: prismaOrderBy,
-        // Relations are loaded via DataLoaders in GraphQL field resolvers
-        // This prevents N+1 query problems and reduces memory usage
-      }),
-      transactionRepository.count(where),
-      transactionRepository.aggregate(where, {
-        _sum: {
-          value: true,
-        },
-      }),
-      // Use database-level aggregation for efficient calculation
-      transactionRepository.calculateIncomeExpenseTotals(where),
-    ]);
+    // Generate cache key from filter parameters (exclude pagination for aggregation cache)
+    const filterHash = hashFilters({
+      accountIds: validatedInput.accountIds,
+      categoryIds: validatedInput.categoryIds,
+      payeeIds: validatedInput.payeeIds,
+      startDate: validatedInput.startDate,
+      endDate: validatedInput.endDate,
+      note: validatedInput.note,
+    });
+    const aggregationCacheKey = reportKey(context.userId, filterHash);
+    const AGGREGATION_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
-    const totalAmount = totalAmountResult._sum?.value
-      ? Number(totalAmountResult._sum.value)
-      : 0;
+    // Try to get cached aggregation results
+    const cachedAggregations = await postgresCache.get<{
+      totalCount: number;
+      totalAmount: number;
+      totalIncome: number;
+      totalExpense: number;
+    }>(aggregationCacheKey);
 
-    // Income and expense totals are calculated at database level
-    const {totalIncome, totalExpense} = incomeExpenseTotals;
+    let totalCount: number;
+    let totalAmount: number;
+    let totalIncome: number;
+    let totalExpense: number;
+
+    if (cachedAggregations) {
+      // Use cached aggregations
+      ({totalCount, totalAmount, totalIncome, totalExpense} = cachedAggregations);
+    } else {
+      // Calculate aggregations from database
+      const [totalCountResult, totalAmountResult, incomeExpenseTotals] = await Promise.all([
+        transactionRepository.count(where),
+        transactionRepository.aggregate(where, {
+          _sum: {
+            value: true,
+          },
+        }),
+        // Use database-level aggregation for efficient calculation
+        transactionRepository.calculateIncomeExpenseTotals(where),
+      ]);
+
+      totalCount = totalCountResult;
+      totalAmount = totalAmountResult._sum?.value
+        ? Number(totalAmountResult._sum.value)
+        : 0;
+      ({totalIncome, totalExpense} = incomeExpenseTotals);
+
+      // Cache aggregation results (fire and forget)
+      void postgresCache.set(aggregationCacheKey, {
+        totalCount,
+        totalAmount,
+        totalIncome,
+        totalExpense,
+      }, AGGREGATION_CACHE_TTL_MS).catch(() => {
+        // Ignore cache errors
+      });
+    }
+
+    // Always fetch items (not cached due to pagination)
+    const items = await transactionRepository.findMany(where, {
+      skip: offset,
+      take: limit,
+      orderBy: prismaOrderBy,
+      // Relations are loaded via DataLoaders in GraphQL field resolvers
+      // This prevents N+1 query problems and reduces memory usage
+    });
 
         return {
           items,

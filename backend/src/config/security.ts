@@ -8,53 +8,42 @@ import {cors} from 'hono/cors';
 import {compress} from 'hono/compress';
 import {randomBytes} from 'crypto';
 import {ErrorCode} from '../utils/errorCodes';
-
-/**
- * Rate limiting store (in-memory)
- * In production, consider using Redis for distributed rate limiting
- */
-const rateLimitStore = new Map<string, {count: number; resetTime: number}>();
+import {checkRateLimit} from '../utils/postgresRateLimiter';
 
 /**
  * Rate limit middleware
+ * Uses PostgreSQL for distributed rate limiting across server instances
  */
 function rateLimiter(max: number, windowMs: number): (c: Context, next: Next) => Promise<Response | void> {
   return async (c: Context, next: Next) => {
     const key = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? c.req.header('cf-connecting-ip') ?? 'unknown';
-    const now = Date.now();
-    const record = rateLimitStore.get(key);
 
-    if (!record || now > record.resetTime) {
-      // Create new record or reset expired record
-      rateLimitStore.set(key, {
-        count: 1,
-        resetTime: now + windowMs,
-      });
-      // Clean up old entries periodically
-      if (rateLimitStore.size > 10000) {
-        for (const [k, v] of rateLimitStore.entries()) {
-          if (now > v.resetTime) {
-            rateLimitStore.delete(k);
-          }
-        }
+    try {
+      const result = await checkRateLimit(key, max, windowMs);
+
+      if (!result.allowed) {
+        const ttl = Math.ceil((result.resetAt - Date.now()) / 1000);
+        return c.json(
+          {
+            code: ErrorCode.RATE_LIMIT_EXCEEDED,
+            error: 'Too many requests, please try again later',
+            message: `Rate limit exceeded, retry in ${ttl} seconds`,
+          },
+          429,
+        );
       }
+
+      // Add rate limit headers for client information
+      c.header('X-RateLimit-Limit', String(max));
+      c.header('X-RateLimit-Remaining', String(result.remaining));
+      c.header('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
+
+      return next();
+    } catch {
+      // On error, allow the request (fail open)
+      // This prevents rate limiter failures from breaking the application
       return next();
     }
-
-    if (record.count >= max) {
-      const ttl = Math.ceil((record.resetTime - now) / 1000);
-      return c.json(
-        {
-          code: ErrorCode.RATE_LIMIT_EXCEEDED,
-          error: 'Too many requests, please try again later',
-          message: `Rate limit exceeded, retry in ${ttl} seconds`,
-        },
-        429,
-      );
-    }
-
-    record.count += 1;
-    return next();
   };
 }
 

@@ -4,25 +4,19 @@
  */
 
 import * as oidc from 'openid-client';
-import {LRUCache} from 'lru-cache';
 import {createHash} from 'crypto';
 import {UnauthorizedError} from '../utils/errors';
 import {logError} from '../utils/logger';
-import {TOKEN_CACHE_TTL_MS, DATALOADER_CACHE_SIZE_LIMIT} from '../utils/constants';
+import {TOKEN_CACHE_TTL_MS} from '../utils/constants';
 import {config as appConfig} from '../config';
+import * as postgresCache from '../utils/postgresCache';
+import {tokenKey} from '../utils/cacheKeys';
 
 // Type aliases for openid-client types
 type TokenSet = oidc.UserInfoResponse;
 
 let oidcConfig: oidc.Configuration | null = null;
 let tokenEndpointUrl: string | null = null;
-
-/**
- * Token cache entry
- */
-interface TokenCacheEntry {
-  userInfo: {sub: string; email?: string};
-}
 
 /**
  * Hash token for secure caching
@@ -34,17 +28,6 @@ interface TokenCacheEntry {
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
-
-/**
- * LRU token cache with TTL and size limit
- * Cache tokens for 5 minutes to reduce external OIDC provider calls
- * Maximum 1000 entries to prevent memory leaks
- * Uses hashed tokens as keys for security
- */
-const tokenCache = new LRUCache<string, TokenCacheEntry>({
-  max: DATALOADER_CACHE_SIZE_LIMIT, // Maximum number of entries
-  ttl: TOKEN_CACHE_TTL_MS, // Time to live in milliseconds
-});
 
 /**
  * Initialize OIDC client with retry logic
@@ -268,15 +251,16 @@ export async function verifyToken(token: string): Promise<TokenSet> {
 /**
  * Get user info from token
  * Validates OIDC token and returns user information
- * Uses caching to reduce external OIDC provider calls
+ * Uses PostgreSQL cache to reduce external OIDC provider calls
  * Tokens are hashed before caching for security
  */
 export async function getUserFromToken(token: string): Promise<{sub: string; email?: string}> {
   // Hash token for secure caching
   const tokenHash = hashToken(token);
+  const cacheKey = tokenKey(tokenHash);
 
   // Check cache first using hashed token
-  const cached = tokenCache.get(tokenHash);
+  const cached = await postgresCache.get<{userInfo: {sub: string; email?: string}}>(cacheKey);
   if (cached) {
     return cached.userInfo;
   }
@@ -288,9 +272,9 @@ export async function getUserFromToken(token: string): Promise<{sub: string; ema
     email: tokenSet.email,
   };
 
-  // Cache the result using hashed token (LRU cache handles TTL automatically)
-  tokenCache.set(tokenHash, {
-    userInfo,
+  // Cache the result using hashed token
+  await postgresCache.set(cacheKey, {userInfo}, TOKEN_CACHE_TTL_MS).catch(() => {
+    // Ignore cache errors - don't break authentication if cache fails
   });
 
   return userInfo;

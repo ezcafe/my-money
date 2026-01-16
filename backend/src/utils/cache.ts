@@ -1,39 +1,57 @@
 /**
  * Field-Level Caching Utilities
  * Provides caching for expensive computed fields
+ * Now uses PostgreSQL cache for distributed caching
  */
 
-import {LRUCache} from 'lru-cache';
+import * as postgresCache from './postgresCache';
+import {accountBalanceKey} from './cacheKeys';
 
 /**
- * Cache configuration options
+ * Account balance cache TTL (1 minute)
  */
-interface CacheConfig {
-  ttl: number; // Time to live in milliseconds
-  maxSize: number; // Maximum number of entries
+const BALANCE_CACHE_TTL_MS = 60 * 1000;
+
+/**
+ * Get account balance from cache
+ * @param accountId - Account ID
+ * @returns Cached balance or null if not found/expired
+ */
+export async function getAccountBalance(accountId: string): Promise<number | null> {
+  const key = accountBalanceKey(accountId);
+  return await postgresCache.get<number>(key);
 }
 
 /**
- * Create a cache instance with TTL and size limits
- * @param config - Cache configuration
- * @returns Cache instance
+ * Set account balance in cache
+ * @param accountId - Account ID
+ * @param balance - Balance value
  */
-export function createCache<TKey extends string | number, TValue extends Record<string, unknown> | string | number | boolean>(
-  config: CacheConfig,
-): LRUCache<TKey, TValue> {
-  return new LRUCache<TKey, TValue>({
-    max: config.maxSize,
-    ttl: config.ttl,
-    updateAgeOnGet: false, // Don't reset TTL on access
-    updateAgeOnHas: false,
-  });
+export async function setAccountBalance(accountId: string, balance: number): Promise<void> {
+  const key = accountBalanceKey(accountId);
+  await postgresCache.set(key, balance, BALANCE_CACHE_TTL_MS);
 }
 
 /**
- * Account balance cache
- * Caches account balances for 1 minute to reduce database queries
+ * Invalidate account balance cache
+ * @param accountId - Account ID
  */
-export const balanceCache = createCache<string, number>({
-  ttl: 60 * 1000, // 1 minute
-  maxSize: 1000,
-});
+export async function invalidateAccountBalance(accountId: string): Promise<void> {
+  const key = accountBalanceKey(accountId);
+  await postgresCache.deleteKey(key);
+}
+
+/**
+ * Legacy compatibility: balanceCache object for backward compatibility
+ * @deprecated Use getAccountBalance/setAccountBalance instead
+ */
+export const balanceCache = {
+  get: (_accountId: string): number | undefined => {
+    // This is a sync method, but we're using async cache now
+    // Return undefined to force async lookup
+    return undefined;
+  },
+  set: async (accountId: string, balance: number): Promise<void> => {
+    await setAccountBalance(accountId, balance);
+  },
+};

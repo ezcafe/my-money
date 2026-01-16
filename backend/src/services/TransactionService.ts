@@ -14,6 +14,8 @@ import {updateBudgetForTransaction} from './BudgetService';
 import {transactionEventEmitter} from '../events';
 import {sanitizeUserInput} from '../utils/sanitization';
 import {NotFoundError} from '../utils/errors';
+import * as postgresCache from '../utils/postgresCache';
+import {invalidateAccountBalance} from '../utils/cache';
 
 /**
  * Create a new transaction with balance and budget updates
@@ -156,6 +158,15 @@ export async function createTransaction(
   // Emit event after transaction creation (for additional side effects)
   // Note: Balance and budget updates are done synchronously above for data integrity
   transactionEventEmitter.emit('transaction.created', transactionWithRelations);
+
+  // Invalidate caches after transaction creation (only if not in transaction)
+  // If in transaction, cache will be invalidated after transaction commits
+  if (!tx) {
+    await Promise.all([
+      invalidateAccountBalance(validatedInput.accountId).catch(() => {}),
+      postgresCache.invalidateUserCache(userId).catch(() => {}),
+    ]);
+  }
 
   return result;
 }
@@ -329,6 +340,17 @@ export async function updateTransactionWithBalance(
   // Emit event after transaction update (for additional side effects)
   if (oldTransaction) {
     transactionEventEmitter.emit('transaction.updated', oldTransaction, result);
+  }
+
+  // Invalidate caches after transaction update (only if not in transaction)
+  if (!tx) {
+    const accountIdsToInvalidate = new Set([oldAccountId, newAccountId]);
+    await Promise.all([
+      ...Array.from(accountIdsToInvalidate).map((accountId) =>
+        invalidateAccountBalance(accountId).catch(() => {}),
+      ),
+      postgresCache.invalidateUserCache(userId).catch(() => {}),
+    ]);
   }
 
   return newTransaction;

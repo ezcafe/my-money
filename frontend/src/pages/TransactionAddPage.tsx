@@ -60,13 +60,14 @@ export function TransactionAddPage(): React.JSX.Element {
   const categories = useMemo(() => (combinedData?.categories ?? []) as Category[], [combinedData?.categories]);
   const payees = combinedData?.payees ?? [];
 
-  // Find selected account and category objects for Autocomplete
-  const selectedAccount = accounts.find((acc) => acc.id === accountId) ?? null;
-  const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
-
+  // State declarations must come before they are used
   const [value, setValue] = useState<string>('');
   const [accountId, setAccountId] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('');
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = accounts.find((acc) => acc.id === accountId) ?? null;
+  const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
   const [payeeId, setPayeeId] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState<boolean>(true);

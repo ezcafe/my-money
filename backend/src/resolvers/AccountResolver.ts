@@ -13,7 +13,6 @@ import {AccountService} from '../services/AccountService';
 import {AccountRepository} from '../repositories/AccountRepository';
 import {sanitizeUserInput} from '../utils/sanitization';
 import {BaseResolver} from './BaseResolver';
-import {balanceCache} from '../utils/cache';
 
 /**
  * Account with numeric balance for GraphQL responses
@@ -111,12 +110,13 @@ export class AccountResolver extends BaseResolver {
 
   /**
    * Get account balance
-   * Uses field-level caching to reduce database queries
+   * Uses PostgreSQL cache to reduce database queries
    */
   async accountBalance(_: unknown, {accountId}: {accountId: string}, context: GraphQLContext): Promise<number> {
     // Check cache first
-    const cached = balanceCache.get(accountId);
-    if (cached !== undefined) {
+    const {getAccountBalance, setAccountBalance} = await import('../utils/cache');
+    const cached = await getAccountBalance(accountId);
+    if (cached !== null) {
       return cached;
     }
 
@@ -132,7 +132,7 @@ export class AccountResolver extends BaseResolver {
     const balance = await context.accountBalanceLoader.load(accountId);
 
     // Cache the result
-    balanceCache.set(accountId, balance);
+    await setAccountBalance(accountId, balance);
 
     return balance;
   }

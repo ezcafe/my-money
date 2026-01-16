@@ -12,6 +12,8 @@ import {UnauthorizedError} from '../utils/errors';
 import {createDataLoaders} from '../utils/dataloaders';
 import type {DataLoaderContext} from '../utils/dataloaders';
 import {logAuthFailure} from '../utils/securityLogger';
+import * as postgresCache from '../utils/postgresCache';
+import {userKey} from '../utils/cacheKeys';
 
 export interface GraphQLContext extends DataLoaderContext {
   userId: string;
@@ -61,19 +63,36 @@ export async function createContext(c: Context): Promise<GraphQLContext | null> 
     throw error;
   }
 
-  // Find or create user in database using upsert to prevent race conditions
-  // If two requests come in simultaneously for a new user, upsert ensures only one is created
-  const user = await prisma.user.upsert({
-    where: {oidcSubject: userInfo.sub},
-    update: {
-      // Update email if it has changed (e.g., user updated their email in OIDC provider)
-      email: userInfo.email ?? undefined,
-    },
-    create: {
-      oidcSubject: userInfo.sub,
-      email: userInfo.email ?? '',
-    },
-  });
+  // Check cache for user lookup
+  const userCacheKey = userKey(userInfo.sub);
+  const USER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+  let user = await postgresCache.get<{
+    id: string;
+    oidcSubject: string;
+    email: string;
+  }>(userCacheKey);
+
+  if (!user) {
+    // Find or create user in database using upsert to prevent race conditions
+    // If two requests come in simultaneously for a new user, upsert ensures only one is created
+    user = await prisma.user.upsert({
+      where: {oidcSubject: userInfo.sub},
+      update: {
+        // Update email if it has changed (e.g., user updated their email in OIDC provider)
+        email: userInfo.email ?? undefined,
+      },
+      create: {
+        oidcSubject: userInfo.sub,
+        email: userInfo.email ?? '',
+      },
+    });
+
+    // Cache user lookup (fire and forget)
+    void postgresCache.set(userCacheKey, user, USER_CACHE_TTL_MS).catch(() => {
+      // Ignore cache errors
+    });
+  }
 
   // Validate that userId exists (should always be true after upsert, but explicit check for safety)
   if (!user.id) {

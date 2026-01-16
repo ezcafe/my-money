@@ -14,6 +14,7 @@ import {disconnectPrisma} from './utils/prisma';
 import {startRecurringTransactionsCron} from './cron/recurringTransactions';
 import {startBudgetResetCron} from './cron/budgetReset';
 import {startBalanceReconciliationCron} from './cron/balanceReconciliation';
+import {startCacheCleanupCron} from './cron/cacheCleanup';
 import {registerSecurityPlugins} from './config/security';
 import {registerMultipartHandler} from './config/multipart';
 import {createApolloServer} from './config/apollo';
@@ -155,6 +156,22 @@ async function startServer(): Promise<void> {
       }
     }
 
+    // Initialize cache and rate limit tables (after migrations)
+    const cacheInitStart = Date.now();
+    try {
+      const {initializeCacheTables} = await import('./utils/postgresCache');
+      const {initializeRateLimitTables} = await import('./utils/postgresRateLimiter');
+      await Promise.all([
+        initializeCacheTables(),
+        initializeRateLimitTables(),
+      ]);
+      // eslint-disable-next-line no-console
+      console.log(`[${Date.now() - cacheInitStart}ms] Cache tables initialized`);
+    } catch (error) {
+      console.error(`[${Date.now() - cacheInitStart}ms] Cache tables initialization failed:`, error);
+      // Don't throw - cache tables are optional and can be created later
+    }
+
     // Register multipart handler for file uploads (must be registered BEFORE security plugins
     // to access the raw request body before it's consumed)
     const multipartStart = Date.now();
@@ -207,6 +224,7 @@ async function startServer(): Promise<void> {
     startRecurringTransactionsCron();
     startBudgetResetCron();
     startBalanceReconciliationCron();
+    startCacheCleanupCron();
     // eslint-disable-next-line no-console
     console.log(`[${Date.now() - cronStart}ms] Cron jobs started`);
 

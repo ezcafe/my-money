@@ -19,6 +19,9 @@ import {PayeeRepository} from '../repositories/PayeeRepository';
 import {AccountRepository} from '../repositories/AccountRepository';
 import {buildOrderBy} from '../utils/queryBuilder';
 import {BaseResolver} from './BaseResolver';
+import * as postgresCache from '../utils/postgresCache';
+import {transactionQueryKey, hashFilters} from '../utils/cacheKeys';
+import {invalidateAccountBalance} from '../utils/cache';
 
 const CreateTransactionInputSchema = z.object({
   value: z.number().finite(),
@@ -143,16 +146,41 @@ export class TransactionResolver extends BaseResolver {
     // Build orderBy based on field type
     const prismaOrderBy = buildOrderBy(orderBy);
 
-    const [items, totalCount] = await Promise.all([
-      transactionRepository.findMany(where, {
-        skip: offset,
-        take: limit + 1, // Fetch one extra to determine hasMore
-        orderBy: prismaOrderBy,
-        // Relations are loaded via DataLoaders in GraphQL field resolvers
-        // This prevents N+1 query problems
-      }),
-      transactionRepository.count(where),
-    ]);
+    // Generate cache key from filter parameters (exclude pagination)
+    const filterHash = hashFilters({
+      accountId,
+      categoryId,
+      payeeId,
+      note,
+      orderBy: orderBy ? `${orderBy.field}:${orderBy.direction}` : undefined,
+    });
+    const cacheKey = transactionQueryKey(context.userId, filterHash);
+    const TRANSACTION_QUERY_CACHE_TTL_MS = 30 * 1000; // 30 seconds
+
+    // Try to get cached totalCount
+    const cachedTotalCount = await postgresCache.get<number>(cacheKey);
+
+    let totalCount: number;
+    if (cachedTotalCount !== null) {
+      totalCount = cachedTotalCount;
+    } else {
+      // Fetch totalCount from database
+      totalCount = await transactionRepository.count(where);
+
+      // Cache totalCount (fire and forget)
+      void postgresCache.set(cacheKey, totalCount, TRANSACTION_QUERY_CACHE_TTL_MS).catch(() => {
+        // Ignore cache errors
+      });
+    }
+
+    // Always fetch items (not cached due to pagination and frequent updates)
+    const items = await transactionRepository.findMany(where, {
+      skip: offset,
+      take: limit + 1, // Fetch one extra to determine hasMore
+      orderBy: prismaOrderBy,
+      // Relations are loaded via DataLoaders in GraphQL field resolvers
+      // This prevents N+1 query problems
+    });
 
     const hasMore = items.length > limit;
     const transactions = hasMore ? items.slice(0, limit) : items;
@@ -393,6 +421,12 @@ export class TransactionResolver extends BaseResolver {
       // Reverse the balance change
       await incrementAccountBalance(transaction.accountId, balanceDelta, tx);
     });
+
+    // Invalidate caches after transaction deletion
+    await Promise.all([
+      invalidateAccountBalance(transaction.accountId).catch(() => {}),
+      postgresCache.invalidateUserCache(context.userId).catch(() => {}),
+    ]);
 
     return true;
   }

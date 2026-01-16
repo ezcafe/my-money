@@ -1,42 +1,53 @@
 /**
  * Rate Limiting Security Tests
+ * Tests PostgreSQL-based rate limiting
+ * Note: Requires a test database connection
  */
 
-import {describe, it, expect, beforeEach} from '@jest/globals';
+import {describe, it, expect, beforeEach, afterEach} from '@jest/globals';
 import {Hono} from 'hono';
+import {checkRateLimit, clearExpired} from '../../src/utils/postgresRateLimiter';
+import type {Context, Next} from 'hono';
+import {ErrorCode} from '../../src/utils/errorCodes';
 
-// Simple rate limiter for testing (same logic as in security.ts)
-const rateLimitStore = new Map<string, {count: number; resetTime: number}>();
-
+/**
+ * Rate limit middleware using PostgreSQL rate limiter
+ */
 function rateLimiter(max: number, windowMs: number) {
-  return async (c: Parameters<Parameters<Hono['use']>[0]>[0], next: () => Promise<void>): Promise<Response | void> => {
+  return async (c: Context, next: Next): Promise<Response | void> => {
     const key = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'test-client';
-    const now = Date.now();
-    const record = rateLimitStore.get(key);
 
-    if (!record || now > record.resetTime) {
-      rateLimitStore.set(key, {
-        count: 1,
-        resetTime: now + windowMs,
-      });
+    try {
+      const result = await checkRateLimit(key, max, windowMs);
+
+      if (!result.allowed) {
+        const ttl = Math.ceil((result.resetAt - Date.now()) / 1000);
+        return c.json(
+          {
+            code: ErrorCode.RATE_LIMIT_EXCEEDED,
+            error: 'Too many requests, please try again later',
+            message: `Rate limit exceeded, retry in ${ttl} seconds`,
+          },
+          429,
+        );
+      }
+
+      return next();
+    } catch (error) {
+      // On error, allow the request (fail open)
       return next();
     }
-
-    if (record.count >= max) {
-      return c.json({error: 'Rate limit exceeded'}, 429);
-    }
-
-    record.count += 1;
-    return next();
   };
 }
 
 describe('Rate Limiting', () => {
   let app: Hono;
+  const testKey = 'test-client-' + Date.now();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     app = new Hono();
-    rateLimitStore.clear();
+    // Clear any existing rate limit entries for test key
+    await clearExpired();
     app.use(rateLimiter(5, 60 * 1000)); // 5 requests per minute for testing
 
     app.get('/test', async (c) => {
@@ -44,31 +55,46 @@ describe('Rate Limiting', () => {
     });
   });
 
+  afterEach(async () => {
+    // Clean up test data
+    await clearExpired();
+  });
+
   it('should allow requests within limit', async () => {
     for (let i = 0; i < 5; i++) {
       const response = await app.request('/test', {
         method: 'GET',
+        headers: {
+          'x-forwarded-for': testKey,
+        },
       });
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body).toEqual({message: 'ok'});
     }
-  });
+  }, 10000); // Increase timeout for database operations
 
   it('should reject requests exceeding limit', async () => {
     // Make 5 requests (within limit)
     for (let i = 0; i < 5; i++) {
-      await app.request('/test', {
+      const response = await app.request('/test', {
         method: 'GET',
+        headers: {
+          'x-forwarded-for': testKey + '-limit',
+        },
       });
+      expect(response.status).toBe(200);
     }
 
     // 6th request should be rate limited
     const response = await app.request('/test', {
       method: 'GET',
+      headers: {
+        'x-forwarded-for': testKey + '-limit',
+      },
     });
     expect(response.status).toBe(429);
     const body = await response.json();
-    expect(body).toEqual({error: 'Rate limit exceeded'});
-  });
+    expect(body.code).toBe(ErrorCode.RATE_LIMIT_EXCEEDED);
+  }, 10000); // Increase timeout for database operations
 });
