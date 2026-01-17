@@ -66,6 +66,8 @@ function getRecurringTypeFromCron(cronExpression: string): RecurringType | null 
     '0 0 * * 0': 'weekly',
     '0 0 1 * *': 'monthly',
     '0 0 1 1 *': 'yearly',
+    '* * * * *': 'minutely',
+    '0 * * * *': 'hourly',
   };
   return typeMap[cronExpression] ?? null;
 }

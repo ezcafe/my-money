@@ -6,7 +6,7 @@
 /**
  * Recurring type options
  */
-export type RecurringType = 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type RecurringType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'minutely' | 'hourly';
 
 /**
  * Recurring type display labels
@@ -16,6 +16,8 @@ export const RECURRING_TYPE_LABELS: Record<RecurringType, string> = {
   weekly: 'Weekly',
   monthly: 'Monthly',
   yearly: 'Yearly',
+  minutely: 'Minutely',
+  hourly: 'Hourly',
 };
 
 /**
@@ -33,6 +35,10 @@ export function getCronExpression(type: RecurringType): string {
       return '0 0 1 * *'; // First day of month at midnight
     case 'yearly':
       return '0 0 1 1 *'; // January 1st at midnight
+    case 'minutely':
+      return '* * * * *'; // Every minute (development mode only)
+    case 'hourly':
+      return '0 * * * *'; // Every hour at minute 0 (development mode only)
     default: {
       // This should never happen due to TypeScript's exhaustive checking
       const exhaustiveCheck: never = type;
@@ -43,12 +49,22 @@ export function getCronExpression(type: RecurringType): string {
 
 /**
  * Get all recurring type options
+ * Filters out 'minutely' option unless in development mode
  * @returns Array of recurring type options
  */
 export function getRecurringTypeOptions(): Array<{value: RecurringType; label: string}> {
-  return Object.entries(RECURRING_TYPE_LABELS).map(([value, label]) => ({
-    value: value as RecurringType,
-    label,
-  }));
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  return Object.entries(RECURRING_TYPE_LABELS)
+    .filter(([value]) => {
+      // Only include 'minutely' and 'hourly' in development mode
+      if (value === 'minutely' || value === 'hourly') {
+        return isDevelopment;
+      }
+      return true;
+    })
+    .map(([value, label]) => ({
+      value: value as RecurringType,
+      label,
+    }));
 }
 

@@ -1,6 +1,6 @@
 /**
  * Cron Job for Recurring Transactions
- * Runs daily to process recurring transactions
+ * Runs daily at midnight in production, or every minute in development mode
  * Includes retry logic, structured logging, and error tracking
  */
 
@@ -15,13 +15,16 @@ import {RECURRING_TRANSACTION_CONCURRENCY_LIMIT} from '../utils/constants';
 import {
   getLastRunDate,
   updateLastRunDate,
-  getMissedDailyRuns,
+  calculateNextRunDate,
+  getMissedRunsByInterval,
+  getIntervalFromCron,
 } from '../utils/cronJobUtils';
 
 /**
  * Process a single recurring transaction with retry logic
  * @param recurring - Recurring transaction to process
- * @param today - Today's date
+ * @param currentTime - Current time (or target date for processing)
+ * @param cronExpression - Cron expression for this recurring transaction
  * @returns true if successful, false if failed after retries
  */
 async function processRecurringTransaction(
@@ -35,7 +38,8 @@ async function processRecurringTransaction(
     userId: string;
     nextRunDate: Date;
   },
-  today: Date,
+  currentTime: Date,
+  cronExpression: string,
 ): Promise<boolean> {
   const context = {
     recurringTransactionId: recurring.id,
@@ -101,9 +105,7 @@ async function processRecurringTransaction(
           );
 
           // Calculate next run date based on cron expression
-          // For simplicity, assuming daily for now
-          const nextRunDate = new Date(today);
-          nextRunDate.setDate(nextRunDate.getDate() + 1);
+          const nextRunDate = calculateNextRunDate(cronExpression, currentTime);
 
           // Update next run date
           await tx.recurringTransaction.update({
@@ -121,9 +123,11 @@ async function processRecurringTransaction(
       },
     );
 
+    const nextRunDate = calculateNextRunDate(cronExpression, currentTime);
+
     logInfo('Successfully processed recurring transaction', {
       ...context,
-      nextRunDate: new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      nextRunDate: nextRunDate.toISOString(),
     });
 
     return true;
@@ -156,7 +160,7 @@ async function processRecurringTransaction(
 
 /**
  * Process recurring transactions that are due
- * @param targetDate - Optional target date to process for (defaults to today)
+ * @param targetDate - Optional target date to process for (defaults to now)
  * @returns Statistics about the processing run
  */
 export async function processRecurringTransactions(targetDate?: Date): Promise<{
@@ -164,21 +168,60 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
   successful: number;
   failed: number;
 }> {
+  const isDevelopment = process.env.NODE_ENV !== 'production';
   const now = targetDate ?? new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // In development (minutely), use current time; in production (daily), use start of day
+  const cutoffTime = isDevelopment
+    ? now
+    : new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   logInfo('Starting recurring transactions processing', {
-    date: today.toISOString(),
+    date: cutoffTime.toISOString(),
+    mode: isDevelopment ? 'development (minutely)' : 'production (daily)',
   });
 
-  // Find recurring transactions that are due today or earlier
-  const dueTransactions = await prisma.recurringTransaction.findMany({
-    where: {
-      nextRunDate: {
-        lte: today,
+  // Find recurring transactions that are due
+  // Check if we're processing a historical time (catch-up scenario)
+  const isCatchUp = targetDate !== undefined && targetDate < new Date();
+
+  let dueTransactions;
+
+  if (isCatchUp) {
+    // For catch-up, we need to process transactions based on their cron expression interval
+    // Get all recurring transactions and filter by whether they should have run by the target time
+    const allRecurring = await prisma.recurringTransaction.findMany();
+
+    // Filter transactions that should have been processed by the target time
+    // based on their cron expression interval
+    dueTransactions = allRecurring.filter((rt) => {
+      const interval = getIntervalFromCron(rt.cronExpression);
+      if (!interval) {
+        // Unknown interval, use nextRunDate check as fallback
+        return rt.nextRunDate <= cutoffTime;
+      }
+
+      // For catch-up, check if the transaction should have run by the target time
+      // by comparing the interval's expected run times
+      const missedRuns = getMissedRunsByInterval(
+        rt.cronExpression,
+        rt.nextRunDate,
+        cutoffTime,
+        1, // Only need to check if there's at least one missed run
+      );
+
+      // If there are missed runs, this transaction should be processed
+      return missedRuns.length > 0 || rt.nextRunDate <= cutoffTime;
+    });
+  } else {
+    // Normal processing: find transactions where nextRunDate <= cutoffTime
+    dueTransactions = await prisma.recurringTransaction.findMany({
+      where: {
+        nextRunDate: {
+          lte: cutoffTime,
+        },
       },
-    },
-  });
+    });
+  }
 
   logInfo(`Found ${dueTransactions.length} recurring transactions to process`, {
     count: dueTransactions.length,
@@ -204,7 +247,8 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
             userId: recurring.userId,
             nextRunDate: recurring.nextRunDate,
           },
-          today,
+          cutoffTime,
+          recurring.cronExpression,
         );
         return success;
       }),
@@ -236,40 +280,89 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
 }
 
 /**
- * Start cron job to run daily at midnight
+ * Start cron job to run daily at midnight (or minutely in development)
  * Includes error handling for the cron job itself and missed run catch-up
  */
 export function startRecurringTransactionsCron(): void {
-  // Run daily at 00:00
-  cron.schedule('0 0 * * *', async (): Promise<void> => {
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  // In development, run every minute; in production, run daily at midnight
+  const cronSchedule = isDevelopment ? '* * * * *' : '0 0 * * *';
+  const scheduleDescription = isDevelopment ? 'Every minute (development mode)' : 'Daily at midnight';
+
+  cron.schedule(cronSchedule, async (): Promise<void> => {
     const jobName = 'recurringTransactions';
     try {
       logInfo('Cron job started: Processing recurring transactions');
 
       const now = new Date();
+      // In development, use current time; in production, use start of day for missed run detection
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // Check for missed runs
+      // Check for missed runs (both development and production)
       const lastRunDate = await getLastRunDate(jobName);
 
       if (lastRunDate) {
-        const missedRuns = getMissedDailyRuns(lastRunDate, today, 365);
+        // Get all recurring transactions to check for missed runs
+        const allRecurringTransactions = await prisma.recurringTransaction.findMany();
 
-        if (missedRuns.length > 0) {
+        // Collect all missed run dates across all transactions
+        const allMissedRuns = new Map<string, Date[]>();
+        let totalMissedRuns = 0;
+
+        for (const transaction of allRecurringTransactions) {
+          const interval = getIntervalFromCron(transaction.cronExpression);
+          if (!interval) {
+            // Unknown interval, skip catch-up for this transaction
+            continue;
+          }
+
+          // Calculate missed runs for this transaction based on its interval
+          // Use the transaction's nextRunDate as the starting point, or lastRunDate if earlier
+          const startDate = transaction.nextRunDate < lastRunDate
+            ? transaction.nextRunDate
+            : lastRunDate;
+
+          const cutoffTime = isDevelopment ? now : today;
+          const missedRuns = getMissedRunsByInterval(
+            transaction.cronExpression,
+            startDate,
+            cutoffTime,
+            365, // Max missed runs per transaction
+          );
+
+          if (missedRuns.length > 0) {
+            // Store missed runs by date for batch processing
+            for (const missedDate of missedRuns) {
+              const dateKey = missedDate.toISOString();
+              if (!allMissedRuns.has(dateKey)) {
+                allMissedRuns.set(dateKey, []);
+              }
+            }
+            totalMissedRuns += missedRuns.length;
+          }
+        }
+
+        if (totalMissedRuns > 0) {
           logWarn('Missed runs detected, processing catch-up', {
             jobName,
             lastRunDate: lastRunDate.toISOString(),
-            currentDate: today.toISOString(),
-            missedCount: missedRuns.length,
+            currentDate: isDevelopment ? now.toISOString() : today.toISOString(),
+            totalMissedRuns,
+            uniqueDates: allMissedRuns.size,
           });
 
-          // Process each missed day sequentially
-          for (const missedDate of missedRuns) {
+          // Process each unique missed run date sequentially
+          const sortedMissedDates = Array.from(allMissedRuns.keys())
+            .map((dateStr) => new Date(dateStr))
+            .sort((a, b) => a.getTime() - b.getTime());
+
+          for (const missedDate of sortedMissedDates) {
             try {
               logInfo('Processing missed run', {
                 jobName,
                 date: missedDate.toISOString(),
               });
+
               await processRecurringTransactions(missedDate);
             } catch (error) {
               const errorObj = error instanceof Error ? error : new Error(String(error));
@@ -283,16 +376,19 @@ export function startRecurringTransactionsCron(): void {
 
           logInfo('Completed processing missed runs', {
             jobName,
-            processedCount: missedRuns.length,
+            processedDates: sortedMissedDates.length,
+            totalMissedRuns,
           });
         }
       }
 
-      // Process current day
-      const stats = await processRecurringTransactions(today);
+      // Process current time (or current day in production)
+      const stats = await processRecurringTransactions(now);
 
       // Update last run date after successful completion
-      await updateLastRunDate(jobName, today);
+      // In development, use current time with minute precision; in production, use start of day
+      const lastRunDateToStore = isDevelopment ? now : today;
+      await updateLastRunDate(jobName, lastRunDateToStore);
 
       logInfo('Cron job completed: Recurring transactions processed', stats);
     } catch (error) {
@@ -307,8 +403,8 @@ export function startRecurringTransactionsCron(): void {
   });
 
   logInfo('Recurring transactions cron job scheduled', {
-    schedule: '0 0 * * *',
-    description: 'Daily at midnight',
+    schedule: cronSchedule,
+    description: scheduleDescription,
   });
 }
 

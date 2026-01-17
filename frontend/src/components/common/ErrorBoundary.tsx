@@ -4,8 +4,7 @@
  */
 
 import React, {Component, type ReactNode} from 'react';
-import {Box, Typography, Button} from '@mui/material';
-import {Card} from '../ui/Card';
+import {ErrorPage} from './ErrorPage';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -47,19 +46,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <Box sx={{mx: 'auto'}}>
-          <Card sx={{p: 3}}>
-            <Typography variant="h5" component="h1" color="error" gutterBottom>
-              Something went wrong
-            </Typography>
-            <Typography variant="body1" sx={{mb: 2}}>
-              {this.state.error?.message ?? 'An unexpected error occurred'}
-            </Typography>
-            <Button variant="contained" onClick={this.handleReset}>
-              Try again
-            </Button>
-          </Card>
-        </Box>
+        <ErrorPage
+          errorMessage={this.state.error?.message}
+          onReset={this.handleReset}
+          showResetButton
+        />
       );
     }
 

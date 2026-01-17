@@ -5,6 +5,7 @@
 
 import React from 'react';
 import {ErrorBoundary} from './ErrorBoundary';
+import {ErrorPage} from './ErrorPage';
 
 interface RouteErrorBoundaryProps {
   children: React.ReactNode;
@@ -17,12 +18,7 @@ interface RouteErrorBoundaryProps {
 export function RouteErrorBoundary({children}: RouteErrorBoundaryProps): React.JSX.Element {
   return (
     <ErrorBoundary
-      fallback={
-        <div style={{padding: '20px', textAlign: 'center'}}>
-          <h2>Something went wrong on this page</h2>
-          <p>Please try refreshing the page or navigating away.</p>
-        </div>
-      }
+      fallback={<ErrorPage />}
     >
       {children}
     </ErrorBoundary>
