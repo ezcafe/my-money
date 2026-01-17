@@ -112,7 +112,20 @@ export const resolvers = {
 
     // Export queries
     exportData: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      exportResolver.exportData(parent, args, context),
+      exportResolver.exportData(
+        parent,
+        args as {
+          startDate?: Date;
+          endDate?: Date;
+          accountIds?: string[];
+          categoryIds?: string[];
+          payeeIds?: string[];
+          includeTransactions?: boolean;
+          includeRecurringTransactions?: boolean;
+          includeBudgets?: boolean;
+        },
+        context,
+      ),
 
     // Budget queries
     budgets: (parent: unknown, args: unknown, context: GraphQLContext) =>

@@ -41,17 +41,3 @@ export async function invalidateAccountBalance(accountId: string): Promise<void>
   await postgresCache.deleteKey(key);
 }
 
-/**
- * Legacy compatibility: balanceCache object for backward compatibility
- * @deprecated Use getAccountBalance/setAccountBalance instead
- */
-export const balanceCache = {
-  get: (_accountId: string): number | undefined => {
-    // This is a sync method, but we're using async cache now
-    // Return undefined to force async lookup
-    return undefined;
-  },
-  set: async (accountId: string, balance: number): Promise<void> => {
-    await setAccountBalance(accountId, balance);
-  },
-};

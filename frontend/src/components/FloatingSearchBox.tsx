@@ -3,9 +3,9 @@
  * Displays a floating search box at the bottom of the page
  */
 
-import React, {useState, useEffect, useMemo, type KeyboardEvent} from 'react';
-import {Box, Paper, TextField, IconButton, InputAdornment, useTheme} from '@mui/material';
-import {Search as SearchIcon, Close as CloseIcon} from '@mui/icons-material';
+import React, {useState, useEffect, useMemo, useRef, type KeyboardEvent} from 'react';
+import {Box, Paper, TextField, IconButton, InputAdornment, useTheme, List, ListItem, ListItemButton, Typography, Divider} from '@mui/material';
+import {Search as SearchIcon, Close as CloseIcon, History as HistoryIcon} from '@mui/icons-material';
 import {useLocation} from 'react-router';
 import {useSearch} from '../contexts/SearchContext';
 
@@ -15,8 +15,12 @@ import {useSearch} from '../contexts/SearchContext';
 export function FloatingSearchBox(): React.JSX.Element | null {
   const theme = useTheme();
   const location = useLocation();
-  const {isSearchOpen, closeSearch, setSearchQuery, clearSearch, searchQuery} = useSearch();
+  const {isSearchOpen, closeSearch, performSearch, clearSearch, searchQuery, suggestions, searchHistory} = useSearch();
   const [inputValue, setInputValue] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   /**
    * Get placeholder text based on current route
@@ -50,22 +54,57 @@ export function FloatingSearchBox(): React.JSX.Element | null {
   /**
    * Handle search button click - performs search and closes box
    */
-  const handleSearch = (): void => {
-    if (inputValue.trim()) {
-      setSearchQuery(inputValue.trim());
+  const handleSearch = (query?: string): void => {
+    const queryToUse = query ?? inputValue.trim();
+    if (queryToUse) {
+      performSearch(queryToUse);
     } else {
       clearSearch();
     }
     closeSearch();
+    setShowSuggestions(false);
   };
 
   /**
-   * Handle Enter key press
+   * Handle suggestion click
+   */
+  const handleSuggestionClick = (suggestion: string): void => {
+    setInputValue(suggestion);
+    handleSearch(suggestion);
+  };
+
+  /**
+   * Handle keyboard navigation in suggestions
    */
   const handleKeyPress = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === 'Enter') {
-      handleSearch();
+      if (selectedSuggestionIndex >= 0 && suggestions.length > 0) {
+        handleSuggestionClick(suggestions[selectedSuggestionIndex] ?? '');
+      } else {
+        handleSearch();
+      }
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setShowSuggestions(true);
+      setSelectedSuggestionIndex((prev) => 
+        prev < suggestions.length - 1 ? prev + 1 : prev
+      );
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : -1));
+    } else if (event.key === 'Escape') {
+      setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
     }
+  };
+
+  /**
+   * Handle input change - show suggestions when typing
+   */
+  const handleInputChange = (value: string): void => {
+    setInputValue(value);
+    setShowSuggestions(value.length > 0 || suggestions.length > 0);
+    setSelectedSuggestionIndex(-1);
   };
 
   /**
@@ -123,27 +162,97 @@ export function FloatingSearchBox(): React.JSX.Element | null {
           },
         }}
       >
-        <TextField
-          fullWidth
-          placeholder={placeholder}
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyPress={handleKeyPress}
-          autoFocus
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              transition: 'all 0.2s ease',
-            },
-          }}
-        />
-        <IconButton color="primary" onClick={handleSearch} disabled={!inputValue.trim()}>
+        <Box sx={{position: 'relative', flex: 1}}>
+          <TextField
+            inputRef={inputRef}
+            fullWidth
+            placeholder={placeholder}
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={handleKeyPress}
+            onFocus={() => setShowSuggestions(inputValue.length > 0 || suggestions.length > 0)}
+            autoFocus
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                transition: 'all 0.2s ease',
+              },
+            }}
+          />
+          {/* Suggestions dropdown */}
+          {showSuggestions && (suggestions.length > 0 || searchHistory.length > 0) ? (
+            <Paper
+              ref={suggestionsRef}
+              elevation={4}
+              sx={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                mt: 1,
+                maxHeight: 300,
+                overflowY: 'auto',
+                zIndex: 1301,
+              }}
+            >
+              <List dense>
+                {suggestions.length > 0 ? (
+                  <>
+                    {suggestions.map((suggestion, index) => (
+                      <ListItem key={suggestion} disablePadding>
+                        <ListItemButton
+                          selected={index === selectedSuggestionIndex}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          sx={{
+                            minHeight: 40,
+                            '&.Mui-selected': {
+                              bgcolor: 'action.selected',
+                            },
+                          }}
+                        >
+                          <SearchIcon sx={{mr: 1, fontSize: 20, opacity: 0.6}} />
+                          <Typography variant="body2" noWrap sx={{flex: 1}}>
+                            {suggestion}
+                          </Typography>
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                    {searchHistory.length > suggestions.length ? <Divider /> : null}
+                  </>
+                ) : null}
+                {searchHistory.length > 0 && inputValue.trim() === '' ? (
+                  <>
+                    <ListItem>
+                      <Typography variant="caption" color="text.secondary" sx={{px: 2, py: 1}}>
+                        Recent searches
+                      </Typography>
+                    </ListItem>
+                    {searchHistory.slice(0, 5).map((historyItem, index) => (
+                      <ListItem key={`history-${index}`} disablePadding>
+                        <ListItemButton
+                          onClick={() => handleSuggestionClick(historyItem)}
+                          sx={{minHeight: 40}}
+                        >
+                          <HistoryIcon sx={{mr: 1, fontSize: 20, opacity: 0.6}} />
+                          <Typography variant="body2" noWrap sx={{flex: 1}}>
+                            {historyItem}
+                          </Typography>
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </>
+                ) : null}
+              </List>
+            </Paper>
+          ) : null}
+        </Box>
+        <IconButton color="primary" onClick={() => handleSearch()} disabled={!inputValue.trim()}>
           <SearchIcon />
         </IconButton>
         <IconButton onClick={handleClose}>

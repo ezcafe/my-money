@@ -21,7 +21,7 @@
     "incremental": true,
     "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist", "__tests__", "**/*.test.ts"],
   "references": [
     { "path": "../shared" }

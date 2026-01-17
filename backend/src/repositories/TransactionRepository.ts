@@ -192,12 +192,15 @@ export class TransactionRepository extends BaseRepository {
     const args: Prisma.TransactionGroupByArgs = {
       by,
       where,
+      orderBy: undefined, // Required by Prisma type but optional in practice
     };
     if (aggregate) {
       Object.assign(args, aggregate);
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-    return this.prisma.transaction.groupBy(args as any);
+    // Type assertion needed: Prisma's groupBy has complex conditional types
+    // that TypeScript cannot infer correctly when aggregate is optional
+    // @ts-expect-error - Prisma's groupBy type inference is complex and doesn't handle optional aggregate correctly
+    return this.prisma.transaction.groupBy(args) as Promise<Array<Prisma.TransactionGroupByOutputType>>;
   }
 
   /**

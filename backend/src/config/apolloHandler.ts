@@ -7,6 +7,9 @@ import type {Context} from 'hono';
 import type {ApolloServer} from '@apollo/server';
 import type {GraphQLContext} from '../middleware/context';
 import {createContext} from '../middleware/context';
+import {checkRateLimit} from '../utils/postgresRateLimiter';
+import {ErrorCode} from '../utils/errorCodes';
+import {getCachedQueryResponse} from '../middleware/graphqlCachePlugin';
 
 /**
  * Create Apollo Server handler for Hono
@@ -57,6 +60,38 @@ export function createApolloHandler(
       let graphQLContext: GraphQLContext | null = null;
       if (!isIntrospection) {
         graphQLContext = await createContext(c);
+
+        // Apply user-based rate limiting for authenticated requests
+        // Stricter limits for authenticated users (200 requests per minute)
+        if (graphQLContext?.userId) {
+          const userRateLimitResult = await checkRateLimit(
+            `user:${graphQLContext.userId}`,
+            200, // Higher limit for authenticated users
+            60 * 1000, // 1 minute window
+          );
+
+          if (!userRateLimitResult.allowed) {
+            return c.json(
+              {
+                errors: [
+                  {
+                    message: 'User rate limit exceeded',
+                    extensions: {
+                      code: ErrorCode.RATE_LIMIT_EXCEEDED,
+                      statusCode: 429,
+                    },
+                  },
+                ],
+              },
+              429,
+            );
+          }
+
+          // Add rate limit headers
+          c.header('X-RateLimit-Limit', '200');
+          c.header('X-RateLimit-Remaining', String(userRateLimitResult.remaining));
+          c.header('X-RateLimit-Reset', String(Math.ceil(userRateLimitResult.resetAt / 1000)));
+        }
       }
 
       if (!body?.query) {
@@ -73,6 +108,22 @@ export function createApolloHandler(
           },
           400,
         );
+      }
+
+      // Check cache for query response (only for queries, not mutations)
+      if (body.query && !body.query.trim().startsWith('mutation') && graphQLContext) {
+        const cachedResponse = await getCachedQueryResponse<unknown>(
+          body.query,
+          body.variables as Record<string, unknown> | undefined,
+          graphQLContext.userId,
+        );
+
+        if (cachedResponse) {
+          // Return cached response
+          return c.json({
+            data: cachedResponse,
+          }, 200);
+        }
       }
 
       // Execute the GraphQL operation

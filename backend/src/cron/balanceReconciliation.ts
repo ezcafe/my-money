@@ -172,22 +172,22 @@ export function startBalanceReconciliationCron(): void {
   // Run weekly on Sunday at 2 AM
   cron.schedule('0 2 * * 0', async (): Promise<void> => {
     try {
-      logInfo('Cron job started: Balance reconciliation');
+      logInfo('Balance reconciliation - started');
       const stats = await reconcileAccountBalances();
-      logInfo('Cron job completed: Balance reconciliation finished', {
+      logInfo('Balance reconciliation - completed', {
         total: stats.total,
         discrepancies: stats.discrepancies,
         fixed: stats.fixed,
       });
     } catch (error) {
       const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Cron job failed with unexpected error', {
+      logError('Balance reconciliation - failed', {
         jobName: 'balanceReconciliation',
       }, errorObj);
     }
   });
 
-  logInfo('Balance reconciliation cron job scheduled', {
+  logInfo('Balance reconciliation - scheduled', {
     schedule: '0 2 * * 0',
     description: 'Weekly on Sunday at 2 AM',
   });

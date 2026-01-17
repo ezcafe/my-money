@@ -18,6 +18,8 @@ export interface ErrorNotificationDetails {
   retryable?: boolean;
   retryAfter?: number;
   path?: string;
+  suggestions?: string[];
+  circuitOpen?: boolean;
   [key: string]: unknown;
 }
 

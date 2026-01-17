@@ -49,8 +49,15 @@ async function fetchWithTimeout(input: RequestInfo | URL, options: RequestInit =
 // REQUEST BATCHING: Apollo Client v4 automatically deduplicates identical queries
 // executed within a short time window. This provides efficient query batching
 // without requiring explicit batching configuration.
+// 
+// Benefits:
+// - Automatic query deduplication prevents duplicate requests
+// - Cache-first policy reduces network requests
+// - Query deduplication works across components
+//
 // For true HTTP-level batching (multiple queries in one request),
-// server-side support would be required.
+// server-side support would be required. Apollo's deduplication provides
+// the main performance benefit without the complexity of HTTP batching.
 const httpLink = new HttpLink({
   uri: API_CONFIG.graphqlUrl,
   // Use custom fetch with timeout support

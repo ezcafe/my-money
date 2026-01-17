@@ -123,7 +123,16 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
       {!isHomePage && (
         <AppBar position="static" elevation={0}>
           <Toolbar>
-            <IconButton edge="start" color="inherit" onClick={handleBack} aria-label="Back">
+            <IconButton 
+              edge="start" 
+              color="inherit" 
+              onClick={handleBack} 
+              aria-label="Back"
+              sx={{
+                minWidth: {xs: 44, sm: 40},
+                minHeight: {xs: 44, sm: 40},
+              }}
+            >
               <ArrowBack />
             </IconButton>
             {displayTitle ? <Typography variant="h6" component="h1" sx={{flexGrow: 1}}>
@@ -131,16 +140,47 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
               </Typography> : null}
             {!displayTitle && <Box sx={{flexGrow: 1}} />}
             {!hideSearch && (
-              <IconButton edge="end" color="inherit" onClick={handleSearchClick} aria-label="Search">
+              <IconButton 
+                edge="end" 
+                color="inherit" 
+                onClick={handleSearchClick} 
+                aria-label="Search"
+                sx={{
+                  minWidth: {xs: 44, sm: 40},
+                  minHeight: {xs: 44, sm: 40},
+                }}
+              >
                 <SearchIcon />
               </IconButton>
             )}
-            {contextMenu ? <IconButton edge="end" color="inherit" onClick={handleContextMenuOpen} aria-label="More options">
+            {contextMenu ? (
+              <IconButton 
+                edge="end" 
+                color="inherit" 
+                onClick={handleContextMenuOpen} 
+                aria-label="More options"
+                sx={{
+                  minWidth: {xs: 44, sm: 40},
+                  minHeight: {xs: 44, sm: 40},
+                }}
+              >
                 <MoreVert />
-              </IconButton> : null}
-            {!contextMenu && actionButton ? <IconButton edge="end" color="inherit" onClick={actionButton.onClick} aria-label={actionButton.ariaLabel}>
+              </IconButton>
+            ) : null}
+            {!contextMenu && actionButton ? (
+              <IconButton 
+                edge="end" 
+                color="inherit" 
+                onClick={actionButton.onClick} 
+                aria-label={actionButton.ariaLabel}
+                sx={{
+                  minWidth: {xs: 44, sm: 40},
+                  minHeight: {xs: 44, sm: 40},
+                }}
+              >
                 {actionButton.icon}
-              </IconButton> : null}
+              </IconButton>
+            ) : null}
           </Toolbar>
         </AppBar>
       )}
@@ -170,11 +210,15 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
           '@keyframes fadeIn': {
             from: {
               opacity: 0,
+              transform: 'translateY(8px)',
             },
             to: {
               opacity: 1,
+              transform: 'translateY(0)',
             },
           },
+          // Smooth transitions for state changes
+          transition: 'opacity 0.2s ease, transform 0.2s ease',
         }}
       >
         {children}

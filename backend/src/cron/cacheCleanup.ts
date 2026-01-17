@@ -7,6 +7,8 @@
 import cron from 'node-cron';
 import {clearExpired as clearCacheExpired, getStats as getCacheStats} from '../utils/postgresCache';
 import {clearExpired as clearRateLimitExpired, getStats as getRateLimitStats} from '../utils/postgresRateLimiter';
+import {clearExpiredRevocations} from '../utils/tokenRevocation';
+import {logPoolMetrics} from '../utils/poolMonitoring';
 import {logInfo, logError, logWarn} from '../utils/logger';
 
 /**
@@ -16,6 +18,7 @@ import {logInfo, logError, logWarn} from '../utils/logger';
 export async function cleanupExpiredEntries(): Promise<{
   cacheDeleted: number;
   rateLimitDeleted: number;
+  tokenRevocationDeleted: number;
   cacheStats: {
     totalEntries: number;
     expiredEntries: number;
@@ -31,9 +34,10 @@ export async function cleanupExpiredEntries(): Promise<{
 
   try {
     // Cleanup expired entries in parallel
-    const [cacheDeleted, rateLimitDeleted, cacheStats, rateLimitStats] = await Promise.all([
+    const [cacheDeleted, rateLimitDeleted, tokenRevocationDeleted, cacheStats, rateLimitStats] = await Promise.all([
       clearCacheExpired(),
       clearRateLimitExpired(),
+      clearExpiredRevocations(),
       getCacheStats(),
       getRateLimitStats(),
     ]);
@@ -41,6 +45,7 @@ export async function cleanupExpiredEntries(): Promise<{
     const stats = {
       cacheDeleted,
       rateLimitDeleted,
+      tokenRevocationDeleted,
       cacheStats,
       rateLimitStats,
     };
@@ -48,6 +53,7 @@ export async function cleanupExpiredEntries(): Promise<{
     logInfo('Completed cache cleanup', {
       cacheDeleted: stats.cacheDeleted,
       rateLimitDeleted: stats.rateLimitDeleted,
+      tokenRevocationDeleted: stats.tokenRevocationDeleted,
       cacheTotal: stats.cacheStats.totalEntries,
       cacheActive: stats.cacheStats.activeEntries,
       rateLimitTotal: stats.rateLimitStats.totalEntries,
@@ -80,27 +86,46 @@ export async function cleanupExpiredEntries(): Promise<{
 /**
  * Start cron job to run cache cleanup every 5 minutes
  * Prevents table bloat by regularly removing expired entries
+ * Also logs pool metrics for monitoring
  */
 export function startCacheCleanupCron(): void {
   // Run every 5 minutes
   cron.schedule('*/5 * * * *', async (): Promise<void> => {
     try {
-      logInfo('Cron job started: Cache cleanup');
+      logInfo('Cache cleanup - started');
       const stats = await cleanupExpiredEntries();
-      logInfo('Cron job completed: Cache cleanup finished', {
+      logInfo('Cache cleanup - completed', {
         cacheDeleted: stats.cacheDeleted,
         rateLimitDeleted: stats.rateLimitDeleted,
+        tokenRevocationDeleted: stats.tokenRevocationDeleted,
       });
     } catch (error) {
       const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Cron job failed with unexpected error', {
+      logError('Cache cleanup - failed', {
         jobName: 'cacheCleanup',
       }, errorObj);
     }
   });
 
-  logInfo('Cache cleanup cron job scheduled', {
+  // Log pool metrics every 15 minutes
+  cron.schedule('*/15 * * * *', async (): Promise<void> => {
+    try {
+      await logPoolMetrics();
+    } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      logError('Pool metrics - failed', {
+        jobName: 'poolMetrics',
+      }, errorObj);
+    }
+  });
+
+  logInfo('Cache cleanup - scheduled', {
     schedule: '*/5 * * * *',
     description: 'Every 5 minutes',
+  });
+
+  logInfo('Pool metrics - scheduled', {
+    schedule: '*/15 * * * *',
+    description: 'Every 15 minutes',
   });
 }

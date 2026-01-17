@@ -3,7 +3,7 @@
  * Reusable form component for creating/editing entities (Account, Category, Payee, etc.)
  */
 
-import React, {useState, useEffect, type ReactNode} from 'react';
+import React, {useState, useEffect, useRef, useCallback, type ReactNode} from 'react';
 import {useNavigate, useSearchParams} from 'react-router';
 import {Box, Typography, Button} from '@mui/material';
 import {useMutation, useQuery, useApolloClient} from '@apollo/client/react';
@@ -237,7 +237,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   /**
    * Validate a single field
    */
-  const validateField = (field: FormFieldConfig, value: unknown): string | null => {
+  const validateField = useCallback((field: FormFieldConfig, value: unknown): string | null => {
     if (field.required && (!value || (typeof value === 'string' && !value.trim()))) {
       return `${field.label} is required`;
     }
@@ -245,32 +245,58 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
       return field.validate(value);
     }
     return null;
-  };
+  }, []);
+
+  // Debounce timers for field validation
+  const validationTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   /**
    * Handle field value change with real-time validation
+   * Uses debouncing to avoid excessive validation while typing
    */
-  const handleFieldChange = (key: string, value: unknown): void => {
+  const handleFieldChange = useCallback((key: string, value: unknown): void => {
     setFormValues((prev) => ({...prev, [key]: value}));
     // Clear general error when user starts typing
     if (error) {
       setError(null);
     }
-    // Validate field in real-time
+
+    // Clear existing debounce timer for this field
+    if (validationTimersRef.current[key]) {
+      clearTimeout(validationTimersRef.current[key]);
+      delete validationTimersRef.current[key];
+    }
+
+    // Validate field in real-time (immediate for required fields, debounced for others)
     const field = config.fields.find((f) => f.key === key);
     if (field) {
-      const fieldError = validateField(field, value);
-      setFieldErrors((prev) => {
-        if (fieldError) {
-          return {...prev, [key]: fieldError};
-        } else {
-          const newErrors = {...prev};
-          delete newErrors[key];
-          return newErrors;
-        }
-      });
+      const performValidation = (): void => {
+        const fieldError = validateField(field, value);
+        setFieldErrors((prev) => {
+          if (fieldError) {
+            return {...prev, [key]: fieldError};
+          } else {
+            const newErrors = {...prev};
+            delete newErrors[key];
+            return newErrors;
+          }
+        });
+        // Clean up timer reference
+        delete validationTimersRef.current[key];
+      };
+
+      // Immediate validation for required fields or empty values
+      const isEmpty = value === null || value === undefined || value === '';
+      const shouldValidateImmediately = field.required ?? isEmpty;
+
+      if (shouldValidateImmediately) {
+        performValidation();
+      } else {
+        // Debounce validation for non-empty, non-required fields (300ms delay)
+        validationTimersRef.current[key] = setTimeout(performValidation, 300);
+      }
     }
-  };
+  }, [config.fields, error, validateField]);
 
   /**
    * Handle form submission

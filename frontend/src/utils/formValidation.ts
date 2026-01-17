@@ -107,6 +107,36 @@ export const validationRules = {
   },
 
   /**
+   * Non-zero number validation (for transaction values)
+   */
+  nonZero: (value: unknown): string | null => {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const valueStr = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+    const num = Number.parseFloat(valueStr);
+    if (Number.isNaN(num) || num === 0) {
+      return 'Value cannot be zero';
+    }
+    return null;
+  },
+
+  /**
+   * Decimal precision validation
+   */
+  maxDecimals: (maxDecimals: number) => (value: unknown): string | null => {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const valueStr = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+    const decimalParts = valueStr.split('.');
+    if (decimalParts.length > 1 && decimalParts[1] && decimalParts[1].length > maxDecimals) {
+      return `Maximum ${maxDecimals} decimal places allowed`;
+    }
+    return null;
+  },
+
+  /**
    * Email validation
    */
   email: (value: string): string | null => {

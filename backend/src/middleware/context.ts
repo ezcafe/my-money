@@ -14,6 +14,7 @@ import type {DataLoaderContext} from '../utils/dataloaders';
 import {logAuthFailure} from '../utils/securityLogger';
 import * as postgresCache from '../utils/postgresCache';
 import {userKey} from '../utils/cacheKeys';
+import {setCorrelationId} from '../utils/logger';
 
 export interface GraphQLContext extends DataLoaderContext {
   userId: string;
@@ -103,6 +104,9 @@ export async function createContext(c: Context): Promise<GraphQLContext | null> 
 
   // Generate correlation ID (request ID) for tracing
   const requestId = randomUUID();
+  
+  // Set global correlation ID for logging
+  setCorrelationId(requestId);
 
   return {
     userId: user.id,

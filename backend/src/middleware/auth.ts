@@ -11,6 +11,7 @@ import {TOKEN_CACHE_TTL_MS} from '../utils/constants';
 import {config as appConfig} from '../config';
 import * as postgresCache from '../utils/postgresCache';
 import {tokenKey} from '../utils/cacheKeys';
+import {isTokenRevoked} from '../utils/tokenRevocation';
 
 // Type aliases for openid-client types
 type TokenSet = oidc.UserInfoResponse;
@@ -249,12 +250,69 @@ export async function verifyToken(token: string): Promise<TokenSet> {
 }
 
 /**
+ * Decode JWT token to extract expiration time
+ * @param token - JWT token string
+ * @returns Expiration time in seconds (Unix timestamp) or null if not found
+ */
+function getTokenExpiration(token: string): number | null {
+  try {
+    // JWT format: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    // Decode payload (base64url)
+    const payload = parts[1];
+    if (!payload) {
+      throw new Error('Invalid token format');
+    }
+    const decoded = Buffer.from(payload, 'base64url').toString('utf-8');
+    const parsed = JSON.parse(decoded) as {exp?: number};
+
+    return parsed.exp ?? null;
+  } catch {
+    // If decoding fails, return null (will rely on OIDC provider validation)
+    return null;
+  }
+}
+
+/**
+ * Check if token is expired based on exp claim
+ * @param token - JWT token string
+ * @returns True if token is expired, false otherwise
+ */
+function isTokenExpired(token: string): boolean {
+  const exp = getTokenExpiration(token);
+  if (exp === null) {
+    // If we can't determine expiration, let OIDC provider handle it
+    return false;
+  }
+
+  // exp is in seconds, Date.now() is in milliseconds
+  const now = Math.floor(Date.now() / 1000);
+  return exp < now;
+}
+
+/**
  * Get user info from token
  * Validates OIDC token and returns user information
  * Uses PostgreSQL cache to reduce external OIDC provider calls
  * Tokens are hashed before caching for security
+ * Enhanced with token revocation and expiration checks
  */
 export async function getUserFromToken(token: string): Promise<{sub: string; email?: string}> {
+  // Check if token is expired (early validation)
+  if (isTokenExpired(token)) {
+    throw new UnauthorizedError('Token has expired');
+  }
+
+  // Check if token is revoked
+  const revoked = await isTokenRevoked(token);
+  if (revoked) {
+    throw new UnauthorizedError('Token has been revoked');
+  }
+
   // Hash token for secure caching
   const tokenHash = hashToken(token);
   const cacheKey = tokenKey(tokenHash);
@@ -272,10 +330,19 @@ export async function getUserFromToken(token: string): Promise<{sub: string; ema
     email: tokenSet.email,
   };
 
-  // Cache the result using hashed token
-  await postgresCache.set(cacheKey, {userInfo}, TOKEN_CACHE_TTL_MS).catch(() => {
-    // Ignore cache errors - don't break authentication if cache fails
-  });
+  // Calculate cache TTL based on token expiration
+  // Use token expiration if available, otherwise use default TTL
+  const exp = getTokenExpiration(token);
+  const cacheTTL = exp
+    ? Math.max(0, Math.min(exp * 1000 - Date.now(), TOKEN_CACHE_TTL_MS))
+    : TOKEN_CACHE_TTL_MS;
+
+  // Cache the result using hashed token with appropriate TTL
+  if (cacheTTL > 0) {
+    await postgresCache.set(cacheKey, {userInfo}, cacheTTL).catch(() => {
+      // Ignore cache errors - don't break authentication if cache fails
+    });
+  }
 
   return userInfo;
 }

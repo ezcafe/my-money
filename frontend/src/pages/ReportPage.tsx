@@ -274,7 +274,7 @@ export function ReportPage(): React.JSX.Element {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Chart type state
-  const [chartType, setChartType] = useState<'line' | 'bar' | 'pie' | 'sankey' | 'stacked'>('line');
+  const [chartType, setChartType] = useState<'line' | 'bar' | 'pie' | 'sankey' | 'stacked' | 'area' | 'categoryBreakdown'>('line');
 
   // Chart series visibility state (track which series are hidden)
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
@@ -311,6 +311,10 @@ export function ReportPage(): React.JSX.Element {
     Legend: typeof import('recharts').Legend;
     // eslint-disable-next-line @typescript-eslint/consistent-type-imports
     ResponsiveContainer: typeof import('recharts').ResponsiveContainer;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+    AreaChart?: typeof import('recharts').AreaChart;
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+    Area?: typeof import('recharts').Area;
   } | null>(null);
 
   // Load recharts dynamically when component mounts
@@ -331,6 +335,8 @@ export function ReportPage(): React.JSX.Element {
           Tooltip: recharts.Tooltip,
           Legend: recharts.Legend,
           ResponsiveContainer: recharts.ResponsiveContainer,
+          AreaChart: recharts.AreaChart,
+          Area: recharts.Area,
         });
         setRechartsLoaded(true);
       });
@@ -1595,8 +1601,8 @@ export function ReportPage(): React.JSX.Element {
               value={chartType}
               exclusive
               onChange={(_, value) => {
-                if (value !== null && (value === 'line' || value === 'bar' || value === 'pie' || value === 'sankey' || value === 'stacked')) {
-                  setChartType(value as 'line' | 'bar' | 'pie' | 'sankey' | 'stacked');
+                if (value !== null && typeof value === 'string' && ['line', 'bar', 'pie', 'sankey', 'stacked', 'area', 'categoryBreakdown'].includes(value)) {
+                  setChartType(value as typeof chartType);
                 }
               }}
               size="small"
@@ -1604,15 +1610,23 @@ export function ReportPage(): React.JSX.Element {
               <ToggleButton value="line" aria-label="Line chart">
                 <ShowChart />
               </ToggleButton>
-              <ToggleButton value="pie" aria-label="Pie chart">
-                <DonutLarge />
+              <ToggleButton value="area" aria-label="Area chart">
+                <TrendingUp />
               </ToggleButton>
               <ToggleButton value="bar" aria-label="Bar chart">
                 <BarChartIcon />
               </ToggleButton>
-              {shouldShowStackedChart ? <ToggleButton value="stacked" aria-label="Stacked column chart">
+              <ToggleButton value="pie" aria-label="Pie chart">
+                <DonutLarge />
+              </ToggleButton>
+              {shouldShowStackedChart ? (
+                <ToggleButton value="stacked" aria-label="Stacked column chart">
                   <Layers />
-                </ToggleButton> : null}
+                </ToggleButton>
+              ) : null}
+              <ToggleButton value="categoryBreakdown" aria-label="Category breakdown">
+                <TrendingDown />
+              </ToggleButton>
               <ToggleButton value="sankey" aria-label="Cash flow chart">
                 <Timeline />
               </ToggleButton>
@@ -1738,6 +1752,86 @@ export function ReportPage(): React.JSX.Element {
                   </Typography>
                 </Box>
               )
+            ) : chartType === 'area' && rechartsComponents?.AreaChart && rechartsComponents?.Area ? (
+              <rechartsComponents.ResponsiveContainer width="100%" height="100%">
+                <rechartsComponents.AreaChart data={chartData}>
+                  <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+                  <rechartsComponents.XAxis
+                    dataKey="date"
+                    stroke={theme.palette.text.secondary}
+                    tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                  />
+                  <rechartsComponents.YAxis
+                    tickFormatter={formatYAxisTick}
+                    stroke={theme.palette.text.secondary}
+                    tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                  />
+                  <rechartsComponents.Tooltip content={<CustomTooltip />} />
+                  <rechartsComponents.Legend
+                    onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
+                      const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
+                      if (payload.dataKey && typeof payload.dataKey === 'string') {
+                        handleLegendClick(payload.dataKey);
+                      }
+                    }}
+                    align="left"
+                    iconSize={12}
+                    wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                  />
+                  <rechartsComponents.Area
+                    type="monotone"
+                    dataKey="income"
+                    stackId="1"
+                    stroke={theme.palette.success.main}
+                    fill={theme.palette.success.main}
+                    name="Income"
+                    fillOpacity={hiddenSeries.has('income') ? 0.1 : 0.6}
+                    strokeOpacity={hiddenSeries.has('income') ? 0.3 : 1}
+                  />
+                  <rechartsComponents.Area
+                    type="monotone"
+                    dataKey="expense"
+                    stackId="2"
+                    stroke={theme.palette.error.main}
+                    fill={theme.palette.error.main}
+                    name="Expense"
+                    fillOpacity={hiddenSeries.has('expense') ? 0.1 : 0.6}
+                    strokeOpacity={hiddenSeries.has('expense') ? 0.3 : 1}
+                  />
+                </rechartsComponents.AreaChart>
+              </rechartsComponents.ResponsiveContainer>
+            ) : chartType === 'categoryBreakdown' ? (
+              <rechartsComponents.ResponsiveContainer width="100%" height="100%">
+                <rechartsComponents.BarChart data={pieChartData} layout="vertical">
+                  <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+                  <rechartsComponents.XAxis
+                    type="number"
+                    tickFormatter={formatYAxisTick}
+                    stroke={theme.palette.text.secondary}
+                    tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                  />
+                  <rechartsComponents.YAxis
+                    type="category"
+                    dataKey="name"
+                    stroke={theme.palette.text.secondary}
+                    tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                  />
+                  <rechartsComponents.Tooltip
+                    formatter={(value: unknown): string => formatCurrencyAbbreviated(Number(value), currency)}
+                  />
+                  <rechartsComponents.Bar
+                    dataKey="value"
+                    fill={theme.palette.primary.main}
+                    radius={[0, 4, 4, 0]}
+                  >
+                    {pieChartData.map((item, index) => {
+                      const baseColor = getSeriesColor(index);
+                      const opacity = hiddenSeries.has(item.name) ? 0.3 : 1;
+                      return <rechartsComponents.Cell key={`cell-${item.name}`} fill={baseColor} opacity={opacity} />;
+                    })}
+                  </rechartsComponents.Bar>
+                </rechartsComponents.BarChart>
+              </rechartsComponents.ResponsiveContainer>
             ) : (
               <rechartsComponents.ResponsiveContainer width="100%" height="100%">
                 {chartType === 'line' ? (
@@ -1835,8 +1929,10 @@ export function ReportPage(): React.JSX.Element {
           <Box sx={{mt: 2}}>
             <Typography variant="body2" color="text.secondary" sx={{fontSize: '0.875rem'}}>
               {chartType === 'line' && 'Visualizes income and expense trends over time to identify patterns and seasonal variations'}
+              {chartType === 'area' && 'Shows cumulative income and expense trends with filled areas for better visual impact'}
               {chartType === 'pie' && 'Shows the proportion of expenses across different categories to identify spending patterns'}
               {chartType === 'stacked' && 'Compares budgeted amounts with actual spending to track financial discipline'}
+              {chartType === 'categoryBreakdown' && 'Displays category spending in horizontal bars for easy comparison of expense amounts'}
               {chartType === 'sankey' && 'Illustrates cash flow from income sources through categories to expenses, showing how money moves through your financial system'}
               {chartType === 'bar' && 'Displays transaction data in bar format for easy comparison'}
             </Typography>

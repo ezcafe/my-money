@@ -13,6 +13,8 @@ export interface StructuredLog {
   level: 'info' | 'warn' | 'error' | 'debug';
   message: string;
   context?: LogContext;
+  correlationId?: string; // Request ID for tracing
+  requestId?: string; // Alias for correlationId
   error?: {
     name: string;
     message: string;
@@ -106,6 +108,35 @@ function sanitizeContext(context?: LogContext): LogContext | undefined {
 }
 
 /**
+ * Global correlation ID storage for request tracking
+ * This allows log functions to automatically include correlation IDs
+ */
+let globalCorrelationId: string | undefined;
+
+/**
+ * Set global correlation ID for request tracking
+ * @param correlationId - Correlation ID (request ID)
+ */
+export function setCorrelationId(correlationId: string): void {
+  globalCorrelationId = correlationId;
+}
+
+/**
+ * Get current correlation ID
+ * @returns Current correlation ID or undefined
+ */
+export function getCorrelationId(): string | undefined {
+  return globalCorrelationId;
+}
+
+/**
+ * Clear global correlation ID
+ */
+export function clearCorrelationId(): void {
+  globalCorrelationId = undefined;
+}
+
+/**
  * Create a structured log entry
  * @param level - Log level
  * @param message - Log message
@@ -125,9 +156,21 @@ function createLogEntry(
     message,
   };
 
+  // Add correlation ID from context or global state
+  const correlationId = context?.correlationId ?? context?.requestId ?? globalCorrelationId;
+  if (correlationId) {
+    logEntry.correlationId = String(correlationId);
+    logEntry.requestId = String(correlationId); // Alias for compatibility
+  }
+
   // Sanitize context to remove sensitive information
   if (context) {
-    logEntry.context = sanitizeContext(context);
+    const sanitizedContext = sanitizeContext(context);
+    // Remove correlationId/requestId from context as it's already in root
+    if (sanitizedContext) {
+      const {correlationId: _, requestId: __, ...restContext} = sanitizedContext;
+      logEntry.context = restContext;
+    }
   }
 
   if (error) {

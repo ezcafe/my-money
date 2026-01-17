@@ -153,9 +153,19 @@ type Query {
   mostUsedTransactionDetails(amount: Decimal!, days: Int = 90): MostUsedTransactionDetails
 
   """
-  Export all user data for CSV export
+  Export user data for CSV export
+  Supports filtering by date range, accounts, categories, and payees
   """
-  exportData: ExportData!
+  exportData(
+    startDate: DateTime
+    endDate: DateTime
+    accountIds: [ID!]
+    categoryIds: [ID!]
+    payeeIds: [ID!]
+    includeTransactions: Boolean = true
+    includeRecurringTransactions: Boolean = true
+    includeBudgets: Boolean = true
+  ): ExportData!
 
   """
   Get all budgets for current user

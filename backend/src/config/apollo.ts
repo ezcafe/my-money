@@ -13,6 +13,7 @@ import {inputSanitizationPlugin} from '../middleware/inputSanitizationPlugin';
 import {validationPlugin} from '../middleware/validationPlugin';
 import {queryComplexityPlugin} from '../middleware/queryComplexityPlugin';
 import {queryCostPlugin} from '../middleware/queryCostPlugin';
+import {graphqlCachePlugin} from '../middleware/graphqlCachePlugin';
 import {ErrorCode} from '../utils/errorCodes';
 
 /**
@@ -35,6 +36,8 @@ export function createApolloServer(
       depthLimit(10, {ignore: ['__typename']}),
     ],
     plugins: [
+      // Cache plugin should be early to check cache before other processing
+      graphqlCachePlugin(),
       inputSanitizationPlugin(),
       validationPlugin(),
       queryComplexityPlugin({

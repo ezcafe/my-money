@@ -275,24 +275,22 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
     }
 
     return (
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 1, p: 1}}>
+      <Box sx={{display: 'flex', flexDirection: 'column', gap: 1.5, p: {xs: 1, sm: 2}}}>
         {transactions.items.map((transaction) => (
-          <Box
+          <Card
             key={transaction.id}
             onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
             sx={{
-              p: 1.5,
-              borderRadius: 1,
-              border: 1,
-              borderColor: 'divider',
-              backgroundColor: 'background.paper',
+              p: 2,
               cursor: onRowClick ? 'pointer' : 'default',
+              transition: 'all 0.2s ease',
               '&:hover': onRowClick
                 ? {
                     backgroundColor: 'action.hover',
+                    transform: 'translateY(-2px)',
+                    boxShadow: 2,
                   }
                 : {},
-              transition: 'background-color 0.2s ease',
             }}
           >
             <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5}}>
@@ -325,11 +323,13 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
               {showPayeeColumn && transaction.payee ? <Typography variant="caption" color="text.secondary">
                   Payee: {transaction.payee.name}
                 </Typography> : null}
-              {transaction.note ? <Typography variant="caption" color="text.secondary" sx={{mt: 0.5}}>
+              {transaction.note ? (
+                <Typography variant="caption" color="text.secondary" sx={{mt: 0.5}}>
                   Note: {transaction.note}
-                </Typography> : null}
+                </Typography>
+              ) : null}
             </Stack>
-          </Box>
+          </Card>
         ))}
       </Box>
     );

@@ -94,12 +94,12 @@ export function startBudgetResetCron(): void {
   // Run monthly on the first day at 00:00 (server timezone)
   cron.schedule('0 0 1 * *', async (): Promise<void> => {
     try {
-      logInfo('Cron job started: Processing budget resets');
+      logInfo('Budget reset - started');
       const stats = await processBudgetResets();
-      logInfo('Cron job completed: Budget resets processed', stats);
+      logInfo('Budget reset - completed', stats);
     } catch (error) {
       const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Cron job failed with unexpected error', {
+      logError('Budget reset - failed', {
         jobName: 'budgetReset',
       }, errorObj);
 
@@ -108,7 +108,7 @@ export function startBudgetResetCron(): void {
     }
   });
 
-  logInfo('Budget reset cron job scheduled', {
+  logInfo('Budget reset - scheduled', {
     schedule: '0 0 1 * *',
     description: 'Monthly on the first day at midnight',
   });

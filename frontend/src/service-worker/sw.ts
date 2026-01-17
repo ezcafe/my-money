@@ -11,6 +11,12 @@ const API_CACHE = 'my-money-api-v1';
 const MAX_CACHE_SIZE_MB = 50; // Maximum cache size in MB
 const BYTES_PER_MB = 1024 * 1024;
 
+// Cache TTLs in milliseconds
+const STATIC_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days for static assets
+// API cache TTL removed - using GraphQL-specific TTLs instead
+const GRAPHQL_QUERY_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes for GraphQL queries
+const GRAPHQL_MUTATION_CACHE_TTL_MS = 0; // Don't cache mutations
+
 /**
  * Check if we're in development mode
  * @returns True if in development mode
@@ -92,18 +98,71 @@ self.addEventListener('fetch', (event: Event): void => {
         // Check cache size and evict if needed
         await evictCacheIfNeeded(cache, API_CACHE);
 
+        // Try to get cached response first
+        const cachedResponse = await cache.match(request);
+        if (cachedResponse) {
+          // Check if cached response is still valid (TTL)
+          const cacheDate = cachedResponse.headers.get('sw-cache-date');
+          if (cacheDate) {
+            const cacheTime = new Date(cacheDate).getTime();
+            const now = Date.now();
+
+            // Determine TTL based on request type (query vs mutation)
+            const requestBody = await request.clone().text().catch(() => '');
+            const isMutation = requestBody.includes('mutation');
+            const ttl = isMutation ? GRAPHQL_MUTATION_CACHE_TTL_MS : GRAPHQL_QUERY_CACHE_TTL_MS;
+
+            // If cache is still valid and not a mutation, return cached response
+            if (!isMutation && (now - cacheTime) < ttl) {
+              return cachedResponse;
+            }
+          }
+        }
+
+        // Fetch from network
         return fetch(request)
-          .then((response: Response) => {
-            // Cache successful responses
+          .then(async (response: Response) => {
+            // Only cache successful responses
             if (response.status === 200) {
-              void cache.put(request, response.clone());
+              // Check if it's a mutation - don't cache mutations
+              const requestBody = await request.clone().text().catch(() => '');
+              const isMutation = requestBody.includes('mutation');
+
+              if (!isMutation) {
+                // Clone response and add cache metadata
+                const responseToCache = response.clone();
+                const headers = new Headers(responseToCache.headers);
+                headers.set('sw-cache-date', new Date().toISOString());
+
+                // Create new response with cache metadata
+                const cachedResponse = new Response(responseToCache.body, {
+                  status: responseToCache.status,
+                  statusText: responseToCache.statusText,
+                  headers,
+                });
+
+                void cache.put(request, cachedResponse);
+              } else {
+                // Invalidate related query caches on mutation
+                await invalidateRelatedCaches(cache, requestBody);
+              }
             }
             return response;
           })
-          .catch(async () => {
-            // Return cached response if network fails
-            const cachedResponse = await cache.match(request);
-            return cachedResponse ?? new Response('Not found', {status: 404});
+          .catch(() => {
+            // Return cached response if network fails (even if expired)
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            return new Response(JSON.stringify({
+              errors: [{
+                message: 'Network error and no cached response available',
+                extensions: {code: 'NETWORK_ERROR'},
+              }],
+            }), {
+              status: 503,
+              headers: {'Content-Type': 'application/json'},
+            });
           });
       }),
     );
@@ -112,26 +171,109 @@ self.addEventListener('fetch', (event: Event): void => {
 
   // Handle static assets
   fetchEvent.respondWith(
-    caches.match(request).then((response: Response | undefined) => {
-      return (
-        response ??
-        fetch(request).then(async (fetchResponse: Response) => {
-          // Cache new responses
-          if (fetchResponse.status === 200) {
-            const responseToCache = fetchResponse.clone();
-            const cache = await caches.open(STATIC_CACHE);
-            await evictCacheIfNeeded(cache, STATIC_CACHE);
-            void cache.put(request, responseToCache);
+    caches.match(request).then(async (response: Response | undefined) => {
+      if (response) {
+        // Check if cached response is still valid (TTL)
+        const cacheDate = response.headers.get('sw-cache-date');
+        if (cacheDate) {
+          const cacheTime = new Date(cacheDate).getTime();
+          const now = Date.now();
+
+          // If cache is still valid, return cached response
+          if ((now - cacheTime) < STATIC_CACHE_TTL_MS) {
+            return response;
           }
-          return fetchResponse;
-        })
-      );
+        } else {
+          // No cache date, assume valid (legacy cache entry)
+          return response;
+        }
+      }
+
+      // Fetch from network
+      return fetch(request).then(async (fetchResponse: Response) => {
+        // Cache new responses
+        if (fetchResponse.status === 200) {
+          const responseToCache = fetchResponse.clone();
+          const cache = await caches.open(STATIC_CACHE);
+          await evictCacheIfNeeded(cache, STATIC_CACHE);
+
+          // Add cache metadata
+          const headers = new Headers(responseToCache.headers);
+          headers.set('sw-cache-date', new Date().toISOString());
+
+          const cachedResponse = new Response(responseToCache.body, {
+            status: responseToCache.status,
+            statusText: responseToCache.statusText,
+            headers,
+          });
+
+          void cache.put(request, cachedResponse);
+        }
+        return fetchResponse;
+      });
     }),
   );
 });
 
 /**
+ * Invalidate related caches when a mutation occurs
+ * @param cache - Cache to invalidate from
+ * @param mutationBody - Mutation request body
+ */
+async function invalidateRelatedCaches(cache: Cache, mutationBody: string): Promise<void> {
+  try {
+    // Extract mutation name from body to determine what to invalidate
+    const mutationMatch = mutationBody.match(/mutation\s+(\w+)/);
+    if (!mutationMatch) {
+      return;
+    }
+
+    const mutationName = mutationMatch[1]?.toLowerCase();
+    if (!mutationName) {
+      return;
+    }
+
+    // Invalidate caches based on mutation type
+    const keys = await cache.keys();
+    const keysToDelete: Request[] = [];
+
+    for (const key of keys) {
+      const url = key.url;
+      if (url.includes('/graphql')) {
+        // Check if this is a query that should be invalidated
+        const cachedResponse = await cache.match(key);
+        if (cachedResponse) {
+          // Invalidate transactions-related queries on transaction mutations
+          if (mutationName.includes('transaction') || mutationName.includes('create') || mutationName.includes('update') || mutationName.includes('delete')) {
+            keysToDelete.push(key);
+          }
+          // Invalidate account-related queries on account mutations
+          else if (mutationName.includes('account')) {
+            keysToDelete.push(key);
+          }
+          // Invalidate category-related queries on category mutations
+          else if (mutationName.includes('category')) {
+            keysToDelete.push(key);
+          }
+          // Invalidate payee-related queries on payee mutations
+          else if (mutationName.includes('payee')) {
+            keysToDelete.push(key);
+          }
+        }
+      }
+    }
+
+    // Delete invalidated caches
+    await Promise.all(keysToDelete.map((key) => cache.delete(key)));
+  } catch (error) {
+    // Silently handle cache invalidation errors
+    console.warn('Cache invalidation failed:', error);
+  }
+}
+
+/**
  * Evict cache entries if cache size exceeds limit (simple LRU implementation)
+ * Also evicts expired entries based on TTL
  * @param cache - Cache to check and evict from
  * @param cacheName - Name of the cache for logging
  */
@@ -140,6 +282,9 @@ async function evictCacheIfNeeded(cache: Cache, cacheName: string): Promise<void
     const keys = await cache.keys();
     let totalSize = 0;
     const entries: Array<{key: Request; size: number; timestamp: number}> = [];
+    const now = Date.now();
+    const isApiCache = cacheName === API_CACHE;
+    const ttl = isApiCache ? GRAPHQL_QUERY_CACHE_TTL_MS : STATIC_CACHE_TTL_MS;
 
     // Calculate total size and collect entries with timestamps
     for (const key of keys) {
@@ -148,15 +293,26 @@ async function evictCacheIfNeeded(cache: Cache, cacheName: string): Promise<void
         const blob = await response.blob();
         const size = blob.size;
         totalSize += size;
-        // Use response date or current time as timestamp
-        const timestamp = response.headers.get('date')
-          ? new Date(response.headers.get('date') ?? '').getTime()
-          : Date.now();
+
+        // Get timestamp from cache metadata or response date
+        const cacheDate = response.headers.get('sw-cache-date');
+        const timestamp = cacheDate
+          ? new Date(cacheDate).getTime()
+          : (response.headers.get('date')
+            ? new Date(response.headers.get('date') ?? '').getTime()
+            : now);
+
         entries.push({key, size, timestamp});
+
+        // Evict expired entries immediately
+        if ((now - timestamp) > ttl) {
+          await cache.delete(key);
+          totalSize -= size;
+        }
       }
     }
 
-    // If cache exceeds size limit, evict oldest entries (LRU)
+    // If cache still exceeds size limit after TTL eviction, evict oldest entries (LRU)
     if (totalSize > MAX_CACHE_SIZE_MB * BYTES_PER_MB) {
       // Sort by timestamp (oldest first)
       entries.sort((a, b) => a.timestamp - b.timestamp);

@@ -15,6 +15,7 @@ import {startRecurringTransactionsCron} from './cron/recurringTransactions';
 import {startBudgetResetCron} from './cron/budgetReset';
 import {startBalanceReconciliationCron} from './cron/balanceReconciliation';
 import {startCacheCleanupCron} from './cron/cacheCleanup';
+import {startBackupCron} from './cron/backup';
 import {registerSecurityPlugins} from './config/security';
 import {registerMultipartHandler} from './config/multipart';
 import {createApolloServer} from './config/apollo';
@@ -61,6 +62,7 @@ app.get('/health', async (c) => {
     database: {status: string; queryTimeMs?: number};
     oidc: {status: string; reachable?: boolean};
     memory: {usedMB: number; totalMB: number; percentage: number};
+    pool?: {maxConnections: number; currentConnections: number; utilizationPercent: number};
   } = {
     database: {status: 'unknown'},
     oidc: {status: 'unknown'},
@@ -73,6 +75,24 @@ app.get('/health', async (c) => {
     status: dbHealth.healthy ? 'connected' : 'disconnected',
     queryTimeMs: dbHealth.queryTimeMs,
   };
+
+  // Check pool metrics if database is healthy
+  if (dbHealth.healthy) {
+    try {
+      const {getDetailedPoolStats} = await import('./utils/poolMonitoring');
+      const poolStats = await getDetailedPoolStats();
+      const utilization = poolStats.maxConnections > 0
+        ? (poolStats.currentConnections / poolStats.maxConnections) * 100
+        : 0;
+      checks.pool = {
+        maxConnections: poolStats.maxConnections,
+        currentConnections: poolStats.currentConnections,
+        utilizationPercent: Math.round(utilization * 100) / 100,
+      };
+    } catch {
+      // Ignore pool stats errors in health check
+    }
+  }
 
   // Check OIDC configuration and connectivity
   try {
@@ -156,17 +176,19 @@ async function startServer(): Promise<void> {
       }
     }
 
-    // Initialize cache and rate limit tables (after migrations)
+    // Initialize cache, rate limit, and token revocation tables (after migrations)
     const cacheInitStart = Date.now();
     try {
       const {initializeCacheTables} = await import('./utils/postgresCache');
       const {initializeRateLimitTables} = await import('./utils/postgresRateLimiter');
+      const {initializeTokenRevocationTable} = await import('./utils/tokenRevocation');
       await Promise.all([
         initializeCacheTables(),
         initializeRateLimitTables(),
+        initializeTokenRevocationTable(),
       ]);
       // eslint-disable-next-line no-console
-      console.log(`[${Date.now() - cacheInitStart}ms] Cache tables initialized`);
+      console.log(`[${Date.now() - cacheInitStart}ms] Cache, rate limit, and token revocation tables initialized`);
     } catch (error) {
       console.error(`[${Date.now() - cacheInitStart}ms] Cache tables initialization failed:`, error);
       // Don't throw - cache tables are optional and can be created later
@@ -225,6 +247,7 @@ async function startServer(): Promise<void> {
     startBudgetResetCron();
     startBalanceReconciliationCron();
     startCacheCleanupCron();
+    startBackupCron();
     // eslint-disable-next-line no-console
     console.log(`[${Date.now() - cronStart}ms] Cron jobs started`);
 

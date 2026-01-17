@@ -207,9 +207,22 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
         open={errorOpen}
         autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
         onClose={handleErrorClose}
-        anchorOrigin={{vertical: 'top', horizontal: 'center'}}
+        anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+        sx={{
+          // Ensure notifications don't overlap
+          zIndex: (theme) => theme.zIndex.snackbar,
+        }}
       >
-        <Alert onClose={handleErrorClose} severity="error" sx={{width: '100%'}}>
+        <Alert 
+          onClose={handleErrorClose} 
+          severity="error" 
+          sx={{
+            width: '100%',
+            maxWidth: {xs: '90vw', sm: '400px'},
+            // Add elevation for better visibility
+            boxShadow: 3,
+          }}
+        >
           {errorMessage}
         </Alert>
       </Snackbar>
@@ -217,9 +230,22 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
         open={successOpen}
         autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
         onClose={handleSuccessClose}
-        anchorOrigin={{vertical: 'top', horizontal: 'center'}}
+        anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+        sx={{
+          // Ensure notifications don't overlap
+          zIndex: (theme) => theme.zIndex.snackbar,
+        }}
       >
-        <Alert onClose={handleSuccessClose} severity="success" sx={{width: '100%'}}>
+        <Alert 
+          onClose={handleSuccessClose} 
+          severity="success" 
+          sx={{
+            width: '100%',
+            maxWidth: {xs: '90vw', sm: '400px'},
+            // Add elevation for better visibility
+            boxShadow: 3,
+          }}
+        >
           {successMessage}
         </Alert>
       </Snackbar>

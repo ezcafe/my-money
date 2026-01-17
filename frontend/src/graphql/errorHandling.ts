@@ -130,57 +130,88 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
     let retryAfter: number | undefined;
 
     switch (code) {
-      case 'RATE_LIMIT_EXCEEDED':
-        userMessage = 'Too many requests. Please wait a moment before trying again.';
+      case 'RATE_LIMIT_EXCEEDED': {
+        const retryAfterSeconds = extensionsObj && typeof extensionsObj.retryAfter === 'number' ? extensionsObj.retryAfter : 60;
+        userMessage = `Too many requests. Please wait ${retryAfterSeconds} seconds before trying again. You can continue using the app, but some actions may be temporarily limited.`;
         retryable = true;
-        retryAfter = extensionsObj && typeof extensionsObj.retryAfter === 'number' ? extensionsObj.retryAfter : 60;
+        retryAfter = retryAfterSeconds;
         break;
+      }
       case 'QUERY_TOO_COMPLEX':
       case 'QUERY_COST_EXCEEDED':
-        userMessage = 'Query is too complex. Please simplify your request or try again later.';
+        userMessage = 'Your request is too complex. Try reducing the number of filters or the date range. If the problem persists, refresh the page.';
         retryable = true;
         break;
       case 'QUERY_DEPTH_EXCEEDED':
-        userMessage = 'Query depth exceeds limit. Please simplify your request.';
+        userMessage = 'Query depth exceeds limit. Please simplify your request by reducing nested filters or selections.';
         retryable = false;
         break;
       case 'VALIDATION_ERROR':
       case 'BAD_USER_INPUT': {
-        // Show field-specific validation errors
+        // Show field-specific validation errors with actionable guidance
         const validationErrors = extensionsObj && 'validationErrors' in extensionsObj ? extensionsObj.validationErrors : undefined;
         if (validationErrors && Array.isArray(validationErrors)) {
           const fieldErrors = (validationErrors as Array<{path: Array<string | number>; message: string}>)
-            .map((err) => `${err.path.join('.')}: ${err.message}`)
-            .join(', ');
-          userMessage = `Validation error: ${fieldErrors}`;
+            .map((err) => {
+              const fieldName = err.path.length > 0 ? err.path[err.path.length - 1] : 'field';
+              return `${String(fieldName)}: ${err.message}`;
+            })
+            .join('; ');
+          userMessage = `Please check your input: ${fieldErrors}. Review the highlighted fields and correct any errors.`;
         } else {
-          userMessage = `Validation error: ${message}`;
+          userMessage = `Invalid input: ${message}. Please check your entries and try again.`;
         }
         retryable = false;
         break;
       }
       case 'INPUT_SIZE_EXCEEDED':
-        userMessage = 'Input size exceeds maximum limit. Please reduce the size of your input.';
+        userMessage = 'Your input is too large. Please reduce the amount of data you\'re trying to submit. For file uploads, ensure files are under the size limit.';
         retryable = false;
         break;
-      case 'NOT_FOUND':
-        userMessage = `Resource not found: ${message}`;
+      case 'NOT_FOUND': {
+        // Provide context-specific help based on the resource type
+        const resourceType = message.toLowerCase().includes('account') ? 'account'
+          : message.toLowerCase().includes('category') ? 'category'
+          : message.toLowerCase().includes('payee') ? 'payee'
+          : message.toLowerCase().includes('transaction') ? 'transaction'
+          : message.toLowerCase().includes('budget') ? 'budget'
+          : 'resource';
+        userMessage = `The ${resourceType} you're looking for doesn't exist or has been deleted. Please check your selection or navigate back to the list.`;
         retryable = false;
         break;
+      }
       case 'FORBIDDEN':
-        userMessage = 'You do not have permission to perform this action.';
+        userMessage = 'You don\'t have permission to perform this action. If you believe this is an error, please contact support.';
         retryable = false;
         break;
       case 'INTERNAL_SERVER_ERROR':
-        userMessage = 'An internal server error occurred. Please try again later.';
+        userMessage = 'An unexpected error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page or contact support.';
         retryable = true;
         break;
       case 'DATABASE_ERROR':
-        userMessage = 'A database error occurred. Please try again later.';
+        userMessage = 'A database error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page.';
+        retryable = true;
+        break;
+      case 'NETWORK_ERROR':
+        userMessage = 'Network connection error. Please check your internet connection and try again. If you\'re offline, some features may be limited.';
+        retryable = true;
+        break;
+      case 'TIMEOUT':
+        userMessage = 'Request timed out. The server may be busy. Please try again in a moment.';
         retryable = true;
         break;
       default:
-        // Use default user-friendly message
+        // Use default user-friendly message with context
+        if (message.toLowerCase().includes('network') || message.toLowerCase().includes('fetch')) {
+          userMessage = 'Network error. Please check your connection and try again.';
+          retryable = true;
+        } else if (message.toLowerCase().includes('timeout')) {
+          userMessage = 'Request timed out. Please try again.';
+          retryable = true;
+        } else {
+          userMessage = `An error occurred: ${message}. Please try again or contact support if the problem persists.`;
+          retryable = true;
+        }
         break;
     }
 
@@ -230,26 +261,53 @@ export function handleNetworkError(networkError: NetworkError): void {
   if (isConnectionError) {
     // Check circuit breaker before processing errors
     if (isCircuitOpen()) {
-      const userMessage = 'Server is temporarily unavailable. Please try again in a moment.';
-      showErrorNotification(userMessage, {originalError: errorMessage, circuitOpen: true});
+      const userMessage = 'Server is temporarily unavailable due to repeated connection failures. Please wait 30 seconds and try again. Your data is safe.';
+      showErrorNotification(userMessage, {
+        originalError: errorMessage,
+        circuitOpen: true,
+        retryable: true,
+        retryAfter: 30,
+      });
       return;
     }
 
     // Record failure for circuit breaker
     recordFailure();
 
-    // Backend is not running - show user-friendly error message
+    // Backend is not running - show user-friendly error message with recovery suggestions
     // Only show once to avoid spam
     const lastConnectionError = sessionStorage.getItem('last_connection_error');
     const now = Date.now();
     if (!lastConnectionError || now - Number.parseInt(lastConnectionError, 10) > CONNECTION_ERROR_THROTTLE_MS) {
-      const userMessage = getUserFriendlyErrorMessage(networkError);
-      showErrorNotification(userMessage, {originalError: errorMessage});
+      const userMessage = 'Cannot connect to the server. Please check your internet connection and ensure the server is running. If the problem persists, try refreshing the page.';
+      showErrorNotification(userMessage, {
+        originalError: errorMessage,
+        retryable: true,
+        suggestions: [
+          'Check your internet connection',
+          'Verify the server is running',
+          'Try refreshing the page',
+          'Clear your browser cache if the problem persists',
+        ],
+      });
       sessionStorage.setItem('last_connection_error', String(now));
     }
   } else {
-    // Show user-friendly error message for other network errors
-    const userMessage = getUserFriendlyErrorMessage(networkError);
-    showErrorNotification(userMessage, {originalError: errorMessage});
+    // Show user-friendly error message for other network errors with context
+    let userMessage = getUserFriendlyErrorMessage(networkError);
+    
+    // Add context-specific suggestions based on error
+    if (networkStatusCode === 503) {
+      userMessage = 'Service temporarily unavailable. The server may be under maintenance. Please try again in a few moments.';
+    } else if (networkStatusCode === 504) {
+      userMessage = 'Request timed out. The server took too long to respond. Please try again with a simpler request or refresh the page.';
+    } else if (networkStatusCode === 500) {
+      userMessage = 'Server error occurred. Your data is safe. Please try again in a moment. If the problem persists, contact support.';
+    }
+    
+    showErrorNotification(userMessage, {
+      originalError: errorMessage,
+      retryable: networkStatusCode !== 400 && networkStatusCode !== 401 && networkStatusCode !== 403,
+    });
   }
 }

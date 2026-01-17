@@ -121,21 +121,44 @@ const config: Configuration = {
     runtimeChunk: 'single', // Extract runtime to separate chunk for better caching
     splitChunks: {
       chunks: 'all',
+      minSize: 20000, // Minimum chunk size (20KB) to avoid too many small chunks
+      maxSize: 244000, // Maximum chunk size (244KB) for better caching
       cacheGroups: {
         vendor: {
           test: /[\\/]node_modules[\\/]/,
           name: 'vendors',
           priority: 10,
+          reuseExistingChunk: true,
         },
         react: {
           test: /[\\/]node_modules[\\/](react|react-dom|react-router)[\\/]/,
           name: 'react-vendor',
           priority: 20,
+          reuseExistingChunk: true,
         },
         mui: {
           test: /[\\/]node_modules[\\/]@mui[\\/]/,
           name: 'mui-vendor',
           priority: 15,
+          reuseExistingChunk: true,
+        },
+        apollo: {
+          test: /[\\/]node_modules[\\/]@apollo[\\/]/,
+          name: 'apollo-vendor',
+          priority: 15,
+          reuseExistingChunk: true,
+        },
+        recharts: {
+          test: /[\\/]node_modules[\\/]recharts[\\/]/,
+          name: 'recharts-vendor',
+          priority: 15,
+          reuseExistingChunk: true,
+        },
+        datePickers: {
+          test: /[\\/]node_modules[\\/]@mui[\\/]x-date-pickers[\\/]/,
+          name: 'date-pickers-vendor',
+          priority: 15,
+          reuseExistingChunk: true,
         },
         common: {
           minChunks: 2,
@@ -144,8 +167,9 @@ const config: Configuration = {
         },
       },
     },
-    usedExports: true,
-    sideEffects: false,
+    usedExports: true, // Enable tree-shaking
+    sideEffects: false, // Mark as side-effect free for better tree-shaking
+    minimize: process.env.NODE_ENV === 'production',
   },
   devtool: process.env.NODE_ENV === 'production' ? 'source-map' : 'eval-source-map',
   devServer: {

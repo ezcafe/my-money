@@ -125,7 +125,7 @@ async function processRecurringTransaction(
 
     const nextRunDate = calculateNextRunDate(cronExpression, currentTime);
 
-    logInfo('Successfully processed recurring transaction', {
+    logInfo('Recurring transactions - successfully processed transaction', {
       ...context,
       nextRunDate: nextRunDate.toISOString(),
     });
@@ -136,7 +136,7 @@ async function processRecurringTransaction(
 
     // Log error with structured context
     logError(
-      `Failed to process recurring transaction after retries: ${errorObj.message}`,
+      `Recurring transactions - failed to process transaction after retries: ${errorObj.message}`,
       {
         ...context,
         errorType: errorObj.name,
@@ -148,7 +148,7 @@ async function processRecurringTransaction(
     // Alert: Log critical failure that requires attention
     // In production, this could be sent to an alerting system
     if (!isRetryableError(errorObj)) {
-      logWarn('Non-retryable error in recurring transaction - manual intervention may be required', {
+      logWarn('Recurring transactions - non-retryable error, manual intervention may be required', {
         ...context,
         errorType: errorObj.name,
       });
@@ -174,11 +174,6 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
   const cutoffTime = isDevelopment
     ? now
     : new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  logInfo('Starting recurring transactions processing', {
-    date: cutoffTime.toISOString(),
-    mode: isDevelopment ? 'development (minutely)' : 'production (daily)',
-  });
 
   // Find recurring transactions that are due
   // Check if we're processing a historical time (catch-up scenario)
@@ -223,7 +218,7 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
     });
   }
 
-  logInfo(`Found ${dueTransactions.length} recurring transactions to process`, {
+  logInfo(`Recurring transactions - found ${dueTransactions.length} to process`, {
     count: dueTransactions.length,
   });
 
@@ -269,11 +264,9 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
     failed,
   } as const;
 
-  logInfo('Completed recurring transactions processing', stats);
-
   // Alert if there were failures
   if (failed > 0) {
-    logWarn('Some recurring transactions failed to process', stats);
+    logWarn('Recurring transactions - some failed to process', stats);
   }
 
   return stats;
@@ -292,7 +285,7 @@ export function startRecurringTransactionsCron(): void {
   cron.schedule(cronSchedule, async (): Promise<void> => {
     const jobName = 'recurringTransactions';
     try {
-      logInfo('Cron job started: Processing recurring transactions');
+      logInfo('Recurring transactions - started');
 
       const now = new Date();
       // In development, use current time; in production, use start of day for missed run detection
@@ -343,7 +336,7 @@ export function startRecurringTransactionsCron(): void {
         }
 
         if (totalMissedRuns > 0) {
-          logWarn('Missed runs detected, processing catch-up', {
+          logWarn('Recurring transactions - missed runs detected, processing catch-up', {
             jobName,
             lastRunDate: lastRunDate.toISOString(),
             currentDate: isDevelopment ? now.toISOString() : today.toISOString(),
@@ -358,7 +351,7 @@ export function startRecurringTransactionsCron(): void {
 
           for (const missedDate of sortedMissedDates) {
             try {
-              logInfo('Processing missed run', {
+              logInfo('Recurring transactions - processing missed run', {
                 jobName,
                 date: missedDate.toISOString(),
               });
@@ -366,7 +359,7 @@ export function startRecurringTransactionsCron(): void {
               await processRecurringTransactions(missedDate);
             } catch (error) {
               const errorObj = error instanceof Error ? error : new Error(String(error));
-              logError('Failed to process missed run', {
+              logError('Recurring transactions - failed to process missed run', {
                 jobName,
                 date: missedDate.toISOString(),
               }, errorObj);
@@ -374,7 +367,7 @@ export function startRecurringTransactionsCron(): void {
             }
           }
 
-          logInfo('Completed processing missed runs', {
+          logInfo('Recurring transactions - completed processing missed runs', {
             jobName,
             processedDates: sortedMissedDates.length,
             totalMissedRuns,
@@ -390,10 +383,10 @@ export function startRecurringTransactionsCron(): void {
       const lastRunDateToStore = isDevelopment ? now : today;
       await updateLastRunDate(jobName, lastRunDateToStore);
 
-      logInfo('Cron job completed: Recurring transactions processed', stats);
+      logInfo('Recurring transactions - completed', stats);
     } catch (error) {
       const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Cron job failed with unexpected error', {
+      logError('Recurring transactions - failed', {
         jobName,
       }, errorObj);
 
@@ -402,7 +395,7 @@ export function startRecurringTransactionsCron(): void {
     }
   });
 
-  logInfo('Recurring transactions cron job scheduled', {
+  logInfo('Recurring transactions - scheduled', {
     schedule: cronSchedule,
     description: scheduleDescription,
   });

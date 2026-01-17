@@ -45,7 +45,7 @@ export function BudgetAddPage(): React.JSX.Element {
 
   const accounts = useMemo(() => (accountsData?.accounts ?? []) as Account[], [accountsData?.accounts]);
   const categories = useMemo(() => ((categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense')) as Category[], [categoriesData?.categories]);
-  const payees = payeesData?.payees ?? [];
+  const payees = useMemo(() => payeesData?.payees ?? [], [payeesData?.payees]);
 
   const [budgetType, setBudgetType] = useState<'account' | 'category' | 'payee'>('account');
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');

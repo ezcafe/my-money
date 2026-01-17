@@ -13,10 +13,16 @@ import {checkRateLimit} from '../utils/postgresRateLimiter';
 /**
  * Rate limit middleware
  * Uses PostgreSQL for distributed rate limiting across server instances
+ * Supports both IP-based and user-based rate limiting
  */
 function rateLimiter(max: number, windowMs: number): (c: Context, next: Next) => Promise<Response | void> {
   return async (c: Context, next: Next) => {
-    const key = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? c.req.header('cf-connecting-ip') ?? 'unknown';
+    // Try to get user ID from context (if authenticated)
+    // This allows user-based rate limiting for authenticated requests
+    const userId = c.get('userId') as string | undefined;
+    const key = userId
+      ? `user:${userId}`
+      : c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? c.req.header('cf-connecting-ip') ?? 'unknown';
 
     try {
       const result = await checkRateLimit(key, max, windowMs);
@@ -42,6 +48,54 @@ function rateLimiter(max: number, windowMs: number): (c: Context, next: Next) =>
     } catch {
       // On error, allow the request (fail open)
       // This prevents rate limiter failures from breaking the application
+      return next();
+    }
+  };
+}
+
+/**
+ * User-based rate limit middleware
+ * Applies stricter rate limits for authenticated users
+ * Uses userId from GraphQL context
+ * @deprecated Not currently used, kept for future implementation
+ */
+// Unused function kept for future implementation
+// @ts-expect-error - Intentionally unused, kept for future implementation
+function _userRateLimiter(_max: number, _windowMs: number): (c: Context, next: Next) => Promise<Response | void> {
+  return async (c: Context, next: Next) => {
+    // Only apply to authenticated requests (GraphQL context has userId)
+    const userId = c.get('userId') as string | undefined;
+
+    if (!userId) {
+      // Not authenticated, skip user-based rate limiting
+      return next();
+    }
+
+    const key = `user:${userId}`;
+
+    try {
+      const result = await checkRateLimit(key, _max, _windowMs);
+
+      if (!result.allowed) {
+        const ttl = Math.ceil((result.resetAt - Date.now()) / 1000);
+        return c.json(
+          {
+            code: ErrorCode.RATE_LIMIT_EXCEEDED,
+            error: 'Too many requests, please try again later',
+            message: `User rate limit exceeded, retry in ${ttl} seconds`,
+          },
+          429,
+        );
+      }
+
+      // Add rate limit headers for client information
+      c.header('X-RateLimit-Limit', String(_max));
+      c.header('X-RateLimit-Remaining', String(result.remaining));
+      c.header('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
+
+      return next();
+    } catch {
+      // On error, allow the request (fail open)
       return next();
     }
   };
@@ -185,6 +239,12 @@ export function registerSecurityPlugins(app: Hono): void {
   // No middleware registration needed
 
   // Enable compression
+  // Note: Hono's compress middleware supports gzip and deflate
+  // Brotli compression is handled by nginx in production (see docker/nginx.conf)
+  // The compress() middleware automatically:
+  // - Detects Accept-Encoding header
+  // - Compresses responses for text-based content types
+  // - Sets appropriate Content-Encoding header
   app.use(compress());
 
   // CORS configuration - allow frontend to communicate with backend
@@ -195,20 +255,52 @@ export function registerSecurityPlugins(app: Hono): void {
     ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
     : ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
+  // In production, validate origins more strictly
+  const isProduction = process.env.NODE_ENV === 'production';
+  const maxAge = isProduction ? 86400 : 3600; // 24 hours in production, 1 hour in development
+
   app.use(
     cors({
-      origin: corsOrigins,
+      origin: (origin: string | null): string => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+          // In production, be more restrictive
+          if (isProduction) {
+            throw new Error('Origin header required in production');
+          }
+          return '*';
+        }
+
+        // Check if origin is in allowed list
+        if (corsOrigins.includes(origin)) {
+          return origin;
+        }
+
+        // In production, reject unknown origins
+        if (isProduction) {
+          throw new Error(`Origin ${origin} not allowed by CORS policy`);
+        }
+
+        // In development, allow localhost origins even if not explicitly listed
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          return origin;
+        }
+
+        throw new Error(`Origin ${origin} not allowed by CORS policy`);
+      },
       allowMethods: ['GET', 'POST', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID'],
       credentials: true, // Required for cookies
-      exposeHeaders: ['Content-Type'],
+      exposeHeaders: ['Content-Type', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+      maxAge, // Cache preflight requests
     }),
   );
 
   // Security headers middleware
   app.use(securityHeaders());
 
-  // Rate limiting - general limit (100 requests per minute)
+  // Rate limiting - general IP-based limit (100 requests per minute)
+  // User-based rate limiting is applied in GraphQL handler after authentication
   app.use(rateLimiter(100, 60 * 1000));
 
   // CSRF protection for mutations

@@ -97,6 +97,12 @@ export function Calculator(): React.JSX.Element {
   // Auto-scroll to bottom when transactions are loaded or new ones are added
   useAutoScroll(historyListRef, transactions, transactionsLoading);
 
+  // Keyboard shortcuts refs (will be set after handlers are defined)
+  const handleNumberRef = useRef<((num: string) => void) | undefined>(undefined);
+  const handleOperationRef = useRef<((op: string) => void) | undefined>(undefined);
+  const handleEqualsRef = useRef<(() => void) | undefined>(undefined);
+  const handleBackspaceRef = useRef<(() => void) | undefined>(undefined);
+
   // Measure calculator height dynamically
   useEffect(() => {
     const updateCalculatorHeight = (): void => {
@@ -405,6 +411,27 @@ export function Calculator(): React.JSX.Element {
   }, [selectedAccountId, selectedCategoryId, selectedPayeeId, defaultAccountId, defaultCategoryId, defaultPayeeId, createTransaction]);
 
   /**
+   * Memoized callback for payee change
+   */
+  const handlePayeeChange = useCallback((value: string) => {
+    setSelectedPayeeId(value);
+  }, []);
+
+  /**
+   * Memoized callback for account change
+   */
+  const handleAccountChange = useCallback((value: string) => {
+    setSelectedAccountId(value);
+  }, []);
+
+  /**
+   * Memoized callback for category change
+   */
+  const handleCategoryChange = useCallback((value: string) => {
+    setSelectedCategoryId(value);
+  }, []);
+
+  /**
    * Handle settings button click - opens context menu
    */
   const handleSettingsClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
@@ -438,6 +465,93 @@ export function Calculator(): React.JSX.Element {
     },
     [navigate],
   );
+
+  // Update refs when handlers change
+  useEffect(() => {
+    handleNumberRef.current = handleNumber;
+    handleOperationRef.current = handleOperation;
+    handleEqualsRef.current = handleEquals;
+    handleBackspaceRef.current = handleBackspace;
+  }, [handleNumber, handleOperation, handleEquals, handleBackspace]);
+
+  // Keyboard shortcuts for calculator
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      // Don't handle keyboard shortcuts when user is typing in an input field
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Handle number keys (0-9)
+      if (event.key >= '0' && event.key <= '9') {
+        event.preventDefault();
+        handleNumberRef.current?.(event.key);
+        return;
+      }
+
+      // Handle decimal point
+      if (event.key === '.' || event.key === ',') {
+        event.preventDefault();
+        handleNumberRef.current?.('.');
+        return;
+      }
+
+      // Handle operations
+      if (event.key === '+') {
+        event.preventDefault();
+        handleOperationRef.current?.('+');
+        return;
+      }
+      if (event.key === '-') {
+        event.preventDefault();
+        handleOperationRef.current?.('-');
+        return;
+      }
+      if (event.key === '*') {
+        event.preventDefault();
+        handleOperationRef.current?.('*');
+        return;
+      }
+      if (event.key === '/') {
+        event.preventDefault();
+        handleOperationRef.current?.('/');
+        return;
+      }
+
+      // Handle equals/Enter
+      if (event.key === '=' || event.key === 'Enter') {
+        event.preventDefault();
+        void handleEqualsRef.current?.();
+        return;
+      }
+
+      // Handle backspace/Delete
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault();
+        handleBackspaceRef.current?.();
+        return;
+      }
+
+      // Handle Escape to clear
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setState({
+          display: '0',
+          previousValue: null,
+          operation: null,
+          waitingForNewValue: false,
+        });
+        setShowAmount(false);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return (): void => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []); // Empty deps - handlers accessed via refs
 
 
   // Transactions are fetched ordered by date descending (newest first) to get the 30 most recent,
@@ -541,18 +655,10 @@ export function Calculator(): React.JSX.Element {
               canSubmit={!(state.display === '0' && state.previousValue === null)}
               onNumberClick={handleNumber}
               onOperationClick={handleOperation}
-              onEqualsClick={() => {
-                void handleEquals();
-              }}
-              onPayeeChange={(value) => {
-                setSelectedPayeeId(value);
-              }}
-              onAccountChange={(value) => {
-                setSelectedAccountId(value);
-              }}
-              onCategoryChange={(value) => {
-                setSelectedCategoryId(value);
-              }}
+              onEqualsClick={handleEquals}
+              onPayeeChange={handlePayeeChange}
+              onAccountChange={handleAccountChange}
+              onCategoryChange={handleCategoryChange}
               onSettingsClick={handleSettingsClick}
             />
             <CalculatorControls

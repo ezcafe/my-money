@@ -70,23 +70,46 @@ export class TransactionResolver extends BaseResolver {
     },
     context: GraphQLContext,
   ): Promise<{items: Transaction[]; totalCount: number; hasMore: boolean; nextCursor: string | null}> {
-    // Cursor-based pagination
+    // Cursor-based pagination (offset-based for compatibility)
+    // Note: For better performance with large datasets, consider migrating to true cursor-based
+    // pagination using record IDs or timestamps instead of offsets
     let limit = first ?? last ?? 20;
     let offset = 0;
 
-    // Parse cursor (base64 encoded offset)
+    // Parse cursor (base64 encoded JSON with offset and orderBy info)
     if (after) {
       try {
-        offset = Number.parseInt(Buffer.from(after, 'base64').toString('utf-8'), 10);
+        const cursorData = JSON.parse(Buffer.from(after, 'base64').toString('utf-8')) as {offset: number; orderBy?: string};
+        offset = cursorData.offset ?? 0;
+        // Validate orderBy matches if provided in cursor
+        if (cursorData.orderBy && orderBy) {
+          const cursorOrderBy = `${orderBy.field}:${orderBy.direction}`;
+          if (cursorData.orderBy !== cursorOrderBy) {
+            // OrderBy changed, reset to start
+            offset = 0;
+          }
+        }
       } catch {
-        offset = 0;
+        // Fallback to simple offset parsing for backward compatibility
+        try {
+          offset = Number.parseInt(Buffer.from(after, 'base64').toString('utf-8'), 10);
+        } catch {
+          offset = 0;
+        }
       }
     } else if (before) {
       try {
-        const beforeOffset = Number.parseInt(Buffer.from(before, 'base64').toString('utf-8'), 10);
+        const cursorData = JSON.parse(Buffer.from(before, 'base64').toString('utf-8')) as {offset: number; orderBy?: string};
+        const beforeOffset = cursorData.offset ?? 0;
         offset = Math.max(0, beforeOffset - (last ?? 20));
       } catch {
-        offset = 0;
+        // Fallback to simple offset parsing for backward compatibility
+        try {
+          const beforeOffset = Number.parseInt(Buffer.from(before, 'base64').toString('utf-8'), 10);
+          offset = Math.max(0, beforeOffset - (last ?? 20));
+        } catch {
+          offset = 0;
+        }
       }
     }
 
@@ -185,9 +208,13 @@ export class TransactionResolver extends BaseResolver {
     const hasMore = items.length > limit;
     const transactions = hasMore ? items.slice(0, limit) : items;
 
-    // Generate cursor for next page (base64 encoded offset)
+    // Generate cursor for next page (base64 encoded JSON with offset and orderBy)
+    // This allows validation of orderBy consistency across pagination
     const nextCursor = hasMore
-      ? Buffer.from(String(offset + limit), 'utf-8').toString('base64')
+      ? Buffer.from(JSON.stringify({
+          offset: offset + limit,
+          orderBy: orderBy ? `${orderBy.field}:${orderBy.direction}` : 'date:desc',
+        }), 'utf-8').toString('base64')
       : null;
 
     return {

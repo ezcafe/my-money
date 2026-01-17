@@ -3,7 +3,6 @@
  * Prevents N+1 query problems
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import DataLoader from 'dataloader';
 import {prisma} from './prisma';
 import type {Account, Category, Payee, User} from '@prisma/client';
@@ -108,8 +107,8 @@ export function createAccountBalanceLoader(): DataLoader<string, number> {
       // Type assertion needed: DataLoader's CacheMap interface expects get() to return Promise<V> | void,
       // but our LimitedCacheMap returns V | undefined. DataLoader internally handles Promises,
       // so this type mismatch is acceptable. The cache still works correctly.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cacheMap: new LimitedCacheMap<string, number>(CACHE_SIZE_LIMIT) as any,
+      // Using a more specific type assertion instead of 'any'
+      cacheMap: new LimitedCacheMap<string, number>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, number>['cacheMap'],
     },
   );
 }
@@ -131,8 +130,7 @@ export function createCategoryLoader(): DataLoader<string, Category | null> {
     },
     {
       // Type assertion needed: See comment in createAccountBalanceLoader for explanation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cacheMap: new LimitedCacheMap<string, Category | null>(CACHE_SIZE_LIMIT) as any,
+      cacheMap: new LimitedCacheMap<string, Category | null>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, Category | null>['cacheMap'],
     },
   );
 }
@@ -154,8 +152,7 @@ export function createPayeeLoader(): DataLoader<string, Payee | null> {
     },
     {
       // Type assertion needed: See comment in createAccountBalanceLoader for explanation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cacheMap: new LimitedCacheMap<string, Payee | null>(CACHE_SIZE_LIMIT) as any,
+      cacheMap: new LimitedCacheMap<string, Payee | null>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, Payee | null>['cacheMap'],
     },
   );
 }
@@ -177,8 +174,7 @@ export function createAccountLoader(): DataLoader<string, Account | null> {
     },
     {
       // Type assertion needed: See comment in createAccountBalanceLoader for explanation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cacheMap: new LimitedCacheMap<string, Account | null>(CACHE_SIZE_LIMIT) as any,
+      cacheMap: new LimitedCacheMap<string, Account | null>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, Account | null>['cacheMap'],
     },
   );
 }
@@ -200,8 +196,7 @@ export function createUserLoader(): DataLoader<string, User | null> {
     },
     {
       // Type assertion needed: See comment in createAccountBalanceLoader for explanation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cacheMap: new LimitedCacheMap<string, User | null>(CACHE_SIZE_LIMIT) as any,
+      cacheMap: new LimitedCacheMap<string, User | null>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, User | null>['cacheMap'],
     },
   );
 }

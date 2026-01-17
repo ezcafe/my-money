@@ -7,6 +7,7 @@
     "dev": "NODE_OPTIONS='--import tsx' webpack serve --mode development",
     "build": "NODE_OPTIONS='--import tsx' webpack --mode production && npm run build:sw",
     "build:sw": "node scripts/build-sw.js",
+    "build:analyze": "NODE_OPTIONS='--import tsx' webpack --mode production --analyze",
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
