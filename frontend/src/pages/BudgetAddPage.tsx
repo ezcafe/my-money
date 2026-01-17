@@ -47,15 +47,21 @@ export function BudgetAddPage(): React.JSX.Element {
   const categories = useMemo(() => ((categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense')) as Category[], [categoriesData?.categories]);
   const payees = payeesData?.payees ?? [];
 
-  // Find selected account and category objects for Autocomplete
-  const selectedAccount = accounts.find((acc) => acc.id === selectedEntityId) ?? null;
-  const selectedCategory = categories.find((cat) => cat.id === selectedEntityId) ?? null;
-  const selectedPayee = payees.find((p) => p.id === selectedEntityId) ?? null;
-
   const [budgetType, setBudgetType] = useState<'account' | 'category' | 'payee'>('account');
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = useMemo(() => {
+    return accounts.find((acc) => acc.id === selectedEntityId) ?? null;
+  }, [accounts, selectedEntityId]);
+  const selectedCategory = useMemo(() => {
+    return categories.find((cat) => cat.id === selectedEntityId) ?? null;
+  }, [categories, selectedEntityId]);
+  const selectedPayee = useMemo(() => {
+    return payees.find((p) => p.id === selectedEntityId) ?? null;
+  }, [payees, selectedEntityId]);
 
   // Set appbar title
   useEffect(() => {

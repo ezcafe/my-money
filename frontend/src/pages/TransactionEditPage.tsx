@@ -71,10 +71,6 @@ export function TransactionEditPage(): React.JSX.Element {
   const payees = payeesData?.payees ?? [];
   const transaction = transactionData?.transaction;
 
-  // Find selected account and category objects for Autocomplete
-  const selectedAccount = accounts.find((acc) => acc.id === accountId) ?? null;
-  const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
-
   const [value, setValue] = useState<string>('');
   const [date, setDate] = useState<string>('');
   const [accountId, setAccountId] = useState<string>('');
@@ -82,6 +78,14 @@ export function TransactionEditPage(): React.JSX.Element {
   const [payeeId, setPayeeId] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = useMemo(() => {
+    return accounts.find((acc) => acc.id === accountId) ?? null;
+  }, [accounts, accountId]);
+  const selectedCategory = useMemo(() => {
+    return categories.find((cat) => cat.id === categoryId) ?? null;
+  }, [categories, categoryId]);
 
   // Set appbar title
   useEffect(() => {

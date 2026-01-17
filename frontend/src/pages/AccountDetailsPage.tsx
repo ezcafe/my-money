@@ -114,6 +114,19 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   );
 
   /**
+   * Handle row click - navigate to transaction edit page
+   */
+  const handleRowClick = useCallback(
+    (transactionId: string) => {
+      if (id) {
+        const returnTo = `/accounts/${id}`;
+        void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`);
+      }
+    },
+    [id, navigate],
+  );
+
+  /**
    * Handle edit click - navigate to edit page
    */
   const handleEdit = useCallback(
@@ -193,6 +206,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
         sortField={sortField}
         sortDirection={sortDirection}
         onSortChange={handleSortChange}
+        onRowClick={handleRowClick}
         onEdit={handleEdit}
         onDelete={handleDelete}
         isSearchMode={isSearchMode}

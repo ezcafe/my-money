@@ -59,10 +59,6 @@ export function TransactionEditDialog({
   const categories = useMemo(() => (categoriesData?.categories ?? []) as Category[], [categoriesData?.categories]);
   const payees = payeesData?.payees ?? [];
 
-  // Find selected account and category objects for Autocomplete
-  const selectedAccount = accounts.find((acc) => acc.id === accountId) ?? null;
-  const selectedCategory = categories.find((cat) => cat.id === categoryId) ?? null;
-
   const [value, setValue] = useState<string>('');
   const [date, setDate] = useState<string>('');
   const [accountId, setAccountId] = useState<string>('');
@@ -70,6 +66,14 @@ export function TransactionEditDialog({
   const [payeeId, setPayeeId] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  // Find selected account and category objects for Autocomplete
+  const selectedAccount = useMemo(() => {
+    return accounts.find((acc) => acc.id === accountId) ?? null;
+  }, [accounts, accountId]);
+  const selectedCategory = useMemo(() => {
+    return categories.find((cat) => cat.id === categoryId) ?? null;
+  }, [categories, categoryId]);
 
   // Initialize form when transaction changes
   useEffect(() => {
