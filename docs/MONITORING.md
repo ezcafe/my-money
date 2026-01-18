@@ -6,15 +6,31 @@ This guide describes how to monitor the My Money application in production.
 
 ### Backend Health Check
 
-**Endpoint:** `GET /health`
+**Endpoint:** `GET /health` (no authentication required, no rate limiting)
 
 **Response:**
 ```json
 {
   "status": "ok",
   "timestamp": "2025-01-27T12:00:00.000Z",
-  "database": "connected",
-  "oidc": "configured"
+  "database": {
+    "status": "connected",
+    "queryTimeMs": 5
+  },
+  "oidc": {
+    "status": "configured",
+    "reachable": true
+  },
+  "memory": {
+    "usedMB": 256,
+    "totalMB": 512,
+    "percentage": 50
+  },
+  "pool": {
+    "maxConnections": 100,
+    "currentConnections": 5,
+    "utilizationPercent": 5
+  }
 }
 ```
 
@@ -22,11 +38,18 @@ This guide describes how to monitor the My Money application in production.
 - `ok` - All systems operational
 - `degraded` - Some systems unavailable (e.g., database disconnected)
 
+**Component Status:**
+- `database.status`: `connected` | `disconnected`
+- `oidc.status`: `configured` | `unconfigured`
+- `oidc.reachable`: `true` | `false` (if OIDC provider is accessible)
+
 **Monitoring Recommendations:**
-- Check every 30 seconds
+- Check every 30-60 seconds
 - Alert if status is not "ok" for > 2 minutes
 - Alert if database is "disconnected"
-- Alert if OIDC is "unconfigured"
+- Alert if OIDC is "unconfigured" or unreachable
+- Monitor connection pool utilization (alert if > 90%)
+- Monitor memory usage (alert if > 85%)
 
 ### Frontend Health Check
 
@@ -71,22 +94,40 @@ All logs are structured JSON format:
 1. **Authentication Failures:**
    - Event: `auth_failure`
    - Monitor for brute force attempts
-   - Alert on spike in failures
+   - Alert on spike in failures (> 10 failures in 5 minutes)
+   - Track by IP address and user
 
 2. **Database Errors:**
    - Event: `database_operation_failed`
    - Monitor for connection issues
    - Alert on circuit breaker opening
+   - Track query timeouts and connection pool exhaustion
 
 3. **Security Events:**
    - Event: `security_error`
    - Monitor for suspicious activity
-   - Alert on security violations
+   - Alert on security violations (CSRF failures, SQL injection attempts)
+   - Track failed authorization attempts
 
 4. **Rate Limit Exceeded:**
    - Event: `rate_limit_exceeded`
    - Monitor for potential attacks
-   - Alert on sustained rate limit hits
+   - Alert on sustained rate limit hits (> 50 in 10 minutes from single IP)
+
+5. **Workspace Events:**
+   - Event: `workspace_created`, `workspace_member_added`
+   - Monitor workspace growth
+   - Track collaboration activity
+
+6. **Conflict Detection:**
+   - Event: `entity_conflict_detected`
+   - Monitor for concurrent edit conflicts
+   - Alert on high conflict rate (may indicate sync issues)
+
+7. **Budget Notifications:**
+   - Event: `budget_notification_sent`
+   - Monitor budget alert frequency
+   - Track budget overruns
 
 ## Metrics to Track
 
@@ -117,6 +158,25 @@ All logs are structured JSON format:
    - Successful logins
    - Failed login attempts
    - Token refresh rate
+   - OIDC provider response time
+
+6. **Workspace Metrics:**
+   - Active workspaces
+   - Workspace members
+   - Invitations sent/accepted
+   - Concurrent users per workspace
+
+7. **Subscription Metrics:**
+   - Active WebSocket connections
+   - Subscription message rate
+   - Subscription errors
+   - Connection drops
+
+8. **Budget Metrics:**
+   - Active budgets
+   - Budget notifications sent
+   - Budget overruns
+   - Budget reset operations
 
 ### Infrastructure Metrics
 
@@ -173,7 +233,19 @@ All logs are structured JSON format:
 
 4. **Database Connection Pool Exhausted:**
    - Condition: Connection pool usage > 90% for 5 minutes
-   - Action: Review connection usage, consider increasing pool size
+   - Action: Review connection usage, consider increasing pool size or scaling
+
+5. **High Conflict Rate:**
+   - Condition: Entity conflicts > 10 per hour
+   - Action: Review concurrent editing patterns, check sync issues
+
+6. **Subscription Connection Drops:**
+   - Condition: WebSocket disconnections > 5% of connections
+   - Action: Check network stability, review subscription implementation
+
+7. **Budget Overruns:**
+   - Condition: Multiple budgets exceeded simultaneously
+   - Action: Review spending patterns, check budget configuration
 
 ## Monitoring Tools
 

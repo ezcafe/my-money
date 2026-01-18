@@ -1,30 +1,85 @@
 # My Money - Expense Management Application
 
-A full-stack expense management application with passkey authentication, calculator UI, transaction management, PDF import, and recurring transactions.
+A full-stack expense management application with passkey authentication, calculator UI, transaction management, multi-user workspaces, budgets, and advanced collaboration features.
 
 ## Features
 
+### Core Features
 - **Passkey Authentication**: Secure login using Pocket ID (OIDC) with passkeys
 - **Modern Calculator UI**: Calculator with history list, number pad, and operations
 - **Transaction Management**: Create, edit, and manage transactions with account balance tracking
 - **Account Management**: Multiple accounts with balance tracking and charts
-- **PDF Import**: Upload credit card statements and auto-match transactions
-- **Recurring Transactions**: Schedule recurring transactions with cron jobs
-- **Reports**: Generate reports filtered by account, date, category, and payee
+- **Category & Payee Management**: Organize transactions with categories and payees
+- **Reports**: Generate comprehensive reports filtered by account, date, category, payee, and workspace members
 - **PWA Support**: Progressive Web App with offline support and mobile features
 - **Theme System**: Automatic dark/light theme based on time (Catppuccin dark / GitHub light)
 
+### Collaboration & Workspaces
+- **Multi-User Workspaces**: Create and manage workspaces for team collaboration
+- **Role-Based Access Control**: Owner, Admin, and Member roles with appropriate permissions
+- **Workspace Invitations**: Invite users via email with role assignment
+- **Real-Time Updates**: GraphQL subscriptions for live updates across all entities
+- **Conflict Resolution**: Automatic conflict detection and resolution for concurrent edits
+- **Version History**: Track entity changes with full version history
+
+### Budget Management
+- **Budget Tracking**: Set budgets for accounts, categories, or payees
+- **Budget Notifications**: Get notified when budgets approach or exceed limits
+- **Automatic Budget Reset**: Scheduled budget resets with configurable periods
+- **Budget Analytics**: Track spending against budgets with visual indicators
+
+### Import & Export
+- **PDF Import**: Upload credit card statements and auto-match transactions
+- **CSV Import**: Import accounts, categories, payees, and transactions from CSV files
+- **Auto-Matching**: Intelligent transaction matching with import match rules
+- **Data Export**: Export all data (accounts, transactions, budgets, etc.) for backup or migration
+- **Import Match Rules**: Create rules to automatically match imported transactions
+
+### Automation
+- **Recurring Transactions**: Schedule recurring transactions with cron expressions
+- **Automatic Balance Reconciliation**: Scheduled balance checks and corrections
+- **Data Archival**: Automatic archival of old transactions
+- **Scheduled Backups**: Automated database backups
+
+### Advanced Features
+- **Batch Operations**: Bulk create/update accounts, categories, payees, and transactions
+- **Smart Suggestions**: AI-powered suggestions for account, category, and payee based on transaction amount
+- **Transaction Search**: Full-text search across transaction notes
+- **Cursor-Based Pagination**: Efficient pagination for large transaction lists
+- **Query Caching**: Intelligent caching for improved performance
+- **Rate Limiting**: Protection against abuse with configurable rate limits
+
 ## Technology Stack
 
-- **Frontend**: React 19 + TypeScript 5.9.3 + Webpack + Apollo Client
-- **Backend**: Apollo GraphQL Server + TypeScript 5.9.3 + Node 25.2.1 + Prisma
-- **Database**: PostgreSQL v18
-- **Authentication**: Pocket ID (OIDC) with passkeys
-- **UI Framework**: Material-UI (MUI) with wrapper components
-- **Charts**: Recharts
-- **Testing**: Jest + React Testing Library (TDD methodology)
-- **Package Manager**: npm workspaces
+### Frontend
+- **Framework**: React 19 + TypeScript 5.9.3
+- **Build Tool**: Webpack 5
+- **GraphQL Client**: Apollo Client 4 with subscriptions support
+- **Routing**: React Router 7
+- **UI Framework**: Material-UI (MUI) v7 with custom wrapper components
+- **Charts**: Recharts 2
+- **Form Handling**: React Hook Form + Zod validation
+- **State Management**: Apollo Client cache + React Context
+- **PWA**: Service Worker with offline support
+
+### Backend
+- **HTTP Framework**: Hono 4 (lightweight, fast web framework)
+- **GraphQL Server**: Apollo Server 4 integrated with Hono
+- **Runtime**: Node.js 25.2.1 with ESM modules
+- **Language**: TypeScript 5.9.3
+- **Database ORM**: Prisma 7 with PostgreSQL adapter
+- **Database**: PostgreSQL 18
+- **Authentication**: Pocket ID (OIDC) with passkeys via openid-client
+- **Real-Time**: GraphQL Subscriptions with WebSocket (graphql-ws)
+- **File Processing**: PDF.js for PDF parsing, Busboy for multipart uploads
+- **Scheduling**: node-cron for recurring tasks
+- **Security**: Helmet, CORS, rate limiting, CSRF protection
+
+### Infrastructure
+- **Package Manager**: npm workspaces (monorepo)
 - **Containerization**: Docker Compose
+- **Testing**: Jest + React Testing Library (TDD methodology)
+- **Code Quality**: ESLint (Google style guide) + Prettier
 
 ## Prerequisites
 
@@ -271,66 +326,126 @@ npm run dev
 
 ```
 my-money/
-├── frontend/          # React 19 application
+├── frontend/              # React 19 application
 │   ├── src/
 │   │   ├── components/    # React components
 │   │   │   ├── ui/        # MUI wrapper components
-│   │   │   ├── calculator/
-│   │   │   └── common/
+│   │   │   ├── calculator/ # Calculator components
+│   │   │   ├── report/    # Report components
+│   │   │   ├── budget/    # Budget components
+│   │   │   ├── import/    # Import components
+│   │   │   └── common/    # Shared components
 │   │   ├── pages/         # Page components
 │   │   ├── hooks/         # Custom React hooks
 │   │   ├── utils/         # Utility functions
-│   │   ├── graphql/       # GraphQL queries/mutations
+│   │   ├── graphql/       # GraphQL operations
+│   │   │   ├── queries.ts
+│   │   │   ├── mutations.ts
+│   │   │   ├── subscriptions.ts
+│   │   │   └── workspaceOperations.ts
+│   │   ├── contexts/      # React contexts
 │   │   ├── theme/         # Theme configuration
-│   │   └── service-worker/ # PWA service worker
-│   ├── __tests__/     # Frontend tests
-│   └── public/        # Static assets
-├── backend/           # Apollo GraphQL server
+│   │   ├── service-worker/ # PWA service worker
+│   │   └── docs/          # Frontend documentation
+│   ├── __tests__/         # Frontend tests
+│   └── public/            # Static assets
+├── backend/               # Hono + Apollo GraphQL server
 │   ├── src/
 │   │   ├── resolvers/     # GraphQL resolvers
+│   │   │   ├── transaction/ # Transaction resolvers
+│   │   │   └── ...
 │   │   ├── schema/        # GraphQL schema
-│   │   ├── services/       # Business logic services
+│   │   ├── services/      # Business logic services
+│   │   ├── repositories/  # Data access layer
+│   │   ├── commands/      # Command pattern implementations
+│   │   ├── queries/       # Query pattern implementations
+│   │   ├── events/        # Event system
+│   │   ├── jobs/          # Job queue
+│   │   ├── routes/        # HTTP routes (auth, health)
+│   │   ├── config/        # Configuration (Apollo, security, etc.)
+│   │   ├── middleware/    # Auth, validation, caching middleware
 │   │   ├── utils/         # Utility functions
-│   │   ├── middleware/    # Auth middleware
-│   │   └── cron/          # Cron jobs
-│   ├── __tests__/     # Backend tests
-│   └── prisma/        # Prisma schema and migrations
-├── shared/            # Shared types and utilities
-├── docker/            # Docker configuration
-└── README.md          # This file
+│   │   ├── cron/          # Scheduled jobs
+│   │   ├── recurringTransactions.ts
+│   │   │   ├── budgetReset.ts
+│   │   │   ├── balanceReconciliation.ts
+│   │   │   ├── backup.ts
+│   │   │   └── dataArchival.ts
+│   │   └── docs/          # Backend documentation
+│   ├── __tests__/         # Backend tests
+│   └── prisma/            # Prisma schema and migrations
+├── shared/                # Shared types and utilities
+│   └── src/
+│       ├── types/         # Shared TypeScript types
+│       └── utils/         # Shared utility functions
+├── docker/                # Docker configuration
+│   ├── docker-compose.yml
+│   └── ...
+├── scripts/               # Utility scripts
+│   ├── kill-ports.ts
+│   ├── docker-prepare-images.sh
+│   └── docker-prune.sh
+├── docs/                  # Documentation
+│   ├── DEPLOYMENT.md
+│   ├── MONITORING.md
+│   └── TROUBLESHOOTING.md
+└── README.md              # This file
 ```
 
 ## Available Scripts
 
-### Root level
+### Root Level
 
 - `npm run dev` - Start both frontend and backend in development mode (automatically kills processes on ports 3000 and 4000)
 - `npm run kill-ports` - Kill processes using ports 3000 and 4000 (or specify custom ports: `tsx scripts/kill-ports.ts 3000 4000`)
 - `npm run build` - Build both frontend and backend for production
-- `npm run test` - Run all tests
+- `npm run test` - Run all tests across all workspaces
+- `npm run test:frontend` - Run frontend tests only
+- `npm run test:backend` - Run backend tests only
+- `npm run test:coverage` - Generate test coverage reports
 - `npm run lint` - Lint all packages
+- `npm run lint:fix` - Fix linting issues automatically
+- `npm run type-check` - Type check all packages
+- `npm run format` - Format code with Prettier
+- `npm run format:check` - Check code formatting
+- `npm run validate` - Run lint, type-check, and format check
+- `npm run clean` - Remove build artifacts and caches
 - `npm run docker:up` - Start Docker services
 - `npm run docker:down` - Stop Docker services
 - `npm run docker:build` - Build Docker images
+- `npm run docker:logs` - View Docker logs
+- `npm run docker:clean` - Stop and remove Docker containers and volumes
+- `npm run docker:prune` - Clean up Docker resources
 
 ### Frontend
 
-- `npm run dev` - Start development server
+- `npm run dev` - Start development server with hot reload
 - `npm run build` - Build for production (includes service worker)
 - `npm run build:sw` - Build service worker separately
+- `npm run build:analyze` - Analyze bundle size
 - `npm run test` - Run tests
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Generate test coverage
+- `npm run type-check` - Type check TypeScript files
+- `npm run lint` - Lint source files
+- `npm run lint:fix` - Fix linting issues
 
 ### Backend
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
+- `npm run dev` - Start development server with hot reload (Node.js --watch)
+- `npm run build` - Build for production (TypeScript compilation)
 - `npm run start` - Start production server
+- `npm run start:prod` - Start production server with NODE_ENV=production
 - `npm run test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Generate test coverage
+- `npm run type-check` - Type check TypeScript files
 - `npm run prisma:generate` - Generate Prisma client
-- `npm run prisma:migrate` - Run database migrations
-- `npm run prisma:studio` - Open Prisma Studio
+- `npm run prisma:migrate` - Run database migrations (development)
+- `npm run prisma:deploy` - Deploy migrations (production)
+- `npm run prisma:reset` - Reset database (⚠️ deletes all data)
+- `npm run prisma:studio` - Open Prisma Studio (database GUI)
+- `npm run backup` - Create database backup
 
 ## Testing
 
@@ -360,15 +475,27 @@ See `.env.example` for all available environment variables.
 
 Additional documentation is available in the `docs/` directory:
 
-- **[Migration Guide](backend/prisma/MIGRATION_GUIDE.md)** - Complete guide to database migrations, drift resolution, and best practices
+- **[User Guide](docs/USAGE.md)** - Complete user guide with instructions for using the application UI, managing accounts, categories, payees, budgets, and more
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Step-by-step production deployment instructions
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Monitoring Guide](docs/MONITORING.md)** - Monitoring and alerting setup
-- **[Production Readiness Review](PRODUCTION_READINESS_REVIEW.md)** - Pre-production review and checklist
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+### Key Concepts
+
+- **Workspaces**: Multi-user collaboration with role-based access control
+- **Version Control**: Optimistic locking with version numbers to prevent conflicts
+- **Conflict Resolution**: Automatic detection and manual resolution of concurrent edits
+- **Real-Time Updates**: GraphQL subscriptions for live collaboration
+- **Batch Operations**: Efficient bulk operations for data import/export
+- **Import Matching**: Intelligent auto-matching of imported transactions using rules
 
 ## API Documentation
 
-GraphQL API is available at `/graphql` endpoint. Use GraphQL Playground or any GraphQL client to explore the schema.
+GraphQL API is available at `/graphql` endpoint. The API supports:
+- **Queries**: Read data (accounts, transactions, budgets, workspaces, etc.)
+- **Mutations**: Modify data (create, update, delete operations)
+- **Subscriptions**: Real-time updates via WebSocket
+- **File Uploads**: Multipart file uploads for PDF/CSV imports
 
 ### Example Query
 
@@ -378,6 +505,8 @@ query GetAccounts {
     id
     name
     balance
+    accountType
+    workspaceId
   }
 }
 ```
@@ -390,9 +519,53 @@ mutation CreateTransaction($input: CreateTransactionInput!) {
     id
     value
     date
+    account {
+      id
+      name
+    }
+    category {
+      id
+      name
+    }
   }
 }
 ```
+
+### Example Subscription
+
+```graphql
+subscription OnTransactionUpdated($workspaceId: ID!) {
+  transactionUpdated(workspaceId: $workspaceId) {
+    id
+    value
+    date
+    account {
+      name
+    }
+  }
+}
+```
+
+### Batch Operations
+
+The API supports batch operations for efficient bulk updates:
+
+```graphql
+mutation BulkCreateTransactions($inputs: [BatchCreateTransactionInput!]!) {
+  bulkCreateTransactions(inputs: $inputs) {
+    created {
+      id
+      value
+    }
+    errors {
+      index
+      message
+    }
+  }
+}
+```
+
+For complete API documentation, explore the GraphQL schema using GraphQL Playground or any GraphQL client.
 
 ## Deployment
 
@@ -420,16 +593,16 @@ npm run docker:up
 ### Migration Issues
 
 **Migration drift errors:**
-- See [Migration Guide](backend/prisma/MIGRATION_GUIDE.md#handling-migration-drift) for detailed resolution steps
 - Common causes: Database created with `db push` but migrations exist, or empty migration directories
+- Solution: Use `prisma migrate reset` to reset database, or manually resolve drift
 
 **P3015 Error (Missing migration file):**
 - Check for empty migration directories: `ls -la backend/prisma/migrations/`
 - Remove empty directories and re-run migration
 
 **Migration fails because tables don't exist:**
-- Data migrations should use conditional checks (see [Migration Guide](backend/prisma/MIGRATION_GUIDE.md#data-migration-workflow))
 - Ensure base schema is applied before data migrations
+- Run migrations in order: `npm run prisma:migrate`
 
 ### OIDC Authentication Issues
 
@@ -446,10 +619,25 @@ npm run docker:up
 
 ## Contributing
 
-1. Follow TDD methodology - write tests first
-2. Use ESLint and Prettier for code formatting
-3. Write JSDoc comments for all functions
-4. Follow Google TypeScript style guide
+1. **Follow TDD methodology** - Write tests first, then implementation
+2. **Code Quality** - Use ESLint and Prettier for code formatting
+3. **Documentation** - Write JSDoc comments for all functions and classes
+4. **Style Guide** - Follow Google TypeScript style guide
+5. **Principles** - Follow SRP, KISS, DRY, and functional programming principles
+6. **Security** - Keep security in mind, validate and sanitize all inputs
+7. **Performance** - Optimize for performance, use caching where appropriate
+
+## Architecture Highlights
+
+- **Monorepo Structure**: npm workspaces for shared code and dependencies
+- **Type Safety**: Full TypeScript coverage across frontend and backend
+- **GraphQL-First**: Single API endpoint with type-safe queries and mutations
+- **Real-Time Collaboration**: WebSocket subscriptions for live updates
+- **Optimistic Concurrency**: Version-based conflict detection and resolution
+- **Repository Pattern**: Clean separation of data access and business logic
+- **Command/Query Separation**: CQRS-inspired patterns for complex operations
+- **Event-Driven**: Event system for decoupled components
+- **Security-First**: Rate limiting, CSRF protection, input sanitization, SQL injection prevention
 
 ## License
 
