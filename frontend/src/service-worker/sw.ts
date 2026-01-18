@@ -1,6 +1,6 @@
 /**
  * Service Worker for PWA
- * Handles offline caching and background sync
+ * Handles offline caching, background sync, and mutation queue
  */
 
 // Service worker types are available in the DOM lib
@@ -80,7 +80,29 @@ self.addEventListener('fetch', (event: Event): void => {
   const request = fetchEvent.request;
   const url = new URL(request.url);
 
-  // Skip non-GET requests
+  // Handle POST requests (GraphQL mutations) with offline queue
+  if (request.method === 'POST' && url.pathname === '/graphql') {
+    // Try to fetch from network first
+    fetchEvent.respondWith(
+      fetch(request.clone())
+        .then((response) => {
+          // If successful, clear any queued mutations for this request
+          if (response.ok) {
+            // Queue is managed by the client-side code
+            return response;
+          }
+          // If failed, queue the mutation for retry
+          return queueMutationForRetry(request.clone(), response);
+        })
+        .catch(() => {
+          // Network error - queue for retry
+          return queueMutationForRetry(request.clone());
+        }),
+    );
+    return;
+  }
+
+  // Skip other non-GET requests
   if (request.method !== 'GET') {
     return;
   }
@@ -330,6 +352,212 @@ async function evictCacheIfNeeded(cache: Cache, cacheName: string): Promise<void
   } catch (error) {
     // Silently handle cache eviction errors
     console.warn(`Cache eviction failed for ${cacheName}:`, error);
+  }
+}
+
+/**
+ * Queue mutation for retry when network fails
+ * @param request - Failed request
+ * @param response - Failed response (optional)
+ * @returns Error response
+ */
+async function queueMutationForRetry(
+  request: Request,
+  response?: Response,
+): Promise<Response> {
+  try {
+    const requestBody = await request.clone().text();
+    const requestData = JSON.parse(requestBody) as {query?: string; variables?: Record<string, unknown>};
+
+    // Store in IndexedDB for background sync
+    const db = await openOfflineQueueDB();
+    const transaction = db.transaction(['mutations'], 'readwrite');
+    const store = transaction.objectStore('mutations');
+
+    const mutationEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      mutation: requestData.query ?? '',
+      variables: requestData.variables ?? {},
+      timestamp: Date.now(),
+      retryCount: 0,
+      error: response ? `HTTP ${response.status}` : 'Network error',
+    };
+
+    await new Promise<void>((resolve, reject) => {
+      const request = store.add(mutationEntry);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed'));
+    });
+
+    // Trigger background sync if available
+    const swSelf = self as typeof self & {
+      registration?: ServiceWorkerRegistration & {
+        sync?: {register: (tag: string) => Promise<void>};
+      };
+    };
+    if ('serviceWorker' in swSelf && swSelf.registration && 'sync' in swSelf.registration) {
+      try {
+        const registration = swSelf.registration;
+        await registration.sync?.register('sync-mutations');
+      } catch {
+        // Background sync not available, ignore
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to queue mutation for retry:', error);
+  }
+
+  // Return error response
+  return new Response(JSON.stringify({
+    errors: [{
+      message: 'Network error. Mutation queued for retry when connection is restored.',
+      extensions: {code: 'NETWORK_ERROR', queued: true},
+    }],
+  }), {
+    status: 503,
+    headers: {'Content-Type': 'application/json'},
+  });
+}
+
+/**
+ * Open IndexedDB for offline queue
+ * Must match the version in offlineQueue.ts
+ */
+async function openOfflineQueueDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('my-money-offline-queue', 2); // Match version in offlineQueue.ts
+
+    request.onerror = () => reject(request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed'));
+    request.onsuccess = () => {
+      const db = request.result;
+      // Check if object store exists after opening
+      if (!db.objectStoreNames.contains('mutations')) {
+        db.close();
+        // Delete and recreate if object store is missing
+        const deleteRequest = indexedDB.deleteDatabase('my-money-offline-queue');
+        deleteRequest.onerror = () => reject(deleteRequest.error ? new Error(String(deleteRequest.error)) : new Error('IndexedDB delete failed'));
+        deleteRequest.onsuccess = () => {
+          // Reopen with proper structure - this will trigger onupgradeneeded
+          const recreateRequest = indexedDB.open('my-money-offline-queue', 2);
+          recreateRequest.onerror = () => reject(recreateRequest.error ? new Error(String(recreateRequest.error)) : new Error('IndexedDB recreation failed'));
+          recreateRequest.onsuccess = () => resolve(recreateRequest.result);
+          recreateRequest.onupgradeneeded = (event) => {
+            const recreateDb = (event.target as IDBOpenDBRequest).result;
+            if (!recreateDb.objectStoreNames.contains('mutations')) {
+              const store = recreateDb.createObjectStore('mutations', {keyPath: 'id', autoIncrement: false});
+              store.createIndex('timestamp', 'timestamp', {unique: false});
+              store.createIndex('retryCount', 'retryCount', {unique: false});
+            }
+          };
+        };
+      } else {
+        resolve(db);
+      }
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains('mutations')) {
+        const store = db.createObjectStore('mutations', {keyPath: 'id', autoIncrement: false});
+        store.createIndex('timestamp', 'timestamp', {unique: false});
+        store.createIndex('retryCount', 'retryCount', {unique: false});
+      }
+    };
+  });
+}
+
+// Background sync event handler
+self.addEventListener('sync', (event: Event): void => {
+  if ('tag' in event && (event as {tag: string}).tag === 'sync-mutations') {
+    if ('waitUntil' in event && typeof (event as {waitUntil: (promise: Promise<unknown>) => void}).waitUntil === 'function') {
+      (event as {waitUntil: (promise: Promise<unknown>) => void}).waitUntil(
+        retryQueuedMutations(),
+      );
+    }
+  }
+});
+
+/**
+ * Retry queued mutations when connection is restored
+ */
+async function retryQueuedMutations(): Promise<void> {
+  try {
+    const db = await openOfflineQueueDB();
+    const transaction = db.transaction(['mutations'], 'readonly');
+    const store = transaction.objectStore('mutations');
+    const getAllRequest = store.getAll();
+
+    const mutations = await new Promise<Array<{id: string; mutation: string; variables: Record<string, unknown>; retryCount: number}>>((resolve, reject) => {
+      getAllRequest.onsuccess = () => resolve(getAllRequest.result);
+      getAllRequest.onerror = () => reject(getAllRequest.error ? new Error(String(getAllRequest.error)) : new Error('IndexedDB operation failed'));
+    });
+
+    // Retry each mutation
+    for (const mutation of mutations) {
+      try {
+        const response = await fetch('/graphql', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            query: mutation.mutation,
+            variables: mutation.variables,
+          }),
+        });
+
+        if (response.ok) {
+          // Success - remove from queue
+          const deleteTransaction = db.transaction(['mutations'], 'readwrite');
+          const deleteStore = deleteTransaction.objectStore('mutations');
+          await new Promise<void>((resolve, reject) => {
+            const deleteRequest = deleteStore.delete(mutation.id);
+            deleteRequest.onsuccess = () => resolve();
+            deleteRequest.onerror = () => reject(deleteRequest.error ? new Error(String(deleteRequest.error)) : new Error('IndexedDB operation failed'));
+          });
+        } else {
+          // Failed - increment retry count
+          const updateTransaction = db.transaction(['mutations'], 'readwrite');
+          const updateStore = updateTransaction.objectStore('mutations');
+          const getRequest = updateStore.get(mutation.id);
+
+          await new Promise<void>((resolve, reject) => {
+            getRequest.onsuccess = () => {
+              const entry = getRequest.result as {retryCount?: number; id: string; mutation: string; variables: Record<string, unknown>; timestamp: number; error: string} | undefined;
+              if (entry) {
+                entry.retryCount = (entry.retryCount ?? 0) + 1;
+                const updateRequest = updateStore.put(entry);
+                updateRequest.onsuccess = () => resolve();
+                updateRequest.onerror = () => reject(updateRequest.error ? new Error(String(updateRequest.error)) : new Error('IndexedDB operation failed'));
+              } else {
+                resolve();
+              }
+            };
+            getRequest.onerror = () => reject(getRequest.error ? new Error(String(getRequest.error)) : new Error('IndexedDB operation failed'));
+          });
+        }
+      } catch {
+        // Network still down - increment retry count
+        const updateTransaction = db.transaction(['mutations'], 'readwrite');
+        const updateStore = updateTransaction.objectStore('mutations');
+        const getRequest = updateStore.get(mutation.id);
+
+        await new Promise<void>((resolve, reject) => {
+          getRequest.onsuccess = () => {
+            const entry = getRequest.result as {retryCount?: number; id: string; mutation: string; variables: Record<string, unknown>; timestamp: number; error: string} | undefined;
+            if (entry) {
+              entry.retryCount = (entry.retryCount ?? 0) + 1;
+              const updateRequest = updateStore.put(entry);
+              updateRequest.onsuccess = () => resolve();
+              updateRequest.onerror = () => reject(updateRequest.error ? new Error(String(updateRequest.error)) : new Error('IndexedDB operation failed'));
+            } else {
+              resolve();
+            }
+          };
+          getRequest.onerror = () => reject(getRequest.error ? new Error(String(getRequest.error)) : new Error('IndexedDB operation failed'));
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to retry queued mutations:', error);
   }
 }
 

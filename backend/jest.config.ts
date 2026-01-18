@@ -5,6 +5,7 @@ const config: Config = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/__tests__'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
+  setupFilesAfterEnv: ['<rootDir>/__tests__/setup.ts'],
   clearMocks: true,
   restoreMocks: true,
   maxWorkers: '50%', // Use half of available CPUs

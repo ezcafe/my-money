@@ -18,6 +18,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mymoney}
       # Disable unnecessary extensions for security
       POSTGRES_INITDB_ARGS: "-A trust"
+    # PostgreSQL 18 Asynchronous I/O (AIO) configuration
+    # AIO improves I/O performance for sequential scans, bitmap heap scans, and maintenance tasks
+    command: >
+      postgres
+      -c io_method=worker
+      -c io_workers=3
+      -c effective_io_concurrency=16
+      -c maintenance_io_concurrency=16
+      -c io_max_concurrency=-1
+      -c io_combine_limit=128kB
+      -c io_max_combine_limit=128kB
     # Database port exposed for local development only
     # Remove in production or use conditional port mapping
     ports:
@@ -80,10 +91,12 @@ services:
     networks:
       - my-money-network
     healthcheck:
-      # Health check using Node.js HTTP client
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (r) => {let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);process.exit(j.status==='ok'||j.status==='degraded'?0:1)}catch{process.exit(r.statusCode===200?0:1)}})}).on('error',()=>process.exit(1))"]
-      interval: 30s
-      timeout: 10s
+      # Enhanced health check using Node.js HTTP client with timeout
+      # Checks health endpoint and validates JSON response
+      # Accepts both 'ok' and 'degraded' status as healthy
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', {timeout: 5000}, (r) => {let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);const healthy=j.status==='ok'||j.status==='degraded';process.exit(healthy?0:1)}catch{process.exit(r.statusCode===200?0:1)}})}).on('error',()=>process.exit(1)).on('timeout',()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
       retries: 3
       start_period: 40s
     deploy:
@@ -134,9 +147,11 @@ services:
     networks:
       - my-money-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider --timeout=5 http://127.0.0.1/health 2>/dev/null || exit 1"]
-      interval: 30s
-      timeout: 10s
+      # Enhanced health check for frontend nginx
+      # Tests both nginx configuration and HTTP endpoint availability
+      test: ["CMD-SHELL", "nginx -t && wget --no-verbose --tries=1 --spider --timeout=5 http://127.0.0.1/health 2>/dev/null || exit 1"]
+      interval: 20s
+      timeout: 8s
       retries: 3
       start_period: 15s
     deploy:

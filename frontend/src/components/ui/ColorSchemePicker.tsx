@@ -9,10 +9,10 @@ import {
   Typography,
   ToggleButtonGroup,
   ToggleButton,
-  Grid,
   Paper,
   Tooltip,
 } from '@mui/material';
+import Grid from '@mui/material/Grid2';
 import {CheckCircle} from '@mui/icons-material';
 import {useTheme} from '../../theme/ThemeProvider';
 import {useMutation} from '@apollo/client/react';
@@ -325,7 +325,7 @@ export function ColorSchemePicker(): React.JSX.Element {
             {staticSchemes.map((scheme) => {
               const palette = getColorPalette('static', scheme, mode === 'dark');
               return (
-                <Grid item xs={6} sm={4} md={3} key={scheme}>
+                <Grid size={{xs: 6, sm: 4, md: 3}} key={scheme}>
                   <ColorSchemePreview
                     name={scheme}
                     primaryColor={palette.primary}

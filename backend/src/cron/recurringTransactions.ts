@@ -19,6 +19,7 @@ import {
   getMissedRunsByInterval,
   getIntervalFromCron,
 } from '../utils/cronJobUtils';
+import {transactionEventEmitter} from '../events';
 
 /**
  * Process a single recurring transaction with retry logic
@@ -35,7 +36,6 @@ async function processRecurringTransaction(
     categoryId: string | null;
     payeeId: string | null;
     note: string | null;
-    userId: string;
     nextRunDate: Date;
   },
   currentTime: Date,
@@ -43,7 +43,6 @@ async function processRecurringTransaction(
 ): Promise<boolean> {
   const context = {
     recurringTransactionId: recurring.id,
-    userId: recurring.userId,
     accountId: recurring.accountId,
     value: recurring.value,
   };
@@ -66,11 +65,24 @@ async function processRecurringTransaction(
       : -recurring.value;
 
     // Retry the operation with exponential backoff
-    await retry(
+        await retry(
       async () => {
         // Use database transaction to ensure atomicity
         // Transaction creation, balance update, and recurring transaction update must succeed together
         await prisma.$transaction(async (tx): Promise<void> => {
+          // Get account to retrieve workspaceId and userId (from createdBy)
+          const account = await tx.account.findUnique({
+            where: {id: recurring.accountId},
+            select: {workspaceId: true, createdBy: true},
+          });
+
+          if (!account) {
+            throw new Error(`Account ${recurring.accountId} not found`);
+          }
+
+          // Use account's createdBy as userId (the user who owns the account)
+          const userId = account.createdBy;
+
           // Create transaction
           const newTransaction = await tx.transaction.create({
             data: {
@@ -80,7 +92,13 @@ async function processRecurringTransaction(
               categoryId: recurring.categoryId,
               payeeId: recurring.payeeId,
               note: recurring.note,
-              userId: recurring.userId,
+              createdBy: userId,
+              lastEditedBy: userId,
+            },
+            include: {
+              account: true,
+              category: true,
+              payee: true,
             },
           });
 
@@ -94,7 +112,8 @@ async function processRecurringTransaction(
               accountId: newTransaction.accountId,
               categoryId: newTransaction.categoryId,
               payeeId: newTransaction.payeeId,
-              userId: newTransaction.userId,
+              userId,
+              workspaceId: account.workspaceId,
               value: Number(newTransaction.value),
               date: newTransaction.date,
               categoryType: category?.categoryType ?? null,
@@ -112,6 +131,9 @@ async function processRecurringTransaction(
             where: {id: recurring.id},
             data: {nextRunDate},
           });
+
+          // Emit event after transaction is created
+          transactionEventEmitter.emit('transaction.created', newTransaction);
         });
       },
       {
@@ -239,7 +261,6 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
             categoryId: recurring.categoryId,
             payeeId: recurring.payeeId,
             note: recurring.note,
-            userId: recurring.userId,
             nextRunDate: recurring.nextRunDate,
           },
           cutoffTime,

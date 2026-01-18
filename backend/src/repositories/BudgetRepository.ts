@@ -14,25 +14,25 @@ type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' |
  */
 export class BudgetRepository extends BaseRepository {
   /**
-   * Find budget by ID with ownership check
+   * Find budget by ID in workspace
    * @param id - Budget ID
-   * @param userId - User ID
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @param include - Optional include clause
    * @returns Budget if found, null otherwise
    */
   async findById(
     id: string,
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
     include?: Record<string, boolean>,
   ): Promise<Budget | null> {
     const queryOptions: {
-      where: {id: string; userId: string};
+      where: {id: string; workspaceId: string};
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
     } = {
-      where: {id, userId},
+      where: {id, workspaceId},
     };
 
     if (select) {
@@ -45,14 +45,14 @@ export class BudgetRepository extends BaseRepository {
   }
 
   /**
-   * Find many budgets with filters
-   * @param userId - User ID
+   * Find many budgets in a workspace with filters
+   * @param workspaceId - Workspace ID
    * @param filters - Optional filters (accountId, categoryId, payeeId)
    * @param select - Optional select clause
    * @returns Array of budgets
    */
   async findMany(
-    userId: string,
+    workspaceId: string,
     filters?: {
       accountId?: string;
       categoryId?: string;
@@ -61,11 +61,11 @@ export class BudgetRepository extends BaseRepository {
     select?: Record<string, boolean>,
   ): Promise<Budget[]> {
     const where: {
-      userId: string;
+      workspaceId: string;
       accountId?: string;
       categoryId?: string;
       payeeId?: string;
-    } = {userId};
+    } = {workspaceId};
 
     if (filters?.accountId) {
       where.accountId = filters.accountId;
@@ -92,22 +92,23 @@ export class BudgetRepository extends BaseRepository {
   /**
    * Find budgets affected by a transaction
    * @param transaction - Transaction data
+   * @param workspaceId - Workspace ID
    * @param tx - Optional transaction client
    * @returns Array of affected budgets
    */
   async findAffectedByTransaction(
     transaction: {
-      userId: string;
       accountId: string;
       categoryId: string | null;
       payeeId: string | null;
     },
+    workspaceId: string,
     tx?: PrismaTransaction,
   ): Promise<Array<{id: string; amount: number; currentSpent: number}>> {
     const client = tx ?? this.prisma;
     const budgets = await client.budget.findMany({
       where: {
-        userId: transaction.userId,
+        workspaceId,
         OR: [
           {accountId: transaction.accountId},
           {categoryId: transaction.categoryId},
@@ -135,11 +136,13 @@ export class BudgetRepository extends BaseRepository {
    */
   async create(
     data: {
-      userId: string;
+      workspaceId: string;
       amount: number;
       accountId?: string | null;
       categoryId?: string | null;
       payeeId?: string | null;
+      createdBy: string;
+      lastEditedBy: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Budget> {
@@ -160,6 +163,7 @@ export class BudgetRepository extends BaseRepository {
       amount?: number;
       currentSpent?: number;
       lastResetDate?: Date;
+      lastEditedBy?: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Budget> {
@@ -179,7 +183,7 @@ export class BudgetRepository extends BaseRepository {
    */
   async updateMany(
     where: {
-      userId: string;
+      workspaceId: string;
       OR?: Array<{
         accountId?: string;
         categoryId?: string;
@@ -213,13 +217,13 @@ export class BudgetRepository extends BaseRepository {
   }
 
   /**
-   * Count budgets for a user
-   * @param userId - User ID
+   * Count budgets in a workspace
+   * @param workspaceId - Workspace ID
    * @returns Count of budgets
    */
-  async count(userId: string): Promise<number> {
+  async count(workspaceId: string): Promise<number> {
     return this.prisma.budget.count({
-      where: {userId},
+      where: {workspaceId},
     });
   }
 
@@ -233,7 +237,7 @@ export class BudgetRepository extends BaseRepository {
   async findFirst(
     where: {
       id?: string;
-      userId?: string;
+      workspaceId?: string;
       accountId?: string | null;
       categoryId?: string | null;
       payeeId?: string | null;

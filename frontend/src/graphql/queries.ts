@@ -188,8 +188,8 @@ export const GET_RECURRING_TRANSACTIONS = gql`
 `;
 
 export const EXPORT_DATA = gql`
-  query ExportData {
-    exportData {
+  query ExportData($memberIds: [ID!]) {
+    exportData(memberIds: $memberIds) {
       accounts {
         id
         name

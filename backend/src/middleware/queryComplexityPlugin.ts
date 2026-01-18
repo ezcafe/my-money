@@ -14,7 +14,35 @@ import {ErrorCode} from '../utils/errorCodes';
 interface QueryComplexityConfig {
   maximumComplexity: number;
   defaultComplexity: number;
+  fieldWeights: Record<string, number>;
 }
+
+/**
+ * Field-level complexity weights
+ * Higher weights indicate more expensive operations
+ */
+const FIELD_WEIGHTS: Record<string, number> = {
+  // Queries
+  transactions: 5,
+  accounts: 3,
+  categories: 3,
+  payees: 3,
+  budgets: 3,
+  reports: 10,
+
+  // Nested relations (expensive)
+  account: 2,
+  category: 2,
+  payee: 2,
+
+  // Aggregations (very expensive)
+  totalIncome: 8,
+  totalExpense: 8,
+  accountBalance: 5,
+
+  // Default weight for unknown fields
+  default: 1,
+};
 
 /**
  * Default configuration
@@ -22,14 +50,19 @@ interface QueryComplexityConfig {
 const DEFAULT_CONFIG: QueryComplexityConfig = {
   maximumComplexity: 1000,
   defaultComplexity: 1,
+  fieldWeights: FIELD_WEIGHTS,
 };
 
 /**
- * Calculate query complexity based on field selections
+ * Calculate query complexity based on field selections with field-level weights
  * @param operation - GraphQL operation
+ * @param fieldWeights - Field complexity weights
  * @returns Calculated complexity score
  */
-function calculateComplexity(operation: {selectionSet?: {selections: unknown[]}} | null | undefined): number {
+function calculateComplexity(
+  operation: {selectionSet?: {selections: unknown[]}} | null | undefined,
+  fieldWeights: Record<string, number>,
+): number {
   if (!operation?.selectionSet) {
     return 0;
   }
@@ -37,9 +70,12 @@ function calculateComplexity(operation: {selectionSet?: {selections: unknown[]}}
   let complexity = 0;
 
   /**
-   * Recursively count fields in selection set
+   * Recursively count fields in selection set with weights
    */
-  function countFields(selectionSet: {selections: Array<{kind: string; selectionSet?: unknown}>} | null | undefined, depth: number = 0): number {
+  function countFields(
+    selectionSet: {selections: Array<{kind: string; name?: {value: string}; selectionSet?: unknown}>} | null | undefined,
+    depth: number = 0,
+  ): number {
     if (!selectionSet) {
       return 0;
     }
@@ -53,10 +89,16 @@ function calculateComplexity(operation: {selectionSet?: {selections: unknown[]}}
 
     for (const selection of selectionSet.selections) {
       if (selection.kind === 'Field') {
-        count += 1;
+        const fieldName = selection.name?.value ?? '';
+        const fieldWeight = fieldWeights[fieldName] ?? fieldWeights.default ?? 1;
+        count += fieldWeight;
+
         // Add complexity for nested fields (exponential growth)
         if ('selectionSet' in selection && selection.selectionSet) {
-          const nestedCount = countFields(selection.selectionSet as {selections: Array<{kind: string; selectionSet?: unknown}>}, depth + 1);
+          const nestedCount = countFields(
+            selection.selectionSet as {selections: Array<{kind: string; name?: {value: string}; selectionSet?: unknown}>},
+            depth + 1,
+          );
           count += nestedCount * (depth + 1); // Multiply by depth for nested complexity
         }
       }
@@ -65,7 +107,9 @@ function calculateComplexity(operation: {selectionSet?: {selections: unknown[]}}
     return count;
   }
 
-  complexity = countFields(operation.selectionSet as {selections: Array<{kind: string; selectionSet?: unknown}>} | null | undefined);
+  complexity = countFields(
+    operation.selectionSet as {selections: Array<{kind: string; name?: {value: string}; selectionSet?: unknown}>} | null | undefined,
+  );
 
   return complexity;
 }
@@ -98,7 +142,21 @@ export function queryComplexityPlugin(config: Partial<QueryComplexityConfig> = {
             return;
           }
 
-          const complexity = calculateComplexity(operation as unknown as {selectionSet?: {selections: Array<{kind: string; selectionSet?: unknown}>}} | null | undefined);
+          // Type assertion for operation with selection set
+          type OperationWithSelectionSet = {
+            selectionSet?: {
+              selections: Array<{
+                kind: string;
+                name?: {value: string};
+                selectionSet?: unknown;
+              }>;
+            };
+          } | null | undefined;
+
+          const complexity = calculateComplexity(
+            operation as unknown as OperationWithSelectionSet,
+            finalConfig.fieldWeights,
+          );
 
           if (complexity > finalConfig.maximumComplexity) {
             throw new GraphQLError('Query complexity exceeds maximum limit', {

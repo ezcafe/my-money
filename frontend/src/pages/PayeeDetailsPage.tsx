@@ -17,6 +17,7 @@ import {useSearch} from '../contexts/SearchContext';
 import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
 import {PageContainer} from '../components/common/PageContainer';
+import {VersionHistoryPanel} from '../components/VersionHistoryPanel';
 
 /**
  * Payee Details Page Component
@@ -199,6 +200,11 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
         showPayeeColumn={false}
         sortableFields={['date', 'value', 'category']}
       />
+
+      {/* Version History Section */}
+      {id ? (
+        <VersionHistoryPanel entityType="Payee" entityId={id} />
+      ) : null}
     </PageContainer>
   );
 };

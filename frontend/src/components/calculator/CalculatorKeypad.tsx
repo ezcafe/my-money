@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import {Grid, FormControl, Select, MenuItem, Autocomplete} from '@mui/material';
+import {FormControl, Select, MenuItem, Autocomplete} from '@mui/material';
+import Grid from '@mui/material/Grid2';
 import {ArrowForward as GoIcon} from '@mui/icons-material';
 import {MoreHorizOutlined as MoreIcon} from '@mui/icons-material';
 import {Button} from '../ui/Button';
@@ -65,9 +66,9 @@ export function CalculatorKeypad({
   const selectedCategory = categories.find((cat) => cat.id === selectedCategoryId) ?? null;
 
   return (
-    <>
+    <Grid container spacing={1}>
       {/* Row 1: Payee, Account, Category, ÷ */}
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <FormControl
           fullWidth
           sx={{
@@ -91,7 +92,7 @@ export function CalculatorKeypad({
           </Select>
         </FormControl>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Autocomplete<Account, false, false, false>
           options={accounts}
           getOptionLabel={(option) => option.name}
@@ -118,7 +119,7 @@ export function CalculatorKeypad({
           )}
         />
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Autocomplete<Category, false, false, false>
           options={categories}
           getOptionLabel={(option) => option.name}
@@ -145,7 +146,7 @@ export function CalculatorKeypad({
           )}
         />
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="outlined"
@@ -159,7 +160,7 @@ export function CalculatorKeypad({
       </Grid>
 
       {/* Row 2: 7, 8, 9, × */}
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -171,7 +172,7 @@ export function CalculatorKeypad({
           7
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -183,7 +184,7 @@ export function CalculatorKeypad({
           8
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -195,7 +196,7 @@ export function CalculatorKeypad({
           9
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="outlined"
@@ -209,7 +210,7 @@ export function CalculatorKeypad({
       </Grid>
 
       {/* Row 3: 4, 5, 6, − */}
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -221,7 +222,7 @@ export function CalculatorKeypad({
           4
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -233,7 +234,7 @@ export function CalculatorKeypad({
           5
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -245,7 +246,7 @@ export function CalculatorKeypad({
           6
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="outlined"
@@ -259,7 +260,7 @@ export function CalculatorKeypad({
       </Grid>
 
       {/* Row 4: 1, 2, 3, + */}
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -271,7 +272,7 @@ export function CalculatorKeypad({
           1
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -283,7 +284,7 @@ export function CalculatorKeypad({
           2
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -295,7 +296,7 @@ export function CalculatorKeypad({
           3
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="outlined"
@@ -309,7 +310,7 @@ export function CalculatorKeypad({
       </Grid>
 
       {/* Row 5: Settings, 0, 000/., = */}
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="outlined"
@@ -320,7 +321,7 @@ export function CalculatorKeypad({
           <MoreIcon />
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -332,7 +333,7 @@ export function CalculatorKeypad({
           0
         </Button>
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         {useThousandSeparator ? (
           <Button
             fullWidth
@@ -357,7 +358,7 @@ export function CalculatorKeypad({
           </Button>
         )}
       </Grid>
-      <Grid item xs={3}>
+      <Grid size={{xs: 3}}>
         <Button
           fullWidth
           variant="contained"
@@ -369,7 +370,7 @@ export function CalculatorKeypad({
           {creatingTransaction ? '...' : <GoIcon />}
         </Button>
       </Grid>
-    </>
+    </Grid>
   );
 }
 

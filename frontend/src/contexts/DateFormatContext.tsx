@@ -35,8 +35,15 @@ export function DateFormatProvider({children}: {children: React.ReactNode}): Rea
   });
 
   const dateFormat = useMemo<DateFormat>(() => {
-    const format = data?.preferences?.dateFormat;
-    if (format && (format === 'DD/MM/YYYY' || format === 'MM/DD/YYYY' || format === 'YYYY-MM-DD' || format === 'DD-MM-YYYY' || format === 'MM-DD-YYYY')) {
+    const rawFormat = data?.preferences?.dateFormat;
+    if (!rawFormat) {
+      return DEFAULT_DATE_FORMAT;
+    }
+
+    // Decode HTML entities (e.g., &#x2F; -> /)
+    const format = rawFormat.replace(/&#x2F;/g, '/').replace(/&#x2D;/g, '-');
+
+    if (format === 'DD/MM/YYYY' || format === 'MM/DD/YYYY' || format === 'YYYY-MM-DD' || format === 'DD-MM-YYYY' || format === 'MM-DD-YYYY') {
       return format as DateFormat;
     }
     return DEFAULT_DATE_FORMAT;

@@ -19,6 +19,13 @@ export const API_CONFIG = {
   graphqlUrl: process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql',
 
   /**
+   * WebSocket GraphQL endpoint URL for subscriptions
+   * Configured via REACT_APP_WS_GRAPHQL_URL environment variable
+   * Defaults to ws://localhost:4000/graphql-ws if not set
+   */
+  wsGraphqlUrl: process.env.REACT_APP_WS_GRAPHQL_URL ?? 'ws://localhost:4000/graphql-ws',
+
+  /**
    * Request timeout in milliseconds
    * Default: 30 seconds
    */

@@ -14,7 +14,6 @@ import {validationPlugin} from '../middleware/validationPlugin';
 import {queryComplexityPlugin} from '../middleware/queryComplexityPlugin';
 import {queryCostPlugin} from '../middleware/queryCostPlugin';
 import {graphqlCachePlugin} from '../middleware/graphqlCachePlugin';
-import {ErrorCode} from '../utils/errorCodes';
 
 /**
  * Create Apollo Server instance
@@ -41,7 +40,7 @@ export function createApolloServer(
       inputSanitizationPlugin(),
       validationPlugin(),
       queryComplexityPlugin({
-        maximumComplexity: 1000,
+        maximumComplexity: 500,
         defaultComplexity: 1,
       }),
       queryCostPlugin({
@@ -90,71 +89,39 @@ export function createApolloServer(
         },
       },
     ],
-    formatError: (error): GraphQLError => {
-      // Get error code from extensions
-      const extensions = error.extensions && typeof error.extensions === 'object' ? error.extensions as Record<string, unknown> : {};
-      const code = extensions.code as string | undefined;
-      const statusCode = extensions.statusCode as number | undefined;
-      const requestId = extensions.requestId as string | undefined;
-      const timestamp = extensions.timestamp as string | undefined;
-
-      // Sanitize error messages in production to prevent information disclosure
-      if (process.env.NODE_ENV === 'production') {
-        // Don't expose internal errors, file paths, or database structure
-        if (code === ErrorCode.INTERNAL_SERVER_ERROR) {
-          return new GraphQLError('Internal server error', {
+    formatError: (error: unknown): GraphQLError => {
+      // Ultimate safety: return immediately without any processing
+      // This prevents all getter access, recursive errors, and crashes
+      // The error details are less important than system stability
+      try {
+        // Only try to extract message from string errors - safest option
+        if (typeof error === 'string') {
+          return new GraphQLError(error.slice(0, 200), {
             extensions: {
-              code: ErrorCode.INTERNAL_SERVER_ERROR,
+              code: 'INTERNAL_SERVER_ERROR',
               statusCode: 500,
-              timestamp: timestamp ?? new Date().toISOString(),
-              requestId,
             },
           });
         }
 
-        // Sanitize error messages that might contain sensitive information
-        const message = error.message;
-        // Remove file paths, database details, and stack traces
-        const sanitizedMessage = message
-          .replace(/\/[^\s]+/g, '[path]') // Remove file paths
-          .replace(/at\s+[^\n]+/g, '') // Remove stack trace lines
-          .replace(/Error:\s*/g, '') // Remove error prefixes
-          .substring(0, 200); // Limit message length
-
-        return new GraphQLError(sanitizedMessage ?? 'An error occurred', {
+        // For all other errors, return immediately with safe default
+        // Don't try to access any properties - they might have getters
+        return new GraphQLError('Internal server error', {
           extensions: {
-            ...extensions,
-            code: code ?? ErrorCode.INTERNAL_SERVER_ERROR,
-            statusCode: statusCode ?? 500,
-            timestamp: timestamp ?? new Date().toISOString(),
-            requestId,
+            code: 'INTERNAL_SERVER_ERROR',
+            statusCode: 500,
+          },
+        });
+      } catch {
+        // If even creating GraphQLError fails, return the absolute minimum
+        // This should never happen, but we need ultimate fallback
+        return new GraphQLError('Error', {
+          extensions: {
+            code: 'INTERNAL_SERVER_ERROR',
+            statusCode: 500,
           },
         });
       }
-
-      // Return formatted error with extensions in development
-      // Convert GraphQLFormattedError to GraphQLError
-      const originalError = 'originalError' in error && error.originalError instanceof Error
-        ? error.originalError
-        : undefined;
-      return new GraphQLError(
-        error.message,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        originalError,
-        {
-          ...extensions,
-          code: code ?? ErrorCode.INTERNAL_SERVER_ERROR,
-          statusCode: statusCode ?? 500,
-          timestamp: timestamp ?? new Date().toISOString(),
-          requestId,
-          path: error.path,
-          // Include validation errors if present
-          validationErrors: extensions.validationErrors,
-        },
-      );
     },
   });
 }

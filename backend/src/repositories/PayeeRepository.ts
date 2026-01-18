@@ -14,32 +14,22 @@ type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' |
  */
 export class PayeeRepository extends BaseRepository {
   /**
-   * Find payee by ID with ownership check
-   * Payees can be user-specific or default (isDefault: true)
+   * Find payee by ID in workspace
    * @param id - Payee ID
-   * @param userId - User ID
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @returns Payee if found, null otherwise
    */
   async findById(
     id: string,
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
   ): Promise<Payee | null> {
     const queryOptions: {
-      where: {
-        id: string;
-        OR: Array<{userId: string} | {isDefault: boolean; userId: null}>;
-      };
+      where: {id: string; workspaceId: string};
       select?: Record<string, boolean>;
     } = {
-      where: {
-        id,
-        OR: [
-          {userId},
-          {isDefault: true, userId: null},
-        ],
-      },
+      where: {id, workspaceId},
     };
 
     if (select) {
@@ -50,27 +40,20 @@ export class PayeeRepository extends BaseRepository {
   }
 
   /**
-   * Find all payees for a user (including defaults)
-   * @param userId - User ID
+   * Find all payees in a workspace
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @returns Array of payees
    */
   async findMany(
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
   ): Promise<Payee[]> {
     const queryOptions: {
-      where: {
-        OR: Array<{userId: string} | {isDefault: boolean}>;
-      };
+      where: {workspaceId: string};
       select?: Record<string, boolean>;
     } = {
-      where: {
-        OR: [
-          {userId},
-          {isDefault: true},
-        ],
-      },
+      where: {workspaceId},
     };
 
     if (select) {
@@ -90,7 +73,9 @@ export class PayeeRepository extends BaseRepository {
     data: {
       name: string;
       isDefault?: boolean;
-      userId?: string | null;
+      workspaceId: string;
+      createdBy: string;
+      lastEditedBy: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Payee> {
@@ -110,6 +95,7 @@ export class PayeeRepository extends BaseRepository {
     data: {
       name?: string;
       isDefault?: boolean;
+      lastEditedBy?: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Payee> {
@@ -134,18 +120,13 @@ export class PayeeRepository extends BaseRepository {
   }
 
   /**
-   * Count payees for a user
-   * @param userId - User ID
+   * Count payees in a workspace
+   * @param workspaceId - Workspace ID
    * @returns Count of payees
    */
-  async count(userId: string): Promise<number> {
+  async count(workspaceId: string): Promise<number> {
     return this.prisma.payee.count({
-      where: {
-        OR: [
-          {userId},
-          {isDefault: true},
-        ],
-      },
+      where: {workspaceId},
     });
   }
 }

@@ -3,73 +3,22 @@
  * PDF upload and bulk mapping UI
  */
 
-import React, {useState, useMemo, useCallback} from 'react';
-import {
-  Box,
-  Typography,
-  Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  useMediaQuery,
-  useTheme,
-  LinearProgress,
-  Chip,
-  Divider,
-  Autocomplete,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-} from '@mui/material';
-import {Upload as UploadIcon, Description as DescriptionIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon} from '@mui/icons-material';
+import React, {useState} from 'react';
+import {Box, Typography, Chip} from '@mui/material';
 import {Card} from '../components/ui/Card';
-import {Button} from '../components/ui/Button';
-import {TextField} from '../components/ui/TextField';
-import {validateFileType, validateFileSize} from '../utils/validation';
-import {ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES} from '../constants';
-import {useMutation} from '@apollo/client/react';
+import {useMutation, useQuery} from '@apollo/client/react';
 import {UPLOAD_PDF, SAVE_IMPORTED_TRANSACTIONS, DELETE_UNMAPPED_IMPORTED_TRANSACTIONS} from '../graphql/mutations';
 import {GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS} from '../graphql/queries';
+import {GET_WORKSPACES} from '../graphql/workspaceOperations';
+import {MAX_RECENT_TRANSACTIONS} from '../constants';
+import {PageContainer} from '../components/common/PageContainer';
+import {ImportUpload} from '../components/import/ImportUpload';
+import {ImportMappingTable} from '../components/import/ImportMappingTable';
+import {ImportActions} from '../components/import/ImportActions';
+import {useImportMappings, type UnmappedTransaction} from '../hooks/useImportMappings';
 import {useAccounts} from '../hooks/useAccounts';
 import {useCategories} from '../hooks/useCategories';
 import {usePayees} from '../hooks/usePayees';
-import {MAX_RECENT_TRANSACTIONS} from '../constants';
-import {PageContainer} from '../components/common/PageContainer';
-import {
-  getAccountTypeLabel,
-  getCategoryTypeLabel,
-  GROUP_HEADER_STYLES,
-} from '../utils/groupSelectOptions';
-import type {Account} from '../hooks/useAccounts';
-import type {Category} from '../hooks/useCategories';
-
-/**
- * Unmapped transaction type
- */
-interface UnmappedTransaction {
-  id: string;
-  rawDate: string;
-  rawDescription: string;
-  rawDebit: number | null;
-  rawCredit: number | null;
-  suggestedAccountId: string | null;
-  suggestedCategoryId: string | null;
-  suggestedPayeeId: string | null;
-  cardNumber: string | null;
-}
-
-/**
- * Description mapping state
- */
-interface DescriptionMapping {
-  description: string;
-  accountId: string;
-  categoryId: string;
-  payeeId: string;
-}
 
 /**
  * Import Page Component
@@ -79,92 +28,37 @@ export function ImportPage(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [unmappedTransactions, setUnmappedTransactions] = useState<UnmappedTransaction[]>([]);
-  const [cardNumber, setCardNumber] = useState<string | null>(null);
-  const [cardAccountId, setCardAccountId] = useState<string>('');
-  const [descriptionMappings, setDescriptionMappings] = useState<Map<string, DescriptionMapping>>(new Map());
   const [dateFormat, setDateFormat] = useState<string>('DD/MM/YYYY');
-  const [isDragging, setIsDragging] = useState(false);
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // 600px breakpoint
+  // Use import mappings hook for state management
+  const {
+    descriptionMappings,
+    cardNumber,
+    cardAccountId,
+    setDescriptionMapping,
+    setCardAccountId,
+    uniqueDescriptions,
+    validateMappings,
+  } = useImportMappings(unmappedTransactions);
 
+  // Get data hooks
   const {accounts} = useAccounts();
   const {categories} = useCategories();
   const {payees} = usePayees();
 
-  // Find selected account and category objects for Autocomplete
-  const selectedCardAccount = accounts.find((acc) => acc.id === cardAccountId) ?? null;
+  // Get workspaces
+  const {data: workspacesData} = useQuery<{
+    workspaces: Array<{
+      id: string;
+      name: string;
+    }>;
+  }>(GET_WORKSPACES, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Group transactions by unique description
-  const uniqueDescriptions = useMemo(() => {
-    const descriptions = new Set<string>();
-    for (const txn of unmappedTransactions) {
-      descriptions.add(txn.rawDescription);
-    }
-    return Array.from(descriptions);
-  }, [unmappedTransactions]);
+  const workspaces = workspacesData?.workspaces ?? [];
 
-  // Initialize mappings when unmapped transactions are loaded
-  React.useEffect(() => {
-    if (unmappedTransactions.length > 0) {
-      // Set card number from first transaction
-      const firstCardNumber = unmappedTransactions[0]?.cardNumber;
-      if (firstCardNumber) {
-        setCardNumber(firstCardNumber);
-      }
-
-      // Initialize description mappings
-      const newMappings = new Map<string, DescriptionMapping>();
-      for (const desc of uniqueDescriptions) {
-        // Find first transaction with this description for suggested values
-        const firstTxn = unmappedTransactions.find((txn) => txn.rawDescription === desc);
-        if (firstTxn && !newMappings.has(desc)) {
-          // Determine default categories (Salary for income, Food & Groceries for expense)
-          const defaultIncomeCategory = categories.find(
-            (category) => category.isDefault && category.categoryType === 'Income',
-          );
-
-          const defaultExpenseCategory = categories.find(
-            (category) => category.isDefault && category.categoryType === 'Expense',
-          );
-
-          // Determine initial category based on transaction type
-          const isCredit = firstTxn.rawCredit !== null && firstTxn.rawCredit !== 0;
-
-          let initialCategoryId = firstTxn.suggestedCategoryId ?? '';
-
-          if (!initialCategoryId) {
-            if (isCredit && defaultIncomeCategory) {
-              // For credit transactions, prefer default income category (Salary)
-              initialCategoryId = defaultIncomeCategory.id;
-            } else if (!isCredit && defaultExpenseCategory) {
-              // For non-credit transactions, prefer default expense category (Food & Groceries) when available
-              initialCategoryId = defaultExpenseCategory.id;
-            } else if (categories[0]?.id) {
-              // Fallback to the first available category
-              initialCategoryId = categories[0].id;
-            }
-          }
-
-          newMappings.set(desc, {
-            description: desc,
-            accountId: firstTxn.suggestedAccountId ?? accounts[0]?.id ?? '',
-            categoryId: initialCategoryId,
-            payeeId: firstTxn.suggestedPayeeId ?? payees[0]?.id ?? '',
-          });
-        }
-      }
-      setDescriptionMappings(newMappings);
-
-      // Set card account from first transaction's suggested account
-      if (unmappedTransactions[0]?.suggestedAccountId) {
-        setCardAccountId(unmappedTransactions[0].suggestedAccountId);
-      } else if (accounts[0]?.id) {
-        setCardAccountId(accounts[0].id);
-      }
-    }
-  }, [unmappedTransactions, uniqueDescriptions, accounts, categories, payees]);
-
+  // Upload PDF mutation
   const [uploadPDFMutation, {loading: uploading}] = useMutation<{
     uploadPDF: {
       success: boolean;
@@ -182,8 +76,6 @@ export function ImportPage(): React.JSX.Element {
           orderBy: {field: 'date', direction: 'desc'},
         },
       },
-      // Note: GET_ACCOUNT requires an id variable, so we don't refetch it here
-      // Individual account queries will be refetched when their pages are visited
     ],
     awaitRefetchQueries: true,
     onCompleted: (data: {uploadPDF?: {savedCount: number; unmappedTransactions: UnmappedTransaction[]}}) => {
@@ -202,6 +94,7 @@ export function ImportPage(): React.JSX.Element {
     },
   });
 
+  // Save transactions mutation
   const [saveTransactionsMutation, {loading: saving}] = useMutation<{
     saveImportedTransactions: {
       success: boolean;
@@ -218,8 +111,6 @@ export function ImportPage(): React.JSX.Element {
           orderBy: {field: 'date', direction: 'desc'},
         },
       },
-      // Note: GET_ACCOUNT requires an id variable, so we don't refetch it here
-      // Individual account queries will be refetched when their pages are visited
     ],
     awaitRefetchQueries: true,
     onCompleted: (data: {saveImportedTransactions?: {savedCount: number; errors: string[]}}) => {
@@ -230,9 +121,6 @@ export function ImportPage(): React.JSX.Element {
         } else {
           setSuccessMessage(`Successfully saved ${savedCount} transaction(s)!`);
           setUnmappedTransactions([]);
-          setDescriptionMappings(new Map());
-          setCardNumber(null);
-          setCardAccountId('');
         }
       }
     },
@@ -242,15 +130,13 @@ export function ImportPage(): React.JSX.Element {
     },
   });
 
+  // Delete unmapped transactions mutation
   const [deleteUnmappedMutation, {loading: deleting}] = useMutation<{
     deleteUnmappedImportedTransactions: boolean;
   }>(DELETE_UNMAPPED_IMPORTED_TRANSACTIONS, {
     onCompleted: () => {
       setSuccessMessage('Unmapped transactions ignored');
       setUnmappedTransactions([]);
-      setDescriptionMappings(new Map());
-      setCardNumber(null);
-      setCardAccountId('');
     },
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : 'Delete failed';
@@ -259,66 +145,26 @@ export function ImportPage(): React.JSX.Element {
   });
 
   /**
-   * Process and validate a file
+   * Handle file select
    */
-  const processFile = useCallback((selectedFile: File): void => {
+  const handleFileSelect = (selectedFile: File): void => {
     setError(null);
     setSuccessMessage(null);
-
-    if (!validateFileType(selectedFile, [...ALLOWED_FILE_TYPES])) {
-      setError('Please select a PDF file');
-      return;
-    }
-
-    if (!validateFileSize(selectedFile, MAX_FILE_SIZE_BYTES)) {
-      setError(`File size must be less than ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB`);
-      return;
-    }
-
     setFile(selectedFile);
-  }, []);
-
-  /**
-   * Handle file input change
-   */
-  const handleFileChange = (e: {target: {files?: FileList | null} | null}): void => {
-    if (e.target?.files?.[0]) {
-      processFile(e.target.files[0]);
-    }
   };
 
   /**
-   * Handle drag over event
+   * Handle file remove
    */
-  const handleDragOver = useCallback((e: React.DragEvent): void => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
+  const handleFileRemove = (): void => {
+    setFile(null);
+    setError(null);
+    setSuccessMessage(null);
+  };
 
   /**
-   * Handle drag leave event
+   * Handle upload
    */
-  const handleDragLeave = useCallback((e: React.DragEvent): void => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  /**
-   * Handle drop event
-   */
-  const handleDrop = useCallback((e: React.DragEvent): void => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      processFile(droppedFile);
-    }
-  }, [processFile]);
-
   const handleUpload = async (): Promise<void> => {
     if (!file) {
       setError('Please select a file');
@@ -338,29 +184,12 @@ export function ImportPage(): React.JSX.Element {
     }
   };
 
-  const handleDescriptionMappingChange = (description: string, field: keyof DescriptionMapping, value: string): void => {
-    const mapping = descriptionMappings.get(description);
-    if (!mapping) return;
-
-    const updated = {...mapping, [field]: value};
-    setDescriptionMappings(new Map(descriptionMappings.set(description, updated)));
-  };
-
+  /**
+   * Handle save transactions
+   */
   const handleSave = async (): Promise<void> => {
-    // Validate card number mapping if card number exists
-    if (cardNumber && !cardAccountId) {
-      setError('Please select an account for the card number');
-      return;
-    }
-
-    // Validate all description mappings
-    const errors: string[] = [];
-    for (const [desc, mapping] of descriptionMappings.entries()) {
-      if (!mapping.accountId) {
-        errors.push(`Account is required for description: ${desc}`);
-      }
-    }
-
+    // Validate mappings using hook
+    const errors = validateMappings();
     if (errors.length > 0) {
       setError(errors.join('; '));
       return;
@@ -390,6 +219,9 @@ export function ImportPage(): React.JSX.Element {
     }
   };
 
+  /**
+   * Handle ignore transactions
+   */
   const handleIgnore = async (): Promise<void> => {
     setError(null);
     try {
@@ -400,166 +232,22 @@ export function ImportPage(): React.JSX.Element {
     }
   };
 
-  /**
-   * Format file size for display
-   */
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   return (
     <PageContainer sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
       {/* Upload Section */}
-      <Card>
-        <Box sx={{p: 3}}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            Upload Credit Card Statement
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
-            Upload a PDF statement from your credit card provider. The system will automatically extract and categorize transactions.
-          </Typography>
-
-          {error ? (
-            <Alert severity="error" sx={{mb: 3}} onClose={() => setError(null)}>
-              {error}
-            </Alert>
-          ) : null}
-          {successMessage ? (
-            <Alert severity="success" sx={{mb: 3}} onClose={() => setSuccessMessage(null)}>
-              {successMessage}
-            </Alert>
-          ) : null}
-
-          {/* Date Format Selection */}
-          <Box sx={{mb: 3}}>
-            <FormControl fullWidth>
-              <InputLabel>Date Format in PDF</InputLabel>
-              <Select
-                value={dateFormat}
-                label="Date Format in PDF"
-                onChange={(e): void => {
-                  setDateFormat(e.target.value);
-                }}
-              >
-                <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
-                <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
-                <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
-                <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
-                <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
-              </Select>
-              <Typography variant="caption" color="text.secondary" sx={{mt: 1, display: 'block'}}>
-                Select the date format used in your PDF statement
-              </Typography>
-            </FormControl>
-          </Box>
-
-          {/* File Upload Area */}
-          <Box
-            onDragOver={!isMobile ? handleDragOver : undefined}
-            onDragLeave={!isMobile ? handleDragLeave : undefined}
-            onDrop={!isMobile ? handleDrop : undefined}
-            sx={{
-              border: `2px dashed ${isDragging && !isMobile ? theme.palette.primary.main : theme.palette.divider}`,
-              borderRadius: 0,
-              p: 4,
-              textAlign: 'center',
-              backgroundColor: isDragging && !isMobile ? theme.palette.action.hover : 'transparent',
-              transition: 'all 0.2s ease-in-out',
-              cursor: 'pointer',
-              mb: 3,
-            }}
-            onClick={(): void => {
-              document.getElementById('pdf-upload-input')?.click();
-            }}
-          >
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleFileChange}
-              style={{display: 'none'}}
-              id="pdf-upload-input"
-            />
-            {file ? (
-              <Box>
-                <CheckCircleIcon color="success" sx={{fontSize: 48, mb: 1}} />
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  sx={{
-                    wordBreak: 'break-word',
-                    overflowWrap: 'break-word',
-                    maxWidth: '100%',
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    px: 1,
-                  }}
-                  title={file.name}
-                >
-                  {file.name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
-                  {formatFileSize(file.size)}
-                </Typography>
-                <Button
-                  variant="outlined"
-                  startIcon={<CancelIcon />}
-                  onClick={(e): void => {
-                    e.stopPropagation();
-                    setFile(null);
-                    setError(null);
-                    setSuccessMessage(null);
-                  }}
-                >
-                  Remove File
-                </Button>
-              </Box>
-            ) : (
-              <Box>
-                <UploadIcon sx={{fontSize: 48, color: 'text.secondary', mb: 2}} />
-                <Typography variant="h6" gutterBottom>
-                  {!isMobile && isDragging
-                    ? 'Drop PDF file here'
-                    : !isMobile
-                      ? 'Drag and drop PDF file here'
-                      : 'Select PDF File'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
-                  {!isMobile ? 'or click to browse' : 'Tap to browse files'}
-                </Typography>
-                <Button variant="outlined" startIcon={<UploadIcon />} component="span">
-                  Select PDF File
-                </Button>
-                <Typography variant="caption" color="text.secondary" sx={{mt: 2, display: 'block'}}>
-                  Maximum file size: {MAX_FILE_SIZE_BYTES / 1024 / 1024}MB
-                </Typography>
-              </Box>
-            )}
-          </Box>
-
-          {/* Upload Button */}
-          {file ? (
-            <Box>
-              {uploading ? <LinearProgress sx={{mb: 2}} /> : null}
-              <Button
-                variant="contained"
-                fullWidth
-                size="large"
-                onClick={(): void => {
-                  void handleUpload();
-                }}
-                disabled={!file || uploading}
-                startIcon={uploading ? undefined : <DescriptionIcon />}
-              >
-                {uploading ? 'Uploading and Parsing...' : 'Upload and Parse Statement'}
-              </Button>
-            </Box>
-          ) : null}
-        </Box>
-      </Card>
+      <ImportUpload
+        file={file}
+        dateFormat={dateFormat}
+        uploading={uploading}
+        error={error}
+        successMessage={successMessage}
+        onFileSelect={handleFileSelect}
+        onFileRemove={handleFileRemove}
+        onDateFormatChange={setDateFormat}
+        onUpload={handleUpload}
+        onErrorDismiss={(): void => setError(null)}
+        onSuccessDismiss={(): void => setSuccessMessage(null)}
+      />
 
       {/* Mapping Section */}
       {unmappedTransactions.length > 0 && (
@@ -569,254 +257,38 @@ export function ImportPage(): React.JSX.Element {
               <Typography variant="h6" component="h2">
                 Map Transactions
               </Typography>
-              <Chip label={`${unmappedTransactions.length} transaction${unmappedTransactions.length !== 1 ? 's' : ''}`} size="small" color="primary" />
-              <Chip label={`${uniqueDescriptions.length} unique description${uniqueDescriptions.length !== 1 ? 's' : ''}`} size="small" />
+              <Chip
+                label={`${unmappedTransactions.length} transaction${unmappedTransactions.length !== 1 ? 's' : ''}`}
+                size="small"
+                color="primary"
+              />
+              <Chip
+                label={`${uniqueDescriptions.length} unique description${uniqueDescriptions.length !== 1 ? 's' : ''}`}
+                size="small"
+              />
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
-              Some transactions need manual mapping. Please assign an account, category, and payee for each unique transaction description.
+              Some transactions need manual mapping. Please assign an account, category, and payee for each unique
+              transaction description.
             </Typography>
 
-            {/* Card number mapping */}
-            {cardNumber ? (
-              <Box sx={{mb: 3, p: 2, backgroundColor: 'action.hover', borderRadius: 1}}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Card Number Mapping
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{mb: 2, display: 'block'}}>
-                  Card Number: <strong>{cardNumber}</strong>
-                </Typography>
-                <Autocomplete<Account, false, false, false>
-                  options={accounts}
-                  getOptionLabel={(option) => option.name}
-                  groupBy={(option) => getAccountTypeLabel(option.accountType)}
-                  value={selectedCardAccount}
-                  onChange={(_, value): void => {
-                    setCardAccountId(value?.id ?? '');
-                  }}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  componentsProps={{
-                    popper: {
-                      sx: GROUP_HEADER_STYLES,
-                    },
-                  }}
-                  renderInput={(params) => <TextField {...params} label="Select Account" />}
-                />
-              </Box>
-            ) : null}
-
-            {cardNumber ? <Divider sx={{my: 3}} /> : null}
-
-            {/* Description mappings table */}
-            <Box sx={{mb: 2}}>
-              <Typography variant="subtitle1" gutterBottom>
-                Transaction Descriptions
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Map each unique description to an account (required), category, and payee
-              </Typography>
-            </Box>
-            {isMobile ? (
-              // Mobile view: vertical stacking
-              <Box sx={{mb: 3, backgroundColor: 'action.hover', borderRadius: 1, p: 1}}>
-                {uniqueDescriptions.map((desc) => {
-                  const mapping = descriptionMappings.get(desc);
-                  if (!mapping) return null;
-
-                  // Count transactions with this description
-                  const count = unmappedTransactions.filter((txn) => txn.rawDescription === desc).length;
-
-                  return (
-                    <Box
-                      key={desc}
-                      sx={{
-                        p: 2.5,
-                        mb: 2
-                      }}
-                    >
-                      <Box sx={{mb: 2, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider'}}>
-                        <Typography variant="body1" sx={{fontWeight: 'medium', mb: 0.5}}>
-                          {desc}
-                        </Typography>
-                        <Chip label={`${count} transaction${count !== 1 ? 's' : ''}`} size="small" variant="outlined" />
-                      </Box>
-                      <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-                        <Autocomplete<Account, false, false, false>
-                          options={accounts}
-                          getOptionLabel={(option) => option.name}
-                          groupBy={(option) => getAccountTypeLabel(option.accountType)}
-                          value={accounts.find((acc) => acc.id === mapping.accountId) ?? null}
-                          onChange={(_, value): void => {
-                            handleDescriptionMappingChange(desc, 'accountId', value?.id ?? '');
-                          }}
-                          isOptionEqualToValue={(option, value) => option.id === value.id}
-                          componentsProps={{
-                            popper: {
-                              sx: GROUP_HEADER_STYLES,
-                            },
-                          }}
-                          renderInput={(params) => <TextField {...params} label="Account *" required />}
-                        />
-                        <Autocomplete<Category, false, false, false>
-                          options={categories}
-                          getOptionLabel={(option) => option.name}
-                          groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
-                          value={categories.find((cat) => cat.id === mapping.categoryId) ?? null}
-                          onChange={(_, value): void => {
-                            handleDescriptionMappingChange(desc, 'categoryId', value?.id ?? '');
-                          }}
-                          isOptionEqualToValue={(option, value) => option.id === value.id}
-                          componentsProps={{
-                            popper: {
-                              sx: GROUP_HEADER_STYLES,
-                            },
-                          }}
-                          renderInput={(params) => <TextField {...params} label="Category" />}
-                        />
-                        <FormControl fullWidth>
-                          <InputLabel>Payee</InputLabel>
-                          <Select
-                            value={mapping.payeeId}
-                            label="Payee"
-                            onChange={(e): void => {
-                              handleDescriptionMappingChange(desc, 'payeeId', e.target.value);
-                            }}
-                          >
-                            {payees.map((payee) => (
-                              <MenuItem key={payee.id} value={payee.id}>
-                                {payee.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Box>
-                    </Box>
-                  );
-                })}
-              </Box>
-            ) : (
-              // Desktop view: horizontal table
-              <Box
-                sx={{
-                  mb: 3,
-                  backgroundColor: 'action.hover',
-                  borderRadius: 1,
-                  width: '100%',
-                  maxWidth: '100%',
-                  overflow: 'auto',
-                }}
-              >
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Transaction Description</TableCell>
-                      <TableCell>Account</TableCell>
-                      <TableCell>Category</TableCell>
-                      <TableCell>Payee</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {uniqueDescriptions.map((desc) => {
-                      const mapping = descriptionMappings.get(desc);
-                      if (!mapping) return null;
-
-                      // Count transactions with this description
-                      const count = unmappedTransactions.filter((txn) => txn.rawDescription === desc).length;
-
-                      return (
-                        <TableRow key={desc}>
-                          <TableCell>
-                            <Typography variant="body2">{desc}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              ({count} transaction{count !== 1 ? 's' : ''})
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Autocomplete<Account, false, false, false>
-                              size="small"
-                              options={accounts}
-                              getOptionLabel={(option) => option.name}
-                              groupBy={(option) => getAccountTypeLabel(option.accountType)}
-                              value={accounts.find((acc) => acc.id === mapping.accountId) ?? null}
-                              onChange={(_, value): void => {
-                                handleDescriptionMappingChange(desc, 'accountId', value?.id ?? '');
-                              }}
-                              isOptionEqualToValue={(option, value) => option.id === value.id}
-                              componentsProps={{
-                                popper: {
-                                  sx: GROUP_HEADER_STYLES,
-                                },
-                              }}
-                              renderInput={(params) => <TextField {...params} label="Account" required size="small" />}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Autocomplete<Category, false, false, false>
-                              size="small"
-                              options={categories}
-                              getOptionLabel={(option) => option.name}
-                              groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
-                              value={categories.find((cat) => cat.id === mapping.categoryId) ?? null}
-                              onChange={(_, value): void => {
-                                handleDescriptionMappingChange(desc, 'categoryId', value?.id ?? '');
-                              }}
-                              isOptionEqualToValue={(option, value) => option.id === value.id}
-                              componentsProps={{
-                                popper: {
-                                  sx: GROUP_HEADER_STYLES,
-                                },
-                              }}
-                              renderInput={(params) => <TextField {...params} label="Category" size="small" />}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <FormControl size="small" fullWidth>
-                              <InputLabel>Payee</InputLabel>
-                              <Select
-                                value={mapping.payeeId}
-                                label="Payee"
-                                onChange={(e): void => {
-                                  handleDescriptionMappingChange(desc, 'payeeId', e.target.value);
-                                }}
-                              >
-                                {payees.map((payee) => (
-                                  <MenuItem key={payee.id} value={payee.id}>
-                                    {payee.name}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </Box>
-            )}
-
-            <Divider sx={{my: 3}} />
+            {/* Mapping Table */}
+            <ImportMappingTable
+              unmappedTransactions={unmappedTransactions}
+              descriptionMappings={descriptionMappings}
+              cardNumber={cardNumber}
+              cardAccountId={cardAccountId}
+              accounts={accounts}
+              categories={categories}
+              payees={payees}
+              workspaces={workspaces}
+              onMappingChange={setDescriptionMapping}
+              onCardAccountChange={setCardAccountId}
+              uniqueDescriptions={uniqueDescriptions}
+            />
 
             {/* Action Buttons */}
-            <Box sx={{display: 'flex', flexDirection: {xs: 'column', sm: 'row'}, gap: 2, justifyContent: 'flex-end'}}>
-              <Button
-                variant="outlined"
-                onClick={(): void => void handleIgnore()}
-                disabled={deleting || saving}
-                fullWidth={isMobile}
-              >
-                {deleting ? 'Ignoring...' : 'Ignore All'}
-              </Button>
-              <Button
-                variant="contained"
-                onClick={(): void => void handleSave()}
-                disabled={saving || deleting}
-                fullWidth={isMobile}
-                size="large"
-              >
-                {saving ? 'Saving Transactions...' : 'Save All Transactions'}
-              </Button>
-            </Box>
-            {saving ? <LinearProgress sx={{mt: 2}} /> : null}
+            <ImportActions saving={saving} deleting={deleting} onSave={handleSave} onIgnore={handleIgnore} />
           </Box>
         </Card>
       )}

@@ -27,6 +27,7 @@ import {
   CategoriesPageWrapper,
   PayeeDetailsPageWrapper,
   BudgetDetailsPageWrapper,
+  TransactionEditPageWrapper,
 } from './components/routes/PageWrappers';
 
 // Lazy load page components for code splitting
@@ -34,7 +35,6 @@ const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({default: m.
 const AccountEditPage = lazy(() => import('./pages/AccountEditPage').then((m) => ({default: m.AccountEditPage})));
 const CategoryEditPage = lazy(() => import('./pages/CategoryEditPage').then((m) => ({default: m.CategoryEditPage})));
 const PayeeEditPage = lazy(() => import('./pages/PayeeEditPage').then((m) => ({default: m.PayeeEditPage})));
-const TransactionEditPage = lazy(() => import('./pages/TransactionEditPage').then((m) => ({default: m.TransactionEditPage})));
 const TransactionAddPage = lazy(() => import('./pages/TransactionAddPage').then((m) => ({default: m.TransactionAddPage})));
 const ReportPage = lazy(() => import('./pages/ReportPage').then((m) => ({default: m.ReportPage})));
 const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({default: m.ImportPage})));
@@ -223,9 +223,7 @@ function App(): React.JSX.Element {
                 path="/transactions/:id/edit"
                 element={
                   <ProtectedRouteWithErrorBoundary>
-                    <Layout hideSearch>
-                      <TransactionEditPage />
-                    </Layout>
+                    <TransactionEditPageWrapper />
                   </ProtectedRouteWithErrorBoundary>
                 }
               />

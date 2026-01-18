@@ -5,6 +5,7 @@ My Money GraphQL Schema
 scalar DateTime
 scalar Decimal
 scalar Upload
+scalar JSON
 
 enum SortOrder {
   asc
@@ -30,6 +31,12 @@ enum AccountType {
   Bank
   Saving
   Loans
+}
+
+enum WorkspaceRole {
+  Owner
+  Admin
+  Member
 }
 
 input TransactionOrderInput {
@@ -140,6 +147,7 @@ type Query {
     orderBy: TransactionOrderInput
     skip: Int
     take: Int
+    memberIds: [ID!]
   ): ReportTransactionConnection!
 
   """
@@ -165,6 +173,7 @@ type Query {
     includeTransactions: Boolean = true
     includeRecurringTransactions: Boolean = true
     includeBudgets: Boolean = true
+    memberIds: [ID!]
   ): ExportData!
 
   """
@@ -181,6 +190,46 @@ type Query {
   Get budget notifications for current user
   """
   budgetNotifications: [BudgetNotification!]!
+
+  """
+  Get all workspaces the current user belongs to
+  """
+  workspaces: [Workspace!]!
+
+  """
+  Get workspace by ID
+  """
+  workspace(id: ID!): Workspace
+
+  """
+  Get workspace members
+  """
+  workspaceMembers(workspaceId: ID!): [WorkspaceMember!]!
+
+  """
+  Get workspace invitations
+  """
+  workspaceInvitations(workspaceId: ID!): [WorkspaceInvitation!]!
+
+  """
+  Get invitation by token (public, for viewing invitation details)
+  """
+  invitationByToken(token: String!): WorkspaceInvitation
+
+  """
+  Get unresolved conflicts for a workspace
+  """
+  entityConflicts(workspaceId: ID!): [EntityConflict!]!
+
+  """
+  Get conflict by ID
+  """
+  entityConflict(id: ID!): EntityConflict
+
+  """
+  Get version history for an entity
+  """
+  entityVersions(entityType: String!, entityId: ID!, limit: Int = 50): [EntityVersion!]!
 }
 
 type Mutation {
@@ -318,6 +367,142 @@ type Mutation {
   Mark budget notification as read
   """
   markBudgetNotificationRead(id: ID!): Boolean!
+
+  """
+  Create a new workspace
+  """
+  createWorkspace(name: String!): Workspace!
+
+  """
+  Update workspace
+  """
+  updateWorkspace(id: ID!, name: String): Workspace!
+
+  """
+  Delete workspace (Owner only)
+  """
+  deleteWorkspace(id: ID!): Boolean!
+
+  """
+  Invite user to workspace
+  """
+  inviteUserToWorkspace(workspaceId: ID!, email: String!, role: WorkspaceRole): WorkspaceInvitation!
+
+  """
+  Accept workspace invitation
+  """
+  acceptWorkspaceInvitation(token: String!): WorkspaceMember!
+
+  """
+  Cancel workspace invitation
+  """
+  cancelWorkspaceInvitation(invitationId: ID!): Boolean!
+
+  """
+  Update workspace member role
+  """
+  updateWorkspaceMemberRole(workspaceId: ID!, memberId: ID!, role: WorkspaceRole!): WorkspaceMember!
+
+  """
+  Remove workspace member
+  """
+  removeWorkspaceMember(workspaceId: ID!, memberId: ID!): Boolean!
+
+  """
+  Resolve a conflict by choosing a version
+  """
+  resolveConflict(conflictId: ID!, chosenVersion: Int!, mergeData: JSON): EntityConflict!
+
+  """
+  Dismiss a conflict (use current version)
+  """
+  dismissConflict(conflictId: ID!): Boolean!
+
+  """
+  Bulk create accounts
+  Creates multiple accounts in a single transaction
+  """
+  bulkCreateAccounts(inputs: [BatchCreateAccountInput!]!): BatchAccountResult!
+
+  """
+  Bulk update accounts
+  Updates multiple accounts in a single transaction
+  """
+  bulkUpdateAccounts(inputs: [BatchUpdateAccountInput!]!): BatchAccountResult!
+
+  """
+  Bulk create categories
+  Creates multiple categories in a single transaction
+  """
+  bulkCreateCategories(inputs: [BatchCreateCategoryInput!]!): BatchCategoryResult!
+
+  """
+  Bulk update categories
+  Updates multiple categories in a single transaction
+  """
+  bulkUpdateCategories(inputs: [BatchUpdateCategoryInput!]!): BatchCategoryResult!
+
+  """
+  Bulk create payees
+  Creates multiple payees in a single transaction
+  """
+  bulkCreatePayees(inputs: [BatchCreatePayeeInput!]!): BatchPayeeResult!
+
+  """
+  Bulk update payees
+  Updates multiple payees in a single transaction
+  """
+  bulkUpdatePayees(inputs: [BatchUpdatePayeeInput!]!): BatchPayeeResult!
+
+  """
+  Bulk create transactions
+  Creates multiple transactions in a single transaction
+  """
+  bulkCreateTransactions(inputs: [BatchCreateTransactionInput!]!): BatchTransactionResult!
+
+  """
+  Bulk update transactions
+  Updates multiple transactions in a single transaction
+  """
+  bulkUpdateTransactions(inputs: [BatchUpdateTransactionInput!]!): BatchTransactionResult!
+}
+
+type Subscription {
+  """
+  Subscribe to account updates
+  Filters by workspaceId to only receive updates for accounts in the current workspace
+  """
+  accountUpdated(workspaceId: ID!): Account!
+
+  """
+  Subscribe to category updates
+  Filters by workspaceId to only receive updates for categories in the current workspace
+  """
+  categoryUpdated(workspaceId: ID!): Category!
+
+  """
+  Subscribe to payee updates
+  Filters by workspaceId to only receive updates for payees in the current workspace
+  """
+  payeeUpdated(workspaceId: ID!): Payee!
+
+  """
+  Subscribe to transaction updates
+  Filters by workspaceId to only receive updates for transactions in the current workspace
+  """
+  transactionUpdated(workspaceId: ID!): Transaction!
+
+  """
+  Subscribe to budget updates
+  Filters by workspaceId to only receive updates for budgets in the current workspace
+  """
+  budgetUpdated(workspaceId: ID!): Budget!
+
+  """
+  Subscribe to entity conflict notifications
+  Filters by workspaceId to only receive conflict notifications for the current workspace
+  """
+  entityConflictDetected(workspaceId: ID!): EntityConflict!
 }
 
 type User {
@@ -334,7 +519,11 @@ type Account {
   initBalance: Decimal!
   isDefault: Boolean!
   accountType: AccountType!
-  userId: ID!
+  workspaceId: ID!
+  version: Int!
+  createdBy: User!
+  lastEditedBy: User!
+  versions: [EntityVersion!]!
   createdAt: DateTime!
   updatedAt: DateTime!
   balance: Decimal!
@@ -351,7 +540,10 @@ type Transaction {
   payeeId: ID
   payee: Payee
   note: String
-  userId: ID!
+  version: Int!
+  createdBy: User!
+  lastEditedBy: User!
+  versions: [EntityVersion!]!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -368,7 +560,11 @@ type Category {
   name: String!
   categoryType: CategoryType!
   isDefault: Boolean!
-  userId: ID
+  workspaceId: ID!
+  version: Int!
+  createdBy: User!
+  lastEditedBy: User!
+  versions: [EntityVersion!]!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -377,7 +573,11 @@ type Payee {
   id: ID!
   name: String!
   isDefault: Boolean!
-  userId: ID
+  workspaceId: ID!
+  version: Int!
+  createdBy: User!
+  lastEditedBy: User!
+  versions: [EntityVersion!]!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -442,6 +642,7 @@ type UnmappedTransaction {
   suggestedCategoryId: ID
   suggestedPayeeId: ID
   cardNumber: String
+  detectedWorkspaceId: ID
 }
 
 type ReportTransactionConnection {
@@ -477,7 +678,7 @@ type ExportData {
 
 type Budget {
   id: ID!
-  userId: ID!
+  workspaceId: ID!
   amount: Decimal!
   currentSpent: Decimal!
   accountId: ID
@@ -486,6 +687,10 @@ type Budget {
   account: Account
   category: Category
   payee: Payee
+  version: Int!
+  createdBy: User!
+  lastEditedBy: User!
+  versions: [EntityVersion!]!
   percentageUsed: Float!
   lastResetDate: DateTime!
   createdAt: DateTime!
@@ -525,12 +730,14 @@ input CreateAccountInput {
   name: String!
   initBalance: Decimal
   accountType: AccountType
+  workspaceId: ID
 }
 
 input UpdateAccountInput {
   name: String
   initBalance: Decimal
   accountType: AccountType
+  expectedVersion: Int
 }
 
 input CreateTransactionInput {
@@ -549,24 +756,29 @@ input UpdateTransactionInput {
   categoryId: ID
   payeeId: ID
   note: String
+  expectedVersion: Int
 }
 
 input CreateCategoryInput {
   name: String!
   categoryType: CategoryType!
+  workspaceId: ID
 }
 
 input UpdateCategoryInput {
   name: String
   categoryType: CategoryType
+  expectedVersion: Int
 }
 
 input CreatePayeeInput {
   name: String!
+  workspaceId: ID
 }
 
 input UpdatePayeeInput {
   name: String
+  expectedVersion: Int
 }
 
 input UpdatePreferencesInput {
@@ -632,10 +844,162 @@ input CreateBudgetInput {
   accountId: ID
   categoryId: ID
   payeeId: ID
+  workspaceId: ID
 }
 
 input UpdateBudgetInput {
   amount: Decimal
+  expectedVersion: Int
+}
+
+"""
+Batch operation input types
+"""
+input BatchCreateAccountInput {
+  name: String!
+  initBalance: Decimal
+  accountType: AccountType
+  workspaceId: ID
+}
+
+input BatchUpdateAccountInput {
+  id: ID!
+  name: String
+  initBalance: Decimal
+  accountType: AccountType
+}
+
+input BatchCreateCategoryInput {
+  name: String!
+  categoryType: CategoryType!
+  workspaceId: ID
+}
+
+input BatchUpdateCategoryInput {
+  id: ID!
+  name: String
+  categoryType: CategoryType
+}
+
+input BatchCreatePayeeInput {
+  name: String!
+  workspaceId: ID
+}
+
+input BatchUpdatePayeeInput {
+  id: ID!
+  name: String
+}
+
+input BatchCreateTransactionInput {
+  value: Decimal!
+  date: DateTime
+  accountId: ID!
+  categoryId: ID
+  payeeId: ID
+  note: String
+}
+
+input BatchUpdateTransactionInput {
+  id: ID!
+  value: Decimal
+  date: DateTime
+  accountId: ID
+  categoryId: ID
+  payeeId: ID
+  note: String
+}
+
+"""
+Batch operation result types
+"""
+type BatchAccountResult {
+  created: [Account!]!
+  updated: [Account!]!
+  errors: [BatchError!]!
+}
+
+type BatchCategoryResult {
+  created: [Category!]!
+  updated: [Category!]!
+  errors: [BatchError!]!
+}
+
+type BatchPayeeResult {
+  created: [Payee!]!
+  updated: [Payee!]!
+  errors: [BatchError!]!
+}
+
+type BatchTransactionResult {
+  created: [Transaction!]!
+  updated: [Transaction!]!
+  errors: [BatchError!]!
+}
+
+type BatchError {
+  index: Int!
+  message: String!
+}
+
+type Workspace {
+  id: ID!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  members: [WorkspaceMember!]!
+  invitations: [WorkspaceInvitation!]!
+}
+
+type WorkspaceMember {
+  id: ID!
+  workspaceId: ID!
+  userId: ID!
+  role: WorkspaceRole!
+  joinedAt: DateTime!
+  workspace: Workspace!
+  user: User!
+}
+
+type WorkspaceInvitation {
+  id: ID!
+  workspaceId: ID!
+  email: String!
+  token: String!
+  role: WorkspaceRole!
+  invitedBy: ID!
+  expiresAt: DateTime!
+  acceptedAt: DateTime
+  createdAt: DateTime!
+  workspace: Workspace!
+  inviter: User!
+}
+
+type EntityVersion {
+  id: ID!
+  entityType: String!
+  entityId: ID!
+  version: Int!
+  data: JSON!
+  editedBy: ID!
+  editedAt: DateTime!
+  editor: User!
+}
+
+type EntityConflict {
+  id: ID!
+  entityType: String!
+  entityId: ID!
+  currentVersion: Int!
+  incomingVersion: Int!
+  currentData: JSON!
+  incomingData: JSON!
+  workspaceId: ID!
+  detectedAt: DateTime!
+  resolvedAt: DateTime
+  resolvedBy: ID
+  resolvedVersion: Int
+  resolver: User
 }
 
 

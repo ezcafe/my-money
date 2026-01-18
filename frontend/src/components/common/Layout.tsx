@@ -22,7 +22,7 @@ export interface LayoutProps {
     ariaLabel: string;
   };
   contextMenu?: {
-    onEdit: () => void;
+    onEdit?: () => void;
     onDelete: () => void;
     disableDelete?: boolean;
   };
@@ -102,7 +102,7 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
    * Handle edit from context menu
    */
   const handleEdit = useCallback(() => {
-    if (contextMenu) {
+    if (contextMenu?.onEdit) {
       contextMenu.onEdit();
       handleContextMenuClose();
     }
@@ -123,10 +123,10 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
       {!isHomePage && (
         <AppBar position="static" elevation={0}>
           <Toolbar>
-            <IconButton 
-              edge="start" 
-              color="inherit" 
-              onClick={handleBack} 
+            <IconButton
+              edge="start"
+              color="inherit"
+              onClick={handleBack}
               aria-label="Back"
               sx={{
                 minWidth: {xs: 44, sm: 40},
@@ -140,10 +140,10 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
               </Typography> : null}
             {!displayTitle && <Box sx={{flexGrow: 1}} />}
             {!hideSearch && (
-              <IconButton 
-                edge="end" 
-                color="inherit" 
-                onClick={handleSearchClick} 
+              <IconButton
+                edge="end"
+                color="inherit"
+                onClick={handleSearchClick}
                 aria-label="Search"
                 sx={{
                   minWidth: {xs: 44, sm: 40},
@@ -154,10 +154,10 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
               </IconButton>
             )}
             {contextMenu ? (
-              <IconButton 
-                edge="end" 
-                color="inherit" 
-                onClick={handleContextMenuOpen} 
+              <IconButton
+                edge="end"
+                color="inherit"
+                onClick={handleContextMenuOpen}
                 aria-label="More options"
                 sx={{
                   minWidth: {xs: 44, sm: 40},
@@ -168,10 +168,10 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
               </IconButton>
             ) : null}
             {!contextMenu && actionButton ? (
-              <IconButton 
-                edge="end" 
-                color="inherit" 
-                onClick={actionButton.onClick} 
+              <IconButton
+                edge="end"
+                color="inherit"
+                onClick={actionButton.onClick}
                 aria-label={actionButton.ariaLabel}
                 sx={{
                   minWidth: {xs: 44, sm: 40},
@@ -189,11 +189,13 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
           open={Boolean(menuAnchor)}
           onClose={handleContextMenuClose}
         >
-          <MenuItem onClick={handleEdit}>
-            <Edit fontSize="small" />
-            <Box component="span" sx={{ml: 1}} />
-            Edit
-          </MenuItem>
+          {contextMenu.onEdit ? (
+            <MenuItem onClick={handleEdit}>
+              <Edit fontSize="small" />
+              <Box component="span" sx={{ml: 1}} />
+              Edit
+            </MenuItem>
+          ) : null}
           <MenuItem onClick={handleDelete} disabled={contextMenu.disableDelete}>
             <Delete fontSize="small" />
             <Box component="span" sx={{ml: 1}} />

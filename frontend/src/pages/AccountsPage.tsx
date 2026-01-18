@@ -4,7 +4,7 @@
  * Follows Material Design 3 patterns
  */
 
-import React, {memo, useMemo} from 'react';
+import React, {memo, useMemo, useTransition} from 'react';
 import {Typography, List, ListItemButton, ListItemText, Divider} from '@mui/material';
 import {useNavigate} from 'react-router';
 import {AccountBalance} from '@mui/icons-material';
@@ -24,9 +24,10 @@ const AccountsPageComponent = (): React.JSX.Element => {
   const {accounts, loading, error} = useAccounts();
   const {searchQuery} = useSearch();
   const navigate = useNavigate();
+  const [_isPending, _startTransition] = useTransition();
 
   /**
-   * Filter accounts based on search query
+   * Filter accounts based on search query (non-urgent update)
    */
   const filteredAccounts = useMemo(() => {
     if (!searchQuery.trim()) {

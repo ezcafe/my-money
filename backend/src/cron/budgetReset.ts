@@ -62,7 +62,6 @@ export async function processBudgetResets(): Promise<{
           const errorObj = error instanceof Error ? error : new Error(String(error));
           logError('Failed to reset budget', {
             budgetId: budget.id,
-            userId: budget.userId,
           }, errorObj);
         }
       });

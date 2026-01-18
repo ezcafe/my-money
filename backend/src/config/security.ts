@@ -9,6 +9,7 @@ import {compress} from 'hono/compress';
 import {randomBytes} from 'crypto';
 import {ErrorCode} from '../utils/errorCodes';
 import {checkRateLimit} from '../utils/postgresRateLimiter';
+import {RATE_LIMITS} from '../utils/constants';
 
 /**
  * Rate limit middleware
@@ -54,65 +55,17 @@ function rateLimiter(max: number, windowMs: number): (c: Context, next: Next) =>
 }
 
 /**
- * User-based rate limit middleware
- * Applies stricter rate limits for authenticated users
- * Uses userId from GraphQL context
- * @deprecated Not currently used, kept for future implementation
- */
-// Unused function kept for future implementation
-// @ts-expect-error - Intentionally unused, kept for future implementation
-function _userRateLimiter(_max: number, _windowMs: number): (c: Context, next: Next) => Promise<Response | void> {
-  return async (c: Context, next: Next) => {
-    // Only apply to authenticated requests (GraphQL context has userId)
-    const userId = c.get('userId') as string | undefined;
-
-    if (!userId) {
-      // Not authenticated, skip user-based rate limiting
-      return next();
-    }
-
-    const key = `user:${userId}`;
-
-    try {
-      const result = await checkRateLimit(key, _max, _windowMs);
-
-      if (!result.allowed) {
-        const ttl = Math.ceil((result.resetAt - Date.now()) / 1000);
-        return c.json(
-          {
-            code: ErrorCode.RATE_LIMIT_EXCEEDED,
-            error: 'Too many requests, please try again later',
-            message: `User rate limit exceeded, retry in ${ttl} seconds`,
-          },
-          429,
-        );
-      }
-
-      // Add rate limit headers for client information
-      c.header('X-RateLimit-Limit', String(_max));
-      c.header('X-RateLimit-Remaining', String(result.remaining));
-      c.header('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
-
-      return next();
-    } catch {
-      // On error, allow the request (fail open)
-      return next();
-    }
-  };
-}
-
-/**
  * Security headers middleware
+ * Generates CSP nonce BEFORE processing the request so it's available for the response
  */
 function securityHeaders() {
   return async (c: Context, next: Next): Promise<Response | void> => {
-    await next();
-
-    // Generate nonce for CSP
+    // Generate nonce for CSP BEFORE processing the request
+    // This ensures the nonce is available for the response headers
     const nonce = randomBytes(16).toString('base64');
     c.set('nonce', nonce);
 
-    // Build CSP directive
+    // Build CSP directive with nonce
     const cspDirectives = [
       "default-src 'self'",
       process.env.NODE_ENV === 'production'
@@ -133,7 +86,10 @@ function securityHeaders() {
       .filter(Boolean)
       .join('; ');
 
-    // Set security headers
+    // Process the request
+    await next();
+
+    // Set security headers AFTER processing (so they're in the response)
     c.header('Content-Security-Policy', cspDirectives);
     c.header('X-Content-Type-Options', 'nosniff');
     c.header('X-Frame-Options', 'DENY');
@@ -299,9 +255,9 @@ export function registerSecurityPlugins(app: Hono): void {
   // Security headers middleware
   app.use(securityHeaders());
 
-  // Rate limiting - general IP-based limit (100 requests per minute)
-  // User-based rate limiting is applied in GraphQL handler after authentication
-  app.use(rateLimiter(100, 60 * 1000));
+  // Rate limiting - general IP-based limit
+  // User-based rate limiting with granular limits is applied in GraphQL handler after authentication
+  app.use(rateLimiter(RATE_LIMITS.GENERAL_IP, RATE_LIMITS.WINDOW_MS));
 
   // CSRF protection for mutations
   app.use(csrfProtection());

@@ -6,6 +6,7 @@
 import type {GraphQLContext} from '../middleware/context';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {sanitizeUserInput} from '../utils/sanitization';
+import {getUserDefaultWorkspace} from '../services/WorkspaceService';
 
 export class ExampleDataResolver {
   /**
@@ -17,6 +18,8 @@ export class ExampleDataResolver {
    * @returns True if successful
    */
   async addExampleData(_: unknown, __: unknown, context: GraphQLContext): Promise<boolean> {
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
     await withPrismaErrorHandling(
       async () =>
         await context.prisma.$transaction(async (tx) => {
@@ -28,7 +31,7 @@ export class ExampleDataResolver {
           for (const account of exampleAccounts) {
             const existing = await tx.account.findFirst({
               where: {
-                userId: context.userId,
+                workspaceId,
                 name: account.name,
               },
             });
@@ -37,7 +40,9 @@ export class ExampleDataResolver {
               await tx.account.create({
                 data: {
                   name: sanitizeUserInput(account.name),
-                  userId: context.userId,
+                  workspaceId,
+                  createdBy: context.userId,
+                  lastEditedBy: context.userId,
                   initBalance: 0,
                   balance: 0,
                   isDefault: false,
@@ -64,7 +69,7 @@ export class ExampleDataResolver {
           for (const name of expenseCategoryNames) {
             const existing = await tx.category.findFirst({
               where: {
-                userId: context.userId,
+                workspaceId,
                 name,
               },
             });
@@ -74,7 +79,9 @@ export class ExampleDataResolver {
                 data: {
                   name: sanitizeUserInput(name),
                   categoryType: 'Expense',
-                  userId: context.userId,
+                  workspaceId,
+                  createdBy: context.userId,
+                  lastEditedBy: context.userId,
                   isDefault: false,
                 },
               });
@@ -93,7 +100,7 @@ export class ExampleDataResolver {
           for (const name of incomeCategoryNames) {
             const existing = await tx.category.findFirst({
               where: {
-                userId: context.userId,
+                workspaceId,
                 name,
               },
             });
@@ -103,7 +110,9 @@ export class ExampleDataResolver {
                 data: {
                   name: sanitizeUserInput(name),
                   categoryType: 'Income',
-                  userId: context.userId,
+                  workspaceId,
+                  createdBy: context.userId,
+                  lastEditedBy: context.userId,
                   isDefault: false,
                 },
               });
@@ -121,7 +130,7 @@ export class ExampleDataResolver {
           for (const name of payeeNames) {
             const existing = await tx.payee.findFirst({
               where: {
-                userId: context.userId,
+                workspaceId,
                 name,
               },
             });
@@ -130,7 +139,9 @@ export class ExampleDataResolver {
               await tx.payee.create({
                 data: {
                   name: sanitizeUserInput(name),
-                  userId: context.userId,
+                  workspaceId,
+                  createdBy: context.userId,
+                  lastEditedBy: context.userId,
                   isDefault: false,
                 },
               });

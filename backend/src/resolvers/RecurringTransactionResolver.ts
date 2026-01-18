@@ -65,7 +65,11 @@ export class RecurringTransactionResolver extends BaseResolver {
     return await withPrismaErrorHandling(
       async () => {
         const recurringTransactions = await context.prisma.recurringTransaction.findMany({
-          where: {userId: context.userId},
+          where: {
+            account: {
+              createdBy: context.userId,
+            },
+          },
           include: {
             account: true,
             category: true,
@@ -142,7 +146,6 @@ export class RecurringTransactionResolver extends BaseResolver {
         payeeId: validatedInput.payeeId ?? null,
         note: validatedInput.note ?? null,
         nextRunDate: validatedInput.nextRunDate,
-        userId: context.userId,
       },
       include: {
         account: true,
@@ -182,7 +185,9 @@ export class RecurringTransactionResolver extends BaseResolver {
     const existing = await context.prisma.recurringTransaction.findFirst({
       where: {
         id,
-        userId: context.userId,
+        account: {
+          createdBy: context.userId,
+        },
       },
       select: {id: true},
     });
@@ -196,7 +201,7 @@ export class RecurringTransactionResolver extends BaseResolver {
       const account = await context.prisma.account.findFirst({
         where: {
           id: validatedInput.accountId,
-          userId: context.userId,
+          createdBy: context.userId,
         },
         select: {id: true},
       });
@@ -236,7 +241,9 @@ export class RecurringTransactionResolver extends BaseResolver {
     const recurringTransaction = await context.prisma.recurringTransaction.findFirst({
       where: {
         id,
-        userId: context.userId,
+        account: {
+          createdBy: context.userId,
+        },
       },
       select: {id: true},
     });

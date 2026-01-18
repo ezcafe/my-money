@@ -83,6 +83,38 @@ export function formatDateShort(date: Date | string, dateFormat: DateFormat = DE
 }
 
 /**
+ * Format a date with time according to the specified format pattern
+ * @param date - The date to format (Date object or string)
+ * @param format - The date-time format pattern (e.g., 'DD/MM/YYYY HH:mm')
+ * @returns Formatted date-time string
+ */
+export function formatDateTime(date: Date | string, format: string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const hours = String(dateObj.getHours()).padStart(2, '0');
+  const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+
+  // Replace format patterns
+  return format
+    .replace('YYYY', String(year))
+    .replace('MM', month)
+    .replace('DD', day)
+    .replace('HH', hours)
+    .replace('mm', minutes);
+}
+
+/**
+ * Convert a DateFormat to a date-time format string by appending time
+ * @param dateFormat - The date format pattern (e.g., 'DD/MM/YYYY')
+ * @returns Date-time format string (e.g., 'DD/MM/YYYY HH:mm')
+ */
+export function dateFormatToDateTimeFormat(dateFormat: DateFormat): string {
+  return `${dateFormat} HH:mm`;
+}
+
+/**
  * Format a number as currency preserving original decimal precision
  * If value has .00, shows it. If not, doesn't add .00
  * @param value - The numeric value to format (can be number or Decimal string)

@@ -26,11 +26,14 @@ import {
   GET_REPORT_TRANSACTIONS,
 } from '../graphql/queries';
 import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA, ADD_EXAMPLE_DATA} from '../graphql/mutations';
+import {GET_WORKSPACES, GET_WORKSPACE_MEMBERS} from '../graphql/workspaceOperations';
 import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt, AttachMoney, HelpOutline, Settings, DataObject, Security} from '@mui/icons-material';
 import {useNotifications} from '../contexts/NotificationContext';
 import type {DateFormat} from '../contexts/DateFormatContext';
 import {DEFAULT_DATE_FORMAT} from '../contexts/DateFormatContext';
 import {PageContainer} from '../components/common/PageContainer';
+import {WorkspaceSelector} from '../components/WorkspaceSelector';
+import {MultiSelect} from '../components/ui/MultiSelect';
 
 /**
  * Export data type from GraphQL
@@ -228,10 +231,52 @@ export function PreferencesPage(): React.JSX.Element {
   const currencyUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetConfirmationText, setResetConfirmationText] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [exportDataQuery] = useLazyQuery<ExportDataQueryResult>(EXPORT_DATA);
+
+  // Workspace and member filtering for export
+  const {data: workspacesData} = useQuery<{
+    workspaces: Array<{
+      id: string;
+      name: string;
+    }>;
+  }>(GET_WORKSPACES, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const workspaces = React.useMemo(() => workspacesData?.workspaces ?? [], [workspacesData?.workspaces]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+
+  // Auto-select first workspace if available
+  React.useEffect(() => {
+    if (workspaces.length > 0 && !selectedWorkspaceId) {
+      const firstWorkspace = workspaces[0];
+      if (firstWorkspace) {
+        setSelectedWorkspaceId(firstWorkspace.id);
+      }
+    }
+  }, [workspaces, selectedWorkspaceId]);
+
+  const {data: membersData} = useQuery<{
+    workspaceMembers: Array<{
+      id: string;
+      userId: string;
+      user: {
+        id: string;
+        email: string;
+      };
+    }>;
+  }>(GET_WORKSPACE_MEMBERS, {
+    variables: {workspaceId: selectedWorkspaceId},
+    skip: !selectedWorkspaceId,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const members = membersData?.workspaceMembers ?? [];
   const [importCSVMutation] = useMutation<ImportCSVResult>(IMPORT_CSV, {
     refetchQueries: [
       {query: GET_ACCOUNTS},
@@ -294,8 +339,16 @@ export function PreferencesPage(): React.JSX.Element {
       if (preferencesData.preferences.currency) {
         setCurrency(preferencesData.preferences.currency);
       }
-      const format = preferencesData.preferences.dateFormat;
-      if (format && (format === 'DD/MM/YYYY' || format === 'MM/DD/YYYY' || format === 'YYYY-MM-DD' || format === 'DD-MM-YYYY' || format === 'MM-DD-YYYY')) {
+      const rawFormat = preferencesData.preferences.dateFormat;
+      if (!rawFormat) {
+        setDateFormat(DEFAULT_DATE_FORMAT);
+        return;
+      }
+
+      // Decode HTML entities (e.g., &#x2F; -> /)
+      const format = rawFormat.replace(/&#x2F;/g, '/').replace(/&#x2D;/g, '-');
+
+      if (format === 'DD/MM/YYYY' || format === 'MM/DD/YYYY' || format === 'YYYY-MM-DD' || format === 'DD-MM-YYYY' || format === 'MM-DD-YYYY') {
         setDateFormat(format as DateFormat);
       } else {
         setDateFormat(DEFAULT_DATE_FORMAT);
@@ -511,10 +564,17 @@ export function PreferencesPage(): React.JSX.Element {
   const handleExport = async (): Promise<void> => {
     setExporting(true);
     try {
-      const {data} = await exportDataQuery();
+      const {data} = await exportDataQuery({
+        variables: {
+          memberIds: selectedMemberIds.length > 0 ? selectedMemberIds : undefined,
+        },
+      });
       if (!data?.exportData) {
         return;
       }
+
+      // Close dialog after export starts
+      setExportDialogOpen(false);
 
       const exportData = data.exportData;
 
@@ -1110,6 +1170,72 @@ export function PreferencesPage(): React.JSX.Element {
               size="medium"
             />
           </Box>
+        </Box>
+      </Dialog>
+
+      {/* Export Dialog with Workspace and Member Selection */}
+      <Dialog
+        open={exportDialogOpen}
+        onClose={() => {
+          if (!exporting) {
+            setExportDialogOpen(false);
+          }
+        }}
+        title="Export Data"
+        maxWidth="sm"
+        fullWidth
+        actions={
+          <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', width: '100%'}}>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setExportDialogOpen(false);
+              }}
+              disabled={exporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                void handleExport();
+              }}
+              disabled={exporting}
+              startIcon={exporting ? <CircularProgress size={16} /> : <Download />}
+            >
+              {exporting ? 'Exporting...' : 'Export'}
+            </Button>
+          </Box>
+        }
+      >
+        <Box sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
+          <Typography variant="body2" color="text.secondary">
+            Select workspace and members to filter the exported data. Leave members unselected to export all data.
+          </Typography>
+
+          {workspaces.length > 0 ? (
+            <WorkspaceSelector
+              value={selectedWorkspaceId}
+              onChange={(workspaceId: string) => {
+                setSelectedWorkspaceId(workspaceId);
+                setSelectedMemberIds([]);
+              }}
+            />
+          ) : null}
+
+          {selectedWorkspaceId && members.length > 0 ? (
+            <MultiSelect
+              label="Filter by Members (optional)"
+              options={members.map((m) => ({
+                id: m.userId,
+                name: m.user.email,
+              }))}
+              value={selectedMemberIds}
+              onChange={(value: string[]) => {
+                setSelectedMemberIds(value);
+              }}
+            />
+          ) : null}
         </Box>
       </Dialog>
     </PageContainer>

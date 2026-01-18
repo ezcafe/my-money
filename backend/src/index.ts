@@ -2,6 +2,7 @@
  * Apollo GraphQL Server Entry Point
  */
 
+import 'reflect-metadata';
 import {Hono} from 'hono';
 import {serve} from '@hono/node-server';
 import {readFileSync} from 'fs';
@@ -16,15 +17,20 @@ import {startBudgetResetCron} from './cron/budgetReset';
 import {startBalanceReconciliationCron} from './cron/balanceReconciliation';
 import {startCacheCleanupCron} from './cron/cacheCleanup';
 import {startBackupCron} from './cron/backup';
+import {startDataArchivalCron} from './cron/dataArchival';
 import {registerSecurityPlugins} from './config/security';
 import {registerMultipartHandler} from './config/multipart';
 import {createApolloServer} from './config/apollo';
 import {createApolloHandler} from './config/apolloHandler';
+import {createSubscriptionServer} from './config/subscriptions';
+import {makeExecutableSchema} from '@graphql-tools/schema';
 import {registerAuthRoutes} from './routes/auth';
 import {checkDatabaseHealth} from './utils/prisma';
 import {getOIDCConfig} from './middleware/auth';
 import {config} from './config';
 import {runMigrationsWithRetry} from './utils/migrations';
+import {startDatabaseListener, stopDatabaseListener} from './utils/databaseListener';
+import {logInfo, logError, logWarn} from './utils/logger';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -54,6 +60,22 @@ function validateEnvironmentVariables(): void {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 }
+
+// Nonce endpoint - returns CSP nonce for current request
+// Frontend can use this to set nonce attributes on dynamically created scripts/styles
+app.get('/api/nonce', async (c) => {
+  // Get nonce from context (set by securityHeaders middleware)
+  // Use get() with proper typing for Hono context
+  const nonce = (c.get('nonce' as never) as string | undefined);
+  if (!nonce) {
+    // Generate nonce if not already set (shouldn't happen if middleware is registered)
+    const {randomBytes} = await import('crypto');
+    const generatedNonce = randomBytes(16).toString('base64');
+    c.set('nonce' as never, generatedNonce);
+    return c.json({nonce: generatedNonce});
+  }
+  return c.json({nonce});
+});
 
 // Health check endpoint (no rate limit)
 // Verifies database connectivity, OIDC configuration, and system resources
@@ -128,8 +150,10 @@ async function startServer(): Promise<void> {
     // Validate environment variables before starting
     const envValidationStart = Date.now();
     validateEnvironmentVariables();
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - envValidationStart}ms] Environment validated`);
+    logInfo('Environment validated', {
+      durationMs: Date.now() - envValidationStart,
+      event: 'startup_environment_validation',
+    });
 
     // Run migrations and OIDC initialization in parallel (they're independent)
     const parallelStart = Date.now();
@@ -138,10 +162,15 @@ async function startServer(): Promise<void> {
         const migrationStart = Date.now();
         try {
           await runMigrationsWithRetry();
-          // eslint-disable-next-line no-console
-          console.log(`[${Date.now() - migrationStart}ms] Database migrations completed`);
+          logInfo('Database migrations completed', {
+            durationMs: Date.now() - migrationStart,
+            event: 'startup_migrations_completed',
+          });
         } catch (error) {
-          console.error(`[${Date.now() - migrationStart}ms] Database migrations failed:`, error);
+          logError('Database migrations failed', {
+            durationMs: Date.now() - migrationStart,
+            event: 'startup_migrations_failed',
+          }, error instanceof Error ? error : new Error(String(error)));
           throw error;
         }
       })(),
@@ -149,17 +178,24 @@ async function startServer(): Promise<void> {
         const oidcStart = Date.now();
         try {
           await initializeOIDC();
-          // eslint-disable-next-line no-console
-          console.log(`[${Date.now() - oidcStart}ms] OIDC initialized`);
+          logInfo('OIDC initialized', {
+            durationMs: Date.now() - oidcStart,
+            event: 'startup_oidc_initialized',
+          });
         } catch (error) {
-          console.error(`[${Date.now() - oidcStart}ms] OIDC initialization failed:`, error);
+          logError('OIDC initialization failed', {
+            durationMs: Date.now() - oidcStart,
+            event: 'startup_oidc_failed',
+          }, error instanceof Error ? error : new Error(String(error)));
           throw error;
         }
       })(),
     ]);
 
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - parallelStart}ms] Parallel initialization completed`);
+    logInfo('Parallel initialization completed', {
+      durationMs: Date.now() - parallelStart,
+      event: 'startup_parallel_init_completed',
+    });
 
     // Check results - migrations are critical, OIDC can fail gracefully in development
     if (migrationResult.status === 'rejected') {
@@ -168,8 +204,10 @@ async function startServer(): Promise<void> {
     if (oidcResult.status === 'rejected') {
       const isDevelopment = process.env.NODE_ENV !== 'production';
       if (isDevelopment) {
-        console.warn('⚠️  OIDC initialization failed, but continuing in development mode. Authentication may not work until OIDC is available.');
-        console.warn('   Error:', oidcResult.reason instanceof Error ? oidcResult.reason.message : String(oidcResult.reason));
+        logWarn('OIDC initialization failed, but continuing in development mode. Authentication may not work until OIDC is available.', {
+          event: 'startup_oidc_failed_development',
+          error: oidcResult.reason instanceof Error ? oidcResult.reason.message : String(oidcResult.reason),
+        });
       } else {
         // In production, OIDC is required
         throw oidcResult.reason;
@@ -181,62 +219,112 @@ async function startServer(): Promise<void> {
     try {
       const {initializeCacheTables} = await import('./utils/postgresCache');
       const {initializeRateLimitTables} = await import('./utils/postgresRateLimiter');
-      const {initializeTokenRevocationTable} = await import('./utils/tokenRevocation');
+      const {initializeTokenRevocationTable, clearAllRevocations} = await import('./utils/tokenRevocation');
       await Promise.all([
         initializeCacheTables(),
         initializeRateLimitTables(),
         initializeTokenRevocationTable(),
       ]);
-      // eslint-disable-next-line no-console
-      console.log(`[${Date.now() - cacheInitStart}ms] Cache, rate limit, and token revocation tables initialized`);
+      // Clear all token revocations on startup since we've disabled token revocation
+      // This ensures we start with a clean slate and removes any old revoked tokens
+      const clearedCount = await clearAllRevocations();
+      if (clearedCount > 0) {
+        logInfo('Cleared old token revocations on startup', {
+          event: 'startup_token_revocation_cleared',
+          clearedCount,
+        });
+      }
+      logInfo('Cache, rate limit, and token revocation tables initialized', {
+        durationMs: Date.now() - cacheInitStart,
+        event: 'startup_cache_tables_initialized',
+      });
     } catch (error) {
-      console.error(`[${Date.now() - cacheInitStart}ms] Cache tables initialization failed:`, error);
+      logError('Cache tables initialization failed', {
+        durationMs: Date.now() - cacheInitStart,
+        event: 'startup_cache_tables_failed',
+      }, error instanceof Error ? error : new Error(String(error)));
       // Don't throw - cache tables are optional and can be created later
+    }
+
+    // Start database listener for NOTIFY events (after migrations)
+    const dbListenerStart = Date.now();
+    try {
+      await startDatabaseListener();
+      logInfo('Database listener started', {
+        durationMs: Date.now() - dbListenerStart,
+        event: 'startup_database_listener_started',
+      });
+    } catch (error) {
+      logError('Database listener startup failed', {
+        durationMs: Date.now() - dbListenerStart,
+        event: 'startup_database_listener_failed',
+      }, error instanceof Error ? error : new Error(String(error)));
+      // Don't throw - database listener is optional and can be started later
+      // Events will still work from application-level emitters
     }
 
     // Register multipart handler for file uploads (must be registered BEFORE security plugins
     // to access the raw request body before it's consumed)
     const multipartStart = Date.now();
     registerMultipartHandler(app);
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - multipartStart}ms] Multipart handler registered`);
+    logInfo('Multipart handler registered', {
+      durationMs: Date.now() - multipartStart,
+      event: 'startup_multipart_handler_registered',
+    });
 
     // Register security plugins (includes cookie, CORS, compression, rate limiting)
     const securityStart = Date.now();
     registerSecurityPlugins(app);
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - securityStart}ms] Security plugins registered`);
+    logInfo('Security plugins registered', {
+      durationMs: Date.now() - securityStart,
+      event: 'startup_security_plugins_registered',
+    });
 
     // Register authentication routes
     const authRoutesStart = Date.now();
     registerAuthRoutes(app);
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - authRoutesStart}ms] Authentication routes registered`);
+    logInfo('Authentication routes registered', {
+      durationMs: Date.now() - authRoutesStart,
+      event: 'startup_auth_routes_registered',
+    });
 
     // Read GraphQL schema
     const schemaStart = Date.now();
     const typeDefs = readFileSync(join(__dirname, 'schema', 'schema.graphql'), 'utf-8');
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - schemaStart}ms] GraphQL schema loaded`);
+    logInfo('GraphQL schema loaded', {
+      durationMs: Date.now() - schemaStart,
+      event: 'startup_schema_loaded',
+    });
+
+    // Build executable schema for subscriptions
+    const allResolvers = {
+      ...resolvers,
+      DateTime,
+      Decimal,
+      Upload,
+    };
+    const executableSchema = makeExecutableSchema({
+      typeDefs,
+      resolvers: allResolvers,
+    });
 
     // Create Apollo Server
     const apolloCreateStart = Date.now();
     const server = createApolloServer(
       typeDefs,
-      {
-        ...resolvers,
-        DateTime,
-        Decimal,
-        Upload,
-      },
+      allResolvers,
     );
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - apolloCreateStart}ms] Apollo Server created`);
+    logInfo('Apollo Server created', {
+      durationMs: Date.now() - apolloCreateStart,
+      event: 'startup_apollo_server_created',
+    });
 
     const apolloStartStart = Date.now();
     await server.start();
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - apolloStartStart}ms] Apollo Server started`);
+    logInfo('Apollo Server started', {
+      durationMs: Date.now() - apolloStartStart,
+      event: 'startup_apollo_server_started',
+    });
 
     // Register Apollo handler with Hono
     app.all('/graphql', createApolloHandler(server));
@@ -248,10 +336,13 @@ async function startServer(): Promise<void> {
     startBalanceReconciliationCron();
     startCacheCleanupCron();
     startBackupCron();
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - cronStart}ms] Cron jobs started`);
+    startDataArchivalCron();
+    logInfo('Cron jobs started', {
+      durationMs: Date.now() - cronStart,
+      event: 'startup_cron_jobs_started',
+    });
 
-    // Start server
+    // Start HTTP server
     const serverStartStart = Date.now();
     const serverInstance = serve({
       fetch: app.fetch,
@@ -259,17 +350,36 @@ async function startServer(): Promise<void> {
       hostname: config.server.host,
     }, (info) => {
       const totalTime = Date.now() - startTime;
-      // eslint-disable-next-line no-console
-      console.log(`🚀 Server ready at http://localhost:${info.port}/graphql (startup: ${totalTime}ms)`);
+      logInfo('Server ready', {
+        totalStartupTimeMs: totalTime,
+        port: info.port,
+        graphqlUrl: `http://localhost:${info.port}/graphql`,
+        wsUrl: `ws://localhost:${info.port}/graphql-ws`,
+        event: 'startup_server_ready',
+      });
     });
-    // eslint-disable-next-line no-console
-    console.log(`[${Date.now() - serverStartStart}ms] HTTP server started`);
+    logInfo('HTTP server started', {
+      durationMs: Date.now() - serverStartStart,
+      event: 'startup_http_server_started',
+    });
 
-    // Store server instance for graceful shutdown
-    (globalThis as {serverInstance?: typeof serverInstance}).serverInstance = serverInstance;
+    // Create WebSocket server for GraphQL subscriptions
+    const wsStart = Date.now();
+    const wsServer = createSubscriptionServer(executableSchema, serverInstance);
+    logInfo('WebSocket server created', {
+      durationMs: Date.now() - wsStart,
+      event: 'startup_websocket_server_created',
+    });
+
+    // Store server instances for graceful shutdown
+    (globalThis as {serverInstance?: typeof serverInstance; wsServer?: typeof wsServer}).serverInstance = serverInstance;
+    (globalThis as {serverInstance?: typeof serverInstance; wsServer?: typeof wsServer}).wsServer = wsServer;
   } catch (error) {
     const totalTime = Date.now() - startTime;
-    console.error(`Server startup error after ${totalTime}ms:`, error);
+    logError('Server startup error', {
+      totalStartupTimeMs: totalTime,
+      event: 'startup_failed',
+    }, error instanceof Error ? error : new Error(String(error)));
     process.exit(1);
   }
 }
@@ -284,14 +394,26 @@ async function gracefulShutdown(): Promise<void> {
   isShuttingDown = true;
 
   try {
+    // Stop database listener
+    await stopDatabaseListener();
+
     await disconnectPrisma();
+
+    // Close WebSocket server first
+    const wsServer = (globalThis as {wsServer?: {close: () => void}}).wsServer;
+    if (wsServer?.close) {
+      wsServer.close();
+    }
+
     const serverInstance = (globalThis as {serverInstance?: {close: () => Promise<void>}}).serverInstance;
     if (serverInstance?.close) {
       await serverInstance.close();
     }
     process.exit(0);
   } catch (error) {
-    console.error('Error during shutdown:', error);
+    logError('Error during shutdown', {
+      event: 'shutdown_error',
+    }, error instanceof Error ? error : new Error(String(error)));
     process.exit(1);
   }
 }

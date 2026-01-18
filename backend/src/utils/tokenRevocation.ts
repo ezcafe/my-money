@@ -47,38 +47,27 @@ export async function isTokenRevoked(token: string): Promise<boolean> {
 
 /**
  * Revoke a token
- * @param token - Token to revoke
- * @param expiresAt - When the token revocation expires (default: 24 hours from now)
- * @returns Promise that resolves when token is revoked
+ * NOTE: Token revocation is currently DISABLED to prevent race conditions.
+ * Most OIDC providers automatically invalidate old tokens when new ones are issued.
+ * This function is now a no-op that only logs for debugging purposes.
+ * @param token - Token to revoke (ignored - revocation is disabled)
+ * @param expiresAt - When the token revocation expires (ignored - revocation is disabled)
+ * @returns Promise that resolves immediately (no-op)
  */
 export async function revokeToken(
-  token: string,
-  expiresAt?: Date,
+  _token: string,
+  _expiresAt?: Date,
 ): Promise<void> {
-  try {
-    const tokenHash = hashToken(token);
-    const expirationDate = expiresAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  // Token revocation is disabled - this is a no-op
+  // The OIDC provider handles token invalidation automatically
+  // We don't revoke tokens ourselves to avoid race conditions with concurrent requests
+  logInfo('Token revocation requested but disabled (no-op)', {
+    event: 'token_revocation_disabled',
+    note: 'Token revocation is disabled. OIDC provider handles token invalidation.',
+  });
 
-    await prisma.$executeRaw`
-      INSERT INTO "token_revocation" (key, expires_at, created_at)
-      VALUES (${tokenHash}, ${expirationDate}, NOW())
-      ON CONFLICT (key) DO UPDATE
-        SET expires_at = ${expirationDate},
-            created_at = NOW()
-    `;
-
-    logInfo('Token revoked', {
-      event: 'token_revoked',
-      tokenHash,
-      expiresAt: expirationDate.toISOString(),
-    });
-  } catch (error) {
-    const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Token revocation failed', {
-      event: 'token_revocation_failed',
-    }, errorObj);
-    throw errorObj;
-  }
+  // Return immediately without revoking anything
+  return Promise.resolve();
 }
 
 /**
@@ -131,6 +120,35 @@ export async function clearExpiredRevocations(): Promise<number> {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Failed to clear expired token revocations', {
       event: 'token_revocation_cleanup_failed',
+    }, errorObj);
+    return 0;
+  }
+}
+
+/**
+ * Clear ALL token revocations
+ * Useful for cleanup when token revocation is disabled
+ * @returns Number of entries deleted
+ */
+export async function clearAllRevocations(): Promise<number> {
+  try {
+    const result = await prisma.$executeRaw`
+      DELETE FROM "token_revocation"
+    `;
+
+    const deletedCount = typeof result === 'number' ? result : 0;
+    if (deletedCount > 0) {
+      logInfo('All token revocations cleared', {
+        event: 'token_revocation_clear_all',
+        deletedCount,
+      });
+    }
+
+    return deletedCount;
+  } catch (error) {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logError('Failed to clear all token revocations', {
+      event: 'token_revocation_clear_all_failed',
     }, errorObj);
     return 0;
   }

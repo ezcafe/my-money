@@ -5,8 +5,9 @@
 
 
 import type {GraphQLContext} from '../middleware/context';
-import type {Account, Category, Payee, Transaction, RecurringTransaction, UserPreferences, Budget, ImportMatchRule} from '@prisma/client';
+import type {Account, Category, Payee, Transaction, RecurringTransaction, UserPreferences, Budget, ImportMatchRule, Prisma} from '@prisma/client';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {checkWorkspaceAccess, getUserDefaultWorkspace} from '../services/WorkspaceService';
 
 /**
  * Export Resolver Class
@@ -34,6 +35,7 @@ export class ExportResolver {
       includeTransactions?: boolean;
       includeRecurringTransactions?: boolean;
       includeBudgets?: boolean;
+      memberIds?: string[];
     },
     context: GraphQLContext,
   ): Promise<{
@@ -46,6 +48,12 @@ export class ExportResolver {
     budgets: Budget[];
     importMatchRules: ImportMatchRule[];
   }> {
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
     return await withPrismaErrorHandling(
       async () => {
         const {
@@ -57,18 +65,28 @@ export class ExportResolver {
           includeTransactions = true,
           includeRecurringTransactions = true,
           includeBudgets = true,
+          memberIds,
         } = args;
 
         // Build transaction where clause with filters
         const transactionWhere: {
-          userId: string;
+          account: {workspaceId: string};
           date?: {gte?: Date; lte?: Date};
           accountId?: {in: string[]};
           categoryId?: {in: string[]} | null;
           payeeId?: {in: string[]} | null;
+          OR?: Array<{createdBy: {in: string[]}} | {lastEditedBy: {in: string[]}}>;
         } = {
-          userId: context.userId,
+          account: {workspaceId},
         };
+
+        // Filter by memberIds if provided (createdBy or lastEditedBy)
+        if (memberIds && memberIds.length > 0) {
+          transactionWhere.OR = [
+            {createdBy: {in: memberIds}},
+            {lastEditedBy: {in: memberIds}},
+          ];
+        }
 
         if (startDate || endDate) {
           transactionWhere.date = {};
@@ -96,14 +114,14 @@ export class ExportResolver {
           transactionWhere.payeeId = null; // Export transactions with no payee
         }
 
-        // Build recurring transaction where clause
+        // Build recurring transaction where clause (inherits workspace from account)
         const recurringTransactionWhere: {
-          userId: string;
+          account: {workspaceId: string};
           accountId?: {in: string[]};
           categoryId?: {in: string[]} | null;
           payeeId?: {in: string[]} | null;
         } = {
-          userId: context.userId,
+          account: {workspaceId},
         };
 
         if (accountIds && accountIds.length > 0) {
@@ -118,13 +136,22 @@ export class ExportResolver {
 
         // Build budget where clause
         const budgetWhere: {
-          userId: string;
+          workspaceId: string;
           accountId?: {in: string[]} | null;
           categoryId?: {in: string[]} | null;
           payeeId?: {in: string[]} | null;
+          OR?: Array<{createdBy: {in: string[]}} | {lastEditedBy: {in: string[]}}>;
         } = {
-          userId: context.userId,
+          workspaceId,
         };
+
+        // Filter by memberIds if provided (createdBy or lastEditedBy)
+        if (memberIds && memberIds.length > 0) {
+          budgetWhere.OR = [
+            {createdBy: {in: memberIds}},
+            {lastEditedBy: {in: memberIds}},
+          ];
+        }
 
         if (accountIds && accountIds.length > 0) {
           budgetWhere.accountId = {in: accountIds};
@@ -134,6 +161,31 @@ export class ExportResolver {
         }
         if (payeeIds && payeeIds.length > 0) {
           budgetWhere.payeeId = {in: payeeIds};
+        }
+
+        // Build where clauses for accounts, categories, payees with memberIds filtering
+        const accountWhere: Prisma.AccountWhereInput = {workspaceId};
+        if (memberIds && memberIds.length > 0) {
+          accountWhere.OR = [
+            {createdBy: {in: memberIds}},
+            {lastEditedBy: {in: memberIds}},
+          ];
+        }
+
+        const categoryWhere: Prisma.CategoryWhereInput = {workspaceId};
+        if (memberIds && memberIds.length > 0) {
+          categoryWhere.OR = [
+            {createdBy: {in: memberIds}},
+            {lastEditedBy: {in: memberIds}},
+          ];
+        }
+
+        const payeeWhere: Prisma.PayeeWhereInput = {workspaceId};
+        if (memberIds && memberIds.length > 0) {
+          payeeWhere.OR = [
+            {createdBy: {in: memberIds}},
+            {lastEditedBy: {in: memberIds}},
+          ];
         }
 
         // Fetch user data in parallel (always fetch reference data)
@@ -149,17 +201,17 @@ export class ExportResolver {
         ] = await Promise.all([
           // Accounts (always included)
           context.prisma.account.findMany({
-            where: {userId: context.userId},
+            where: accountWhere,
             orderBy: {createdAt: 'asc'},
           }),
           // Categories (always included)
           context.prisma.category.findMany({
-            where: {userId: context.userId},
+            where: categoryWhere,
             orderBy: {createdAt: 'asc'},
           }),
           // Payees (always included)
           context.prisma.payee.findMany({
-            where: {userId: context.userId},
+            where: payeeWhere,
             orderBy: {createdAt: 'asc'},
           }),
           // Transactions (filtered if includeTransactions is true)

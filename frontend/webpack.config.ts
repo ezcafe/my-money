@@ -5,6 +5,7 @@ import CopyWebpackPlugin from 'copy-webpack-plugin';
 import webpack from 'webpack';
 import type {Configuration} from 'webpack';
 import {config as dotenvConfig} from 'dotenv';
+import {BundleAnalyzerPlugin} from 'webpack-bundle-analyzer';
 
 // Load environment variables from .env file
 dotenvConfig();
@@ -96,6 +97,16 @@ const config: Configuration = {
         },
       ],
     }),
+    // Add bundle analyzer only when ANALYZE environment variable is set
+    ...(process.env.ANALYZE === 'true'
+      ? [
+          new BundleAnalyzerPlugin({
+            analyzerMode: 'static',
+            openAnalyzer: false,
+            reportFilename: 'bundle-report.html',
+          }),
+        ]
+      : []),
     new webpack.DefinePlugin({
       'process.env.REACT_APP_GRAPHQL_URL': JSON.stringify(
         process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql',

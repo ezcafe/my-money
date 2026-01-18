@@ -14,32 +14,22 @@ type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' |
  */
 export class CategoryRepository extends BaseRepository {
   /**
-   * Find category by ID with ownership check
-   * Categories can be user-specific or default (isDefault: true)
+   * Find category by ID in workspace
    * @param id - Category ID
-   * @param userId - User ID
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @returns Category if found, null otherwise
    */
   async findById(
     id: string,
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
   ): Promise<Category | null> {
     const queryOptions: {
-      where: {
-        id: string;
-        OR: Array<{userId: string} | {isDefault: boolean; userId: null}>;
-      };
+      where: {id: string; workspaceId: string};
       select?: Record<string, boolean>;
     } = {
-      where: {
-        id,
-        OR: [
-          {userId},
-          {isDefault: true, userId: null},
-        ],
-      },
+      where: {id, workspaceId},
     };
 
     if (select) {
@@ -50,27 +40,20 @@ export class CategoryRepository extends BaseRepository {
   }
 
   /**
-   * Find all categories for a user (including defaults)
-   * @param userId - User ID
+   * Find all categories in a workspace
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @returns Array of categories
    */
   async findMany(
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
   ): Promise<Category[]> {
     const queryOptions: {
-      where: {
-        OR: Array<{userId: string} | {isDefault: boolean}>;
-      };
+      where: {workspaceId: string};
       select?: Record<string, boolean>;
     } = {
-      where: {
-        OR: [
-          {userId},
-          {isDefault: true},
-        ],
-      },
+      where: {workspaceId},
     };
 
     if (select) {
@@ -91,7 +74,9 @@ export class CategoryRepository extends BaseRepository {
       name: string;
       categoryType: 'Income' | 'Expense';
       isDefault?: boolean;
-      userId?: string | null;
+      workspaceId: string;
+      createdBy: string;
+      lastEditedBy: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Category> {
@@ -112,6 +97,7 @@ export class CategoryRepository extends BaseRepository {
       name?: string;
       categoryType?: 'Income' | 'Expense';
       isDefault?: boolean;
+      lastEditedBy?: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Category> {
@@ -136,18 +122,13 @@ export class CategoryRepository extends BaseRepository {
   }
 
   /**
-   * Count categories for a user
-   * @param userId - User ID
+   * Count categories in a workspace
+   * @param workspaceId - Workspace ID
    * @returns Count of categories
    */
-  async count(userId: string): Promise<number> {
+  async count(workspaceId: string): Promise<number> {
     return this.prisma.category.count({
-      where: {
-        OR: [
-          {userId},
-          {isDefault: true},
-        ],
-      },
+      where: {workspaceId},
     });
   }
 }

@@ -8,14 +8,9 @@ import {NotFoundError} from '../utils/errors';
 import type {PrismaClient} from '@prisma/client';
 import {validate} from '../utils/validation';
 import {sanitizeUserInput} from '../utils/sanitization';
-import {AccountRepository} from '../repositories/AccountRepository';
-import {CategoryRepository} from '../repositories/CategoryRepository';
-import {PayeeRepository} from '../repositories/PayeeRepository';
-import {TransactionRepository} from '../repositories/TransactionRepository';
-import {RecurringTransactionRepository} from '../repositories/RecurringTransactionRepository';
-import {BudgetRepository} from '../repositories/BudgetRepository';
 import type {GraphQLContext} from '../middleware/context';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {getContainer} from '../utils/container';
 
 type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
@@ -42,29 +37,30 @@ export abstract class BaseResolver {
     userId: string,
     select?: Record<string, boolean>,
   ): Promise<T | null> {
+    const container = getContainer();
     switch (model) {
       case 'account': {
-        const repository = new AccountRepository(prisma);
+        const repository = container.getAccountRepository(prisma);
         return (await repository.findById(id, userId, select)) as T | null;
       }
       case 'category': {
-        const repository = new CategoryRepository(prisma);
+        const repository = container.getCategoryRepository(prisma);
         return (await repository.findById(id, userId, select)) as T | null;
       }
       case 'payee': {
-        const repository = new PayeeRepository(prisma);
+        const repository = container.getPayeeRepository(prisma);
         return (await repository.findById(id, userId, select)) as T | null;
       }
       case 'transaction': {
-        const repository = new TransactionRepository(prisma);
+        const repository = container.getTransactionRepository(prisma);
         return (await repository.findById(id, userId, select)) as T | null;
       }
       case 'recurringTransaction': {
-        const repository = new RecurringTransactionRepository(prisma);
+        const repository = container.getRecurringTransactionRepository(prisma);
         return (await repository.findById(id, userId, select)) as T | null;
       }
       case 'budget': {
-        const repository = new BudgetRepository(prisma);
+        const repository = container.getBudgetRepository(prisma);
         return (await repository.findById(id, userId, select)) as T | null;
       }
       default:
@@ -183,8 +179,9 @@ export abstract class BaseResolver {
    * Ensure default categories exist
    * Creates default categories if they don't exist
    * @param context - GraphQL context
+   * @param workspaceId - Workspace ID
    */
-  protected async ensureDefaultCategories(context: GraphQLContext): Promise<void> {
+  protected async ensureDefaultCategories(context: GraphQLContext, workspaceId: string): Promise<void> {
     const defaultCategories = [
       {name: 'Food & Groceries', categoryType: 'Expense' as const},
       {name: 'Salary', categoryType: 'Income' as const},
@@ -197,7 +194,7 @@ export abstract class BaseResolver {
             where: {
               name: categoryData.name,
               isDefault: true,
-              userId: null,
+              workspaceId,
             },
             select: {id: true},
           }),
@@ -212,7 +209,9 @@ export abstract class BaseResolver {
                 name: categoryData.name,
                 categoryType: categoryData.categoryType,
                 isDefault: true,
-                userId: null,
+                workspaceId,
+                createdBy: context.userId,
+                lastEditedBy: context.userId,
               },
             }),
           {resource: 'Category', operation: 'create'},
@@ -225,8 +224,9 @@ export abstract class BaseResolver {
    * Ensure default payees exist
    * Creates default payees if they don't exist
    * @param context - GraphQL context
+   * @param workspaceId - Workspace ID
    */
-  protected async ensureDefaultPayees(context: GraphQLContext): Promise<void> {
+  protected async ensureDefaultPayees(context: GraphQLContext, workspaceId: string): Promise<void> {
     const defaultPayeeNames = ['Neccesities'];
 
     for (const name of defaultPayeeNames) {
@@ -236,7 +236,7 @@ export abstract class BaseResolver {
             where: {
               name,
               isDefault: true,
-              userId: null,
+              workspaceId,
             },
             select: {id: true},
           }),
@@ -250,7 +250,9 @@ export abstract class BaseResolver {
               data: {
                 name,
                 isDefault: true,
-                userId: null,
+                workspaceId,
+                createdBy: context.userId,
+                lastEditedBy: context.userId,
               },
             }),
           {resource: 'Payee', operation: 'create'},

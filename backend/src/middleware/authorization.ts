@@ -1,179 +1,72 @@
 /**
  * Authorization Middleware
  * Provides consistent authorization checks for resolvers
+ * Uses workspace-based access control
  */
 
 import type {GraphQLContext} from './context';
-import {NotFoundError} from '../utils/errors';
-import {AccountRepository} from '../repositories/AccountRepository';
-import {CategoryRepository} from '../repositories/CategoryRepository';
-import {PayeeRepository} from '../repositories/PayeeRepository';
-import {TransactionRepository} from '../repositories/TransactionRepository';
-import {BudgetRepository} from '../repositories/BudgetRepository';
-import {RecurringTransactionRepository} from '../repositories/RecurringTransactionRepository';
+import {NotFoundError, ForbiddenError} from '../utils/errors';
+import {checkWorkspaceAccess, checkWorkspacePermission} from '../services/WorkspaceService';
+import type {WorkspaceRole} from '@prisma/client';
 
 /**
- * Entity model types for authorization
- */
-type EntityModel = 'account' | 'category' | 'payee' | 'transaction' | 'recurringTransaction' | 'budget';
-
-/**
- * Check if entity belongs to user
- * @param model - Entity model name
- * @param id - Entity ID
+ * Require workspace access - throws error if user doesn't have access
+ * @param workspaceId - Workspace ID
  * @param userId - User ID
  * @param context - GraphQL context
- * @returns True if entity belongs to user, false otherwise
+ * @throws NotFoundError if workspace not found or user doesn't have access
  */
-async function checkEntityOwnership(
-  model: EntityModel,
-  id: string,
+export async function requireWorkspaceAccess(
+  workspaceId: string,
   userId: string,
-  context: GraphQLContext,
-): Promise<boolean> {
-  switch (model) {
-    case 'account': {
-      const repository = new AccountRepository(context.prisma);
-      const entity = await repository.findById(id, userId, {id: true});
-      return entity !== null;
+  _context: GraphQLContext,
+): Promise<void> {
+  try {
+    await checkWorkspaceAccess(workspaceId, userId);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('does not have access')) {
+      throw new NotFoundError('Workspace');
     }
-    case 'category': {
-      const repository = new CategoryRepository(context.prisma);
-      const entity = await repository.findById(id, userId, {id: true});
-      return entity !== null;
-    }
-    case 'payee': {
-      const repository = new PayeeRepository(context.prisma);
-      const entity = await repository.findById(id, userId, {id: true});
-      return entity !== null;
-    }
-    case 'transaction': {
-      const repository = new TransactionRepository(context.prisma);
-      const entity = await repository.findById(id, userId, {id: true});
-      return entity !== null;
-    }
-    case 'recurringTransaction': {
-      const repository = new RecurringTransactionRepository(context.prisma);
-      const entity = await repository.findById(id, userId, {id: true});
-      return entity !== null;
-    }
-    case 'budget': {
-      const repository = new BudgetRepository(context.prisma);
-      const entity = await repository.findById(id, userId, {id: true});
-      return entity !== null;
-    }
-    default:
-      return false;
+    throw error;
   }
 }
 
 /**
- * Require entity ownership - throws error if entity doesn't belong to user
- * @param model - Entity model name
- * @param id - Entity ID
+ * Require workspace permission - throws error if user doesn't have required role
+ * @param workspaceId - Workspace ID
  * @param userId - User ID
+ * @param requiredRole - Minimum required role
  * @param context - GraphQL context
- * @throws NotFoundError if entity not found or doesn't belong to user
+ * @throws ForbiddenError if user doesn't have required permission
  */
-export async function requireOwnership(
-  model: EntityModel,
-  id: string,
+export async function requireWorkspacePermission(
+  workspaceId: string,
   userId: string,
-  context: GraphQLContext,
+  requiredRole: WorkspaceRole,
+  _context: GraphQLContext,
 ): Promise<void> {
-  const hasAccess = await checkEntityOwnership(model, id, userId, context);
-  if (!hasAccess) {
-    const modelName = model.charAt(0).toUpperCase() + model.slice(1);
-    throw new NotFoundError(modelName);
+  try {
+    await checkWorkspacePermission(workspaceId, userId, requiredRole);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('does not have')) {
+      throw new ForbiddenError('Insufficient permissions for this workspace');
+    }
+    throw error;
   }
 }
 
 /**
- * Authorization middleware wrapper
- * Wraps a resolver function to check entity ownership before execution
- * @param model - Entity model name
- * @param getId - Function to extract entity ID from resolver arguments
- * @param resolver - Resolver function to wrap
- * @returns Wrapped resolver with authorization check
- */
-export function withAuthorization<TArgs, TReturn>(
-  model: EntityModel,
-  getId: (args: TArgs) => string,
-  resolver: (
-    parent: unknown,
-    args: TArgs,
-    context: GraphQLContext,
-    info: unknown,
-  ) => Promise<TReturn> | TReturn,
-): (
-  parent: unknown,
-  args: TArgs,
-  context: GraphQLContext,
-  info: unknown,
-) => Promise<TReturn> {
-  return async (parent, args, context, info) => {
-    const id = getId(args);
-    await requireOwnership(model, id, context.userId, context);
-    return resolver(parent, args, context, info);
-  };
-}
-
-/**
- * Check if user can access an account
- * @param accountId - Account ID
+ * Check if user can access an entity via workspace
+ * Entities are accessed through their workspace membership
+ * @param workspaceId - Workspace ID
  * @param userId - User ID
  * @param context - GraphQL context
- * @throws NotFoundError if account not found or doesn't belong to user
+ * @throws NotFoundError if workspace not found or user doesn't have access
  */
-export async function requireAccountAccess(
-  accountId: string,
+export async function requireEntityAccess(
+  workspaceId: string,
   userId: string,
   context: GraphQLContext,
 ): Promise<void> {
-  await requireOwnership('account', accountId, userId, context);
-}
-
-/**
- * Check if user can access a category
- * @param categoryId - Category ID
- * @param userId - User ID
- * @param context - GraphQL context
- * @throws NotFoundError if category not found or not accessible
- */
-export async function requireCategoryAccess(
-  categoryId: string,
-  userId: string,
-  context: GraphQLContext,
-): Promise<void> {
-  await requireOwnership('category', categoryId, userId, context);
-}
-
-/**
- * Check if user can access a payee
- * @param payeeId - Payee ID
- * @param userId - User ID
- * @param context - GraphQL context
- * @throws NotFoundError if payee not found or not accessible
- */
-export async function requirePayeeAccess(
-  payeeId: string,
-  userId: string,
-  context: GraphQLContext,
-): Promise<void> {
-  await requireOwnership('payee', payeeId, userId, context);
-}
-
-/**
- * Check if user can access a transaction
- * @param transactionId - Transaction ID
- * @param userId - User ID
- * @param context - GraphQL context
- * @throws NotFoundError if transaction not found or doesn't belong to user
- */
-export async function requireTransactionAccess(
-  transactionId: string,
-  userId: string,
-  context: GraphQLContext,
-): Promise<void> {
-  await requireOwnership('transaction', transactionId, userId, context);
+  await requireWorkspaceAccess(workspaceId, userId, context);
 }

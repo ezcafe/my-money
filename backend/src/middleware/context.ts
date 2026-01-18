@@ -15,6 +15,7 @@ import {logAuthFailure} from '../utils/securityLogger';
 import * as postgresCache from '../utils/postgresCache';
 import {userKey} from '../utils/cacheKeys';
 import {setCorrelationId} from '../utils/logger';
+import {getUserWorkspaces} from '../services/WorkspaceService';
 
 export interface GraphQLContext extends DataLoaderContext {
   userId: string;
@@ -22,6 +23,8 @@ export interface GraphQLContext extends DataLoaderContext {
   requestId: string;
   prisma: typeof prisma;
   request?: Context;
+  currentWorkspaceId?: string;
+  userWorkspaces: string[];
 }
 
 /**
@@ -104,9 +107,15 @@ export async function createContext(c: Context): Promise<GraphQLContext | null> 
 
   // Generate correlation ID (request ID) for tracing
   const requestId = randomUUID();
-  
+
   // Set global correlation ID for logging
   setCorrelationId(requestId);
+
+  // Get user workspaces
+  const userWorkspaces = await getUserWorkspaces(user.id);
+
+  // Get current workspace from header or query parameter
+  const currentWorkspaceId = c.req.header('X-Workspace-Id') ?? c.req.query('workspaceId') ?? undefined;
 
   return {
     userId: user.id,
@@ -114,6 +123,8 @@ export async function createContext(c: Context): Promise<GraphQLContext | null> 
     requestId,
     prisma,
     request: c,
+    currentWorkspaceId,
+    userWorkspaces,
     ...dataLoaders,
   };
 }

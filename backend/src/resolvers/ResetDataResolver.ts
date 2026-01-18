@@ -3,9 +3,10 @@
  * Handles resetting all user data except default entities
  */
 
- 
+
 import type {GraphQLContext} from '../middleware/context';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import {getUserDefaultWorkspace} from '../services/WorkspaceService';
 
 export class ResetDataResolver {
   /**
@@ -19,20 +20,26 @@ export class ResetDataResolver {
    * @returns True if successful
    */
   async resetData(_: unknown, __: unknown, context: GraphQLContext): Promise<boolean> {
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
     await withPrismaErrorHandling(
       async () =>
         await context.prisma.$transaction(async (tx) => {
-          // Delete all transactions for the user
+          // Delete all transactions for the user (through account relation)
           await tx.transaction.deleteMany({
             where: {
-              userId: context.userId,
+              account: {
+                createdBy: context.userId,
+              },
             },
           });
 
-          // Delete all recurring transactions for the user
+          // Delete all recurring transactions for the user (through account relation)
           await tx.recurringTransaction.deleteMany({
             where: {
-              userId: context.userId,
+              account: {
+                createdBy: context.userId,
+              },
             },
           });
 
@@ -57,33 +64,33 @@ export class ResetDataResolver {
             },
           });
 
-          // Delete all budgets for the user
+          // Delete all budgets for the workspace
           await tx.budget.deleteMany({
             where: {
-              userId: context.userId,
+              workspaceId,
             },
           });
 
           // Delete all non-default accounts (preserve default account)
           await tx.account.deleteMany({
             where: {
-              userId: context.userId,
+              workspaceId,
               isDefault: false,
             },
           });
 
-          // Delete all non-default categories (preserve default categories with userId: null)
+          // Delete all non-default categories (preserve default categories)
           await tx.category.deleteMany({
             where: {
-              userId: context.userId,
+              workspaceId,
               isDefault: false,
             },
           });
 
-          // Delete all non-default payees (preserve default payees with userId: null)
+          // Delete all non-default payees (preserve default payees)
           await tx.payee.deleteMany({
             where: {
-              userId: context.userId,
+              workspaceId,
               isDefault: false,
             },
           });
@@ -91,7 +98,7 @@ export class ResetDataResolver {
           // Reset default account balance to initBalance
           const defaultAccount = await tx.account.findFirst({
             where: {
-              userId: context.userId,
+              workspaceId,
               isDefault: true,
             },
           });

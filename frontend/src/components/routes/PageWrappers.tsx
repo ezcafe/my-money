@@ -7,7 +7,7 @@
 import React from 'react';
 import {useNavigate, useParams} from 'react-router';
 import {Add} from '@mui/icons-material';
-import {DELETE_ACCOUNT, DELETE_CATEGORY, DELETE_PAYEE, DELETE_BUDGET} from '../../graphql/mutations';
+import {DELETE_ACCOUNT, DELETE_CATEGORY, DELETE_PAYEE, DELETE_BUDGET, DELETE_TRANSACTION} from '../../graphql/mutations';
 import {usePageWrapper} from '../../hooks/usePageWrapper';
 import {useAccount} from '../../hooks/useAccount';
 import {useCategory} from '../../hooks/useCategory';
@@ -23,6 +23,7 @@ const PayeesPage = React.lazy(() => import('../../pages/PayeesPage').then((m) =>
 const CategoriesPage = React.lazy(() => import('../../pages/CategoriesPage').then((m) => ({default: m.CategoriesPage})));
 const PayeeDetailsPage = React.lazy(() => import('../../pages/PayeeDetailsPage').then((m) => ({default: m.PayeeDetailsPage})));
 const BudgetDetailsPage = React.lazy(() => import('../../pages/BudgetDetailsPage').then((m) => ({default: m.BudgetDetailsPage})));
+const TransactionEditPage = React.lazy(() => import('../../pages/TransactionEditPage').then((m) => ({default: m.TransactionEditPage})));
 
 /**
  * Schedule Page Wrapper
@@ -249,6 +250,31 @@ export function BudgetDetailsPageWrapper(): React.JSX.Element {
     <>
       <PageLayout>
         <BudgetDetailsPage />
+      </PageLayout>
+      {DeleteDialog}
+    </>
+  );
+}
+
+/**
+ * Transaction Edit Page Wrapper
+ */
+export function TransactionEditPageWrapper(): React.JSX.Element {
+  const {PageLayout, DeleteDialog} = usePageWrapper({
+    title: '',
+    defaultReturnUrl: '/',
+    deleteMutation: DELETE_TRANSACTION,
+    getDeleteVariables: (entityId: string) => ({id: entityId}),
+    refetchQueries: ['GetTransactions', 'GetRecentTransactions'],
+    deleteTitle: 'Delete Transaction',
+    deleteMessage: 'Are you sure you want to delete this transaction? This action cannot be undone.',
+    hideSearch: true,
+  });
+
+  return (
+    <>
+      <PageLayout>
+        <TransactionEditPage />
       </PageLayout>
       {DeleteDialog}
     </>

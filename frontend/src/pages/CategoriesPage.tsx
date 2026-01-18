@@ -4,7 +4,7 @@
  * Features search, visual indicators, and improved UX
  */
 
-import React, {memo, useMemo, useEffect} from 'react';
+import React, {memo, useMemo, useEffect, useTransition} from 'react';
 import {
   Box,
   List,
@@ -33,6 +33,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
   const {categories, loading, error, refetch} = useCategories();
   const {searchQuery} = useSearch();
   const navigate = useNavigate();
+  const [_isPending, _startTransition] = useTransition();
 
   // Refetch when returning from create page
   useEffect(() => {
@@ -42,7 +43,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
   }, [location.pathname, refetch]);
 
   /**
-   * Filter categories based on search query
+   * Filter categories based on search query (non-urgent update)
    */
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) {

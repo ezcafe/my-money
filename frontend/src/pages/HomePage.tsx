@@ -4,18 +4,64 @@
  * Follows Material Design 3 nested container pattern
  */
 
-import React from 'react';
+import React, {memo} from 'react';
 import {Calculator} from '../components/Calculator';
 import {PageContainer} from '../components/common/PageContainer';
+import {LoadingSpinner} from '../components/common/LoadingSpinner';
+import {ErrorAlert} from '../components/common/ErrorAlert';
+import {EmptyState} from '../components/common/EmptyState';
+import {AccountBalance} from '@mui/icons-material';
+import {useAccounts} from '../hooks/useAccounts';
+import {useCategories} from '../hooks/useCategories';
 
 /**
  * Home Page Component
  */
-export function HomePage(): React.JSX.Element {
+const HomePageComponent = (): React.JSX.Element => {
+  // Data fetching hooks
+  const {accounts, loading: accountsLoading, error: accountsError} = useAccounts();
+  const {categories: _categories, loading: categoriesLoading, error: categoriesError} = useCategories();
+
+  // Loading state
+  if (accountsLoading || categoriesLoading) {
+    return <LoadingSpinner message="Loading calculator..." />;
+  }
+
+  // Error state
+  if (accountsError || categoriesError) {
+    return (
+      <ErrorAlert
+        title="Error Loading Data"
+        message={accountsError?.message ?? categoriesError?.message ?? 'Error loading calculator data'}
+        onRetry={() => {
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
+  // Empty state - need at least one account to use calculator
+  if (accounts.length === 0) {
+    return (
+      <PageContainer>
+        <EmptyState
+          icon={<AccountBalance />}
+          title="No Accounts Yet"
+          description="Get started by creating your first account to track your finances."
+        />
+      </PageContainer>
+    );
+  }
+
+  // Main content
   return (
     <PageContainer>
       <Calculator />
     </PageContainer>
   );
-}
+};
+
+HomePageComponent.displayName = 'HomePage';
+
+export const HomePage = memo(HomePageComponent);
 

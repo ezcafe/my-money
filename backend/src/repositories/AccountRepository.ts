@@ -14,70 +14,57 @@ type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' |
  */
 export class AccountRepository extends BaseRepository {
   /**
-   * Find account by ID with ownership check
+   * Find account by ID in workspace
    * @param id - Account ID
-   * @param userId - User ID
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @returns Account if found, null otherwise
    */
   async findById(
     id: string,
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
   ): Promise<Account | null> {
-    const queryOptions: {
-      where: {id: string; userId: string};
-      select?: Record<string, boolean>;
-    } = {
-      where: {id, userId},
-    };
-
-    if (select) {
-      queryOptions.select = select;
-    }
-
-    return this.prisma.account.findFirst(queryOptions);
+    return this.findByIdWithWorkspace(
+      this.prisma.account,
+      id,
+      workspaceId,
+      select ? {select} : undefined,
+    );
   }
 
   /**
-   * Find all accounts for a user
-   * @param userId - User ID
+   * Find all accounts in a workspace
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @returns Array of accounts
    */
   async findMany(
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
   ): Promise<Account[]> {
-    const queryOptions: {
-      where: {userId: string};
-      select?: Record<string, boolean>;
-    } = {
-      where: {userId},
-    };
-
-    if (select) {
-      queryOptions.select = select;
-    }
-
-    return this.prisma.account.findMany(queryOptions);
+    return this.findManyWithWorkspace(
+      this.prisma.account,
+      workspaceId,
+      select ? {select} : undefined,
+    );
   }
 
   /**
-   * Find default account for a user
-   * @param userId - User ID
+   * Find default account in a workspace
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @returns Default account if found, null otherwise
    */
   async findDefault(
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
   ): Promise<Account | null> {
     const queryOptions: {
-      where: {userId: string; isDefault: boolean};
+      where: {workspaceId: string; isDefault: boolean};
       select?: Record<string, boolean>;
     } = {
-      where: {userId, isDefault: true},
+      where: {workspaceId, isDefault: true},
     };
 
     if (select) {
@@ -100,11 +87,13 @@ export class AccountRepository extends BaseRepository {
       balance?: number;
       isDefault?: boolean;
       accountType?: 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
-      userId: string;
+      workspaceId: string;
+      createdBy: string;
+      lastEditedBy: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Account> {
-    const client = tx ?? this.prisma;
+    const client = this.getClient(tx);
     return client.account.create({data});
   }
 
@@ -126,7 +115,7 @@ export class AccountRepository extends BaseRepository {
     },
     tx?: PrismaTransaction,
   ): Promise<Account> {
-    const client = tx ?? this.prisma;
+    const client = this.getClient(tx);
     return client.account.update({
       where: {id},
       data,
@@ -140,21 +129,19 @@ export class AccountRepository extends BaseRepository {
    * @returns Deleted account
    */
   async delete(id: string, tx?: PrismaTransaction): Promise<Account> {
-    const client = tx ?? this.prisma;
+    const client = this.getClient(tx);
     return client.account.delete({
       where: {id},
     });
   }
 
   /**
-   * Count accounts for a user
-   * @param userId - User ID
+   * Count accounts in a workspace
+   * @param workspaceId - Workspace ID
    * @returns Count of accounts
    */
-  async count(userId: string): Promise<number> {
-    return this.prisma.account.count({
-      where: {userId},
-    });
+  async count(workspaceId: string): Promise<number> {
+    return this.countWithWorkspace(this.prisma.account, workspaceId);
   }
 
   /**

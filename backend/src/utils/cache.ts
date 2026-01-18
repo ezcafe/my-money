@@ -6,6 +6,7 @@
 
 import * as postgresCache from './postgresCache';
 import {accountBalanceKey} from './cacheKeys';
+import {CACHE_TAGS} from './cacheTags';
 
 /**
  * Account balance cache TTL (1 minute)
@@ -26,18 +27,31 @@ export async function getAccountBalance(accountId: string): Promise<number | nul
  * Set account balance in cache
  * @param accountId - Account ID
  * @param balance - Balance value
+ * @param workspaceId - Optional workspace ID for tag-based invalidation
  */
-export async function setAccountBalance(accountId: string, balance: number): Promise<void> {
+export async function setAccountBalance(accountId: string, balance: number, workspaceId?: string): Promise<void> {
   const key = accountBalanceKey(accountId);
-  await postgresCache.set(key, balance, BALANCE_CACHE_TTL_MS);
+  const tags = workspaceId ? [CACHE_TAGS.ACCOUNT(accountId), CACHE_TAGS.ACCOUNTS(workspaceId)] : [CACHE_TAGS.ACCOUNT(accountId)];
+  await postgresCache.set(key, balance, BALANCE_CACHE_TTL_MS, tags);
 }
 
 /**
  * Invalidate account balance cache
+ * Uses tag-based invalidation for better cache management
  * @param accountId - Account ID
+ * @param workspaceId - Optional workspace ID for tag-based invalidation
  */
-export async function invalidateAccountBalance(accountId: string): Promise<void> {
+export async function invalidateAccountBalance(accountId: string, workspaceId?: string): Promise<void> {
   const key = accountBalanceKey(accountId);
   await postgresCache.deleteKey(key);
+  // Also invalidate by tags for related caches
+  if (workspaceId) {
+    await postgresCache.invalidateByTags([
+      CACHE_TAGS.ACCOUNT(accountId),
+      CACHE_TAGS.ACCOUNTS(workspaceId),
+    ]).catch(() => {
+      // Ignore errors
+    });
+  }
 }
 

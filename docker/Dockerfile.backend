@@ -14,12 +14,15 @@ FROM node:${NODE_VERSION}-alpine AS deps
 WORKDIR /app
 
 # Copy only package files for dependency installation (better layer caching)
+# Order: root package files first (least likely to change), then workspace packages
 COPY package*.json package-lock.json ./
 COPY backend/package*.json ./backend/
 COPY shared/package*.json ./shared/
 
-# Install all dependencies with BuildKit cache mount for faster rebuilds
-RUN --mount=type=cache,target=/root/.npm \
+# Install all dependencies with BuildKit cache mounts for faster rebuilds
+# Cache both npm cache and node_modules for maximum efficiency
+RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
+    --mount=type=cache,target=/app/node_modules,id=node-modules-cache \
     npm ci --include-workspace-root
 
 # ============================================================================
@@ -35,14 +38,15 @@ COPY --from=deps /app/node_modules ./node_modules
 # Create workspace node_modules directories (may not exist if all deps are hoisted)
 RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
 
-# Copy Prisma schema and migrations
+# Copy Prisma schema and migrations (schema changes less frequently than source code)
 COPY backend/prisma ./backend/prisma
 # Copy Prisma config file (required for Prisma 7+)
 COPY backend/prisma.config.ts ./backend/prisma.config.ts
 
-# Generate Prisma client
+# Generate Prisma client with cache mount for Prisma generation cache
 WORKDIR /app/backend
-RUN npx prisma generate
+RUN --mount=type=cache,target=/root/.cache/prisma,id=prisma-cache \
+    npx prisma generate
 
 # ============================================================================
 # Builder stage - Build the application
@@ -77,18 +81,22 @@ RUN mkdir -p /app/backend/node_modules && \
     fi && \
     rm -rf /tmp/prisma-stage
 
-# Copy source files and config files
+# Copy config files first (change less frequently than source code)
 COPY tsconfig.json ./tsconfig.json
-COPY backend ./backend
+# Copy shared package (builds first, changes less frequently)
 COPY shared ./shared
+# Copy backend source (changes most frequently, so copy last)
+COPY backend ./backend
 
-# Build shared package first
+# Build shared package first with cache mount for TypeScript compilation cache
 WORKDIR /app/shared
-RUN npm run build
+RUN --mount=type=cache,target=/app/shared/.tsbuildinfo,id=tsbuild-cache-shared \
+    npm run build
 
-# Build backend
+# Build backend with cache mount for TypeScript compilation cache
 WORKDIR /app/backend
-RUN npm run build
+RUN --mount=type=cache,target=/app/backend/.tsbuildinfo,id=tsbuild-cache-backend \
+    npm run build
 
 # ============================================================================
 # Production dependencies stage - Install only production deps
@@ -102,8 +110,9 @@ COPY package*.json package-lock.json ./
 COPY backend/package*.json ./backend/
 COPY shared/package*.json ./shared/
 
-# Install production dependencies only
-RUN --mount=type=cache,target=/root/.npm \
+# Install production dependencies only with cache mounts
+RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
+    --mount=type=cache,target=/app/node_modules,id=node-modules-prod-cache \
     npm ci --omit=dev --include-workspace-root
 
 # ============================================================================
@@ -198,10 +207,12 @@ USER nodejs
 
 EXPOSE 4000
 
-# Health check using Node.js HTTP client
-# Health endpoint returns JSON with status field
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD ["node", "-e", "require('http').get('http://localhost:4000/health', (r) => {let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);process.exit(j.status==='ok'||j.status==='degraded'?0:1)}catch{process.exit(r.statusCode===200?0:1)}})}).on('error',()=>process.exit(1))"]
+# Enhanced health check using Node.js HTTP client
+# Checks health endpoint with timeout and validates JSON response
+# Accepts both 'ok' and 'degraded' status as healthy (degraded means partial functionality)
+# More frequent checks for faster failure detection
+HEALTHCHECK --interval=20s --timeout=8s --start-period=40s --retries=3 \
+  CMD ["node", "-e", "require('http').get('http://localhost:4000/health', {timeout: 5000}, (r) => {let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);const healthy=j.status==='ok'||j.status==='degraded';process.exit(healthy?0:1)}catch{process.exit(r.statusCode===200?0:1)}})}).on('error',()=>process.exit(1)).on('timeout',()=>process.exit(1))"]
 
 # Start application directly (migrations run programmatically in index.ts)
 CMD ["node", "dist/index.js"]

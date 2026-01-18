@@ -13,26 +13,86 @@ import {prisma} from './prisma';
 import {logError, logWarn, logInfo} from './logger';
 
 /**
- * Get cached value if not expired
- * @param key - Cache key
- * @returns Cached value or null if not found/expired
+ * Cache version for breaking changes
+ * Increment this when cache structure changes
  */
-export async function get<T>(key: string): Promise<T | null> {
+const CACHE_VERSION = 1;
+
+/**
+ * Cache metrics tracking
+ */
+interface CacheMetrics {
+  hits: number;
+  misses: number;
+  sets: number;
+  deletes: number;
+}
+
+let cacheMetrics: CacheMetrics = {
+  hits: 0,
+  misses: 0,
+  sets: 0,
+  deletes: 0,
+};
+
+/**
+ * Get cache metrics
+ * @returns Current cache metrics
+ */
+export function getCacheMetrics(): CacheMetrics {
+  return {...cacheMetrics};
+}
+
+/**
+ * Reset cache metrics
+ */
+export function resetCacheMetrics(): void {
+  cacheMetrics = {
+    hits: 0,
+    misses: 0,
+    sets: 0,
+    deletes: 0,
+  };
+}
+
+/**
+ * Get cached value if not expired and version matches
+ * @param key - Cache key
+ * @param expectedVersion - Expected cache version (defaults to current version)
+ * @returns Cached value or null if not found/expired/version mismatch
+ */
+export async function get<T>(key: string, expectedVersion: number = CACHE_VERSION): Promise<T | null> {
   try {
-    const result = await prisma.$queryRaw<Array<{value: unknown; expires_at: Date}>>`
-      SELECT value, expires_at
+    const result = await prisma.$queryRaw<Array<{value: unknown; expires_at: Date; version: number | null}>>`
+      SELECT value, expires_at, COALESCE(version, 0) as version
       FROM "cache"
       WHERE key = ${key} AND expires_at > NOW()
     `;
 
     if (result.length === 0 || !result[0]) {
+      cacheMetrics.misses++;
       return null;
     }
 
     const row = result[0];
+    // Check version match
+    const entryVersion = row.version ?? 0;
+    if (entryVersion !== expectedVersion) {
+      cacheMetrics.misses++;
+      logInfo('Cache version mismatch', {
+        event: 'cache_version_mismatch',
+        key,
+        entryVersion,
+        expectedVersion,
+      });
+      return null;
+    }
+
+    cacheMetrics.hits++;
     return row.value as T;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
+    cacheMetrics.misses++;
     logError('Cache get failed', {
       event: 'cache_get_failed',
       key,
@@ -43,23 +103,28 @@ export async function get<T>(key: string): Promise<T | null> {
 }
 
 /**
- * Store value in cache with TTL
+ * Store value in cache with TTL and optional tags
  * @param key - Cache key
  * @param value - Value to cache (will be serialized as JSONB)
  * @param ttlMs - Time to live in milliseconds
+ * @param tags - Optional cache tags for invalidation
+ * @param version - Cache version (defaults to current version)
  */
-export async function set<T>(key: string, value: T, ttlMs: number): Promise<void> {
+export async function set<T>(key: string, value: T, ttlMs: number, tags: string[] = [], version: number = CACHE_VERSION): Promise<void> {
   try {
     const expiresAt = new Date(Date.now() + ttlMs);
 
     await prisma.$executeRaw`
-      INSERT INTO "cache" (key, value, expires_at, created_at)
-      VALUES (${key}, ${JSON.stringify(value)}::jsonb, ${expiresAt}, NOW())
+      INSERT INTO "cache" (key, value, expires_at, created_at, tags, version)
+      VALUES (${key}, ${JSON.stringify(value)}::jsonb, ${expiresAt}, NOW(), ${tags}, ${version})
       ON CONFLICT (key) DO UPDATE
         SET value = EXCLUDED.value,
             expires_at = EXCLUDED.expires_at,
-            created_at = NOW()
+            created_at = NOW(),
+            tags = EXCLUDED.tags,
+            version = EXCLUDED.version
     `;
+    cacheMetrics.sets++;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Cache set failed', {
@@ -79,6 +144,7 @@ export async function deleteKey(key: string): Promise<void> {
     await prisma.$executeRaw`
       DELETE FROM "cache" WHERE key = ${key}
     `;
+    cacheMetrics.deletes++;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Cache delete failed', {
@@ -113,12 +179,14 @@ export async function deletePattern(pattern: string): Promise<void> {
  * @param key - Cache key
  * @param factory - Function to compute value if not in cache
  * @param ttlMs - Time to live in milliseconds
+ * @param tags - Optional cache tags for invalidation
  * @returns Cached or computed value
  */
 export async function getOrSet<T>(
   key: string,
   factory: () => Promise<T>,
   ttlMs: number,
+  tags: string[] = [],
 ): Promise<T> {
   // Try to get from cache first
   const cached = await get<T>(key);
@@ -130,7 +198,7 @@ export async function getOrSet<T>(
   const value = await factory();
 
   // Cache the result (fire and forget - don't wait)
-  void set(key, value, ttlMs).catch((error) => {
+  void set(key, value, ttlMs, tags).catch((error) => {
     logWarn('Failed to cache computed value', {
       event: 'cache_set_async_failed',
       key,
@@ -139,6 +207,42 @@ export async function getOrSet<T>(
   });
 
   return value;
+}
+
+/**
+ * Invalidate cache entries by tag
+ * @param tag - Cache tag to invalidate
+ */
+export async function invalidateByTag(tag: string): Promise<void> {
+  try {
+    await prisma.$executeRaw`
+      DELETE FROM "cache" WHERE ${tag} = ANY(tags)
+    `;
+  } catch (error) {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logError('Cache invalidation by tag failed', {
+      event: 'cache_invalidate_tag_failed',
+      tag,
+    }, errorObj);
+  }
+}
+
+/**
+ * Invalidate cache entries by multiple tags
+ * @param tags - Array of cache tags to invalidate
+ */
+export async function invalidateByTags(tags: string[]): Promise<void> {
+  try {
+    await prisma.$executeRaw`
+      DELETE FROM "cache" WHERE tags && ${tags}
+    `;
+  } catch (error) {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logError('Cache invalidation by tags failed', {
+      event: 'cache_invalidate_tags_failed',
+      tags: tags.join(','),
+    }, errorObj);
+  }
 }
 
 /**
@@ -188,12 +292,14 @@ export async function clearExpired(): Promise<number> {
 
 /**
  * Get cache statistics
- * @returns Cache statistics
+ * @returns Cache statistics including hit/miss rates
  */
 export async function getStats(): Promise<{
   totalEntries: number;
   expiredEntries: number;
   activeEntries: number;
+  metrics: CacheMetrics;
+  hitRate: number;
 }> {
   try {
     const [totalResult, expiredResult] = await Promise.all([
@@ -209,10 +315,16 @@ export async function getStats(): Promise<{
     const expiredEntries = Number(expiredResult[0]?.count ?? 0);
     const activeEntries = totalEntries - expiredEntries;
 
+    const metrics = getCacheMetrics();
+    const totalRequests = metrics.hits + metrics.misses;
+    const hitRate = totalRequests > 0 ? (metrics.hits / totalRequests) * 100 : 0;
+
     return {
       totalEntries,
       expiredEntries,
       activeEntries,
+      metrics,
+      hitRate: Math.round(hitRate * 100) / 100,
     };
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
@@ -223,6 +335,8 @@ export async function getStats(): Promise<{
         totalEntries: 0,
         expiredEntries: 0,
         activeEntries: 0,
+        metrics: getCacheMetrics(),
+        hitRate: 0,
       };
     }
     logError('Cache stats failed', {
@@ -232,6 +346,8 @@ export async function getStats(): Promise<{
       totalEntries: 0,
       expiredEntries: 0,
       activeEntries: 0,
+      metrics: getCacheMetrics(),
+      hitRate: 0,
     };
   }
 }
@@ -244,14 +360,20 @@ export async function initializeCacheTables(): Promise<void> {
   try {
     // Create cache table
     await prisma.$executeRaw`
-      CREATE UNLOGGED TABLE IF NOT EXISTS "cache" (
+      DROP TABLE IF EXISTS "cache"
+    `;
+
+    await prisma.$executeRawUnsafe(`
+      CREATE UNLOGGED TABLE "cache" (
         "key" TEXT NOT NULL,
         "value" JSONB NOT NULL,
         "expires_at" TIMESTAMPTZ NOT NULL,
         "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "tags" TEXT[] DEFAULT '{}',
+        "version" INTEGER DEFAULT ${CACHE_VERSION},
         CONSTRAINT "cache_pkey" PRIMARY KEY ("key")
       )
-    `;
+    `);
 
     // Create cache indexes
     await prisma.$executeRaw`
@@ -260,6 +382,10 @@ export async function initializeCacheTables(): Promise<void> {
 
     await prisma.$executeRaw`
       CREATE INDEX IF NOT EXISTS "cache_value_gin_idx" ON "cache" USING GIN ("value")
+    `;
+
+    await prisma.$executeRaw`
+      CREATE INDEX IF NOT EXISTS "cache_tags_gin_idx" ON "cache" USING GIN ("tags")
     `;
 
     logInfo('Cache tables initialized', {});

@@ -21,6 +21,12 @@ enum AccountType {
   Loans
 }
 
+enum WorkspaceRole {
+  Owner
+  Admin
+  Member
+}
+
 model User {
   id          String   @id @default(uuid())
   oidcSubject String   @unique
@@ -28,16 +34,24 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  accounts              Account[]
-  categories            Category[]
-  payees                Payee[]
-  transactions          Transaction[]
-  recurringTransactions RecurringTransaction[]
-  importMatchRules      ImportMatchRule[]
-  importedTransactions  ImportedTransaction[]
-  preferences           UserPreferences?
-  budgets               Budget[]
-  budgetNotifications   BudgetNotification[]
+  preferences            UserPreferences?
+  workspaceMembers       WorkspaceMember[]
+  workspaceInvitations   WorkspaceInvitation[]
+  createdAccounts        Account[]             @relation("AccountCreator")
+  lastEditedAccounts     Account[]             @relation("AccountLastEditor")
+  createdCategories      Category[]            @relation("CategoryCreator")
+  lastEditedCategories   Category[]            @relation("CategoryLastEditor")
+  createdPayees          Payee[]               @relation("PayeeCreator")
+  lastEditedPayees       Payee[]               @relation("PayeeLastEditor")
+  createdTransactions    Transaction[]         @relation("TransactionCreator")
+  lastEditedTransactions Transaction[]         @relation("TransactionLastEditor")
+  createdBudgets         Budget[]              @relation("BudgetCreator")
+  lastEditedBudgets      Budget[]              @relation("BudgetLastEditor")
+  versionEditor          EntityVersion[]       @relation("EntityVersionEditor")
+  resolvedConflicts      EntityConflict[]      @relation("EntityConflictResolver")
+  importMatchRules       ImportMatchRule[]
+  importedTransactions   ImportedTransaction[]
+  budgetNotifications    BudgetNotification[]
 
   @@index([oidcSubject])
   @@index([email])
@@ -59,28 +73,88 @@ model UserPreferences {
   @@index([userId])
 }
 
-model Account {
-  id          String      @id @default(uuid())
-  name        String
-  initBalance Decimal     @default(0) @db.Decimal(15, 2)
-  balance     Decimal     @default(0) @db.Decimal(15, 2)
-  isDefault   Boolean     @default(false)
-  accountType AccountType @default(Cash)
-  userId      String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members              WorkspaceMember[]
+  invitations          WorkspaceInvitation[]
+  accounts             Account[]
+  categories           Category[]
+  payees               Payee[]
+  budgets              Budget[]
+  importedTransactions ImportedTransaction[] @relation("ImportedTransactionWorkspace")
+
+  @@index([name])
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(Member)
+  joinedAt    DateTime      @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model WorkspaceInvitation {
+  id          String        @id @default(uuid())
+  workspaceId String
+  email       String
+  token       String        @unique
+  role        WorkspaceRole @default(Member)
+  invitedBy   String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviter   User      @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([token])
+  @@index([email])
+}
+
+model Account {
+  id           String      @id @default(uuid())
+  name         String
+  initBalance  Decimal     @default(0) @db.Decimal(15, 2)
+  balance      Decimal     @default(0) @db.Decimal(15, 2)
+  isDefault    Boolean     @default(false)
+  accountType  AccountType @default(Cash)
+  workspaceId  String
+  version      Int         @default(1)
+  createdBy    String
+  lastEditedBy String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator               User                   @relation("AccountCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  lastEditor            User                   @relation("AccountLastEditor", fields: [lastEditedBy], references: [id], onDelete: Restrict)
   transactions          Transaction[]
   recurringTransactions RecurringTransaction[]
   importMatchRules      ImportMatchRule[]
   budgets               Budget[]
-
-  @@unique([userId, name])
-  @@index([userId])
-  @@index([userId, isDefault])
-  @@index([userId, accountType])
   // Check constraint: balance >= 0 (enforced at database level via migration)
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@index([workspaceId, isDefault])
+  @@index([workspaceId, accountType])
+  @@index([workspaceId, createdAt])
+  @@index([version])
+  @@index([createdBy])
+  @@index([lastEditedBy])
 }
 
 model Category {
@@ -88,66 +162,87 @@ model Category {
   name         String
   categoryType CategoryType @default(Expense)
   isDefault    Boolean      @default(false)
-  userId       String?
+  workspaceId  String
+  version      Int          @default(1)
+  createdBy    String
+  lastEditedBy String
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  user                  User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator               User                   @relation("CategoryCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  lastEditor            User                   @relation("CategoryLastEditor", fields: [lastEditedBy], references: [id], onDelete: Restrict)
   transactions          Transaction[]
   recurringTransactions RecurringTransaction[]
   importMatchRules      ImportMatchRule[]
   budgets               Budget[]
 
-  @@unique([userId, name])
-  @@index([userId])
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
   @@index([isDefault])
+  @@index([version])
 }
 
 model Payee {
-  id        String   @id @default(uuid())
-  name      String
-  isDefault Boolean  @default(false)
-  userId    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  isDefault    Boolean  @default(false)
+  workspaceId  String
+  version      Int      @default(1)
+  createdBy    String
+  lastEditedBy String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user                  User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator               User                   @relation("PayeeCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  lastEditor            User                   @relation("PayeeLastEditor", fields: [lastEditedBy], references: [id], onDelete: Restrict)
   transactions          Transaction[]
   recurringTransactions RecurringTransaction[]
   importMatchRules      ImportMatchRule[]
   budgets               Budget[]
 
-  @@unique([userId, name])
-  @@index([userId])
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
   @@index([isDefault])
+  @@index([version])
 }
 
 model Transaction {
-  id         String   @id @default(uuid())
-  value      Decimal  @db.Decimal(15, 2)
-  date       DateTime @default(now())
-  accountId  String
-  categoryId String?
-  payeeId    String?
-  note       String?
-  userId     String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String   @id @default(uuid())
+  value        Decimal  @db.Decimal(15, 2)
+  date         DateTime @default(now())
+  accountId    String
+  categoryId   String?
+  payeeId      String?
+  note         String?
+  version      Int      @default(1)
+  createdBy    String
+  lastEditedBy String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creator              User                  @relation("TransactionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  lastEditor           User                  @relation("TransactionLastEditor", fields: [lastEditedBy], references: [id], onDelete: Restrict)
   account              Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   category             Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   payee                Payee?                @relation(fields: [payeeId], references: [id], onDelete: SetNull)
   importedTransactions ImportedTransaction[]
+  // Check constraint: value != 0 (enforced at database level via migration)
 
-  @@index([userId])
   @@index([accountId])
   @@index([date])
-  @@index([userId, date])
   @@index([accountId, date])
-  @@index([userId, accountId, date])
-  @@index([userId, categoryId, date])
-  // Check constraint: value != 0 (enforced at database level via migration)
+  @@index([categoryId, date])
+  @@index([payeeId, date])
+  @@index([accountId, categoryId, date])
+  @@index([accountId, categoryId, payeeId, date])
+  @@index([value, date])
+  @@index([version])
+  @@index([createdBy])
+  @@index([lastEditedBy])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model RecurringTransaction {
@@ -159,18 +254,18 @@ model RecurringTransaction {
   payeeId        String?
   note           String?
   nextRunDate    DateTime
-  userId         String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   payee    Payee?    @relation(fields: [payeeId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
   @@index([nextRunDate])
-  @@index([nextRunDate, userId])
+  @@index([accountId, nextRunDate])
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([payeeId])
 }
 
 model ImportMatchRule {
@@ -189,54 +284,74 @@ model ImportMatchRule {
   payee    Payee?    @relation(fields: [payeeId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, pattern])
   @@index([pattern])
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([payeeId])
 }
 
 model ImportedTransaction {
-  id             String   @id @default(uuid())
-  rawDate        String
-  rawDescription String
-  rawDebit       Decimal? @db.Decimal(15, 2)
-  rawCredit      Decimal? @db.Decimal(15, 2)
-  matched        Boolean  @default(false)
-  transactionId  String?
-  userId         String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  rawDate             String
+  rawDescription      String
+  rawDebit            Decimal? @db.Decimal(15, 2)
+  rawCredit           Decimal? @db.Decimal(15, 2)
+  matched             Boolean  @default(false)
+  transactionId       String?
+  workspaceId         String
+  detectedWorkspaceId String?
+  userId              String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now())
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace    @relation("ImportedTransactionWorkspace", fields: [workspaceId], references: [id], onDelete: Cascade)
   transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([matched])
   @@index([userId, matched])
   @@index([userId, matched, createdAt])
+  @@index([workspaceId])
 }
 
 model Budget {
   id            String   @id @default(uuid())
-  userId        String
+  workspaceId   String
   amount        Decimal  @db.Decimal(15, 2)
   currentSpent  Decimal  @default(0) @db.Decimal(15, 2)
   accountId     String?
   categoryId    String?
   payeeId       String?
+  version       Int      @default(1)
+  createdBy     String
+  lastEditedBy  String
   lastResetDate DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace     Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator       User                 @relation("BudgetCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  lastEditor    User                 @relation("BudgetLastEditor", fields: [lastEditedBy], references: [id], onDelete: Restrict)
   account       Account?             @relation(fields: [accountId], references: [id], onDelete: Cascade)
   category      Category?            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   payee         Payee?               @relation(fields: [payeeId], references: [id], onDelete: Cascade)
   notifications BudgetNotification[]
+  // Check constraint: amount > 0 (enforced at database level via migration)
 
-  @@unique([userId, accountId, categoryId, payeeId])
-  @@index([userId])
+  @@unique([workspaceId, accountId, categoryId, payeeId])
+  @@index([workspaceId])
+  @@index([workspaceId, accountId])
+  @@index([workspaceId, categoryId])
+  @@index([workspaceId, payeeId])
   @@index([accountId])
   @@index([categoryId])
   @@index([payeeId])
-  // Check constraint: amount > 0 (enforced at database level via migration)
+  @@index([version])
+  @@index([createdBy])
+  @@index([lastEditedBy])
+  @@index([lastResetDate])
 }
 
 model BudgetNotification {
@@ -258,11 +373,53 @@ model BudgetNotification {
 }
 
 model CronJobExecution {
-  id         String   @id @default(uuid())
-  jobName    String   @unique
+  id          String   @id @default(uuid())
+  jobName     String   @unique
   lastRunDate DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([jobName])
+}
+
+model EntityVersion {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  version    Int
+  data       Json
+  editedBy   String
+  editedAt   DateTime @default(now())
+
+  editor User @relation("EntityVersionEditor", fields: [editedBy], references: [id], onDelete: Restrict)
+
+  @@unique([entityType, entityId, version])
+  @@index([entityType, entityId])
+  @@index([entityType, entityId, version])
+  @@index([editedBy])
+  @@index([editedAt])
+}
+
+model EntityConflict {
+  id              String    @id @default(uuid())
+  entityType      String
+  entityId        String
+  currentVersion  Int
+  incomingVersion Int
+  currentData     Json
+  incomingData    Json
+  workspaceId     String
+  detectedAt      DateTime  @default(now())
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolvedVersion Int?
+
+  resolver User? @relation("EntityConflictResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([workspaceId])
+  @@index([workspaceId, entityType, entityId])
+  @@index([resolvedAt])
+  @@index([resolvedBy])
+  @@index([detectedAt])
 }

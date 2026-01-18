@@ -6,10 +6,8 @@
 
 import type {PrismaClient} from '@prisma/client';
 import {prisma} from '../utils/prisma';
-import {BudgetRepository} from '../repositories/BudgetRepository';
-import {TransactionRepository} from '../repositories/TransactionRepository';
-import {CategoryRepository} from '../repositories/CategoryRepository';
 import {createBudgetNotification} from './NotificationService';
+import {getContainer} from '../utils/container';
 
 type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
@@ -66,11 +64,12 @@ function calculateSpendingChange(
  * @returns Array of affected budgets
  */
 async function findAffectedBudgets(
-  transaction: {accountId: string; categoryId: string | null; payeeId: string | null; userId: string},
+  transaction: {accountId: string; categoryId: string | null; payeeId: string | null},
+  workspaceId: string,
   tx: PrismaTransaction | PrismaClient,
 ): Promise<Array<{id: string; amount: number; currentSpent: number}>> {
-  const budgetRepository = new BudgetRepository(tx);
-  return budgetRepository.findAffectedByTransaction(transaction, tx);
+  const budgetRepository = getContainer().getBudgetRepository(tx);
+  return budgetRepository.findAffectedByTransaction(transaction, workspaceId, tx);
 }
 
 /**
@@ -135,14 +134,16 @@ export async function recalculateBudgetBalance(
   tx?: PrismaTransaction | PrismaClient,
 ): Promise<number> {
   const client = tx ?? prisma;
-  const budgetRepository = new BudgetRepository(client);
-  const transactionRepository = new TransactionRepository(client);
+  const container = getContainer();
+  const budgetRepository = container.getBudgetRepository(client);
+  const transactionRepository = container.getTransactionRepository(client);
 
   // Get budget with its criteria
+  // Note: Budgets are workspace-scoped, so we fetch by ID only
+  // The userId parameter is kept for backward compatibility but not used in the query
   const budget = await budgetRepository.findFirst(
     {
       id: budgetId,
-      userId,
     },
     {
       accountId: true,
@@ -186,10 +187,12 @@ export async function recalculateBudgetBalance(
   }
 
   // Get all matching transactions with their categories
-  // Filter by: userId, date range, category type EXPENSE, and budget criteria
+  // Filter by: user (via account), date range, category type EXPENSE, and budget criteria
   const transactions = await transactionRepository.findMany(
     {
-      userId,
+      account: {
+        createdBy: userId,
+      },
       date: {
         gte: monthStart,
         lte: monthEnd,
@@ -253,6 +256,7 @@ export async function updateBudgetForTransaction(
     categoryId: string | null;
     payeeId: string | null;
     userId: string;
+    workspaceId: string;
     value: number | string;
     date: Date;
     categoryType?: 'Income' | 'Expense' | null;
@@ -271,10 +275,10 @@ export async function updateBudgetForTransaction(
   const client = tx ?? prisma;
 
   // Get category type if not provided
-  const categoryRepository = new CategoryRepository(client);
+  const categoryRepository = getContainer().getCategoryRepository(client);
   let categoryType: 'Income' | 'Expense' | null = transaction.categoryType ?? null;
   if (!categoryType && transaction.categoryId) {
-    const category = await categoryRepository.findById(transaction.categoryId, transaction.userId, {categoryType: true});
+    const category = await categoryRepository.findById(transaction.categoryId, transaction.workspaceId, {categoryType: true});
     categoryType = category?.categoryType ?? null;
   }
 
@@ -307,8 +311,16 @@ export async function updateBudgetForTransaction(
   }
 
   // Find affected budgets
-  const budgetRepository = new BudgetRepository(client);
-  const affectedBudgets = await findAffectedBudgets(transaction, client);
+  const budgetRepository = getContainer().getBudgetRepository(client);
+  const affectedBudgets = await findAffectedBudgets(
+    {
+      accountId: transaction.accountId,
+      categoryId: transaction.categoryId,
+      payeeId: transaction.payeeId,
+    },
+    transaction.workspaceId,
+    client,
+  );
 
   // Update each affected budget
   for (const budget of affectedBudgets) {

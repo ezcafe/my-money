@@ -45,15 +45,23 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): {
 } {
   const {autoSync = true, checkInterval = 1000} = options;
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [queueSize, setQueueSize] = useState(getQueueSize());
+  const [queueSize, setQueueSize] = useState(0);
+
+  // Initialize queue size
+  useEffect(() => {
+    void (async () => {
+      const size = await getQueueSize();
+      setQueueSize(size);
+    })();
+  }, []);
 
   /**
    * Check network status and update state
    */
-  const checkNetworkStatus = useCallback(() => {
+  const checkNetworkStatus = useCallback(async () => {
     const online = navigator.onLine;
     setIsOnline(online);
-    setQueueSize(getQueueSize());
+    setQueueSize(await getQueueSize());
   }, []);
 
   /**
@@ -61,14 +69,14 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): {
    * Note: This is a simplified implementation that doesn't actually execute mutations.
    * A complete implementation would require access to Apollo Client instance.
    */
-  const syncQueue = useCallback((): Promise<void> => {
+  const syncQueue = useCallback(async (): Promise<void> => {
     if (!navigator.onLine) {
-      return Promise.resolve();
+      return;
     }
 
-    const queue = getQueuedMutations();
+    const queue = await getQueuedMutations();
     if (queue.length === 0) {
-      return Promise.resolve();
+      return;
     }
 
     // Process mutations one by one
@@ -82,39 +90,39 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): {
         // A complete implementation would require passing the Apollo Client instance
 
         // Remove from queue on success
-        removeQueuedMutation(queuedMutation.id);
-        setQueueSize(getQueueSize());
-      } catch (error) {
+        await removeQueuedMutation(queuedMutation.id);
+        const size = await getQueueSize();
+        setQueueSize(size);
+      } catch (error: unknown) {
         console.error('Failed to sync mutation:', error);
         // Increment retry count
-        const shouldRetry = incrementRetryCount(queuedMutation.id);
+        const shouldRetry = await incrementRetryCount(queuedMutation.id);
         if (!shouldRetry) {
           // Mutation exceeded max retry count, remove it
-          removeQueuedMutation(queuedMutation.id);
+          await removeQueuedMutation(queuedMutation.id);
         }
-        setQueueSize(getQueueSize());
+        setQueueSize(await getQueueSize());
       }
     }
-
-    return Promise.resolve();
   }, []);
 
   /**
    * Clear the queue
    */
-  const clearQueue = useCallback(() => {
-    const queue = getQueuedMutations();
+  const clearQueue = useCallback(async () => {
+    const queue = await getQueuedMutations();
     for (const mutation of queue) {
-      removeQueuedMutation(mutation.id);
+      await removeQueuedMutation(mutation.id);
     }
     setQueueSize(0);
   }, []);
 
   // Monitor network status
   useEffect(() => {
-    const handleOnline = (): void => {
+    const handleOnline = async (): Promise<void> => {
       setIsOnline(true);
-      setQueueSize(getQueueSize());
+      const size = await getQueueSize();
+      setQueueSize(size);
       if (autoSync) {
         void syncQueue();
       }
@@ -128,7 +136,9 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): {
     window.addEventListener('offline', handleOffline);
 
     // Periodic check for network status
-    const intervalId = setInterval(checkNetworkStatus, checkInterval);
+    const intervalId = setInterval(() => {
+      void checkNetworkStatus();
+    }, checkInterval);
 
     return (): void => {
       window.removeEventListener('online', handleOnline);

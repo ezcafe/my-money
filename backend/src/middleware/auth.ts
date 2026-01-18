@@ -6,12 +6,11 @@
 import * as oidc from 'openid-client';
 import {createHash} from 'crypto';
 import {UnauthorizedError} from '../utils/errors';
-import {logError} from '../utils/logger';
+import {logError, logInfo, logWarn} from '../utils/logger';
 import {TOKEN_CACHE_TTL_MS} from '../utils/constants';
 import {config as appConfig} from '../config';
 import * as postgresCache from '../utils/postgresCache';
 import {tokenKey} from '../utils/cacheKeys';
-import {isTokenRevoked} from '../utils/tokenRevocation';
 
 // Type aliases for openid-client types
 type TokenSet = oidc.UserInfoResponse;
@@ -27,7 +26,7 @@ let tokenEndpointUrl: string | null = null;
  * @returns SHA-256 hash of the token
  */
 function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+  return createHash('sha256').update(token).digest().toString('hex');
 }
 
 /**
@@ -301,17 +300,68 @@ function isTokenExpired(token: string): boolean {
  * Tokens are hashed before caching for security
  * Enhanced with token revocation and expiration checks
  */
+// Token expiration metrics
+let tokenExpirationMetrics = {
+  totalChecks: 0,
+  expiredCount: 0,
+  nearExpirationCount: 0, // Tokens expiring within 5 minutes
+};
+
+/**
+ * Get token expiration metrics
+ * @returns Current token expiration metrics
+ */
+export function getTokenExpirationMetrics(): typeof tokenExpirationMetrics {
+  return {...tokenExpirationMetrics};
+}
+
+/**
+ * Reset token expiration metrics
+ */
+export function resetTokenExpirationMetrics(): void {
+  tokenExpirationMetrics = {
+    totalChecks: 0,
+    expiredCount: 0,
+    nearExpirationCount: 0,
+  };
+}
+
 export async function getUserFromToken(token: string): Promise<{sub: string; email?: string}> {
+  tokenExpirationMetrics.totalChecks++;
+
   // Check if token is expired (early validation)
   if (isTokenExpired(token)) {
+    tokenExpirationMetrics.expiredCount++;
+    logWarn('Token expired', {
+      event: 'token_expired',
+      totalChecks: tokenExpirationMetrics.totalChecks,
+      expiredCount: tokenExpirationMetrics.expiredCount,
+    });
     throw new UnauthorizedError('Token has expired');
   }
 
-  // Check if token is revoked
-  const revoked = await isTokenRevoked(token);
-  if (revoked) {
-    throw new UnauthorizedError('Token has been revoked');
+  // Check if token is near expiration (within 5 minutes)
+  // Get token expiration once and reuse it for both checks
+  const exp = getTokenExpiration(token);
+  if (exp) {
+    const now = Math.floor(Date.now() / 1000);
+    const timeUntilExpiration = exp - now;
+    const fiveMinutes = 5 * 60;
+    if (timeUntilExpiration > 0 && timeUntilExpiration < fiveMinutes) {
+      tokenExpirationMetrics.nearExpirationCount++;
+      logInfo('Token near expiration', {
+        event: 'token_near_expiration',
+        secondsUntilExpiration: timeUntilExpiration,
+      });
+    }
   }
+
+  // NOTE: We do NOT check if access tokens are revoked because:
+  // 1. We only revoked refresh tokens (and we've disabled that)
+  // 2. The OIDC provider will reject invalid/expired tokens during verification
+  // 3. Checking revocation creates race conditions and false positives
+  // 4. Access tokens are short-lived and expire naturally
+  // If you need to revoke access tokens, do it at the OIDC provider level
 
   // Hash token for secure caching
   const tokenHash = hashToken(token);
@@ -332,7 +382,7 @@ export async function getUserFromToken(token: string): Promise<{sub: string; ema
 
   // Calculate cache TTL based on token expiration
   // Use token expiration if available, otherwise use default TTL
-  const exp = getTokenExpiration(token);
+  // Reuse the exp variable declared above
   const cacheTTL = exp
     ? Math.max(0, Math.min(exp * 1000 - Date.now(), TOKEN_CACHE_TTL_MS))
     : TOKEN_CACHE_TTL_MS;

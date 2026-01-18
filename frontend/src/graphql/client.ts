@@ -3,9 +3,13 @@
  * Apollo Client v4 - Following migration guide: https://www.apollographql.com/docs/react/migrating/apollo-client-4-migration
  */
 
-import {ApolloClient, InMemoryCache, HttpLink, from, type ApolloLink, type FetchResult, Observable} from '@apollo/client';
+import {ApolloClient, InMemoryCache, from, type ApolloLink, type FetchResult, Observable, split} from '@apollo/client';
+import {BatchHttpLink} from '@apollo/client/link/batch-http';
 import {onError} from '@apollo/client/link/error';
 import {ApolloLink as ApolloLinkClass} from '@apollo/client';
+import {GraphQLWsLink} from '@apollo/client/link/subscriptions';
+import {createClient} from 'graphql-ws';
+import {getMainDefinition} from '@apollo/client/utilities';
 import {uploadLink} from './uploadLink';
 import {APOLLO_CACHE_MAX_SIZE} from '../constants';
 import {handleGraphQLErrors, handleNetworkError, recordSuccess} from './errorHandling';
@@ -44,29 +48,72 @@ async function fetchWithTimeout(input: RequestInfo | URL, options: RequestInit =
 
 // Note: Using process.env for Webpack compatibility
 // For ESM 2025, would need DefinePlugin configuration in webpack.config.ts
-// Apollo Client v4: Use HttpLink class directly instead of createHttpLink
+// Apollo Client v4: Use BatchHttpLink for HTTP-level query batching
 //
-// REQUEST BATCHING: Apollo Client v4 automatically deduplicates identical queries
-// executed within a short time window. This provides efficient query batching
-// without requiring explicit batching configuration.
-// 
+// REQUEST BATCHING: BatchHttpLink collects multiple GraphQL operations
+// over a small time window and sends them together in a single HTTP request.
+// This reduces round trips and improves performance.
+//
 // Benefits:
-// - Automatic query deduplication prevents duplicate requests
+// - Multiple queries batched into single HTTP request
+// - Automatic query deduplication (Apollo Client v4 built-in)
 // - Cache-first policy reduces network requests
 // - Query deduplication works across components
 //
-// For true HTTP-level batching (multiple queries in one request),
-// server-side support would be required. Apollo's deduplication provides
-// the main performance benefit without the complexity of HTTP batching.
-const httpLink = new HttpLink({
+// Configuration:
+// - batchMax: Maximum operations per batch (default: 10)
+// - batchInterval: Max wait time in ms before sending batch (default: 10ms)
+const httpLink = new BatchHttpLink({
   uri: API_CONFIG.graphqlUrl,
   // Use custom fetch with timeout support
   fetch: fetchWithTimeout,
   // Include credentials (cookies) with all requests
   credentials: 'include',
-  // Apollo Client v4 automatically deduplicates requests
-  // Query batching is handled via automatic deduplication
+  // Batch configuration
+  batchMax: 10, // Maximum 10 operations per batch
+  batchInterval: 10, // Wait up to 10ms to collect operations
+  batchDebounce: false, // Don't reset timer on new operations
 });
+
+// WebSocket link for GraphQL subscriptions
+const wsLink = new GraphQLWsLink(
+  createClient({
+    url: API_CONFIG.wsGraphqlUrl,
+    // Include credentials (cookies) with WebSocket connection
+    connectionParams: () => {
+      // Cookies are automatically included by the browser
+      return {};
+    },
+    // Reconnect on connection loss
+    shouldRetry: () => true,
+    retryAttempts: Infinity,
+    retryWait: async (retries: number): Promise<void> => {
+      // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
+      const delay = Math.min(1000 * Math.pow(2, retries), 30000);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    },
+  }),
+);
+
+// Split link: subscriptions over WebSocket, queries/mutations over HTTP
+const splitLink = split(
+  ({query}) => {
+    const definition = getMainDefinition(query);
+    // Use type assertions to avoid enum comparison errors
+    if ((definition.kind as string) !== 'OperationDefinition') {
+      return false;
+    }
+    // Check operation type - subscription uses WebSocket, queries/mutations use HTTP
+    // Type guard to ensure we have an OperationDefinitionNode
+    if ('operation' in definition) {
+      const operation = definition.operation as string;
+      return operation === 'subscription';
+    }
+    return false;
+  },
+  wsLink,
+  httpLink,
+);
 
 // Error link with enhanced error handling and token refresh
 const errorLink = onError((options) => {
@@ -84,68 +131,10 @@ const errorLink = onError((options) => {
 });
 
 // Logging link for development mode
+// Removed console.log statements - use browser DevTools Network tab for GraphQL debugging
 const loggingLink = new ApolloLinkClass((operation, forward) => {
-  // Only log in development mode
-  if (process.env.NODE_ENV === 'development') {
-    const operationName = operation.operationName ?? 'Unknown';
-    const variables = operation.variables;
-
-    // Sanitize variables for logging (remove sensitive data)
-    const sanitizedVariables: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(variables)) {
-      // Don't log file objects or sensitive fields
-      if (value instanceof File) {
-        sanitizedVariables[key] = `[File: ${value.name}, ${value.size} bytes]`;
-      } else if (key.toLowerCase().includes('password') || key.toLowerCase().includes('token') || key.toLowerCase().includes('secret')) {
-        sanitizedVariables[key] = '[REDACTED]';
-      } else {
-        sanitizedVariables[key] = value;
-      }
-    }
-
-    // Try to get query string for logging
-    let queryPreview = 'N/A';
-    try {
-      if (operation.query.loc?.source?.body) {
-        const body = operation.query.loc.source.body;
-        queryPreview = `${body.substring(0, 200)}...`;
-      }
-    } catch {
-      // Ignore errors when accessing query location
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(`[GraphQL Request] ${operationName}`, {
-      operation: operationName,
-      variables: sanitizedVariables,
-      query: queryPreview,
-    });
-
-    return new Observable<FetchResult>((observer) => {
-      const subscription = forward(operation).subscribe({
-        next: (response: FetchResult) => {
-          // eslint-disable-next-line no-console
-          console.log(`[GraphQL Response] ${operationName}`, {
-            operation: operationName,
-            data: response.data,
-            errors: response.errors,
-          });
-          observer.next(response);
-        },
-        error: (error: unknown) => {
-          observer.error(error);
-        },
-        complete: () => {
-          observer.complete();
-        },
-      });
-      return (): void => {
-        subscription.unsubscribe();
-      };
-    });
-  }
-
-  // In production, just forward without logging
+  // In development, forward without logging (use browser DevTools instead)
+  // In production, just forward
   return forward(operation);
 });
 
@@ -310,7 +299,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const client = new ApolloClient({
-  link: from([loggingLink, errorLink, uploadLink, successTrackingLink, httpLink] as ApolloLink[]),
+  link: from([loggingLink, errorLink, uploadLink, successTrackingLink, splitLink] as unknown as ApolloLink[]),
   cache,
   defaultOptions: {
     // Use cache-and-network for watchQuery to get immediate cache results

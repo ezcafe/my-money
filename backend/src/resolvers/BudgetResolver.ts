@@ -13,6 +13,9 @@ import {getBudgetNotifications, markNotificationRead} from '../services/Notifica
 import {recalculateBudgetBalance} from '../services/BudgetService';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {validateContext} from '../utils/baseResolver';
+import {checkWorkspaceAccess, getUserDefaultWorkspace} from '../services/WorkspaceService';
+import {publishBudgetUpdate} from './SubscriptionResolver';
+import {getContainer} from '../utils/container';
 
 const CreateBudgetInputSchema = z.object({
   amount: z.number().positive(),
@@ -32,25 +35,33 @@ const CreateBudgetInputSchema = z.object({
 
 const UpdateBudgetInputSchema = z.object({
   amount: z.number().positive().optional(),
+  expectedVersion: z.number().int().optional(),
 });
 
 export class BudgetResolver {
   /**
-   * Get all budgets for current user
+   * Get all budgets for current workspace
    */
   async budgets(_: unknown, __: unknown, context: GraphQLContext): Promise<Budget[]> {
     validateContext(context);
+
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
+    const budgetRepository = getContainer().getBudgetRepository(context.prisma);
     return await withPrismaErrorHandling(
       async () => {
-        const budgets = await context.prisma.budget.findMany({
-          where: {userId: context.userId},
-          include: {
-            account: true,
-            category: true,
-            payee: true,
-          },
-          orderBy: {createdAt: 'desc'},
+        const budgets = await budgetRepository.findMany(workspaceId, undefined, {
+          account: true,
+          category: true,
+          payee: true,
         });
+
+        // Sort by createdAt desc
+        budgets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
         return budgets;
       },
@@ -63,18 +74,20 @@ export class BudgetResolver {
    */
   async budget(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Budget> {
     validateContext(context);
+
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
+    const budgetRepository = getContainer().getBudgetRepository(context.prisma);
     return await withPrismaErrorHandling(
       async () => {
-        const budget = await context.prisma.budget.findFirst({
-          where: {
-            id,
-            userId: context.userId,
-          },
-          include: {
-            account: true,
-            category: true,
-            payee: true,
-          },
+        const budget = await budgetRepository.findById(id, workspaceId, undefined, {
+          account: true,
+          category: true,
+          payee: true,
         });
 
         if (!budget) {
@@ -124,99 +137,78 @@ export class BudgetResolver {
   ): Promise<Budget> {
     const validatedInput = validate(CreateBudgetInputSchema, input);
 
-    // Verify the referenced entity belongs to user
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
+    const container = getContainer();
+    const accountRepository = container.getAccountRepository(context.prisma);
+    const categoryRepository = container.getCategoryRepository(context.prisma);
+    const payeeRepository = container.getPayeeRepository(context.prisma);
+    const budgetRepository = container.getBudgetRepository(context.prisma);
+
+    // Verify the referenced entity belongs to workspace
     if (validatedInput.accountId) {
-      const account = await context.prisma.account.findFirst({
-        where: {
-          id: validatedInput.accountId,
-          userId: context.userId,
-        },
-        select: {id: true},
-      });
+      const account = await accountRepository.findById(validatedInput.accountId, workspaceId, {id: true});
       if (!account) {
         throw new NotFoundError('Account');
       }
     }
 
     if (validatedInput.categoryId) {
-      const category = await context.prisma.category.findFirst({
-        where: {
-          id: validatedInput.categoryId,
-          OR: [
-            {userId: context.userId},
-            {isDefault: true},
-          ],
-        },
-        select: {id: true},
-      });
+      const category = await categoryRepository.findById(validatedInput.categoryId, workspaceId, {id: true});
       if (!category) {
         throw new NotFoundError('Category');
       }
     }
 
     if (validatedInput.payeeId) {
-      const payee = await context.prisma.payee.findFirst({
-        where: {
-          id: validatedInput.payeeId,
-          OR: [
-            {userId: context.userId},
-            {isDefault: true},
-          ],
-        },
-        select: {id: true},
-      });
+      const payee = await payeeRepository.findById(validatedInput.payeeId, workspaceId, {id: true});
       if (!payee) {
         throw new NotFoundError('Payee');
       }
     }
 
     // Check if budget already exists
-    const existingBudget = await context.prisma.budget.findFirst({
-      where: {
-        userId: context.userId,
-        accountId: validatedInput.accountId ?? null,
-        categoryId: validatedInput.categoryId ?? null,
-        payeeId: validatedInput.payeeId ?? null,
-      },
-      select: {id: true},
-    });
+    const existingBudget = await budgetRepository.findFirst({
+      workspaceId,
+      accountId: validatedInput.accountId ?? null,
+      categoryId: validatedInput.categoryId ?? null,
+      payeeId: validatedInput.payeeId ?? null,
+    }, {id: true});
 
     if (existingBudget) {
       throw new ValidationError('Budget already exists for this account/category/payee');
     }
 
-    const budget = await context.prisma.budget.create({
-      data: {
-        userId: context.userId,
-        amount: validatedInput.amount,
-        accountId: validatedInput.accountId ?? null,
-        categoryId: validatedInput.categoryId ?? null,
-        payeeId: validatedInput.payeeId ?? null,
-        lastResetDate: new Date(),
-      },
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
+    const budget = await budgetRepository.create({
+      workspaceId,
+      amount: validatedInput.amount,
+      accountId: validatedInput.accountId ?? null,
+      categoryId: validatedInput.categoryId ?? null,
+      payeeId: validatedInput.payeeId ?? null,
+      createdBy: context.userId,
+      lastEditedBy: context.userId,
     });
 
     // Recalculate budget balance for current period
     await recalculateBudgetBalance(budget.id, context.userId, context.prisma);
 
     // Fetch updated budget with recalculated currentSpent
-    const updatedBudget = await context.prisma.budget.findUnique({
-      where: {id: budget.id},
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
+    const updatedBudget = await budgetRepository.findUnique(budget.id, {
+      account: true,
+      category: true,
+      payee: true,
     });
 
     if (!updatedBudget) {
       throw new Error('Budget not found after creation');
     }
+
+    // Publish update event
+    publishBudgetUpdate(updatedBudget);
 
     return updatedBudget;
   }
@@ -231,29 +223,84 @@ export class BudgetResolver {
   ): Promise<Budget> {
     const validatedInput = validate(UpdateBudgetInputSchema, input);
 
-    // Verify budget belongs to user
-    const budget = await context.prisma.budget.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-    });
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
 
-    if (!budget) {
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
+    const budgetRepository = getContainer().getBudgetRepository(context.prisma);
+
+    // Verify budget belongs to workspace
+    const existingBudget = await budgetRepository.findById(id, workspaceId);
+
+    if (!existingBudget) {
       throw new NotFoundError('Budget');
     }
 
-    const updatedBudget = await context.prisma.budget.update({
-      where: {id},
-      data: {
+    const versionService = getContainer().getVersionService(context.prisma);
+
+    // Prepare new budget data
+    const newBudgetData = {
+      ...existingBudget,
+      ...(validatedInput.amount !== undefined && {amount: validatedInput.amount}),
+      version: existingBudget.version + 1,
+      lastEditedBy: context.userId,
+    };
+
+    // Check for conflicts (this will throw ConflictError if version mismatch)
+    await versionService.checkForConflict(
+      'Budget',
+      id,
+      existingBudget.version,
+      validatedInput.expectedVersion,
+      existingBudget as unknown as Record<string, unknown>,
+      newBudgetData as unknown as Record<string, unknown>,
+      workspaceId,
+    );
+
+    // Update budget, create version snapshot
+    await context.prisma.$transaction(async (tx) => {
+      const txVersionService = getContainer().getVersionService(tx);
+
+      // Create version snapshot before update (stores previous state)
+      await txVersionService.createVersion(
+        'Budget',
+        id,
+        existingBudget as unknown as Record<string, unknown>,
+        newBudgetData as unknown as Record<string, unknown>,
+        context.userId,
+        tx,
+      );
+
+      const txBudgetRepository = getContainer().getBudgetRepository(tx);
+      await txBudgetRepository.update(id, {
         ...(validatedInput.amount !== undefined && {amount: validatedInput.amount}),
-      },
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
+      });
+
+      // Increment version and update lastEditedBy
+      await tx.budget.update({
+        where: {id},
+        data: {
+          version: {increment: 1},
+          lastEditedBy: context.userId,
+        },
+      });
     });
+
+    // Fetch updated budget
+    const updatedBudget = await budgetRepository.findUnique(id, {
+      account: true,
+      category: true,
+      payee: true,
+    });
+
+    if (!updatedBudget) {
+      throw new NotFoundError('Budget');
+    }
+
+    // Publish update event
+    publishBudgetUpdate(updatedBudget);
 
     return updatedBudget;
   }
@@ -262,21 +309,28 @@ export class BudgetResolver {
    * Delete budget
    */
   async deleteBudget(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
-    // Verify budget belongs to user
-    const budget = await context.prisma.budget.findFirst({
-      where: {
-        id,
-        userId: context.userId,
-      },
-    });
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
+    const budgetRepository = getContainer().getBudgetRepository(context.prisma);
+
+    // Verify budget belongs to workspace
+    const budget = await budgetRepository.findById(id, workspaceId);
 
     if (!budget) {
       throw new NotFoundError('Budget');
     }
 
-    await context.prisma.budget.delete({
-      where: {id},
-    });
+    // Store budget for event before deletion
+    const budgetToDelete = {...budget};
+
+    await budgetRepository.delete(id);
+
+    // Publish delete event
+    publishBudgetUpdate(budgetToDelete);
 
     return true;
   }
@@ -290,6 +344,28 @@ export class BudgetResolver {
     context: GraphQLContext,
   ): Promise<boolean> {
     return await markNotificationRead(context.userId, id);
+  }
+
+  /**
+   * Field resolver for versions
+   */
+  async versions(parent: Budget, _: unknown, context: GraphQLContext): Promise<unknown> {
+    const versionService = getContainer().getVersionService(context.prisma);
+    return versionService.getEntityVersions('Budget', parent.id);
+  }
+
+  /**
+   * Field resolver for createdBy
+   */
+  async createdBy(parent: Budget, _: unknown, context: GraphQLContext): Promise<unknown> {
+    return context.userLoader.load(parent.createdBy);
+  }
+
+  /**
+   * Field resolver for lastEditedBy
+   */
+  async lastEditedBy(parent: Budget, _: unknown, context: GraphQLContext): Promise<unknown> {
+    return context.userLoader.load(parent.lastEditedBy);
   }
 }
 

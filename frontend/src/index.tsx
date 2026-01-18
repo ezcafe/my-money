@@ -29,21 +29,13 @@ if ('serviceWorker' in navigator) {
       // In development, unregister any existing service workers to prevent caching issues
       void navigator.serviceWorker.getRegistrations().then((registrations) => {
         for (const registration of registrations) {
-          void registration.unregister().then((success) => {
-            if (success) {
-              // eslint-disable-next-line no-console
-              console.log('Service Worker unregistered for development mode');
-            }
-          });
+          void registration.unregister();
         }
       });
       // Clear all caches in development
       if ('caches' in window) {
         void caches.keys().then((cacheNames) => {
           return Promise.all(cacheNames.map((name) => caches.delete(name)));
-        }).then(() => {
-          // eslint-disable-next-line no-console
-          console.log('All caches cleared for development mode');
         });
       }
       return;
@@ -57,11 +49,8 @@ if ('serviceWorker' in navigator) {
         }
         return null;
       })
-      .then((registration) => {
-        if (registration) {
-          // eslint-disable-next-line no-console
-          console.log('Service Worker registered:', registration.scope);
-        }
+      .then(() => {
+        // Service worker registered successfully
       })
       .catch((error) => {
         console.error('Service Worker registration failed:', error);

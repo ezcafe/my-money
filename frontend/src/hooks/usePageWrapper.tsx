@@ -125,9 +125,7 @@ export function usePageWrapper(options: UsePageWrapperOptions): UsePageWrapperRe
           contextMenu={
             editPath || deleteMutation
               ? {
-                  onEdit: editPath ? handleEdit : (): void => {
-                    // No-op if edit path not provided
-                  },
+                  ...(editPath ? {onEdit: handleEdit} : {}),
                   onDelete: deleteMutation ? openDeleteDialog : (): void => {
                     // No-op if delete mutation not provided
                   },

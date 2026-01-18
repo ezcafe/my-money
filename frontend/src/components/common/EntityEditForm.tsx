@@ -3,11 +3,14 @@
  * Reusable form component for creating/editing entities (Account, Category, Payee, etc.)
  */
 
-import React, {useState, useEffect, useRef, useCallback, type ReactNode} from 'react';
+import React, {useEffect, useCallback, type ReactNode} from 'react';
 import {useNavigate, useSearchParams} from 'react-router';
 import {Box, Typography, Button} from '@mui/material';
 import {useMutation, useQuery, useApolloClient} from '@apollo/client/react';
 import type {DocumentNode} from '@apollo/client';
+import {useForm, Controller} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {z} from 'zod';
 import {Card} from '../ui/Card';
 import {TextField} from '../ui/TextField';
 import {LoadingSpinner} from './LoadingSpinner';
@@ -91,16 +94,58 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   const client = useApolloClient();
   const isEditMode = Boolean(id);
 
-  // Initialize form state from field configs
-  const [formValues, setFormValues] = useState<Record<string, unknown>>(() => {
-    const initial: Record<string, unknown> = {};
+  // Build Zod schema from field configs
+  const zodSchema = React.useMemo(() => {
+    const schemaFields: Record<string, z.ZodTypeAny> = {};
     for (const field of config.fields) {
-      initial[field.key] = field.defaultValue ?? (field.type === 'number' ? 0 : '');
+      let fieldSchema: z.ZodTypeAny;
+      if (field.type === 'number') {
+        fieldSchema = z.number();
+      } else {
+        fieldSchema = z.string();
+      }
+      if (!field.required) {
+        fieldSchema = fieldSchema.optional();
+      }
+      if (field.validate) {
+        // Add custom validation using superRefine for better error message control
+        fieldSchema = fieldSchema.superRefine((val, ctx) => {
+          const error = field.validate?.(val);
+          if (error) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: error,
+            });
+          }
+        });
+      }
+      schemaFields[field.key] = fieldSchema;
     }
-    return initial;
+    return z.object(schemaFields);
+  }, [config.fields]);
+
+  // Initialize react-hook-form with Zod resolver
+  const form = useForm<Record<string, unknown>>({
+    resolver: zodResolver(zodSchema),
+    defaultValues: (() => {
+      const initial: Record<string, unknown> = {};
+      for (const field of config.fields) {
+        initial[field.key] = field.defaultValue ?? (field.type === 'number' ? 0 : '');
+      }
+      return initial;
+    })(),
   });
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const {
+    control,
+    handleSubmit: handleFormSubmit,
+    formState: {errors: formErrors, isSubmitting},
+    reset,
+    setError: setFormError,
+  } = form;
+
+  // Use formErrors directly without unnecessary type assertion
+  const errors = formErrors;
 
   // Fetch entity data in edit mode
   const {data, loading: queryLoading, error: queryError} = useQuery<TData>(
@@ -130,18 +175,16 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
       for (const field of config.fields) {
         values[field.key] = entity[field.key] ?? field.defaultValue ?? (field.type === 'number' ? 0 : '');
       }
-      setFormValues(values);
-      setError(null);
+      reset(values);
     } else if (!isEditMode) {
       // Reset form for create mode
       const values: Record<string, unknown> = {};
       for (const field of config.fields) {
         values[field.key] = field.defaultValue ?? (field.type === 'number' ? 0 : '');
       }
-      setFormValues(values);
-      setError(null);
+      reset(values);
     }
-  }, [entity, isEditMode, config.fields]);
+  }, [entity, isEditMode, config.fields, reset]);
 
   // Get refetch queries for create - support function for conditional queries
   const getCreateRefetchQueries = (): Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> => {
@@ -176,11 +219,10 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
       : undefined,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
+      setFormError('root', {message: errorMessage});
     },
     onCompleted: () => {
       void (async (): Promise<void> => {
-        setError(null);
         // Manually refetch queries to ensure data is updated
         const queriesToRefetch = getCreateRefetchQueries();
         if (queriesToRefetch.length > 0) {
@@ -224,118 +266,24 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
       : undefined,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
+      setFormError('root', {message: errorMessage});
     },
     onCompleted: () => {
-      setError(null);
       void navigate(returnTo);
     },
   });
 
-  const loading = creating || updating;
+  const loading = creating || updating || isSubmitting;
 
   /**
-   * Validate a single field
+   * Handle form submission with react-hook-form
    */
-  const validateField = useCallback((field: FormFieldConfig, value: unknown): string | null => {
-    if (field.required && (!value || (typeof value === 'string' && !value.trim()))) {
-      return `${field.label} is required`;
-    }
-    if (field.validate) {
-      return field.validate(value);
-    }
-    return null;
-  }, []);
-
-  // Debounce timers for field validation
-  const validationTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
-
-  /**
-   * Handle field value change with real-time validation
-   * Uses debouncing to avoid excessive validation while typing
-   */
-  const handleFieldChange = useCallback((key: string, value: unknown): void => {
-    setFormValues((prev) => ({...prev, [key]: value}));
-    // Clear general error when user starts typing
-    if (error) {
-      setError(null);
-    }
-
-    // Clear existing debounce timer for this field
-    if (validationTimersRef.current[key]) {
-      clearTimeout(validationTimersRef.current[key]);
-      delete validationTimersRef.current[key];
-    }
-
-    // Validate field in real-time (immediate for required fields, debounced for others)
-    const field = config.fields.find((f) => f.key === key);
-    if (field) {
-      const performValidation = (): void => {
-        const fieldError = validateField(field, value);
-        setFieldErrors((prev) => {
-          if (fieldError) {
-            return {...prev, [key]: fieldError};
-          } else {
-            const newErrors = {...prev};
-            delete newErrors[key];
-            return newErrors;
-          }
-        });
-        // Clean up timer reference
-        delete validationTimersRef.current[key];
-      };
-
-      // Immediate validation for required fields or empty values
-      const isEmpty = value === null || value === undefined || value === '';
-      const shouldValidateImmediately = field.required ?? isEmpty;
-
-      if (shouldValidateImmediately) {
-        performValidation();
-      } else {
-        // Debounce validation for non-empty, non-required fields (300ms delay)
-        validationTimersRef.current[key] = setTimeout(performValidation, 300);
-      }
-    }
-  }, [config.fields, error, validateField]);
-
-  /**
-   * Handle form submission
-   */
-  const handleSubmit = (): void => {
-    setError(null);
-    setFieldErrors({});
-
-    // Validate all fields
-    const newFieldErrors: Record<string, string> = {};
-    for (const field of config.fields) {
-      const value = formValues[field.key];
-      const fieldError = validateField(field, value);
-      if (fieldError) {
-        newFieldErrors[field.key] = fieldError;
-      }
-    }
-
-    // If there are field errors, show them and don't submit
-    if (Object.keys(newFieldErrors).length > 0) {
-      setFieldErrors(newFieldErrors);
-      // Show first error as general error message
-      const firstErrorKey = Object.keys(newFieldErrors)[0];
-      if (firstErrorKey) {
-        const firstError = newFieldErrors[firstErrorKey];
-        if (typeof firstError === 'string') {
-          setError(firstError);
-        } else {
-          setError('Please fix the form errors');
-        }
-      }
-      return;
-    }
-
+  const onSubmit = useCallback((formValues: Record<string, unknown>): void => {
     // Validate form (if custom validation provided)
     if (config.validateForm) {
       const formError = config.validateForm(formValues);
       if (formError) {
-        setError(formError);
+        setFormError('root', {message: formError});
         return;
       }
     }
@@ -359,7 +307,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
         },
       });
     }
-  };
+  }, [config, isEditMode, id, updateEntity, createEntity, setFormError]);
 
   // Show loading state for edit mode
   if (isEditMode && queryLoading) {
@@ -387,15 +335,6 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
     );
   }
 
-  // Check if form is valid (for submit button disabled state)
-  const isFormValid = config.fields.every((field) => {
-    if (!field.required) {
-      return true;
-    }
-    const value = formValues[field.key];
-    return value && (typeof value !== 'string' || value.trim());
-  });
-
   return (
     <PageContainer
       sx={{
@@ -412,59 +351,85 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
           p: 3,
         }}
       >
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
-          {error ? <Typography color="error" variant="body2">
-              {error}
+        <Box
+          component="form"
+          onSubmit={handleFormSubmit(onSubmit)}
+          sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}
+        >
+          {errors.root ? <Typography color="error" variant="body2">
+              {(errors.root as {message?: string}).message ?? 'An error occurred'}
             </Typography> : null}
 
           {config.fields.map((field) => {
             if (field.type === 'custom' && field.render) {
               return (
-                <Box key={field.key}>
-                  {field.render(formValues[field.key], (value) => handleFieldChange(field.key, value), error ?? undefined)}
-                </Box>
+                <Controller
+                  key={field.key}
+                  name={field.key}
+                  control={control}
+                  render={({field: {value, onChange}}) => {
+                    const fieldError = errors[field.key] as {message?: string} | undefined;
+                    return (
+                      <Box>
+                        {field.render?.(value, onChange, fieldError?.message)}
+                      </Box>
+                    );
+                  }}
+                />
               );
             }
 
             if (field.type === 'number') {
-              const numValue = formValues[field.key];
-              const numValueStr = typeof numValue === 'number' ? String(numValue) : typeof numValue === 'string' ? numValue : '';
               return (
-                <TextField
+                <Controller
                   key={field.key}
-                  label={field.label}
-                  type="number"
-                  value={numValueStr}
-                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                  fullWidth
-                  required={field.required}
-                  error={Boolean(fieldErrors[field.key])}
-                  helperText={fieldErrors[field.key]}
-                  inputProps={field.inputProps}
+                  name={field.key}
+                  control={control}
+                  render={({field: {value, onChange}}) => (
+                    <TextField
+                      label={field.label}
+                      type="number"
+                      value={typeof value === 'number' ? String(value) : value ?? ''}
+                      onChange={(e) => {
+                        const numValue = e.target.value === '' ? 0 : Number.parseFloat(e.target.value);
+                        onChange(isNaN(numValue) ? 0 : numValue);
+                      }}
+                      fullWidth
+                      required={field.required}
+                      error={Boolean(errors[field.key])}
+                      helperText={(errors[field.key] as {message?: string} | undefined)?.message}
+                      inputProps={field.inputProps}
+                    />
+                  )}
                 />
               );
             }
 
             // Default to text field
-            const textValue = formValues[field.key];
-            const textValueStr = typeof textValue === 'string' ? textValue : typeof textValue === 'number' ? String(textValue) : '';
             return (
-              <TextField
+              <Controller
                 key={field.key}
-                label={field.label}
-                value={textValueStr}
-                onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                fullWidth
-                required={field.required}
-                error={Boolean(fieldErrors[field.key])}
-                helperText={fieldErrors[field.key]}
-                inputProps={field.inputProps}
+                name={field.key}
+                control={control}
+                render={({field: {value, onChange}}) => (
+                  <TextField
+                    label={field.label}
+                    value={value ?? ''}
+                    onChange={onChange}
+                    fullWidth
+                    required={field.required}
+                    error={Boolean(errors[field.key])}
+                    helperText={errors[field.key]?.message as string}
+                    inputProps={field.inputProps}
+                  />
+                )}
               />
             );
           })}
 
           <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto'}}>
             <Button
+              type="button"
               onClick={() => {
                 void navigate(returnTo, {replace: true});
               }}
@@ -472,7 +437,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
             >
               Cancel
             </Button>
-            <Button variant="contained" onClick={handleSubmit} disabled={loading || !isFormValid}>
+            <Button type="submit" variant="contained" disabled={loading}>
               {loading ? 'Saving...' : 'Save'}
             </Button>
           </Box>

@@ -174,16 +174,41 @@ function createLogEntry(
   }
 
   if (error) {
+    // Safely extract error properties to avoid getters that might access context
+    let errorName = 'Error';
+    let errorMessage = 'Unknown error';
+    let errorStack: string | undefined;
+
+    try {
+      errorName = error.name || 'Error';
+    } catch {
+      // If accessing error.name fails, use default
+      errorName = 'Error';
+    }
+
+    try {
+      errorMessage = error.message || 'Unknown error';
+    } catch {
+      // If accessing error.message fails, use default
+      errorMessage = 'Unknown error';
+    }
+
+    try {
+      errorStack = error.stack;
+    } catch {
+      // If accessing error.stack fails, leave undefined
+      errorStack = undefined;
+    }
+
     // Sanitize error message if it might contain sensitive data
-    const errorMessage = error.message;
     const sanitizedMessage = SENSITIVE_KEYS.some((key) => errorMessage.toLowerCase().includes(key.toLowerCase()))
       ? '[REDACTED: Error message may contain sensitive data]'
       : errorMessage;
 
     logEntry.error = {
-      name: error.name,
+      name: errorName,
       message: sanitizedMessage,
-      stack: error.stack,
+      stack: errorStack,
     };
   }
 

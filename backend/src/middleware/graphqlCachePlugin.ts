@@ -9,6 +9,7 @@ import type {GraphQLContext} from '../middleware/context';
 import {createHash} from 'crypto';
 import * as postgresCache from '../utils/postgresCache';
 import {logInfo, logError} from '../utils/logger';
+import {CACHE_TAGS} from '../utils/cacheTags';
 
 /**
  * Default cache TTL for queries (5 minutes)
@@ -36,15 +37,57 @@ const QUERY_CACHE_TTL: Record<string, number> = {
  * @param query - GraphQL query string
  * @param variables - Query variables
  * @param userId - User ID for user-specific caching
+ * @param workspaceId - Optional workspace ID for workspace-specific caching
  * @returns Cache key
  */
-function generateCacheKey(query: string, variables: Record<string, unknown> | undefined, userId?: string): string {
+function generateCacheKey(
+  query: string,
+  variables: Record<string, unknown> | undefined,
+  userId?: string,
+  workspaceId?: string,
+): string {
   const queryHash = createHash('sha256').update(query).digest('hex');
   const variablesHash = variables
     ? createHash('sha256').update(JSON.stringify(variables)).digest('hex')
     : 'no-vars';
   const userPart = userId ? `:user:${userId}` : ':anonymous';
-  return `graphql:query:${queryHash}:${variablesHash}${userPart}`;
+  const workspacePart = workspaceId ? `:workspace:${workspaceId}` : '';
+  return `graphql:query:${queryHash}:${variablesHash}${userPart}${workspacePart}`;
+}
+
+/**
+ * Generate cache tags for GraphQL query based on query content
+ * @param query - GraphQL query string
+ * @param workspaceId - Optional workspace ID
+ * @returns Array of cache tags
+ */
+function generateCacheTags(query: string, workspaceId?: string): string[] {
+  const tags: string[] = [];
+
+  if (workspaceId) {
+    // Add workspace-specific tags based on query content
+    if (query.includes('accounts')) {
+      tags.push(CACHE_TAGS.ACCOUNTS(workspaceId));
+    }
+    if (query.includes('categories')) {
+      tags.push(CACHE_TAGS.CATEGORIES(workspaceId));
+    }
+    if (query.includes('payees')) {
+      tags.push(CACHE_TAGS.PAYEES(workspaceId));
+    }
+    if (query.includes('transactions')) {
+      tags.push(CACHE_TAGS.TRANSACTIONS(workspaceId));
+      tags.push(CACHE_TAGS.TRANSACTION_QUERIES(workspaceId));
+    }
+    if (query.includes('budgets')) {
+      tags.push(CACHE_TAGS.BUDGETS(workspaceId));
+    }
+    if (query.includes('reportTransactions')) {
+      tags.push(CACHE_TAGS.REPORTS(workspaceId));
+    }
+  }
+
+  return tags;
 }
 
 /**
@@ -129,30 +172,63 @@ export function graphqlCachePlugin(): ApolloServerPlugin<GraphQLContext | Record
         return Promise.resolve({} as GraphQLRequestListener<GraphQLContext | Record<string, never>>);
       }
 
-      const userId = contextValue && typeof contextValue === 'object' && 'userId' in contextValue
-        ? (contextValue as GraphQLContext).userId
+      const context = contextValue && typeof contextValue === 'object' && 'userId' in contextValue
+        ? (contextValue as GraphQLContext)
         : undefined;
 
-      const cacheKey = generateCacheKey(query, variables, userId);
+      const userId = context?.userId;
+      const workspaceId = context?.currentWorkspaceId;
+      const cacheKey = generateCacheKey(query, variables, userId, workspaceId);
       const cacheTTL = getCacheTTL(query);
+      const cacheTags = generateCacheTags(query, workspaceId);
+
+      // Check cache asynchronously and store result for use in willSendResponse
+      let cachedResponse: unknown = null;
+      void postgresCache.get<unknown>(cacheKey).then((response) => {
+        cachedResponse = response;
+      }).catch(() => {
+        cachedResponse = null;
+      });
 
       return Promise.resolve({
         async willSendResponse(
           responseContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
         ): Promise<void> {
           try {
-            // Only cache successful responses
+            // Check if we have a cached response
+            if (cachedResponse !== null) {
+              // Cache hit - use cached response
+              if (responseContext.response.body && typeof responseContext.response.body === 'object') {
+                const body = responseContext.response.body as {kind?: string; singleResult?: {data?: unknown}};
+                if (body.kind === 'single' && body.singleResult) {
+                  body.singleResult.data = cachedResponse;
+                  logInfo('GraphQL cache hit', {
+                    event: 'graphql_cache_hit',
+                    cacheKey,
+                    operationName: request.operationName,
+                  });
+                  return;
+                }
+              }
+            }
+
+            // Cache miss - cache the response
             if (responseContext.response.body && typeof responseContext.response.body === 'object') {
               const body = responseContext.response.body as {kind?: string; singleResult?: {data?: unknown; errors?: unknown[]}};
               if (body.kind === 'single' && body.singleResult) {
                 // Only cache if there's data and no errors
                 if (body.singleResult.data && (!body.singleResult.errors || body.singleResult.errors.length === 0)) {
-                  await postgresCache.set(cacheKey, body.singleResult.data, cacheTTL).catch((error) => {
+                  await postgresCache.set(cacheKey, body.singleResult.data, cacheTTL, cacheTags).catch((error) => {
                     // Log but don't fail the request if caching fails
                     logError('Failed to cache GraphQL response', {
                       event: 'graphql_cache_set_failed',
                       cacheKey,
                     }, error instanceof Error ? error : new Error(String(error)));
+                  });
+                  logInfo('GraphQL cache miss - response cached', {
+                    event: 'graphql_cache_miss',
+                    cacheKey,
+                    operationName: request.operationName,
                   });
                 }
               }
@@ -174,18 +250,20 @@ export function graphqlCachePlugin(): ApolloServerPlugin<GraphQLContext | Record
  * @param query - GraphQL query string
  * @param variables - Query variables
  * @param userId - User ID
+ * @param workspaceId - Optional workspace ID
  * @returns Cached response or null
  */
 export async function getCachedQueryResponse<T>(
   query: string,
   variables: Record<string, unknown> | undefined,
   userId?: string,
+  workspaceId?: string,
 ): Promise<T | null> {
   if (!shouldCache(query)) {
     return null;
   }
 
-  const cacheKey = generateCacheKey(query, variables, userId);
+  const cacheKey = generateCacheKey(query, variables, userId, workspaceId);
   return postgresCache.get<T>(cacheKey);
 }
 

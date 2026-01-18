@@ -18,15 +18,65 @@ import type {PrismaClient, CategoryType, Account, Category, Payee} from '@prisma
 import {incrementAccountBalance} from '../services/AccountBalanceService';
 import {updateBudgetForTransaction} from '../services/BudgetService';
 import {TRANSACTION_BATCH_SIZE, MAX_PDF_FILE_SIZE, MAX_CSV_FILE_SIZE} from '../utils/constants';
+import {WorkspaceDetectionService} from '../services/WorkspaceDetectionService';
+import {getUserDefaultWorkspace, checkWorkspaceAccess} from '../services/WorkspaceService';
+import {z} from 'zod';
 
 const streamPipeline = promisify(pipeline);
 
 // File upload security constants
 const MAX_FILE_SIZE = MAX_PDF_FILE_SIZE;
-const ALLOWED_MIME_TYPES = ['application/pdf'];
-const ALLOWED_EXTENSIONS = ['.pdf'];
-const ALLOWED_CSV_MIME_TYPES = ['text/csv', 'application/csv', 'text/plain'];
-const ALLOWED_CSV_EXTENSIONS = ['.csv'];
+const ALLOWED_MIME_TYPES = ['application/pdf'] as const;
+const ALLOWED_EXTENSIONS = ['.pdf'] as const;
+const ALLOWED_CSV_MIME_TYPES = ['text/csv', 'application/csv', 'text/plain'] as const;
+const ALLOWED_CSV_EXTENSIONS = ['.csv'] as const;
+
+/**
+ * Zod schema for PDF file upload validation
+ */
+const PDFFileSchema = z.object({
+  filename: z.string().min(1).max(255).refine(
+    (name) => {
+      const ext = name.toLowerCase().substring(name.lastIndexOf('.'));
+      return ALLOWED_EXTENSIONS.includes(ext as typeof ALLOWED_EXTENSIONS[number]);
+    },
+    {message: 'Invalid file extension. Only .pdf files are allowed.'},
+  ),
+  mimetype: z.enum(ALLOWED_MIME_TYPES).optional(),
+  encoding: z.string().optional(),
+  createReadStream: z.function().returns(z.any()),
+}).refine(
+  (data) => {
+    // Validate filename is not empty after sanitization
+    const sanitized = sanitizeFilename(data.filename);
+    return sanitized.length > 0;
+  },
+  {message: 'Invalid filename.'},
+);
+
+/**
+ * Zod schema for CSV file upload validation
+ * Note: Currently unused but kept for future validation needs
+ */
+// const CSVFileSchema = z.object({
+//   filename: z.string().min(1).max(255).refine(
+//     (name) => {
+//       const ext = name.toLowerCase().substring(name.lastIndexOf('.'));
+//       return ALLOWED_CSV_EXTENSIONS.includes(ext as typeof ALLOWED_CSV_EXTENSIONS[number]);
+//     },
+//     {message: 'Invalid file extension. Only .csv files are allowed.'},
+//   ),
+//   mimetype: z.enum(ALLOWED_CSV_MIME_TYPES).optional(),
+//   encoding: z.string().optional(),
+//   createReadStream: z.function().returns(z.any()),
+// }).refine(
+//   (data) => {
+//     // Validate filename is not empty after sanitization
+//     const sanitized = sanitizeFilename(data.filename);
+//     return sanitized.length > 0;
+//   },
+//   {message: 'Invalid filename.'},
+// );
 
 /**
  * Sanitize filename to prevent path traversal attacks
@@ -59,7 +109,7 @@ export function validateFileExtension(filename: string): boolean {
     return false;
   }
   const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
-  return ALLOWED_EXTENSIONS.includes(ext);
+  return ALLOWED_EXTENSIONS.includes(ext as typeof ALLOWED_EXTENSIONS[number]);
 }
 
 /**
@@ -184,16 +234,17 @@ function normalizeDescription(description: string): string {
 }
 
 /**
- * Get default account for user
+ * Get default account for workspace
  * @param context - GraphQL context
+ * @param workspaceId - Workspace ID
  * @returns Default account
  */
-async function getDefaultAccount(context: GraphQLContext): Promise<Account> {
+async function getDefaultAccount(context: GraphQLContext, workspaceId: string): Promise<Account> {
   return await withPrismaErrorHandling(
     async () => {
       let account = await context.prisma.account.findFirst({
         where: {
-          userId: context.userId,
+          workspaceId,
           isDefault: true,
         },
       });
@@ -206,7 +257,9 @@ async function getDefaultAccount(context: GraphQLContext): Promise<Account> {
           balance: 0,
           isDefault: true,
           accountType: 'Cash',
-          userId: context.userId,
+          workspaceId,
+          createdBy: context.userId,
+          lastEditedBy: context.userId,
         },
       });
 
@@ -217,19 +270,19 @@ async function getDefaultAccount(context: GraphQLContext): Promise<Account> {
 }
 
 /**
- * Get default category for user
+ * Get default category for workspace
  * @param context - GraphQL context
+ * @param workspaceId - Workspace ID
  * @returns Default category (Food & Groceries)
  */
-async function getDefaultCategory(context: GraphQLContext): Promise<Category> {
+async function getDefaultCategory(context: GraphQLContext, workspaceId: string): Promise<Category> {
   return await withPrismaErrorHandling(
     async () => {
       let category = await context.prisma.category.findFirst({
         where: {
-          OR: [
-            {userId: context.userId, isDefault: true, name: 'Food & Groceries'},
-            {userId: null, isDefault: true, name: 'Food & Groceries'},
-          ],
+          workspaceId,
+          isDefault: true,
+          name: 'Food & Groceries',
         },
       });
 
@@ -239,7 +292,9 @@ async function getDefaultCategory(context: GraphQLContext): Promise<Category> {
           name: 'Food & Groceries',
           categoryType: 'Expense',
           isDefault: true,
-          userId: null,
+          workspaceId,
+          createdBy: context.userId,
+          lastEditedBy: context.userId,
         },
       });
 
@@ -250,19 +305,18 @@ async function getDefaultCategory(context: GraphQLContext): Promise<Category> {
 }
 
 /**
- * Get default payee for user
+ * Get default payee for workspace
  * @param context - GraphQL context
+ * @param workspaceId - Workspace ID
  * @returns Default payee (Neccesities)
  */
-async function getDefaultPayee(context: GraphQLContext): Promise<Payee> {
+async function getDefaultPayee(context: GraphQLContext, workspaceId: string): Promise<Payee> {
   return await withPrismaErrorHandling(
     async () => {
       let payee = await context.prisma.payee.findFirst({
         where: {
-          OR: [
-            {userId: context.userId, isDefault: true},
-            {userId: null, isDefault: true},
-          ],
+          workspaceId,
+          isDefault: true,
         },
       });
 
@@ -271,7 +325,9 @@ async function getDefaultPayee(context: GraphQLContext): Promise<Payee> {
         data: {
           name: 'Neccesities',
           isDefault: true,
-          userId: null,
+          workspaceId,
+          createdBy: context.userId,
+          lastEditedBy: context.userId,
         },
       });
 
@@ -350,6 +406,7 @@ function matchPayee(description: string, rules: Array<{pattern: string; payeeId:
 async function findOrCreateImportedTransaction(
   parsed: {date: string; description: string; debit?: number | null; credit?: number | null},
   context: GraphQLContext,
+  workspaceId: string,
 ): Promise<{
   id: string;
   rawDate: string;
@@ -398,6 +455,7 @@ async function findOrCreateImportedTransaction(
           rawCredit: parsed.credit ?? null,
           matched: false,
           userId: context.userId,
+          workspaceId,
         },
       });
       return {
@@ -432,17 +490,18 @@ export async function uploadPDF(
   success: boolean;
   importedCount: number;
   savedCount: number;
-  unmappedTransactions: Array<{
-    id: string;
-    rawDate: string;
-    rawDescription: string;
-    rawDebit: number | null;
-    rawCredit: number | null;
-    suggestedAccountId: string | null;
-    suggestedCategoryId: string | null;
-    suggestedPayeeId: string | null;
-    cardNumber: string | null;
-  }>;
+    unmappedTransactions: Array<{
+      id: string;
+      rawDate: string;
+      rawDescription: string;
+      rawDebit: number | null;
+      rawCredit: number | null;
+      suggestedAccountId: string | null;
+      suggestedCategoryId: string | null;
+      suggestedPayeeId: string | null;
+      cardNumber: string | null;
+      detectedWorkspaceId: string | null;
+    }>;
 }> {  // Handle file parameter - it might be a Promise or already resolved
   let fileData = file instanceof Promise ? await file : file;
 
@@ -475,29 +534,28 @@ export async function uploadPDF(
   const mimetype = (fileData as {mimetype?: string; type?: string}).mimetype ?? (fileData as {mimetype?: string; type?: string}).type;
   const createReadStream = (fileData as {createReadStream?: () => NodeJS.ReadableStream}).createReadStream;
 
-  // Validate that we have required properties
-  if (!filename) {
-    throw new ValidationError('Invalid file upload. Filename is missing. Please ensure the file is uploaded correctly.');
+  // Validate file structure with Zod
+  const validationResult = PDFFileSchema.safeParse({
+    filename: filename ?? '',
+    mimetype: mimetype as typeof ALLOWED_MIME_TYPES[number] | undefined,
+    encoding: (fileData as {encoding?: string}).encoding,
+    createReadStream,
+  });
+
+  if (!validationResult.success) {
+    const errors = validationResult.error.errors.map((e) => e.message).join(', ');
+    throw new ValidationError(`Invalid file upload: ${errors}`);
   }
 
+  // Additional validation for createReadStream
   if (!createReadStream || typeof createReadStream !== 'function') {
     throw new ValidationError('Invalid file upload. File stream is missing. Please ensure the file is uploaded correctly.');
-  }
-
-  // Validate MIME type
-  if (mimetype && !ALLOWED_MIME_TYPES.includes(mimetype)) {
-    throw new ValidationError(`Invalid file type. Only PDF files are allowed. Received: ${mimetype}`);
-  }
-
-  // Validate file extension
-  if (!validateFileExtension(filename)) {
-    throw new ValidationError(`Invalid file extension. Only .pdf files are allowed.`);
   }
 
   const fileStream = createReadStream;
 
   // Sanitize filename to prevent path traversal
-  const sanitizedFilename = sanitizeFilename(filename);
+  const sanitizedFilename = sanitizeFilename(filename ?? 'file');
   const tempPath = join(tmpdir(), `${randomUUID()}-${sanitizedFilename}`);
 
   try {
@@ -553,11 +611,17 @@ export async function uploadPDF(
     const parsedData = await parsePDF(buffer, dateFormat ?? 'DD/MM/YYYY');
     const {cardNumber, transactions} = parsedData;
 
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
     // Get defaults and match rules
     const [defaultAccount, _defaultCategory, _defaultPayee, matchRules, creditCardAccount] = await Promise.all([
-      getDefaultAccount(context),
-      getDefaultCategory(context),
-      getDefaultPayee(context),
+      getDefaultAccount(context, workspaceId),
+      getDefaultCategory(context, workspaceId),
+      getDefaultPayee(context, workspaceId),
       withPrismaErrorHandling(
         async () =>
           await context.prisma.importMatchRule.findMany({
@@ -568,7 +632,7 @@ export async function uploadPDF(
       // Find first CreditCard account for fallback
       context.prisma.account.findFirst({
         where: {
-          userId: context.userId,
+          workspaceId,
           accountType: 'CreditCard',
         },
         orderBy: {
@@ -586,6 +650,7 @@ export async function uploadPDF(
       suggestedCategoryId: string | null;
       suggestedPayeeId: string | null;
       cardNumber: string | null;
+      detectedWorkspaceId: string | null;
     }> = [];
 
     let savedCount = 0;
@@ -639,34 +704,44 @@ export async function uploadPDF(
                 categoryId: matchedCategoryId,
                 payeeId: matchedPayeeId,
                 note: parsed.description,
-                userId: context.userId,
+                createdBy: context.userId,
+                lastEditedBy: context.userId,
               },
             });
 
             await incrementAccountBalance(accountId, balanceDelta, tx);
 
+            // Get account to find workspaceId for budget updates
+            const account = await tx.account.findUnique({
+              where: {id: accountId},
+              select: {workspaceId: true},
+            });
+
             // Update budgets for this transaction
-            await updateBudgetForTransaction(
-              {
-                id: newTransaction.id,
-                accountId: newTransaction.accountId,
-                categoryId: newTransaction.categoryId,
-                payeeId: newTransaction.payeeId,
-                userId: newTransaction.userId,
-                value: Number(newTransaction.value),
-                date: newTransaction.date,
-                categoryType: category?.categoryType ?? null,
-              },
-              'create',
-              undefined,
-              tx,
-            );
+            if (account) {
+              await updateBudgetForTransaction(
+                {
+                  id: newTransaction.id,
+                  accountId: newTransaction.accountId,
+                  categoryId: newTransaction.categoryId,
+                  payeeId: newTransaction.payeeId,
+                  userId: context.userId,
+                  workspaceId: account.workspaceId,
+                  value: Number(newTransaction.value),
+                  date: newTransaction.date,
+                  categoryType: category?.categoryType ?? null,
+                },
+                'create',
+                undefined,
+                tx,
+              );
+            }
           });
 
           return true; // Successfully saved
         } catch {
           // If save fails, add to unmapped list
-          const imported = await findOrCreateImportedTransaction(parsed, context);
+          const imported = await findOrCreateImportedTransaction(parsed, context, workspaceId);
 
           unmappedTransactions.push({
             id: imported.id,
@@ -678,12 +753,13 @@ export async function uploadPDF(
             suggestedCategoryId: matchedCategoryId,
             suggestedPayeeId: matchedPayeeId,
             cardNumber,
+            detectedWorkspaceId: null, // Will be set after detection
           });
           return false; // Not saved
         }
       } else {
         // Add to unmapped list - use findOrCreate to prevent duplicates
-        const imported = await findOrCreateImportedTransaction(parsed, context);
+        const imported = await findOrCreateImportedTransaction(parsed, context, workspaceId);
 
         unmappedTransactions.push({
           id: imported.id,
@@ -695,6 +771,7 @@ export async function uploadPDF(
           suggestedCategoryId: matchedCategoryId,
           suggestedPayeeId: matchedPayeeId,
           cardNumber,
+          detectedWorkspaceId: null, // Will be set after detection
         });
         return false; // Not saved (unmapped)
       }
@@ -718,6 +795,7 @@ export async function uploadPDF(
       suggestedCategoryId: string | null;
       suggestedPayeeId: string | null;
       cardNumber: string | null;
+      detectedWorkspaceId: string | null;
     }>();
 
     for (const unmapped of unmappedTransactions) {
@@ -729,6 +807,7 @@ export async function uploadPDF(
       if (!deduplicationKeyMap.has(deduplicationKey)) {
         deduplicationKeyMap.set(deduplicationKey, {
           ...unmapped,
+          detectedWorkspaceId: null, // Will be set after detection
           // Keep original rawDescription - don't replace with normalized version
         });
       }
@@ -736,6 +815,39 @@ export async function uploadPDF(
 
     // Convert map values to array
     const deduplicatedUnmapped = Array.from(deduplicationKeyMap.values());
+
+    // Detect and cache workspace for each unmapped transaction
+    const workspaceDetectionService = new WorkspaceDetectionService();
+    const defaultWorkspaceId = await getUserDefaultWorkspace(context.userId);
+
+    await Promise.all(
+      deduplicatedUnmapped.map(async (unmapped) => {
+        try {
+          const detectedWorkspaceId = await workspaceDetectionService.detectWorkspaceForTransaction(
+            {
+              id: unmapped.id,
+              accountId: unmapped.suggestedAccountId ?? null,
+              categoryId: unmapped.suggestedCategoryId ?? null,
+              payeeId: unmapped.suggestedPayeeId ?? null,
+              workspaceId: defaultWorkspaceId,
+            },
+            context.userId,
+          );
+
+          await workspaceDetectionService.cacheDetectedWorkspace(
+            unmapped.id,
+            detectedWorkspaceId,
+            context.userId,
+          );
+
+          // Add detectedWorkspaceId to unmapped transaction
+          unmapped.detectedWorkspaceId = detectedWorkspaceId;
+        } catch {
+          // If detection fails, use default workspace
+          unmapped.detectedWorkspaceId = defaultWorkspaceId;
+        }
+      }),
+    );
 
     return {
       success: true,
@@ -865,6 +977,12 @@ export async function saveImportedTransactions(
   savedCount: number;
   errors: string[];
 }> {
+  // Get workspace ID from context (default to user's default workspace)
+  const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+  // Verify workspace access
+  await checkWorkspaceAccess(workspaceId, context.userId);
+
   const errors: string[] = [];
   let savedCount = 0;
 
@@ -876,7 +994,7 @@ export async function saveImportedTransactions(
       const account = await tx.account.findFirst({
         where: {
           id: mapping.cardAccountId,
-          userId: context.userId,
+          workspaceId,
         },
       });
 
@@ -911,7 +1029,7 @@ export async function saveImportedTransactions(
       const account = await tx.account.findFirst({
         where: {
           id: descMapping.accountId,
-          userId: context.userId,
+          workspaceId,
         },
       });
 
@@ -925,10 +1043,7 @@ export async function saveImportedTransactions(
         const category = await tx.category.findFirst({
           where: {
             id: descMapping.categoryId,
-            OR: [
-              {userId: context.userId},
-              {userId: null, isDefault: true},
-            ],
+            workspaceId,
           },
         });
 
@@ -943,10 +1058,7 @@ export async function saveImportedTransactions(
         const payee = await tx.payee.findFirst({
           where: {
             id: descMapping.payeeId,
-            OR: [
-              {userId: context.userId},
-              {userId: null, isDefault: true},
-            ],
+            workspaceId,
           },
         });
 
@@ -1023,9 +1135,13 @@ export async function saveImportedTransactions(
       payeeId: string | null;
       note: string;
       userId: string;
+      workspaceId: string;
       importedId: string;
       balanceDelta: number;
     }> = [];
+
+    // Get default workspace
+    const defaultWorkspaceId = await getUserDefaultWorkspace(context.userId);
 
     for (const imported of allUnmapped) {
       // Normalize description before matching
@@ -1036,6 +1152,24 @@ export async function saveImportedTransactions(
       }
 
       try {
+        // Use detectedWorkspaceId if available, otherwise use default
+        const workspaceId = imported.detectedWorkspaceId ?? defaultWorkspaceId;
+
+        // Verify account belongs to the detected workspace
+        const account = await tx.account.findFirst({
+          where: {
+            id: descMapping.accountId,
+            workspaceId,
+          },
+          select: {id: true},
+        });
+
+        if (!account) {
+          // Account doesn't belong to detected workspace, skip this transaction
+          errors.push(`Transaction ${imported.id}: Account does not belong to detected workspace`);
+          continue;
+        }
+
         // Calculate value
         const value = Math.abs(Number(imported.rawDebit ?? imported.rawCredit ?? 0));
         if (value === 0) {
@@ -1059,6 +1193,7 @@ export async function saveImportedTransactions(
           payeeId: descMapping.payeeId ?? null,
           note: imported.rawDescription,
           userId: context.userId,
+          workspaceId,
           importedId: imported.id,
           balanceDelta,
         });
@@ -1082,12 +1217,31 @@ export async function saveImportedTransactions(
             categoryId: txData.categoryId,
             payeeId: txData.payeeId,
             note: txData.note,
-            userId: txData.userId,
+            createdBy: txData.userId,
+            lastEditedBy: txData.userId,
           },
         });
 
         // Update account balance
         await incrementAccountBalance(txData.accountId, txData.balanceDelta, tx);
+
+        // Update budgets for this transaction
+        await updateBudgetForTransaction(
+          {
+            id: transaction.id,
+            accountId: transaction.accountId,
+            categoryId: transaction.categoryId,
+            payeeId: transaction.payeeId,
+            userId: txData.userId,
+            workspaceId: txData.workspaceId,
+            value: Number(transaction.value),
+            date: transaction.date,
+            categoryType: null, // Will be determined in updateBudgetForTransaction
+          },
+          'create',
+          undefined,
+          tx,
+        );
 
         // Mark ImportedTransaction as matched
         await tx.importedTransaction.update({
@@ -1169,11 +1323,19 @@ export async function matchImportedTransaction(
         throw new NotFoundError('ImportedTransaction');
       }
 
-      // Verify transaction belongs to user
+      // Get workspace ID from context (default to user's default workspace)
+      const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+      // Verify workspace access
+      await checkWorkspaceAccess(workspaceId, context.userId);
+
+      // Verify transaction belongs to workspace (via account)
       const transaction = await context.prisma.transaction.findFirst({
         where: {
           id: transactionId,
-          userId: context.userId,
+          account: {
+            workspaceId,
+          },
         },
       });
 
@@ -1241,7 +1403,7 @@ function parseCSVLine(line: string): string[] {
  */
 function validateCSVFileExtension(filename: string): boolean {
   const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
-  return ALLOWED_CSV_EXTENSIONS.includes(ext);
+  return ALLOWED_CSV_EXTENSIONS.includes(ext as typeof ALLOWED_CSV_EXTENSIONS[number]);
 }
 
 /**
@@ -1293,7 +1455,7 @@ export async function importCSV(
   }
 
   // Extract file properties - handle both standard and alternative property names
-  const filename = 'filename' in fileData && typeof fileData.filename === 'string' ? fileData.filename : (fileData as {name?: string}).name ?? '';
+  const filename = ('filename' in fileData && typeof fileData.filename === 'string' ? fileData.filename : (fileData as {name?: string}).name) ?? '';
   const mimetype = ('mimetype' in fileData && typeof fileData.mimetype === 'string' ? fileData.mimetype : (fileData as {type?: string}).type) ?? undefined;
   const createUploadStream: () => NodeJS.ReadableStream = ('createReadStream' in fileData && typeof fileData.createReadStream === 'function' ? fileData.createReadStream : (): NodeJS.ReadableStream => {
     throw new ValidationError('File stream is not available. The file may have been corrupted during upload.');
@@ -1315,7 +1477,7 @@ export async function importCSV(
   }
 
   // Validate MIME type (allow CSV and plain text)
-  if (mimetype && !ALLOWED_CSV_MIME_TYPES.includes(mimetype)) {
+  if (mimetype && !ALLOWED_CSV_MIME_TYPES.includes(mimetype as typeof ALLOWED_CSV_MIME_TYPES[number])) {
     // Some browsers may send different MIME types, so we'll be lenient
     if (!mimetype.includes('csv') && !mimetype.includes('text')) {
       throw new ValidationError(`Invalid file type. Only CSV files are allowed. Received: ${mimetype}`);
@@ -1412,6 +1574,12 @@ export async function importCSV(
       rows.push(row);
     }
 
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
     // Process rows based on entity type
     let created = 0;
     let updated = 0;
@@ -1428,10 +1596,10 @@ export async function importCSV(
             let wasUpdated = false;
             if (entityType === 'accounts') {
               if (row.id) {
-                const existing = await tx.account.findFirst({where: {id: row.id, userId: context.userId}});
+                const existing = await tx.account.findFirst({where: {id: row.id, workspaceId}});
                 wasUpdated = existing !== null;
               }
-              await importAccount(row, tx, context.userId);
+              await importAccount(row, tx, workspaceId, context.userId);
               if (wasUpdated) {
                 updated++;
               } else {
@@ -1439,10 +1607,10 @@ export async function importCSV(
               }
             } else if (entityType === 'categories') {
               if (row.id) {
-                const existing = await tx.category.findFirst({where: {id: row.id, userId: context.userId || null}});
+                const existing = await tx.category.findFirst({where: {id: row.id, workspaceId}});
                 wasUpdated = existing !== null;
               }
-              await importCategory(row, tx, context.userId);
+              await importCategory(row, tx, workspaceId, context.userId);
               if (wasUpdated) {
                 updated++;
               } else {
@@ -1450,10 +1618,10 @@ export async function importCSV(
               }
             } else if (entityType === 'payees') {
               if (row.id) {
-                const existing = await tx.payee.findFirst({where: {id: row.id, userId: context.userId || null}});
+                const existing = await tx.payee.findFirst({where: {id: row.id, workspaceId}});
                 wasUpdated = existing !== null;
               }
-              await importPayee(row, tx, context.userId);
+              await importPayee(row, tx, workspaceId, context.userId);
               if (wasUpdated) {
                 updated++;
               } else {
@@ -1461,10 +1629,10 @@ export async function importCSV(
               }
             } else if (entityType === 'transactions') {
               if (row.id) {
-                const existing = await tx.transaction.findFirst({where: {id: row.id, userId: context.userId}});
+                const existing = await tx.transaction.findFirst({where: {id: row.id, account: {workspaceId}}});
                 wasUpdated = existing !== null;
               }
-              await importTransaction(row, tx, context.userId);
+              await importTransaction(row, tx, workspaceId, context.userId);
               if (wasUpdated) {
                 updated++;
               } else {
@@ -1472,10 +1640,10 @@ export async function importCSV(
               }
             } else if (entityType === 'recurringTransactions') {
               if (row.id) {
-                const existing = await tx.recurringTransaction.findFirst({where: {id: row.id, userId: context.userId}});
+                const existing = await tx.recurringTransaction.findFirst({where: {id: row.id, account: {workspaceId}}});
                 wasUpdated = existing !== null;
               }
-              await importRecurringTransaction(row, tx, context.userId);
+              await importRecurringTransaction(row, tx, workspaceId, context.userId);
               if (wasUpdated) {
                 updated++;
               } else {
@@ -1493,10 +1661,10 @@ export async function importCSV(
               }
             } else if (entityType === 'budgets') {
               if (row.id) {
-                const existing = await tx.budget.findFirst({where: {id: row.id, userId: context.userId}});
+                const existing = await tx.budget.findFirst({where: {id: row.id, workspaceId}});
                 wasUpdated = existing !== null;
               }
-              await importBudget(row, tx, context.userId);
+              await importBudget(row, tx, workspaceId, context.userId);
               if (wasUpdated) {
                 updated++;
               } else {
@@ -1507,7 +1675,7 @@ export async function importCSV(
                 const existing = await tx.importMatchRule.findFirst({where: {id: row.id, userId: context.userId}});
                 wasUpdated = existing !== null;
               }
-              await importImportMatchRule(row, tx, context.userId);
+              await importImportMatchRule(row, tx, context.userId, workspaceId);
               if (wasUpdated) {
                 updated++;
               } else {
@@ -1544,6 +1712,7 @@ export async function importCSV(
 async function importAccount(
   row: Record<string, string>,
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  workspaceId: string,
   userId: string,
 ): Promise<void> {
   if (!row.name) {
@@ -1553,19 +1722,29 @@ async function importAccount(
   const data = {
     name: row.name,
     initBalance: row.initBalance ? parseFloat(row.initBalance) : 0,
+    balance: row.initBalance ? parseFloat(row.initBalance) : 0,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
-    userId,
+    accountType: (row.accountType as 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans') ?? 'Cash',
+    workspaceId,
+    createdBy: userId,
+    lastEditedBy: userId,
   };
 
   if (row.id) {
-    // Check if account exists and belongs to user
+    // Check if account exists and belongs to workspace
     const existing = await tx.account.findFirst({
-      where: {id: row.id, userId},
+      where: {id: row.id, workspaceId},
     });
     if (existing) {
       await tx.account.update({
         where: {id: row.id},
-        data,
+        data: {
+          name: data.name,
+          initBalance: data.initBalance,
+          isDefault: data.isDefault,
+          accountType: data.accountType,
+          lastEditedBy: userId,
+        },
       });
       return;
     }
@@ -1583,6 +1762,7 @@ async function importAccount(
 async function importCategory(
   row: Record<string, string>,
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  workspaceId: string,
   userId: string,
 ): Promise<void> {
   if (!row.name) {
@@ -1593,17 +1773,24 @@ async function importCategory(
     name: row.name,
     categoryType: ((row.type === 'INCOME' || row.type === 'Income') ? 'Income' : (row.type === 'EXPENSE' || row.type === 'Expense') ? 'Expense' : 'Expense') as CategoryType,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
-    userId,
+    workspaceId,
+    createdBy: userId,
+    lastEditedBy: userId,
   };
 
   if (row.id) {
     const existing = await tx.category.findFirst({
-      where: {id: row.id, userId: userId || null},
+      where: {id: row.id, workspaceId},
     });
     if (existing) {
       await tx.category.update({
         where: {id: row.id},
-        data,
+        data: {
+          name: data.name,
+          categoryType: data.categoryType,
+          isDefault: data.isDefault,
+          lastEditedBy: userId,
+        },
       });
       return;
     }
@@ -1620,6 +1807,7 @@ async function importCategory(
 async function importPayee(
   row: Record<string, string>,
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  workspaceId: string,
   userId: string,
 ): Promise<void> {
   if (!row.name) {
@@ -1629,17 +1817,23 @@ async function importPayee(
   const data = {
     name: row.name,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
-    userId,
+    workspaceId,
+    createdBy: userId,
+    lastEditedBy: userId,
   };
 
   if (row.id) {
     const existing = await tx.payee.findFirst({
-      where: {id: row.id, userId: userId || null},
+      where: {id: row.id, workspaceId},
     });
     if (existing) {
       await tx.payee.update({
         where: {id: row.id},
-        data,
+        data: {
+          name: data.name,
+          isDefault: data.isDefault,
+          lastEditedBy: userId,
+        },
       });
       return;
     }
@@ -1656,15 +1850,16 @@ async function importPayee(
 async function importTransaction(
   row: Record<string, string>,
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  workspaceId: string,
   userId: string,
 ): Promise<void> {
   if (!row.value || !row.accountId || !row.date) {
     throw new ValidationError('Transaction value, accountId, and date are required');
   }
 
-  // Validate account exists and belongs to user
+  // Validate account exists and belongs to workspace
   const account = await tx.account.findFirst({
-    where: {id: row.accountId, userId},
+    where: {id: row.accountId, workspaceId},
   });
   if (!account) {
     throw new ValidationError(`Account with ID ${row.accountId} not found`);
@@ -1674,7 +1869,7 @@ async function importTransaction(
   let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, userId: userId ?? null},
+      where: {id: categoryId, workspaceId},
     });
     if (!category) {
       // Category not found - set to null instead of failing the import
@@ -1687,7 +1882,7 @@ async function importTransaction(
   let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, userId: userId ?? null},
+      where: {id: payeeId, workspaceId},
     });
     if (!payee) {
       // Payee not found - set to null instead of failing the import
@@ -1703,17 +1898,26 @@ async function importTransaction(
     categoryId,
     payeeId,
     note: row.note ?? null,
-    userId,
+    createdBy: userId,
+    lastEditedBy: userId,
   };
 
   if (row.id) {
     const existing = await tx.transaction.findFirst({
-      where: {id: row.id, userId},
+      where: {id: row.id, account: {workspaceId}},
     });
     if (existing) {
       await tx.transaction.update({
         where: {id: row.id},
-        data,
+        data: {
+          value: data.value,
+          date: data.date,
+          accountId: data.accountId,
+          categoryId: data.categoryId,
+          payeeId: data.payeeId,
+          note: data.note,
+          lastEditedBy: userId,
+        },
       });
       return;
     }
@@ -1730,15 +1934,16 @@ async function importTransaction(
 async function importRecurringTransaction(
   row: Record<string, string>,
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
-  userId: string,
+  workspaceId: string,
+  _userId: string,
 ): Promise<void> {
   if (!row.cronExpression || !row.value || !row.accountId || !row.nextRunDate) {
     throw new ValidationError('Recurring transaction cronExpression, value, accountId, and nextRunDate are required');
   }
 
-  // Validate account exists and belongs to user
+  // Validate account exists and belongs to workspace
   const account = await tx.account.findFirst({
-    where: {id: row.accountId, userId},
+    where: {id: row.accountId, workspaceId},
   });
   if (!account) {
     throw new ValidationError(`Account with ID ${row.accountId} not found`);
@@ -1747,7 +1952,7 @@ async function importRecurringTransaction(
   // Validate category if provided
   if (row.categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: row.categoryId, userId: userId || null},
+      where: {id: row.categoryId, workspaceId},
     });
     if (!category) {
       throw new ValidationError(`Category with ID ${row.categoryId} not found`);
@@ -1757,7 +1962,7 @@ async function importRecurringTransaction(
   // Validate payee if provided
   if (row.payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: row.payeeId, userId: userId || null},
+      where: {id: row.payeeId, workspaceId},
     });
     if (!payee) {
       throw new ValidationError(`Payee with ID ${row.payeeId} not found`);
@@ -1772,12 +1977,11 @@ async function importRecurringTransaction(
     payeeId: row.payeeId ?? null,
     note: row.note ?? null,
     nextRunDate: new Date(row.nextRunDate),
-    userId,
   };
 
   if (row.id) {
     const existing = await tx.recurringTransaction.findFirst({
-      where: {id: row.id, userId},
+      where: {id: row.id, account: {workspaceId}},
     });
     if (existing) {
       await tx.recurringTransaction.update({
@@ -1823,6 +2027,7 @@ async function importPreferences(
 async function importBudget(
   row: Record<string, string>,
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  workspaceId: string,
   userId: string,
 ): Promise<void> {
   if (!row.amount) {
@@ -1833,7 +2038,7 @@ async function importBudget(
   let accountId: string | null = row.accountId ?? null;
   if (accountId) {
     const account = await tx.account.findFirst({
-      where: {id: accountId, userId},
+      where: {id: accountId, workspaceId},
     });
     if (!account) {
       accountId = null;
@@ -1844,7 +2049,7 @@ async function importBudget(
   let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, userId: userId ?? null},
+      where: {id: categoryId, workspaceId},
     });
     if (!category) {
       categoryId = null;
@@ -1855,7 +2060,7 @@ async function importBudget(
   let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, userId: userId ?? null},
+      where: {id: payeeId, workspaceId},
     });
     if (!payee) {
       payeeId = null;
@@ -1863,23 +2068,33 @@ async function importBudget(
   }
 
   const data = {
+    workspaceId,
     amount: parseFloat(row.amount),
     currentSpent: row.currentSpent ? parseFloat(row.currentSpent) : 0,
     accountId,
     categoryId,
     payeeId,
     lastResetDate: row.lastResetDate ? new Date(row.lastResetDate) : new Date(),
-    userId,
+    createdBy: userId,
+    lastEditedBy: userId,
   };
 
   if (row.id) {
     const existing = await tx.budget.findFirst({
-      where: {id: row.id, userId},
+      where: {id: row.id, workspaceId},
     });
     if (existing) {
       await tx.budget.update({
         where: {id: row.id},
-        data,
+        data: {
+          amount: data.amount,
+          currentSpent: data.currentSpent,
+          accountId: data.accountId,
+          categoryId: data.categoryId,
+          payeeId: data.payeeId,
+          lastResetDate: data.lastResetDate,
+          lastEditedBy: userId,
+        },
       });
       return;
     }
@@ -1892,43 +2107,46 @@ async function importBudget(
 
 /**
  * Import import match rule from CSV row
+ * Note: ImportMatchRule is user-specific, but referenced entities (account, category, payee) are workspace-scoped
+ * We validate that the user has access to the workspace containing these entities
  */
 async function importImportMatchRule(
   row: Record<string, string>,
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
   userId: string,
+  workspaceId: string,
 ): Promise<void> {
   if (!row.pattern) {
     throw new ValidationError('Import match rule pattern is required');
   }
 
-  // Validate account if provided
+  // Validate account if provided - check if it belongs to the workspace
   let accountId: string | null = row.accountId ?? null;
   if (accountId) {
     const account = await tx.account.findFirst({
-      where: {id: accountId, userId},
+      where: {id: accountId, workspaceId},
     });
     if (!account) {
       accountId = null;
     }
   }
 
-  // Validate category if provided
+  // Validate category if provided - check if it belongs to the workspace
   let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, userId: userId ?? null},
+      where: {id: categoryId, workspaceId},
     });
     if (!category) {
       categoryId = null;
     }
   }
 
-  // Validate payee if provided
+  // Validate payee if provided - check if it belongs to the workspace
   let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, userId: userId ?? null},
+      where: {id: payeeId, workspaceId},
     });
     if (!payee) {
       payeeId = null;

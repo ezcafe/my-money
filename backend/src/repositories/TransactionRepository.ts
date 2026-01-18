@@ -15,25 +15,28 @@ type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' |
  */
 export class TransactionRepository extends BaseRepository {
   /**
-   * Find transaction by ID with ownership check
+   * Find transaction by ID in workspace (via account)
    * @param id - Transaction ID
-   * @param userId - User ID
+   * @param workspaceId - Workspace ID (via account)
    * @param select - Optional select clause
    * @param include - Optional include clause
    * @returns Transaction if found, null otherwise
    */
   async findById(
     id: string,
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
     include?: Prisma.TransactionInclude,
   ): Promise<Transaction | null> {
     const queryOptions: {
-      where: {id: string; userId: string};
+      where: {id: string; account: {workspaceId: string}};
       select?: Record<string, boolean>;
       include?: Prisma.TransactionInclude;
     } = {
-      where: {id, userId},
+      where: {
+        id,
+        account: {workspaceId},
+      },
     };
 
     if (select) {
@@ -83,7 +86,8 @@ export class TransactionRepository extends BaseRepository {
       categoryId?: string | null;
       payeeId?: string | null;
       note?: string | null;
-      userId: string;
+      createdBy: string;
+      lastEditedBy: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Transaction> {
@@ -105,7 +109,8 @@ export class TransactionRepository extends BaseRepository {
       categoryId?: string | null;
       payeeId?: string | null;
       note?: string | null;
-      userId: string;
+      createdBy: string;
+      lastEditedBy: string;
     }>,
     tx?: PrismaTransaction,
   ): Promise<{count: number}> {
@@ -129,6 +134,7 @@ export class TransactionRepository extends BaseRepository {
       categoryId?: string | null;
       payeeId?: string | null;
       note?: string | null;
+      lastEditedBy?: string;
     },
     tx?: PrismaTransaction,
   ): Promise<Transaction> {
@@ -216,9 +222,8 @@ export class TransactionRepository extends BaseRepository {
     // Build WHERE conditions using Prisma.sql
     const whereParts: PrismaNamespace.Sql[] = [];
 
-    if ('userId' in where && where.userId) {
-      whereParts.push(PrismaNamespace.sql`t."userId" = ${where.userId}`);
-    }
+    // Note: Transactions don't have direct workspaceId, filter via account.workspaceId
+    // This method is used for aggregation, workspace filtering should be done via accountId
 
     if ('accountId' in where && where.accountId) {
       if (typeof where.accountId === 'object' && 'in' in where.accountId && Array.isArray(where.accountId.in)) {

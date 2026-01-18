@@ -4,7 +4,7 @@
  * Used in Account, Category, Payee, and Budget detail pages
  */
 
-import React, {useState, useCallback, memo} from 'react';
+import React, {useState, useCallback, memo, useMemo} from 'react';
 import {
   Box,
   Typography,
@@ -33,6 +33,7 @@ import {
   Stack,
 } from '@mui/material';
 import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear} from '@mui/icons-material';
+import {FixedSizeList} from 'react-window';
 import {Card} from './ui/Card';
 import type {
   PaginatedTransactions,
@@ -211,6 +212,73 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
     count += 2; // Note and Actions
     return count;
   };
+
+  /**
+   * Render transaction row (memoized for virtual scrolling)
+   */
+  const renderTransactionRow = useCallback(
+    (transaction: typeof transactions.items[0], _index: number) => (
+      <TableRow
+        key={transaction.id}
+        hover={Boolean(onRowClick)}
+        sx={onRowClick ? {cursor: 'pointer'} : undefined}
+        onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
+      >
+        <TableCell>{formatDateShort(transaction.date, dateFormat)}</TableCell>
+        <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
+        {showAccountColumn ? <TableCell>{transaction.account?.name ?? '-'}</TableCell> : null}
+        {showCategoryColumn ? <TableCell>{transaction.category?.name ?? '-'}</TableCell> : null}
+        {showPayeeColumn ? <TableCell>{transaction.payee?.name ?? '-'}</TableCell> : null}
+        <TableCell>{transaction.note ?? '-'}</TableCell>
+        <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMenuOpen(e, transaction.id);
+            }}
+            aria-label="More actions"
+          >
+            <MoreVert />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+    ),
+    [currency, dateFormat, showAccountColumn, showCategoryColumn, showPayeeColumn, onRowClick, handleMenuOpen, transactions],
+  );
+
+  /**
+   * Virtualized table rows component for large lists
+   * Uses react-window for efficient rendering of large transaction lists
+   */
+  const VirtualizedTableRows = useMemo(() => {
+    const ROW_HEIGHT = 53;
+    const items = transactions.items;
+    const CONTAINER_HEIGHT = Math.min(600, items.length * ROW_HEIGHT);
+
+    const Row = ({index, style}: {index: number; style: React.CSSProperties}) => {
+      const transaction = items[index];
+      if (!transaction) return null;
+      return (
+        <Box component="div" style={style}>
+          {renderTransactionRow(transaction, index)}
+        </Box>
+      );
+    };
+
+    return (
+      <Box sx={{height: CONTAINER_HEIGHT, overflow: 'auto'}}>
+        <FixedSizeList
+          height={CONTAINER_HEIGHT}
+          itemCount={items.length}
+          itemSize={ROW_HEIGHT}
+          width="100%"
+        >
+          {Row}
+        </FixedSizeList>
+      </Box>
+    );
+  }, [transactions.items, renderTransactionRow]);
 
   /**
    * Render sort controls
@@ -399,34 +467,12 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                         {isSearchMode ? 'No transactions found matching your search.' : 'No transactions found.'}
                       </TableCell>
                     </TableRow>
+                  ) : transactions.items.length > 50 ? (
+                    // Use virtual scrolling for large lists (>50 items)
+                    VirtualizedTableRows
                   ) : (
-                    transactions.items.map((transaction) => (
-                      <TableRow
-                        key={transaction.id}
-                        hover={Boolean(onRowClick)}
-                        sx={onRowClick ? {cursor: 'pointer'} : undefined}
-                        onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
-                      >
-                        <TableCell>{formatDateShort(transaction.date, dateFormat)}</TableCell>
-                        <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
-                        {showAccountColumn ? <TableCell>{transaction.account?.name ?? '-'}</TableCell> : null}
-                        {showCategoryColumn ? <TableCell>{transaction.category?.name ?? '-'}</TableCell> : null}
-                        {showPayeeColumn ? <TableCell>{transaction.payee?.name ?? '-'}</TableCell> : null}
-                        <TableCell>{transaction.note ?? '-'}</TableCell>
-                        <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMenuOpen(e, transaction.id);
-                            }}
-                            aria-label="More actions"
-                          >
-                            <MoreVert />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    // Render normally for smaller lists
+                    transactions.items.map((transaction, index) => renderTransactionRow(transaction, index))
                   )}
                 </TableBody>
               </Table>

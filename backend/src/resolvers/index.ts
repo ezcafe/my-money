@@ -16,8 +16,13 @@ import {ExportResolver} from './ExportResolver';
 import {ResetDataResolver} from './ResetDataResolver';
 import {ExampleDataResolver} from './ExampleDataResolver';
 import {BudgetResolver} from './BudgetResolver';
+import {SubscriptionResolver} from './SubscriptionResolver';
+import {WorkspaceResolver} from './WorkspaceResolver';
+import {ConflictResolver} from './ConflictResolver';
+import {BatchResolver} from './BatchResolver';
 import {uploadPDF, matchImportedTransaction, importCSV, saveImportedTransactions, deleteUnmappedImportedTransactions} from './ImportResolver';
 import type {GraphQLContext} from '../middleware/context';
+import type {Transaction, Account, Category, Payee, Budget} from '@prisma/client';
 
 // Create resolver instances once (singleton pattern)
 // This reduces object creation overhead and allows for better state management if needed
@@ -33,6 +38,10 @@ const exportResolver = new ExportResolver();
 const resetDataResolver = new ResetDataResolver();
 const exampleDataResolver = new ExampleDataResolver();
 const budgetResolver = new BudgetResolver();
+const subscriptionResolver = new SubscriptionResolver();
+const workspaceResolver = new WorkspaceResolver();
+const conflictResolver = new ConflictResolver();
+const batchResolver = new BatchResolver();
 
 export const resolvers = {
   Query: {
@@ -134,6 +143,30 @@ export const resolvers = {
       budgetResolver.budget(parent, args as {id: string}, context),
     budgetNotifications: (parent: unknown, args: unknown, context: GraphQLContext) =>
       budgetResolver.budgetNotifications(parent, args, context),
+
+    // Workspace queries
+    workspaces: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.workspaces(parent, args, context),
+    workspace: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.workspace(parent, args as {id: string}, context),
+    workspaceMembers: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.workspaceMembers(parent, args as {workspaceId: string}, context),
+    workspaceInvitations: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.workspaceInvitations(parent, args as {workspaceId: string}, context),
+    invitationByToken: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.invitationByToken(parent, args as {token: string}, context),
+
+    // Conflict queries
+    entityConflicts: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      conflictResolver.entityConflicts(parent, args as {workspaceId: string}, context),
+    entityConflict: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      conflictResolver.entityConflict(parent, args as {id: string}, context),
+    entityVersions: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      conflictResolver.entityVersions(
+        parent,
+        args as {entityType: string; entityId: string; limit?: number},
+        context,
+      ),
   },
   Mutation: {
     // Account mutations
@@ -277,23 +310,115 @@ export const resolvers = {
       budgetResolver.deleteBudget(parent, args as {id: string}, context),
     markBudgetNotificationRead: (parent: unknown, args: unknown, context: GraphQLContext) =>
       budgetResolver.markBudgetNotificationRead(parent, args as {id: string}, context),
+
+    // Workspace mutations
+    createWorkspace: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.createWorkspace(parent, args as {name: string}, context),
+    updateWorkspace: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.updateWorkspace(parent, args as {id: string; name?: string}, context),
+    deleteWorkspace: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.deleteWorkspace(parent, args as {id: string}, context),
+    inviteUserToWorkspace: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.inviteUserToWorkspace(
+        parent,
+        args as {workspaceId: string; email: string; role?: 'Owner' | 'Admin' | 'Member'},
+        context,
+      ),
+    acceptWorkspaceInvitation: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.acceptWorkspaceInvitation(parent, args as {token: string}, context),
+    cancelWorkspaceInvitation: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.cancelWorkspaceInvitation(parent, args as {invitationId: string}, context),
+    updateWorkspaceMemberRole: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.updateWorkspaceMemberRole(
+        parent,
+        args as {workspaceId: string; memberId: string; role: 'Owner' | 'Admin' | 'Member'},
+        context,
+      ),
+    removeWorkspaceMember: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      workspaceResolver.removeWorkspaceMember(parent, args as {workspaceId: string; memberId: string}, context),
+
+    // Conflict mutations
+    resolveConflict: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      conflictResolver.resolveConflict(
+        parent,
+        args as {conflictId: string; chosenVersion: number; mergeData?: Record<string, unknown>},
+        context,
+      ),
+    dismissConflict: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      conflictResolver.dismissConflict(parent, args as {conflictId: string}, context),
+
+    // Batch mutations
+    bulkCreateAccounts: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      batchResolver.bulkCreateAccounts(parent, args as {inputs: unknown[]}, context),
+    bulkUpdateAccounts: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      batchResolver.bulkUpdateAccounts(parent, args as {inputs: unknown[]}, context),
+    bulkCreateCategories: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      batchResolver.bulkCreateCategories(parent, args as {inputs: unknown[]}, context),
+    bulkUpdateCategories: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      batchResolver.bulkUpdateCategories(parent, args as {inputs: unknown[]}, context),
+    bulkCreatePayees: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      batchResolver.bulkCreatePayees(parent, args as {inputs: unknown[]}, context),
+    bulkUpdatePayees: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      batchResolver.bulkUpdatePayees(parent, args as {inputs: unknown[]}, context),
+    bulkCreateTransactions: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      batchResolver.bulkCreateTransactions(parent, args as {inputs: unknown[]}, context),
+    bulkUpdateTransactions: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      batchResolver.bulkUpdateTransactions(parent, args as {inputs: unknown[]}, context),
   },
   Account: {
     balance: async (parent: {id: string}, _: unknown, context: GraphQLContext) => {
       return context.accountBalanceLoader.load(parent.id);
     },
+    versions: async (parent: Account, _: unknown, context: GraphQLContext) => {
+      return accountResolver.versions(parent, _, context);
+    },
+    createdBy: async (parent: Account, _: unknown, context: GraphQLContext) => {
+      return accountResolver.createdBy(parent, _, context);
+    },
+    lastEditedBy: async (parent: Account, _: unknown, context: GraphQLContext) => {
+      return accountResolver.lastEditedBy(parent, _, context);
+    },
+  },
+  Category: {
+    versions: async (parent: Category, _: unknown, context: GraphQLContext) => {
+      return categoryResolver.versions(parent, _, context);
+    },
+    createdBy: async (parent: Category, _: unknown, context: GraphQLContext) => {
+      return categoryResolver.createdBy(parent, _, context);
+    },
+    lastEditedBy: async (parent: Category, _: unknown, context: GraphQLContext) => {
+      return categoryResolver.lastEditedBy(parent, _, context);
+    },
+  },
+  Payee: {
+    versions: async (parent: Payee, _: unknown, context: GraphQLContext) => {
+      return payeeResolver.versions(parent, _, context);
+    },
+    createdBy: async (parent: Payee, _: unknown, context: GraphQLContext) => {
+      return payeeResolver.createdBy(parent, _, context);
+    },
+    lastEditedBy: async (parent: Payee, _: unknown, context: GraphQLContext) => {
+      return payeeResolver.lastEditedBy(parent, _, context);
+    },
   },
   Transaction: {
-    category: async (parent: {categoryId: string | null}, _: unknown, context: GraphQLContext) => {
-      if (!parent.categoryId) return null;
-      return context.categoryLoader.load(parent.categoryId);
+    category: async (parent: Transaction, _: unknown, context: GraphQLContext) => {
+      return transactionResolver.fieldResolver.category(parent, _, context);
     },
-    payee: async (parent: {payeeId: string | null}, _: unknown, context: GraphQLContext) => {
-      if (!parent.payeeId) return null;
-      return context.payeeLoader.load(parent.payeeId);
+    payee: async (parent: Transaction, _: unknown, context: GraphQLContext) => {
+      return transactionResolver.fieldResolver.payee(parent, _, context);
     },
-    account: async (parent: {accountId: string}, _: unknown, context: GraphQLContext) => {
-      return context.accountLoader.load(parent.accountId);
+    account: async (parent: Transaction, _: unknown, context: GraphQLContext) => {
+      return transactionResolver.fieldResolver.account(parent, _, context);
+    },
+    versions: async (parent: Transaction, _: unknown, context: GraphQLContext) => {
+      return transactionResolver.versions(parent, _, context);
+    },
+    createdBy: async (parent: Transaction, _: unknown, context: GraphQLContext) => {
+      return transactionResolver.createdBy(parent, _, context);
+    },
+    lastEditedBy: async (parent: Transaction, _: unknown, context: GraphQLContext) => {
+      return transactionResolver.lastEditedBy(parent, _, context);
     },
   },
   RecurringTransaction: {
@@ -316,6 +441,47 @@ export const resolvers = {
       if (amount === 0) return 0;
       return (spent / amount) * 100;
     },
+    versions: async (parent: Budget, _: unknown, context: GraphQLContext) => {
+      return budgetResolver.versions(parent, _, context);
+    },
+    createdBy: async (parent: Budget, _: unknown, context: GraphQLContext) => {
+      return budgetResolver.createdBy(parent, _, context);
+    },
+    lastEditedBy: async (parent: Budget, _: unknown, context: GraphQLContext) => {
+      return budgetResolver.lastEditedBy(parent, _, context);
+    },
+  },
+  Workspace: {
+    members: async (parent: {id: string}, _: unknown, context: GraphQLContext) => {
+      return workspaceResolver.workspaceMembers(parent, {workspaceId: parent.id}, context);
+    },
+    invitations: async (parent: {id: string}, _: unknown, context: GraphQLContext) => {
+      return workspaceResolver.workspaceInvitations(parent, {workspaceId: parent.id}, context);
+    },
+  },
+  WorkspaceMember: {
+    workspace: async (parent: {workspaceId: string}, _: unknown, context: GraphQLContext) => {
+      return workspaceResolver.workspace(parent, {id: parent.workspaceId}, context);
+    },
+    user: async (parent: {userId: string}, _: unknown, context: GraphQLContext) => {
+      return context.userLoader.load(parent.userId);
+    },
+  },
+  WorkspaceInvitation: {
+    workspace: async (parent: {workspaceId: string}, _: unknown, context: GraphQLContext) => {
+      return workspaceResolver.workspace(parent, {id: parent.workspaceId}, context);
+    },
+    inviter: async (parent: {invitedBy: string}, _: unknown, context: GraphQLContext) => {
+      return context.userLoader.load(parent.invitedBy);
+    },
+  },
+  Subscription: {
+    accountUpdated: subscriptionResolver.accountUpdated,
+    categoryUpdated: subscriptionResolver.categoryUpdated,
+    payeeUpdated: subscriptionResolver.payeeUpdated,
+    transactionUpdated: subscriptionResolver.transactionUpdated,
+    budgetUpdated: subscriptionResolver.budgetUpdated,
+    entityConflictDetected: subscriptionResolver.entityConflictDetected,
   },
 };
 

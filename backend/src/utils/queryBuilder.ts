@@ -35,7 +35,7 @@ export function buildOrderBy(
 /**
  * Build where clause for transaction filters
  * @param filters - Filter options
- * @param userId - User ID
+ * @param workspaceId - Workspace ID
  * @returns Prisma where clause
  */
 export function buildTransactionWhere(
@@ -49,12 +49,21 @@ export function buildTransactionWhere(
     accountIds?: string[];
     categoryIds?: string[];
     payeeIds?: string[];
+    memberIds?: string[];
   },
-  userId: string,
+  workspaceId: string,
 ): Prisma.TransactionWhereInput {
   const where: Prisma.TransactionWhereInput = {
-    userId,
+    account: {workspaceId},
   };
+
+  // Filter by memberIds if provided (createdBy or lastEditedBy)
+  if (filters.memberIds && filters.memberIds.length > 0) {
+    where.OR = [
+      {createdBy: {in: filters.memberIds}},
+      {lastEditedBy: {in: filters.memberIds}},
+    ];
+  }
 
   if (filters.accountId) {
     where.accountId = filters.accountId;

@@ -15,12 +15,15 @@ FROM node:${NODE_VERSION}-alpine AS deps
 WORKDIR /app
 
 # Copy only package files for dependency installation (better layer caching)
+# Order: root package files first (least likely to change), then workspace packages
 COPY package*.json package-lock.json ./
 COPY frontend/package*.json ./frontend/
 COPY shared/package*.json ./shared/
 
-# Install all dependencies with BuildKit cache mount for faster rebuilds
-RUN --mount=type=cache,target=/root/.npm \
+# Install all dependencies with BuildKit cache mounts for faster rebuilds
+# Cache both npm cache and node_modules for maximum efficiency
+RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
+    --mount=type=cache,target=/app/node_modules,id=node-modules-cache \
     npm ci --include-workspace-root
 
 # ============================================================================
@@ -36,18 +39,23 @@ COPY --from=deps /app/node_modules ./node_modules
 # Create workspace node_modules directories (may not exist if all deps are hoisted)
 RUN mkdir -p /app/frontend/node_modules /app/shared/node_modules
 
-# Copy source files and config files
+# Copy config files first (change less frequently than source code)
 COPY tsconfig.json ./tsconfig.json
-COPY frontend ./frontend
+# Copy shared package (builds first, changes less frequently)
 COPY shared ./shared
+# Copy frontend source (changes most frequently, so copy last)
+COPY frontend ./frontend
 
-# Build shared package first
+# Build shared package first with cache mount for TypeScript compilation cache
 WORKDIR /app/shared
-RUN npm run build
+RUN --mount=type=cache,target=/app/shared/.tsbuildinfo,id=tsbuild-cache-shared \
+    npm run build
 
-# Build frontend
+# Build frontend with cache mounts for Webpack and TypeScript compilation cache
 WORKDIR /app/frontend
-RUN npm run build
+RUN --mount=type=cache,target=/app/frontend/.tsbuildinfo,id=tsbuild-cache-frontend \
+    --mount=type=cache,target=/app/frontend/node_modules/.cache,id=webpack-cache \
+    npm run build
 
 # ============================================================================
 # Production stage - Nginx server
@@ -89,9 +97,10 @@ RUN rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
 
 EXPOSE 80
 
-# Health check using nginx -t (test configuration)
-# This works in read-only filesystem and doesn't require network tools
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+# Enhanced health check using nginx -t (test configuration) and HTTP check
+# Tests both nginx configuration and HTTP endpoint availability
+# More frequent checks for faster failure detection
+HEALTHCHECK --interval=20s --timeout=8s --start-period=15s --retries=3 \
   CMD nginx -t && wget --no-verbose --tries=1 --spider --timeout=5 http://127.0.0.1/health 2>/dev/null || exit 1
 
 # Security: run nginx in foreground mode

@@ -69,6 +69,7 @@ function validateInputSize(inputValue: unknown): void {
 
 /**
  * Map of mutation names to their input schema names
+ * All mutations with input parameters should be listed here for validation
  */
 const mutationInputSchemaMap: Record<string, keyof typeof inputSchemas> = {
   createAccount: 'createAccount',
@@ -81,6 +82,21 @@ const mutationInputSchemaMap: Record<string, keyof typeof inputSchemas> = {
   updateTransaction: 'updateTransaction',
   createRecurringTransaction: 'createRecurringTransaction',
   updateRecurringTransaction: 'updateRecurringTransaction',
+  updatePreferences: 'updatePreferences',
+  createBudget: 'createBudget',
+  updateBudget: 'updateBudget',
+  createWorkspace: 'createWorkspace',
+  updateWorkspace: 'updateWorkspace',
+  inviteUserToWorkspace: 'inviteUserToWorkspace',
+  acceptWorkspaceInvitation: 'acceptWorkspaceInvitation',
+  cancelWorkspaceInvitation: 'cancelWorkspaceInvitation',
+  updateWorkspaceMemberRole: 'updateWorkspaceMemberRole',
+  removeWorkspaceMember: 'removeWorkspaceMember',
+  resolveConflict: 'resolveConflict',
+  dismissConflict: 'dismissConflict',
+  matchImportedTransaction: 'matchImportedTransaction',
+  saveImportedTransactions: 'saveImportedTransactions',
+  markBudgetNotificationRead: 'markBudgetNotificationRead',
 };
 
 /**
@@ -145,45 +161,72 @@ export function validationPlugin(): {
             return Promise.resolve();
           }
 
-          // Find the input argument
-          const inputArgument = fieldSelection.arguments?.find((arg) => arg.name.value === 'input');
-          if (!inputArgument) {
-            // Some mutations might not have input (e.g., delete mutations)
-            return Promise.resolve();
-          }
-
-          // Get input value from variables
-          let inputValue: unknown;
-          if (inputArgument.value.kind === Kind.VARIABLE) {
-            const variableName = inputArgument.value.name.value;
-            inputValue = variables[variableName];
-          } else if (inputArgument.value.kind === Kind.OBJECT) {
-            // Inline object value - convert to plain object
-            inputValue = {};
-            for (const field of inputArgument.value.fields) {
-              const fieldName = field.name.value;
-              let fieldValue: unknown;
-              if (field.value.kind === Kind.VARIABLE) {
-                fieldValue = variables[field.value.name.value];
-              } else if (field.value.kind === Kind.INT) {
-                fieldValue = parseInt(field.value.value, 10);
-              } else if (field.value.kind === Kind.FLOAT) {
-                fieldValue = parseFloat(field.value.value);
-              } else if (field.value.kind === Kind.STRING) {
-                fieldValue = field.value.value;
-              } else if (field.value.kind === Kind.BOOLEAN) {
-                fieldValue = field.value.value;
-              } else if (field.value.kind === Kind.NULL) {
-                fieldValue = null;
-              } else {
-                // Skip complex values for now
-                continue;
+          // Helper function to extract value from GraphQL value node
+          const extractValue = (valueNode: {kind: string; [key: string]: unknown}): unknown => {
+            if (valueNode.kind === (Kind.VARIABLE as string)) {
+              const variableNode = valueNode as unknown as {name: {value: string}};
+              const variableName = variableNode.name.value;
+              return variables[variableName];
+            } else if (valueNode.kind === (Kind.INT as string)) {
+              const intNode = valueNode as unknown as {value: string};
+              return parseInt(intNode.value, 10);
+            } else if (valueNode.kind === (Kind.FLOAT as string)) {
+              const floatNode = valueNode as unknown as {value: string};
+              return parseFloat(floatNode.value);
+            } else if (valueNode.kind === (Kind.STRING as string)) {
+              const stringNode = valueNode as unknown as {value: string};
+              return stringNode.value;
+            } else if (valueNode.kind === (Kind.BOOLEAN as string)) {
+              const boolNode = valueNode as unknown as {value: boolean};
+              return boolNode.value;
+            } else if (valueNode.kind === (Kind.NULL as string)) {
+              return null;
+            } else if (valueNode.kind === (Kind.OBJECT as string)) {
+              // Inline object value - convert to plain object
+              const obj: Record<string, unknown> = {};
+              const objectNode = valueNode as unknown as {fields: Array<{name: {value: string}; value: unknown}>};
+              const fields = objectNode.fields;
+              for (const field of fields) {
+                const fieldName = field.name.value;
+                obj[fieldName] = extractValue(field.value as {kind: string; [key: string]: unknown});
               }
-              (inputValue as Record<string, unknown>)[fieldName] = fieldValue;
+              return obj;
+            } else if (valueNode.kind === (Kind.LIST as string)) {
+              // Handle list values
+              const listNode = valueNode as unknown as {values: unknown[]};
+              const values = listNode.values;
+              return values.map((val) => extractValue(val as {kind: string; [key: string]: unknown}));
+            }
+            return undefined;
+          };
+
+          // Try to find input argument first (for mutations with input object)
+          const inputArgument = fieldSelection.arguments?.find((arg) => arg.name.value === 'input');
+          let inputValue: unknown;
+
+          if (inputArgument) {
+            // Mutation has input argument - extract it
+            inputValue = extractValue(inputArgument.value as {kind: string; [key: string]: unknown});
+          } else {
+            // Mutation doesn't have input argument - collect all arguments as an object
+            const args: Record<string, unknown> = {};
+            if (fieldSelection.arguments) {
+              for (const arg of fieldSelection.arguments) {
+                const argName = arg.name.value;
+                const argValue = extractValue(arg.value as {kind: string; [key: string]: unknown});
+                if (argValue !== undefined) {
+                  args[argName] = argValue;
+                }
+              }
+            }
+            // Only validate if we have arguments
+            if (Object.keys(args).length > 0) {
+              inputValue = args;
             }
           }
 
           if (inputValue === undefined) {
+            // No input to validate (e.g., delete mutations with only ID)
             return Promise.resolve();
           }
 

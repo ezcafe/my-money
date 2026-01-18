@@ -28,11 +28,11 @@ export class RecurringTransactionRepository extends BaseRepository {
     include?: Record<string, boolean>,
   ): Promise<RecurringTransaction | null> {
     const queryOptions: {
-      where: {id: string; userId: string};
+      where: {id: string; account: {createdBy: string}};
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
     } = {
-      where: {id, userId},
+      where: {id, account: {createdBy: userId}},
     };
 
     if (select) {
@@ -57,11 +57,11 @@ export class RecurringTransactionRepository extends BaseRepository {
     include?: Record<string, boolean>,
   ): Promise<RecurringTransaction[]> {
     const queryOptions: {
-      where: {userId: string};
+      where: {account: {createdBy: string}};
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
     } = {
-      where: {userId},
+      where: {account: {createdBy: userId}},
     };
 
     if (select) {
@@ -171,7 +171,11 @@ export class RecurringTransactionRepository extends BaseRepository {
    */
   async count(userId: string): Promise<number> {
     return this.prisma.recurringTransaction.count({
-      where: {userId},
+      where: {
+        account: {
+          createdBy: userId,
+        },
+      },
     });
   }
 }

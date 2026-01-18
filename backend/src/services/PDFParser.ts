@@ -244,6 +244,86 @@ function parseDateByFormat(dateStr: string, format: string): string {
 }
 
 /**
+ * Parse amount string with automatic decimal point detection
+ * Removes DR/CR/DEBIT/CREDIT suffixes and spaces first, then auto-detects decimal/thousand separators
+ * Rules:
+ * - If a separator (comma or dot) is followed by 1-2 digits at the end, it's the decimal separator
+ * - Otherwise, all separators are treated as thousand separators
+ * @param amountStr - Amount string to parse
+ * @returns Parsed amount as number, or NaN if parsing fails
+ */
+function parseAmount(amountStr: string): number {
+  if (!amountStr || typeof amountStr !== 'string') {
+    return NaN;
+  }
+
+  // Remove DR/CR/DEBIT/CREDIT suffixes and spaces first (but keep commas and dots for number parsing)
+  let cleaned = amountStr.replace(/\s|DR|CR|DEBIT|CREDIT/gi, '');
+
+  // Find the last comma and last dot positions
+  const lastCommaIndex = cleaned.lastIndexOf(',');
+  const lastDotIndex = cleaned.lastIndexOf('.');
+
+  // Determine which separator is the decimal point
+  let decimalSeparator: ',' | '.' | null = null;
+
+  if (lastCommaIndex !== -1 && lastDotIndex !== -1) {
+    // Both separators exist - check which one is closer to the end and has 1-2 digits after
+    const afterComma = cleaned.substring(lastCommaIndex + 1);
+    const afterDot = cleaned.substring(lastDotIndex + 1);
+
+    // Check if comma is followed by 1-2 digits (decimal)
+    const commaIsDecimal = /^\d{1,2}$/.test(afterComma);
+    // Check if dot is followed by 1-2 digits (decimal)
+    const dotIsDecimal = /^\d{1,2}$/.test(afterDot);
+
+    if (commaIsDecimal && dotIsDecimal) {
+      // Both could be decimal - use the one closer to the end
+      decimalSeparator = lastCommaIndex > lastDotIndex ? ',' : '.';
+    } else if (commaIsDecimal) {
+      decimalSeparator = ',';
+    } else if (dotIsDecimal) {
+      decimalSeparator = '.';
+    } else {
+      // Neither is clearly decimal - check which is closer to end
+      // If one has digits after and the other doesn't, prefer the one with digits
+      if (afterComma && !afterDot) {
+        decimalSeparator = ',';
+      } else if (afterDot && !afterComma) {
+        decimalSeparator = '.';
+      } else {
+        // Default: treat all as thousand separators (no decimal part)
+        decimalSeparator = null;
+      }
+    }
+  } else if (lastCommaIndex !== -1) {
+    // Only comma exists
+    const afterComma = cleaned.substring(lastCommaIndex + 1);
+    // If followed by 1-2 digits, it's decimal; otherwise it's a thousand separator
+    decimalSeparator = /^\d{1,2}$/.test(afterComma) ? ',' : null;
+  } else if (lastDotIndex !== -1) {
+    // Only dot exists
+    const afterDot = cleaned.substring(lastDotIndex + 1);
+    // If followed by 1-2 digits, it's decimal; otherwise it's a thousand separator
+    decimalSeparator = /^\d{1,2}$/.test(afterDot) ? '.' : null;
+  }
+
+  // Parse based on detected decimal separator
+  if (decimalSeparator === ',') {
+    // Comma is decimal: remove all dots (thousand separators), replace comma with dot
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (decimalSeparator === '.') {
+    // Dot is decimal: remove all commas (thousand separators), keep dot
+    cleaned = cleaned.replace(/,/g, '');
+  } else {
+    // No decimal separator detected: remove all separators (all are thousand separators)
+    cleaned = cleaned.replace(/[.,]/g, '');
+  }
+
+  return parseFloat(cleaned);
+}
+
+/**
  * Parse transaction table from PDF text
  * Strictly parses from table structure with specific column headers
  * Only parses tables with description column and rows with valid date information
@@ -555,8 +635,8 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
 
         if (!amountStr) continue;
 
-        // Parse amount (handle Vietnamese format: dots as thousand separators)
-        const amountValue = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
+        // Parse amount with automatic decimal point detection
+        const amountValue = parseAmount(amountStr);
         if (isNaN(amountValue) || amountValue === 0) continue;
 
         // Extract description (everything between dates and amount)
@@ -647,14 +727,14 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
       for (const part of amountParts) {
         // Check if it contains DR (debit)
         if (/DR|DEBIT/i.test(part)) {
-          const debitValue = parseFloat(part.replace(/[,\s]|DR|DEBIT/gi, ''));
+          const debitValue = parseAmount(part);
           if (!isNaN(debitValue) && debitValue > 0) {
             debit = debitValue;
           }
         }
         // Check if it contains CR (credit)
         if (/CR|CREDIT/i.test(part)) {
-          const creditValue = parseFloat(part.replace(/[,\s]|CR|CREDIT/gi, ''));
+          const creditValue = parseAmount(part);
           if (!isNaN(creditValue) && creditValue > 0) {
             credit = creditValue;
           }
@@ -665,7 +745,7 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
       if (!debit && !credit && amountParts.length > 0) {
         const firstAmountPart = amountParts[0];
         if (firstAmountPart) {
-          const firstAmount = parseFloat(firstAmountPart.replace(/[,\s]/g, ''));
+          const firstAmount = parseAmount(firstAmountPart);
           if (!isNaN(firstAmount) && firstAmount > 0) {
             // Assume it's a debit if no indicator
             debit = firstAmount;
@@ -774,8 +854,8 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
           continue;
         }
 
-        // Parse amount - remove commas, spaces, and DR/CR suffixes
-        const amountValue = parseFloat(amountStr.replace(/[,\s]|DR|CR|DEBIT|CREDIT/gi, ''));
+        // Parse amount with automatic decimal point detection
+        const amountValue = parseAmount(amountStr);
 
         if (isNaN(amountValue) || amountValue === 0) {
           continue;
@@ -984,9 +1064,8 @@ export function parseTransactionTable(text: string, dateFormat: string = 'DD/MM/
 
     if (!amountStr) continue;
 
-    // Parse amount (replace dots/commas, handle as thousand separators)
-    // Vietnamese format uses dots as thousand separators: 40.000 = 40000
-    const amountValue = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
+    // Parse amount with automatic decimal point detection
+    const amountValue = parseAmount(amountStr);
     if (isNaN(amountValue) || amountValue === 0) continue;
 
     // Extract description (everything between dates and amount)
@@ -1098,7 +1177,7 @@ export async function parsePDF(buffer: Buffer, dateFormat: string = 'DD/MM/YYYY'
   // Extract card number
   const cardNumber = extractCardNumber(text);
 
-  // Parse transaction table with date format
+  // Parse transaction table with date format (decimal point is auto-detected)
   const transactions = parseTransactionTable(text, dateFormat);
 
   return {

@@ -5,7 +5,7 @@
 
 import React, {useState, memo, useCallback, useEffect, useRef} from 'react';
 import {useParams, useNavigate, useLocation} from 'react-router';
-import {Typography} from '@mui/material';
+import Typography from '@mui/material/Typography';
 import {useMutation, useQuery} from '@apollo/client/react';
 import {useAccount} from '../hooks/useAccount';
 import {useTransactions, type TransactionOrderInput, type TransactionOrderByField} from '../hooks/useTransactions';
@@ -20,6 +20,7 @@ import {useTitle} from '../contexts/TitleContext';
 import {TransactionList} from '../components/TransactionList';
 import {Card} from '../components/ui/Card';
 import {PageContainer} from '../components/common/PageContainer';
+import {VersionHistoryPanel} from '../components/VersionHistoryPanel';
 
 /**
  * Account Details Page Component
@@ -216,6 +217,11 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
         showPayeeColumn={true}
         sortableFields={['date', 'value', 'category', 'payee']}
       />
+
+      {/* Version History Section */}
+      {id ? (
+        <VersionHistoryPanel entityType="Account" entityId={id} />
+      ) : null}
     </PageContainer>
   );
 };

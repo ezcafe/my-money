@@ -12,12 +12,11 @@ import {ValidationError, NotFoundError} from '../utils/errors';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {validateContext} from '../utils/baseResolver';
 import {buildOrderBy, buildTransactionWhere} from '../utils/queryBuilder';
-import {AccountRepository} from '../repositories/AccountRepository';
-import {CategoryRepository} from '../repositories/CategoryRepository';
-import {PayeeRepository} from '../repositories/PayeeRepository';
-import {TransactionRepository} from '../repositories/TransactionRepository';
 import * as postgresCache from '../utils/postgresCache';
 import {reportKey, hashFilters} from '../utils/cacheKeys';
+import {checkWorkspaceAccess, getUserDefaultWorkspace} from '../services/WorkspaceService';
+import {getContainer} from '../utils/container';
+import {CACHE_TAGS} from '../utils/cacheTags';
 
 const ReportTransactionsInputSchema = z.object({
   accountIds: z.array(z.string().uuid()).optional(),
@@ -28,6 +27,7 @@ const ReportTransactionsInputSchema = z.object({
   note: z.string().optional(),
   skip: z.number().int().min(0).optional(),
   take: z.number().int().min(1).max(1000).optional(),
+  memberIds: z.array(z.string().uuid()).optional(),
 });
 
 export class ReportResolver {
@@ -46,6 +46,7 @@ export class ReportResolver {
       orderBy,
       skip,
       take,
+      memberIds,
     }: {
       accountIds?: string[];
       categoryIds?: string[];
@@ -56,6 +57,7 @@ export class ReportResolver {
       orderBy?: {field: string; direction: string};
       skip?: number;
       take?: number;
+      memberIds?: string[];
     },
     context: GraphQLContext,
   ): Promise<{
@@ -66,6 +68,13 @@ export class ReportResolver {
     totalExpense: number;
   }> {
     validateContext(context);
+
+    // Get workspace ID from context (default to user's default workspace)
+    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+
+    // Verify workspace access
+    await checkWorkspaceAccess(workspaceId, context.userId);
+
     return await withPrismaErrorHandling(
       async () => {
     const validatedInput = validate(ReportTransactionsInputSchema, {
@@ -77,17 +86,19 @@ export class ReportResolver {
       note,
       skip,
       take,
+      memberIds,
     });
 
-    const categoryRepository = new CategoryRepository(context.prisma);
-    const payeeRepository = new PayeeRepository(context.prisma);
-    const transactionRepository = new TransactionRepository(context.prisma);
+    const container = getContainer();
+    const categoryRepository = container.getCategoryRepository(context.prisma);
+    const payeeRepository = container.getPayeeRepository(context.prisma);
+    const transactionRepository = container.getTransactionRepository(context.prisma);
+    const accountRepository = container.getAccountRepository(context.prisma);
 
-    // Verify entity access
+    // Verify entity access in workspace
     if (validatedInput.accountIds && validatedInput.accountIds.length > 0) {
-      const accountRepository = new AccountRepository(context.prisma);
       const accountPromises = validatedInput.accountIds.map(
-        async (id: string) => accountRepository.findById(id, context.userId, {id: true}),
+        async (id: string) => accountRepository.findById(id, workspaceId, {id: true}),
       );
       const accounts = await Promise.all(accountPromises);
       if (accounts.some((a) => a === null)) {
@@ -97,7 +108,7 @@ export class ReportResolver {
 
     if (validatedInput.categoryIds && validatedInput.categoryIds.length > 0) {
       const categoryPromises = validatedInput.categoryIds.map(
-        async (id: string) => categoryRepository.findById(id, context.userId, {id: true}),
+        async (id: string) => categoryRepository.findById(id, workspaceId, {id: true}),
       );
       const categories = await Promise.all(categoryPromises);
       if (categories.some((c) => c === null)) {
@@ -107,7 +118,7 @@ export class ReportResolver {
 
     if (validatedInput.payeeIds && validatedInput.payeeIds.length > 0) {
       const payeePromises = validatedInput.payeeIds.map(
-        async (id: string) => payeeRepository.findById(id, context.userId, {id: true}),
+        async (id: string) => payeeRepository.findById(id, workspaceId, {id: true}),
       );
       const payees = await Promise.all(payeePromises);
       if (payees.some((p) => p === null)) {
@@ -124,8 +135,9 @@ export class ReportResolver {
         startDate: validatedInput.startDate,
         endDate: validatedInput.endDate,
         note: validatedInput.note,
+        memberIds: validatedInput.memberIds,
       },
-      context.userId,
+      workspaceId,
     );
 
     // Build orderBy using utility function
@@ -144,6 +156,8 @@ export class ReportResolver {
       startDate: validatedInput.startDate,
       endDate: validatedInput.endDate,
       note: validatedInput.note,
+      memberIds: validatedInput.memberIds,
+      workspaceId,
     });
     const aggregationCacheKey = reportKey(context.userId, filterHash);
     const AGGREGATION_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
@@ -184,12 +198,13 @@ export class ReportResolver {
       ({totalIncome, totalExpense} = incomeExpenseTotals);
 
       // Cache aggregation results (fire and forget)
+      const cacheTags = [CACHE_TAGS.REPORTS(workspaceId), CACHE_TAGS.TRANSACTIONS(workspaceId)];
       void postgresCache.set(aggregationCacheKey, {
         totalCount,
         totalAmount,
         totalIncome,
         totalExpense,
-      }, AGGREGATION_CACHE_TTL_MS).catch(() => {
+      }, AGGREGATION_CACHE_TTL_MS, cacheTags).catch(() => {
         // Ignore cache errors
       });
     }
