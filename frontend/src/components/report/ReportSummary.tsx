@@ -1,14 +1,13 @@
 /**
  * Report Summary Component
- * Displays transaction count, PDF download button, and summary statistics cards
+ * Displays summary statistics cards
  */
 
 import React, {memo} from 'react';
 import {Box, Typography} from '@mui/material';
 import Grid from '@mui/material/Grid2';
-import {Receipt, PictureAsPdf, AttachMoney, TrendingUp, TrendingDown} from '@mui/icons-material';
+import {AttachMoney, TrendingUp, TrendingDown} from '@mui/icons-material';
 import {Card} from '../ui/Card';
-import {Button} from '../ui/Button';
 
 /**
  * Summary statistics interface
@@ -29,7 +28,6 @@ interface ReportSummaryProps {
   currency: string;
   hasFilters: boolean;
   formatCurrencyAbbreviated: (value: number, currencyCode: string) => string;
-  onDownloadPDF: () => Promise<void>;
 }
 
 /**
@@ -41,7 +39,6 @@ const ReportSummaryComponent = ({
   currency,
   hasFilters,
   formatCurrencyAbbreviated,
-  onDownloadPDF,
 }: ReportSummaryProps): React.JSX.Element | null => {
   // Don't render if no filters applied or no transactions
   if (!hasFilters || totalCount === 0) {
@@ -50,21 +47,6 @@ const ReportSummaryComponent = ({
 
   return (
     <>
-      {/* Actions Card with Transaction Count */}
-      <Card sx={{p: 3, mb: 3}}>
-        <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between'}}>
-          <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-            <Receipt color="primary" />
-            <Typography variant="body1" color="text.secondary">
-              {summaryStats.transactionCount.toLocaleString()} Transactions
-            </Typography>
-          </Box>
-          <Button variant="contained" onClick={onDownloadPDF} startIcon={<PictureAsPdf />} sx={{textTransform: 'none'}}>
-            Download PDF
-          </Button>
-        </Box>
-      </Card>
-
       {/* Summary Cards */}
       <Grid container spacing={2} sx={{mb: 3}}>
         <Grid size={{xs: 4}}>

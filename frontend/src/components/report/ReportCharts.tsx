@@ -565,7 +565,16 @@ export function ReportCharts({
           <Typography variant="h6" component="h2">
             Trends
           </Typography>
-          <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              '@media print': {
+                display: 'none',
+              },
+            }}
+          >
             <ToggleButtonGroup
               value={chartType}
               exclusive
@@ -615,8 +624,15 @@ export function ReportCharts({
         <Box sx={{width: '100%', height: 400}}>
           {renderChart(400)}
         </Box>
-        {/* Chart Descriptions */}
-        <Box sx={{mt: 2}}>
+        {/* Chart Descriptions - Hidden when printing */}
+        <Box
+          sx={{
+            mt: 2,
+            '@media print': {
+              display: 'none',
+            },
+          }}
+        >
           <Typography variant="body2" color="text.secondary" sx={{fontSize: '0.875rem'}}>
             {chartType === 'line' && 'Visualizes income and expense trends over time to identify patterns and seasonal variations'}
             {chartType === 'area' && 'Shows cumulative income and expense trends with filled areas for better visual impact'}

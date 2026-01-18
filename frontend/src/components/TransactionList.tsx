@@ -230,7 +230,15 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
         {showCategoryColumn ? <TableCell>{transaction.category?.name ?? '-'}</TableCell> : null}
         {showPayeeColumn ? <TableCell>{transaction.payee?.name ?? '-'}</TableCell> : null}
         <TableCell>{transaction.note ?? '-'}</TableCell>
-        <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+        <TableCell
+          align="right"
+          onClick={(e) => e.stopPropagation()}
+          sx={{
+            '@media print': {
+              display: 'none',
+            },
+          }}
+        >
           <IconButton
             size="small"
             onClick={(e) => {
@@ -301,6 +309,9 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
           pb: isMobile ? 1 : 2,
           borderBottom: isMobile ? 1 : 0,
           borderColor: 'divider',
+          '@media print': {
+            display: 'none',
+          },
         }}
       >
         <FormControl size="small" sx={{minWidth: 120}}>
@@ -377,6 +388,11 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                   handleMenuOpen(e, transaction.id);
                 }}
                 aria-label="More actions"
+                sx={{
+                  '@media print': {
+                    display: 'none',
+                  },
+                }}
               >
                 <MoreVert fontSize="small" />
               </IconButton>
@@ -416,9 +432,20 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
 
   return (
     <Card sx={{mt: 3, p: 0}}>
-      <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 1}}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 2,
+          pb: 1,
+          '@media print': {
+            display: 'none',
+          },
+        }}
+      >
         <Typography variant="h6" component="h2" gutterBottom sx={{mb: 0}}>
-          {isSearchMode ? `Search Results (${transactions.totalCount})` : 'Transactions'}
+          {isSearchMode ? `Search Results (${transactions.totalCount.toLocaleString()})` : `${transactions.totalCount.toLocaleString()} Transactions`}
         </Typography>
         {isSearchMode && onClearSearch ? <Button
             startIcon={<Clear />}
@@ -457,7 +484,16 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                     {showCategoryColumn ? <TableCell>Category</TableCell> : null}
                     {showPayeeColumn ? <TableCell>Payee</TableCell> : null}
                     <TableCell>Note</TableCell>
-                    <TableCell align="right">Actions</TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        '@media print': {
+                          display: 'none',
+                        },
+                      }}
+                    >
+                      Actions
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -479,7 +515,17 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
             </TableContainer>
           )}
           {totalPages > 1 && (
-            <Box sx={{display: 'flex', justifyContent: 'center', mt: 2, pb: 2}}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mt: 2,
+                pb: 2,
+                '@media print': {
+                  display: 'none',
+                },
+              }}
+            >
               <Pagination
                 count={totalPages}
                 page={page}

@@ -121,7 +121,15 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
   return (
     <Stack direction="column" sx={{height: '100vh', overflow: 'hidden'}}>
       {!isHomePage && (
-        <AppBar position="static" elevation={0}>
+        <AppBar
+          position="static"
+          elevation={0}
+          sx={{
+            '@media print': {
+              display: 'none',
+            },
+          }}
+        >
           <Toolbar>
             <IconButton
               edge="start"

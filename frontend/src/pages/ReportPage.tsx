@@ -4,12 +4,11 @@
  */
 
 import React, {useState, useCallback, useMemo, useEffect} from 'react';
-import {Box, Typography, CircularProgress} from '@mui/material';
+import {Box, Typography, CircularProgress, GlobalStyles} from '@mui/material';
 import {useQuery, useMutation} from '@apollo/client/react';
 import {useNavigate} from 'react-router';
 import {Receipt, Clear} from '@mui/icons-material';
 import {EmptyState} from '../components/common/EmptyState';
-import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
 import {validateDateRange} from '../utils/validation';
 import {GET_PREFERENCES, GET_CATEGORIES, GET_PAYEES, GET_REPORT_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_BUDGETS} from '../graphql/queries';
 import {GET_WORKSPACES, GET_WORKSPACE_MEMBERS} from '../graphql/workspaceOperations';
@@ -295,101 +294,6 @@ export function ReportPage(): React.JSX.Element {
   );
 
 
-  /**
-   * Generate and download PDF
-   */
-  const handleDownloadPDF = useCallback(async () => {
-    // Dynamically import jspdf and autotable
-    const [jsPDFModule, autoTable] = await Promise.all([
-      import('jspdf'),
-      import('jspdf-autotable'),
-    ]);
-    const jsPDF = jsPDFModule.default || (jsPDFModule as {jsPDF: typeof jsPDFModule.default}).jsPDF || jsPDFModule;
-    const doc = new jsPDF();
-    const margin = 20;
-    let yPosition = margin;
-
-    // Title
-    doc.setFontSize(18);
-    doc.text('Transaction Report', margin, yPosition);
-    yPosition += 10;
-
-    // Date range
-    doc.setFontSize(12);
-    const {appliedFilters: appliedFiltersForPDF} = filterHook;
-    if (appliedFiltersForPDF.startDate || appliedFiltersForPDF.endDate) {
-      const dateRange = `${appliedFiltersForPDF.startDate || 'Start'} to ${appliedFiltersForPDF.endDate || 'End'}`;
-      doc.text(`Date Range: ${dateRange}`, margin, yPosition);
-      yPosition += 8;
-    }
-
-    // Filters summary
-    const filterSummary: string[] = [];
-    if (appliedFiltersForPDF.accountIds.length > 0) {
-      const accountNames = appliedFiltersForPDF.accountIds
-        .map((id) => accounts.find((a) => a.id === id)?.name)
-        .filter(Boolean)
-        .join(', ');
-      filterSummary.push(`Accounts: ${accountNames}`);
-    }
-    if (appliedFiltersForPDF.categoryIds.length > 0) {
-      const categoryNames = appliedFiltersForPDF.categoryIds
-        .map((id) => categories.find((c) => c.id === id)?.name)
-        .filter(Boolean)
-        .join(', ');
-      filterSummary.push(`Categories: ${categoryNames}`);
-    }
-    if (appliedFiltersForPDF.payeeIds.length > 0) {
-      const payeeNames = appliedFiltersForPDF.payeeIds
-        .map((id) => payees.find((p) => p.id === id)?.name)
-        .filter(Boolean)
-        .join(', ');
-      filterSummary.push(`Payees: ${payeeNames}`);
-    }
-    if (appliedFiltersForPDF.note.trim()) {
-      filterSummary.push(`Note: ${appliedFiltersForPDF.note.trim()}`);
-    }
-
-    if (filterSummary.length > 0) {
-      doc.setFontSize(10);
-      filterSummary.forEach((summary) => {
-        doc.text(summary, margin, yPosition);
-        yPosition += 6;
-      });
-      yPosition += 4;
-    }
-
-    // Summary stats
-    doc.setFontSize(12);
-    doc.text(`Total Transactions: ${totalCount}`, margin, yPosition);
-    yPosition += 6;
-    doc.text(`Total Amount: ${formatCurrencyPreserveDecimals(totalAmount, currency)}`, margin, yPosition);
-    yPosition += 15;
-
-    // Table data
-    const tableData = transactions.map((t) => [
-      formatDateShort(t.date, dateFormat),
-      formatCurrencyPreserveDecimals(t.value, currency),
-      t.account?.name ?? '-',
-      t.category?.name ?? '-',
-      t.payee?.name ?? '-',
-      t.note ?? '-',
-    ]);
-
-    // Add table
-    autoTable.default(doc, {
-      head: [['Date', 'Value', 'Account', 'Category', 'Payee', 'Note']],
-      body: tableData,
-      startY: yPosition,
-      margin: {left: margin, right: margin},
-      styles: {fontSize: 8},
-      headStyles: {fillColor: [66, 66, 66]},
-    });
-
-    // Save PDF
-    const filename = `report_${new Date().toISOString().split('T')[0]}.pdf`;
-    doc.save(filename);
-  }, [transactions, filterHook, accounts, categories, payees, totalCount, totalAmount, currency, dateFormat]);
 
   // Validation error
   const validationError = useMemo(() => {
@@ -417,48 +321,78 @@ export function ReportPage(): React.JSX.Element {
   );
 
   return (
-    <PageContainer>
-      {/* Filters Section */}
-      <ReportFilters
-        filters={filterHook.filters}
-        datePreset={filterHook.datePreset}
-        showDatePickers={filterHook.showDatePickers}
-        filterPanelExpanded={filterHook.filterPanelExpanded}
-        datePickerAnchor={filterHook.datePickerAnchor}
-        datePickerType={filterHook.datePickerType}
-        startDateText={filterHook.startDateText}
-        endDateText={filterHook.endDateText}
-        activeFilters={filterHook.activeFilters}
-        hasFilters={filterHook.hasFilters}
-        handleFilterChange={filterHook.handleFilterChange}
-        handlePresetDateRange={filterHook.handlePresetDateRange}
-        handleStartDateChange={filterHook.handleStartDateChange}
-        handleEndDateChange={filterHook.handleEndDateChange}
-        handleDatePickerOpen={filterHook.handleDatePickerOpen}
-        handleDatePickerClose={filterHook.handleDatePickerClose}
-        handleApplyFilters={filterHook.handleApplyFilters}
-        handleClearFilters={filterHook.handleClearFilters}
-        setFilterPanelExpanded={filterHook.setFilterPanelExpanded}
-        accountOptions={accountOptions}
-        categoryOptions={categoryOptions}
-        payeeOptions={payeeOptions}
-        workspaces={workspaces}
-        selectedWorkspaceId={selectedWorkspaceId}
-        members={members}
-        onWorkspaceChange={handleWorkspaceChange}
-        validationError={validationError}
-        error={error ? (error instanceof Error ? error : new Error(error.message || 'Unknown error')) : null}
+    <>
+      {/* Global print styles */}
+      <GlobalStyles
+        styles={{
+          '@media print': {
+            '@page': {
+              margin: '1cm',
+            },
+            body: {
+              printColorAdjust: 'exact',
+              WebkitPrintColorAdjust: 'exact',
+            },
+          },
+        }}
       />
+      <PageContainer>
+        {/* Filters Section - Hidden when printing */}
+        <Box
+          sx={{
+            '@media print': {
+              display: 'none',
+            },
+          }}
+        >
+        <ReportFilters
+          filters={filterHook.filters}
+          datePreset={filterHook.datePreset}
+          showDatePickers={filterHook.showDatePickers}
+          filterPanelExpanded={filterHook.filterPanelExpanded}
+          datePickerAnchor={filterHook.datePickerAnchor}
+          datePickerType={filterHook.datePickerType}
+          startDateText={filterHook.startDateText}
+          endDateText={filterHook.endDateText}
+          activeFilters={filterHook.activeFilters}
+          hasFilters={filterHook.hasFilters}
+          handleFilterChange={filterHook.handleFilterChange}
+          handlePresetDateRange={filterHook.handlePresetDateRange}
+          handleStartDateChange={filterHook.handleStartDateChange}
+          handleEndDateChange={filterHook.handleEndDateChange}
+          handleDatePickerOpen={filterHook.handleDatePickerOpen}
+          handleDatePickerClose={filterHook.handleDatePickerClose}
+          handleApplyFilters={filterHook.handleApplyFilters}
+          handleClearFilters={filterHook.handleClearFilters}
+          setFilterPanelExpanded={filterHook.setFilterPanelExpanded}
+          accountOptions={accountOptions}
+          categoryOptions={categoryOptions}
+          payeeOptions={payeeOptions}
+          workspaces={workspaces}
+          selectedWorkspaceId={selectedWorkspaceId}
+          members={members}
+          onWorkspaceChange={handleWorkspaceChange}
+          validationError={validationError}
+          error={error ? (error instanceof Error ? error : new Error(error.message || 'Unknown error')) : null}
+        />
+      </Box>
 
-      {/* Summary Section */}
-      <ReportSummary
-        summaryStats={summaryStats}
-        totalCount={totalCount}
-        currency={currency}
-        hasFilters={filterHook.hasFilters}
-        formatCurrencyAbbreviated={chartDataHook.formatCurrencyAbbreviated}
-        onDownloadPDF={handleDownloadPDF}
-      />
+      {/* Summary Section - Hidden when printing */}
+      <Box
+        sx={{
+          '@media print': {
+            display: 'none',
+          },
+        }}
+      >
+        <ReportSummary
+          summaryStats={summaryStats}
+          totalCount={totalCount}
+          currency={currency}
+          hasFilters={filterHook.hasFilters}
+          formatCurrencyAbbreviated={chartDataHook.formatCurrencyAbbreviated}
+        />
+      </Box>
 
       {/* Chart Section */}
       <ReportCharts
@@ -530,6 +464,7 @@ export function ReportPage(): React.JSX.Element {
           onRowClick={handleRowClick}
         />
       )}
-    </PageContainer>
+      </PageContainer>
+    </>
   );
 }
