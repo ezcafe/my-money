@@ -78,7 +78,12 @@ export class RecurringTransactionResolver extends BaseResolver {
           orderBy: {nextRunDate: 'asc'},
         });
 
-        return recurringTransactions;
+        // Map userId from account.createdBy since it's not in the RecurringTransaction model
+        // but required by the GraphQL schema
+        return recurringTransactions.map((rt) => ({
+          ...rt,
+          userId: rt.account.createdBy,
+        })) as unknown as RecurringTransaction[];
       },
       {resource: 'RecurringTransaction', operation: 'read'},
     );
@@ -107,34 +112,48 @@ export class RecurringTransactionResolver extends BaseResolver {
     const validatedInput = validate(CreateRecurringTransactionInputSchema, input);
 
     // Verify account belongs to user
-    await this.requireEntityOwnership(
-      context.prisma,
-      'account',
-      validatedInput.accountId,
-      context.userId,
-      {id: true},
-    );
+    const account = await context.prisma.account.findFirst({
+      where: {
+        id: validatedInput.accountId,
+        createdBy: context.userId,
+      },
+      select: {id: true, workspaceId: true},
+    });
+
+    if (!account) {
+      throw new NotFoundError('Account');
+    }
+
+    const workspaceId = account.workspaceId;
 
     // Verify category if provided
     if (validatedInput.categoryId) {
-      await this.requireEntityOwnership(
-        context.prisma,
-        'category',
-        validatedInput.categoryId,
-        context.userId,
-        {id: true},
-      );
+      const category = await context.prisma.category.findFirst({
+        where: {
+          id: validatedInput.categoryId,
+          workspaceId: workspaceId,
+        },
+        select: {id: true},
+      });
+
+      if (!category) {
+        throw new NotFoundError('Category');
+      }
     }
 
     // Verify payee if provided
     if (validatedInput.payeeId) {
-      await this.requireEntityOwnership(
-        context.prisma,
-        'payee',
-        validatedInput.payeeId,
-        context.userId,
-        {id: true},
-      );
+      const payee = await context.prisma.payee.findFirst({
+        where: {
+          id: validatedInput.payeeId,
+          workspaceId: workspaceId,
+        },
+        select: {id: true},
+      });
+
+      if (!payee) {
+        throw new NotFoundError('Payee');
+      }
     }
 
     const recurringTransaction = await context.prisma.recurringTransaction.create({
@@ -154,7 +173,12 @@ export class RecurringTransactionResolver extends BaseResolver {
       },
     });
 
-    return recurringTransaction;
+    // Map userId from account.createdBy since it's not in the RecurringTransaction model
+    // but required by the GraphQL schema
+    return {
+      ...recurringTransaction,
+      userId: recurringTransaction.account.createdBy,
+    } as unknown as RecurringTransaction;
   }
 
   /**
@@ -259,4 +283,3 @@ export class RecurringTransactionResolver extends BaseResolver {
     return true;
   }
 }
-
