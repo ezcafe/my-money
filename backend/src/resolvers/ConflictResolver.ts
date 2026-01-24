@@ -4,6 +4,7 @@
  */
 
 import type {GraphQLContext} from '../middleware/context';
+import type {EntityConflict, EntityVersion} from '@prisma/client';
 import {VersionService} from '../services/VersionService';
 import {checkWorkspaceAccess} from '../services/WorkspaceService';
 import {NotFoundError, ForbiddenError} from '../utils/errors';
@@ -30,7 +31,7 @@ export class ConflictResolver {
     _: unknown,
     {workspaceId}: {workspaceId: string},
     context: GraphQLContext,
-  ) {
+  ): Promise<EntityConflict[]> {
     // Verify user has access to workspace
     await checkWorkspaceAccess(workspaceId, context.userId);
 
@@ -44,7 +45,7 @@ export class ConflictResolver {
    * @param context - GraphQL context
    * @returns EntityConflict record or null
    */
-  async entityConflict(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async entityConflict(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<EntityConflict | null> {
     const conflict = await this.versionService.getConflict(id);
 
     if (!conflict) {
@@ -76,7 +77,7 @@ export class ConflictResolver {
       limit?: number;
     },
     _context: GraphQLContext,
-  ) {
+  ): Promise<EntityVersion[]> {
     // Validate entityType
     const validEntityTypes = ['Account', 'Category', 'Payee', 'Transaction', 'Budget'];
     if (!validEntityTypes.includes(entityType)) {
@@ -117,7 +118,7 @@ export class ConflictResolver {
       mergeData?: Record<string, unknown>;
     },
     context: GraphQLContext,
-  ) {
+  ): Promise<EntityConflict> {
     // Get conflict to verify workspace access
     const conflict = await this.versionService.getConflict(conflictId);
 

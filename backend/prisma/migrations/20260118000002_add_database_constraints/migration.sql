@@ -38,7 +38,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'Budget_currentSpent_check'
   ) THEN
-    ALTER TABLE "Budget" ADD CONSTRAINT "Budget_currentSpent_check" CHECK (currentSpent >= 0);
+    ALTER TABLE "Budget" ADD CONSTRAINT "Budget_currentSpent_check" CHECK ("currentSpent" >= 0);
   END IF;
 END $$;
 

@@ -4,7 +4,7 @@
  */
 
 import type {GraphQLContext} from '../middleware/context';
-import type {WorkspaceRole} from '@prisma/client';
+import type {WorkspaceRole, Workspace, WorkspaceMember, WorkspaceInvitation} from '@prisma/client';
 import {NotFoundError, ForbiddenError} from '../utils/errors';
 import {withPrismaErrorHandling} from '../utils/prismaErrors';
 import {
@@ -27,7 +27,7 @@ export class WorkspaceResolver {
   /**
    * Get all workspaces the current user belongs to
    */
-  async workspaces(_: unknown, __: unknown, context: GraphQLContext) {
+  async workspaces(_: unknown, __: unknown, context: GraphQLContext): Promise<Workspace[]> {
     const workspaceIds = await getUserWorkspaces(context.userId);
 
     const workspaces = await withPrismaErrorHandling(
@@ -59,7 +59,7 @@ export class WorkspaceResolver {
   /**
    * Get workspace by ID
    */
-  async workspace(_: unknown, {id}: {id: string}, context: GraphQLContext) {
+  async workspace(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Workspace> {
     // Verify user has access
     await checkWorkspaceAccess(id, context.userId);
 
@@ -89,28 +89,28 @@ export class WorkspaceResolver {
   /**
    * Get workspace members
    */
-  async workspaceMembers(_: unknown, {workspaceId}: {workspaceId: string}, context: GraphQLContext) {
+  async workspaceMembers(_: unknown, {workspaceId}: {workspaceId: string}, context: GraphQLContext): Promise<WorkspaceMember[]> {
     return getWorkspaceMembers(workspaceId, context.userId);
   }
 
   /**
    * Get workspace invitations
    */
-  async workspaceInvitations(_: unknown, {workspaceId}: {workspaceId: string}, context: GraphQLContext) {
+  async workspaceInvitations(_: unknown, {workspaceId}: {workspaceId: string}, context: GraphQLContext): Promise<WorkspaceInvitation[]> {
     return getWorkspaceInvitations(workspaceId, context.userId);
   }
 
   /**
    * Get invitation by token (public, no auth required for viewing invitation details)
    */
-  async invitationByToken(_: unknown, {token}: {token: string}, _context: GraphQLContext) {
+  async invitationByToken(_: unknown, {token}: {token: string}, _context: GraphQLContext): Promise<WorkspaceInvitation | null> {
     return getInvitationByToken(token);
   }
 
   /**
    * Create a new workspace
    */
-  async createWorkspace(_: unknown, {name}: {name: string}, context: GraphQLContext) {
+  async createWorkspace(_: unknown, {name}: {name: string}, context: GraphQLContext): Promise<Workspace> {
     const sanitizedName = sanitizeUserInput(name);
 
     if (!sanitizedName || sanitizedName.trim().length === 0) {
@@ -147,7 +147,7 @@ export class WorkspaceResolver {
   /**
    * Update workspace
    */
-  async updateWorkspace(_: unknown, {id, name}: {id: string; name?: string}, context: GraphQLContext) {
+  async updateWorkspace(_: unknown, {id, name}: {id: string; name?: string}, context: GraphQLContext): Promise<Workspace> {
     // Verify user has admin/owner permission
     await checkWorkspacePermission(id, context.userId, 'Admin');
 
@@ -210,7 +210,7 @@ export class WorkspaceResolver {
       role?: WorkspaceRole;
     },
     context: GraphQLContext,
-  ) {
+  ): Promise<WorkspaceInvitation> {
     const sanitizedEmail = sanitizeUserInput(email);
     if (!sanitizedEmail?.includes('@')) {
       throw new Error('Valid email address is required');
@@ -249,7 +249,7 @@ export class WorkspaceResolver {
   /**
    * Accept workspace invitation
    */
-  async acceptWorkspaceInvitation(_: unknown, {token}: {token: string}, context: GraphQLContext) {
+  async acceptWorkspaceInvitation(_: unknown, {token}: {token: string}, context: GraphQLContext): Promise<WorkspaceMember> {
     const member = await acceptInvitation(token, context.userId);
     return member;
   }
@@ -276,7 +276,7 @@ export class WorkspaceResolver {
       role: WorkspaceRole;
     },
     context: GraphQLContext,
-  ) {
+  ): Promise<WorkspaceMember> {
     // Verify user has admin/owner permission
     await checkWorkspacePermission(workspaceId, context.userId, 'Admin');
 

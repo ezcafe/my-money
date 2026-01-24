@@ -987,6 +987,22 @@ export async function saveImportedTransactions(
   let savedCount = 0;
 
   // Process in a batch transaction
+  // Check if constraint exists and drop it if present (migration should have removed it, but ensure it's gone)
+  const constraintCheck = await context.prisma.$queryRaw<Array<{conname: string}>>`
+    SELECT conname FROM pg_constraint WHERE conname = 'Account_balance_check'
+  `;
+  const constraintExists = constraintCheck.length > 0;
+  
+  if (constraintExists) {
+    try {
+      await context.prisma.$executeRaw`
+        ALTER TABLE "Account" DROP CONSTRAINT IF EXISTS "Account_balance_check"
+      `;
+    } catch (error) {
+      // Ignore errors - constraint might not exist or might be in use
+    }
+  }
+  
   await context.prisma.$transaction(async (tx) => {
     // 1. Create ImportMatchRules for card number if provided
     if (mapping.cardNumber && mapping.cardAccountId) {
@@ -1206,8 +1222,14 @@ export async function saveImportedTransactions(
     // Create transactions and update balances/imported transactions
     // Note: We can't use createMany here because we need the transaction IDs
     // to update imported transactions. However, we've optimized category lookups.
+    // Use savepoints to allow partial rollback on constraint violations
     for (const txData of transactionsToCreate) {
+      // Create a savepoint for each transaction to allow partial rollback
+      const savepointId = `sp_${txData.importedId.replace(/-/g, '_')}`;
       try {
+        // Create savepoint
+        await tx.$executeRawUnsafe(`SAVEPOINT ${savepointId}`);
+        
         // Create transaction
         const transaction = await tx.transaction.create({
           data: {
@@ -1252,8 +1274,17 @@ export async function saveImportedTransactions(
           },
         });
 
+        // Release savepoint on success
+        await tx.$executeRawUnsafe(`RELEASE SAVEPOINT ${savepointId}`);
+        
         savedCount++;
       } catch (error) {
+        // Rollback to savepoint on error to allow other transactions to continue
+        try {
+          await tx.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT ${savepointId}`);
+        } catch {
+          // If rollback fails, the transaction is already aborted
+        }
         const errorMessage = error instanceof Error ? error.message : String(error);
         errors.push(`Transaction ${txData.importedId}: ${errorMessage}`);
       }

@@ -7,7 +7,7 @@ Database constraints are enforced at the database level via migrations. Prisma d
 ## Constraints Defined
 
 ### Account Table
-- `Account_balance_check`: `balance >= 0` - Ensures account balance is never negative
+- No balance constraint - Account balances can be positive, zero, or negative (useful for credit cards, loans, and overdraft scenarios)
 
 ### Transaction Table
 - `Transaction_value_check`: `value != 0` - Ensures transaction value is never zero
@@ -39,3 +39,4 @@ Indexes are defined in the Prisma schema using `@@index` directives.
 All constraints are applied via migration files:
 - `20260118000002_add_database_constraints/migration.sql` - CHECK constraints
 - `20260118055133_add_workspace_system/migration.sql` - Foreign key constraints
+- `20260124000000_remove_balance_constraint/migration.sql` - Removed Account balance constraint

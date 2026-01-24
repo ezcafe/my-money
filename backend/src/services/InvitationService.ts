@@ -4,7 +4,7 @@
  */
 
 import {randomBytes} from 'crypto';
-import type {WorkspaceRole} from '@prisma/client';
+import type {WorkspaceRole, WorkspaceInvitation, WorkspaceMember} from '@prisma/client';
 import {prisma} from '../utils/prisma';
 import {NotFoundError, ValidationError} from '../utils/errors';
 import {checkWorkspaceAccess, checkWorkspacePermission} from './WorkspaceService';
@@ -35,7 +35,7 @@ export async function createInvitation(
   role: WorkspaceRole = 'Member',
   invitedBy: string,
   expiresInDays: number = 7,
-) {
+): Promise<WorkspaceInvitation> {
   // Verify inviter has permission to invite (Admin or Owner)
   await checkWorkspacePermission(workspaceId, invitedBy, 'Admin');
 
@@ -112,7 +112,7 @@ export async function createInvitation(
  * @returns Invitation if valid
  * @throws NotFoundError if invitation not found or expired
  */
-export async function getInvitationByToken(token: string) {
+export async function getInvitationByToken(token: string): Promise<WorkspaceInvitation> {
   const invitation = await prisma.workspaceInvitation.findUnique({
     where: {token},
     include: {
@@ -155,7 +155,7 @@ export async function getInvitationByToken(token: string) {
  * @param userId - User ID accepting the invitation
  * @returns Created workspace member
  */
-export async function acceptInvitation(token: string, userId: string) {
+export async function acceptInvitation(token: string, userId: string): Promise<WorkspaceMember> {
   const invitation = await getInvitationByToken(token);
 
   // Verify user email matches invitation email (optional check - can be relaxed)
@@ -265,7 +265,7 @@ export async function cancelInvitation(invitationId: string, userId: string): Pr
  * @param userId - User ID (for permission check)
  * @returns Array of pending invitations
  */
-export async function getWorkspaceInvitations(workspaceId: string, userId: string) {
+export async function getWorkspaceInvitations(workspaceId: string, userId: string): Promise<WorkspaceInvitation[]> {
   // Verify user has access to workspace
   await checkWorkspaceAccess(workspaceId, userId);
 

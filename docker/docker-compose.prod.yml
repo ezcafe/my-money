@@ -1,0 +1,84 @@
+# Docker Compose Production Override
+# Production-specific configurations for My Money Application
+#
+# Usage:
+#   docker-compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up -d
+#
+# For production with external database:
+#   1. Comment out or remove the postgres service from base docker-compose.yml
+#   2. Update DATABASE_URL in .env to point to external database
+#   3. Remove postgres dependency from backend service
+
+services:
+  postgres:
+    # In production, don't expose database port externally
+    # Database should only be accessible within the Docker network
+    ports: []
+    # Use explicit restart policy for production
+    restart: always
+    # Production-specific resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  backend:
+    # Explicit restart policy for production
+    restart: always
+    # Production-specific resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    # Ensure backend waits for postgres (if using local postgres)
+    # If using external database, remove this depends_on section
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Production-specific environment variables
+      NODE_ENV: production
+      # Ensure production logging level
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  frontend:
+    # Explicit restart policy for production
+    restart: always
+    # Production-specific resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+# Production volume configuration
+# Consider using named volumes with specific drivers for production
+volumes:
+  postgres_data:
+    driver: local
+    # Optional: Use a specific driver for production (e.g., for cloud storage)
+    # driver: cloudstor:aws
+    # driver_opts:
+    #   backing: relocatable
+
+# Production network configuration
+# Consider using overlay network for Docker Swarm or external network for production
+networks:
+  my-money-network:
+    driver: bridge
+    # For Docker Swarm, use overlay driver:
+    # driver: overlay
+    # For external network (pre-created):
+    # external: true
+    # name: my-money-production-network

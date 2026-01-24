@@ -239,10 +239,30 @@ async function startServer(): Promise<void> {
         event: 'startup_cache_tables_initialized',
       });
     } catch (error) {
-      logError('Cache tables initialization failed', {
-        durationMs: Date.now() - cacheInitStart,
-        event: 'startup_cache_tables_failed',
-      }, error instanceof Error ? error : new Error(String(error)));
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorMessage = errorObj.message;
+
+      // Check if it's a connection or database not ready error
+      const isConnectionError = errorMessage.includes('ECONNREFUSED') ||
+                                errorMessage.includes('connection') ||
+                                errorMessage.includes('connect') ||
+                                errorMessage.includes('does not exist') ||
+                                errorMessage.includes('relation') ||
+                                errorMessage.includes('timeout');
+
+      if (isConnectionError) {
+        logWarn('Cache tables initialization deferred: Database not ready yet. This is normal during startup.', {
+          durationMs: Date.now() - cacheInitStart,
+          event: 'startup_cache_tables_deferred',
+          hint: 'Cache tables will be initialized automatically once the database is ready. The application will continue to function normally.',
+        });
+      } else {
+        logError('Cache tables initialization failed', {
+          durationMs: Date.now() - cacheInitStart,
+          event: 'startup_cache_tables_failed',
+          error: errorMessage,
+        }, errorObj);
+      }
       // Don't throw - cache tables are optional and can be created later
     }
 

@@ -4,7 +4,7 @@
  * The datasource URL is now configured here for Prisma Migrate commands
  */
 
-import {readFileSync} from 'fs';
+import {readFileSync, existsSync} from 'fs';
 import {resolve} from 'path';
 
 /**
@@ -39,9 +39,54 @@ if (!process.env.DATABASE_URL) {
   loadEnvFile();
 }
 
+/**
+ * Check if running in Docker container
+ */
+function isRunningInDocker(): boolean {
+  try {
+    if (existsSync('/.dockerenv')) {
+      return true;
+    }
+  } catch {
+    // Continue with other methods
+  }
+
+  try {
+    const cgroup = readFileSync('/proc/self/cgroup', 'utf-8');
+    return cgroup.includes('docker') || cgroup.includes('containerd');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Adjust database connection string hostname based on environment
+ */
+function adjustDatabaseConnectionString(connectionString: string): string {
+  const inDocker = isRunningInDocker();
+
+  if (inDocker) {
+    // In Docker, replace localhost with postgres (the service name)
+    if (connectionString.includes('@localhost:')) {
+      return connectionString.replace('@localhost:', '@postgres:');
+    }
+  } else {
+    // Local development: replace postgres with localhost
+    if (connectionString.includes('@postgres:')) {
+      return connectionString.replace('@postgres:', '@localhost:');
+    }
+  }
+
+  return connectionString;
+}
+
+// Adjust DATABASE_URL based on environment (Docker vs local)
+const databaseUrl = process.env.DATABASE_URL;
+const adjustedDatabaseUrl = databaseUrl ? adjustDatabaseConnectionString(databaseUrl) : undefined;
+
 export default {
   datasource: {
-    url: process.env.DATABASE_URL,
+    url: adjustedDatabaseUrl ?? databaseUrl,
   },
 };
 

@@ -1,0 +1,44 @@
+# Docker Compose Override for Local Development
+# Copy this file to docker-compose.override.yml for local development
+# This file provides hot-reload capabilities and development-specific configurations
+#
+# Usage:
+#   cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
+#   docker-compose -f docker/docker-compose.yml up
+
+services:
+  backend:
+    # Override build to use development mode
+    # Mount source code as volumes for hot-reload
+    volumes:
+      # Mount backend source code (read-only to prevent accidental writes)
+      - ../backend:/app/backend:ro
+      # Mount shared package for development
+      - ../shared:/app/shared:ro
+      # Exclude node_modules to use container's dependencies
+      - /app/backend/node_modules
+      - /app/shared/node_modules
+    environment:
+      # Override to development mode
+      NODE_ENV: development
+      # Enable more verbose logging in development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    # Override command to use development server with watch mode
+    # Note: This requires the dev script to be available
+    # Uncomment if you want to use the container's dev server
+    # command: npm run dev --workspace=backend
+
+  frontend:
+    # Mount frontend source for hot-reload
+    volumes:
+      - ../frontend:/app/frontend:ro
+      - /app/frontend/node_modules
+    environment:
+      NODE_ENV: development
+    # Uncomment to use development server in container
+    # command: npm run dev --workspace=frontend
+
+  # Optional: Expose additional ports for development tools
+  # postgres:
+  #   ports:
+  #     - "5432:5432"  # Already exposed, but can add more if needed

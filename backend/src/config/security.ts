@@ -218,13 +218,18 @@ export function registerSecurityPlugins(app: Hono): void {
   app.use(
     cors({
       origin: (origin: string | null): string => {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) {
-          // In production, be more restrictive
-          if (isProduction) {
-            throw new Error('Origin header required in production');
-          }
-          return '*';
+        // Allow requests with no origin header or "null" origin
+        // This includes:
+        // - Browser navigations/redirects (OAuth callbacks, direct URL access)
+        // - Mobile apps and server-to-server requests
+        // - curl/wget requests
+        // - Sandboxed iframes (send "null" as origin string)
+        // - file:// URLs (send "null" as origin string)
+        // CORS is only enforced by browsers for XHR/fetch requests, not navigations
+        if (!origin || origin === 'null') {
+          // Return first allowed origin for CORS headers
+          // For browser navigations, these headers aren't used anyway
+          return corsOrigins[0] ?? '*';
         }
 
         // Check if origin is in allowed list
@@ -232,7 +237,7 @@ export function registerSecurityPlugins(app: Hono): void {
           return origin;
         }
 
-        // In production, reject unknown origins
+        // In production, reject unknown origins for XHR/fetch requests
         if (isProduction) {
           throw new Error(`Origin ${origin} not allowed by CORS policy`);
         }

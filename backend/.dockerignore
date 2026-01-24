@@ -1,6 +1,8 @@
 # Dependencies
 node_modules
-npm-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Environment files
 .env
@@ -11,12 +13,14 @@ npm-debug.log
 dist
 coverage
 .nyc_output
+*.tsbuildinfo
+*.map
 
 # Tests
 __tests__
 *.test.ts
 *.spec.ts
-jest.config.ts
+jest.config.*
 
 # Documentation
 *.md
@@ -25,4 +29,6 @@ jest.config.ts
 # Misc
 *.log
 .cache
+.temp
+*.tmp
 

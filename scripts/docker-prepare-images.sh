@@ -1,7 +1,12 @@
 #!/bin/bash
 # Script to prepare Docker images locally to avoid rate limiting during builds
+# Also enables BuildKit for better caching and parallel builds
 
 set +e  # Don't exit on error - we want to continue even if pulls fail
+
+# Enable BuildKit for better caching and performance
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,22 +49,85 @@ pull_image() {
   return 0
 }
 
+# Function to validate that an image exists and is accessible
+validate_image() {
+  local image=$1
+  if ! docker image inspect "$image" >/dev/null 2>&1; then
+    echo -e "${RED}✗${NC} Error: Image $image validation failed - image not found"
+    return 1
+  fi
+  echo -e "${GREEN}✓${NC} Image $image validated"
+  return 0
+}
+
 # Get image versions from environment or use defaults
 NODE_VERSION=${NODE_VERSION:-25.2.1}
 NGINX_VERSION=${NGINX_VERSION:-alpine}
+POSTGRES_VERSION=${POSTGRES_VERSION:-18-alpine}
 
 # Images needed for the build
 NODE_IMAGE="node:${NODE_VERSION}-alpine"
 NGINX_IMAGE="nginx:${NGINX_VERSION}"
+POSTGRES_IMAGE="postgres:${POSTGRES_VERSION}"
 
 echo "Preparing Docker images for build..."
 echo ""
 
-# Pull node image
-pull_image "$NODE_IMAGE" || true
+# Track pull results
+NODE_PULL_FAILED=0
+NGINX_PULL_FAILED=0
+POSTGRES_PULL_FAILED=0
 
-# Pull nginx image
-pull_image "$NGINX_IMAGE" || true
+# Pull images in parallel for faster preparation
+pull_image "$NODE_IMAGE" &
+NODE_PID=$!
+
+pull_image "$NGINX_IMAGE" &
+NGINX_PID=$!
+
+pull_image "$POSTGRES_IMAGE" &
+POSTGRES_PID=$!
+
+# Wait for all pulls to complete with proper error handling
+wait $NODE_PID || NODE_PULL_FAILED=1
+wait $NGINX_PID || NGINX_PULL_FAILED=1
+wait $POSTGRES_PID || POSTGRES_PULL_FAILED=1
 
 echo ""
-echo "Image preparation complete. Proceeding with build..."
+echo "Validating pulled images..."
+echo ""
+
+# Validate all images
+VALIDATION_FAILED=0
+if [ $NODE_PULL_FAILED -eq 0 ]; then
+  validate_image "$NODE_IMAGE" || VALIDATION_FAILED=1
+else
+  echo -e "${YELLOW}⚠${NC}  Skipping validation for $NODE_IMAGE (pull failed)"
+  VALIDATION_FAILED=1
+fi
+
+if [ $NGINX_PULL_FAILED -eq 0 ]; then
+  validate_image "$NGINX_IMAGE" || VALIDATION_FAILED=1
+else
+  echo -e "${YELLOW}⚠${NC}  Skipping validation for $NGINX_IMAGE (pull failed)"
+  VALIDATION_FAILED=1
+fi
+
+if [ $POSTGRES_PULL_FAILED -eq 0 ]; then
+  validate_image "$POSTGRES_IMAGE" || VALIDATION_FAILED=1
+else
+  echo -e "${YELLOW}⚠${NC}  Skipping validation for $POSTGRES_IMAGE (pull failed)"
+  VALIDATION_FAILED=1
+fi
+
+echo ""
+if [ $VALIDATION_FAILED -eq 0 ]; then
+  echo -e "${GREEN}✓${NC} Image preparation complete. All images validated."
+  echo "BuildKit is enabled for optimized caching and parallel builds."
+  exit 0
+else
+  echo -e "${YELLOW}⚠${NC}  Image preparation completed with warnings."
+  echo "Some images may not be available. Build may fail or be slower."
+  echo "BuildKit is enabled for optimized caching and parallel builds."
+  exit 1
+fi

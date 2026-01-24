@@ -35,6 +35,9 @@ IMAGE_TAG="${IMAGE_TAG:-${VERSION}}"
 # Buildx builder name
 BUILDER_NAME="multiarch-builder"
 
+# Track build start time
+START_TIME=$(date +%s)
+
 echo -e "${GREEN}=== Multi-Architecture Docker Build Script ===${NC}"
 echo ""
 
@@ -54,6 +57,23 @@ else
   echo "Using existing buildx builder: ${BUILDER_NAME}"
   docker buildx use "${BUILDER_NAME}"
 fi
+
+# Validate builder capabilities
+echo -e "${YELLOW}Validating builder capabilities...${NC}"
+BUILDER_INFO=$(docker buildx inspect "${BUILDER_NAME}" 2>/dev/null)
+if [ $? -ne 0 ]; then
+  echo -e "${RED}Error: Failed to inspect builder ${BUILDER_NAME}${NC}"
+  exit 1
+fi
+
+# Check if builder supports the requested platforms
+for platform in $(echo "${PLATFORMS}" | tr ',' ' '); do
+  if ! echo "$BUILDER_INFO" | grep -q "$platform"; then
+    echo -e "${YELLOW}Warning: Platform $platform may not be fully supported by builder${NC}"
+  fi
+done
+echo -e "${GREEN}✓ Builder validation complete${NC}"
+echo ""
 
 # Function to build an image
 build_image() {
@@ -138,6 +158,8 @@ while [[ $# -gt 0 ]]; do
       echo "  NGINX_VERSION        Nginx version (default: alpine)"
       echo "  BACKEND_IMAGE        Backend image name (default: my-money-backend)"
       echo "  FRONTEND_IMAGE       Frontend image name (default: my-money-frontend)"
+      echo "  DOCKER_REGISTRY      Docker registry URL for cache (optional)"
+      echo "                       Example: my-registry.com/my-project"
       exit 0
       ;;
     *)
@@ -151,6 +173,24 @@ done
 # Prepare build arguments
 BACKEND_BUILD_ARGS="--build-arg BUILD_DATE=${BUILD_DATE} --build-arg VCS_REF=${VCS_REF} --build-arg VERSION=${VERSION} --build-arg NODE_VERSION=${NODE_VERSION}"
 FRONTEND_BUILD_ARGS="--build-arg BUILD_DATE=${BUILD_DATE} --build-arg VCS_REF=${VCS_REF} --build-arg VERSION=${VERSION} --build-arg NODE_VERSION=${NODE_VERSION} --build-arg NGINX_VERSION=${NGINX_VERSION}"
+
+# Setup registry cache if DOCKER_REGISTRY is provided
+# This enables cache sharing between CI/CD runs and local builds
+CACHE_FROM_BACKEND=""
+CACHE_TO_BACKEND=""
+CACHE_FROM_FRONTEND=""
+CACHE_TO_FRONTEND=""
+
+if [ -n "$DOCKER_REGISTRY" ]; then
+  echo -e "${YELLOW}Registry cache enabled: ${DOCKER_REGISTRY}${NC}"
+  CACHE_FROM_BACKEND="--cache-from type=registry,ref=${DOCKER_REGISTRY}/cache:backend-${IMAGE_TAG} --cache-from type=registry,ref=${DOCKER_REGISTRY}/cache:backend-latest"
+  CACHE_TO_BACKEND="--cache-to type=registry,ref=${DOCKER_REGISTRY}/cache:backend-${IMAGE_TAG},mode=max --cache-to type=registry,ref=${DOCKER_REGISTRY}/cache:backend-latest,mode=max"
+  CACHE_FROM_FRONTEND="--cache-from type=registry,ref=${DOCKER_REGISTRY}/cache:frontend-${IMAGE_TAG} --cache-from type=registry,ref=${DOCKER_REGISTRY}/cache:frontend-latest"
+  CACHE_TO_FRONTEND="--cache-to type=registry,ref=${DOCKER_REGISTRY}/cache:frontend-${IMAGE_TAG},mode=max --cache-to type=registry,ref=${DOCKER_REGISTRY}/cache:frontend-latest,mode=max"
+  echo "  Backend cache: ${DOCKER_REGISTRY}/cache:backend-*"
+  echo "  Frontend cache: ${DOCKER_REGISTRY}/cache:frontend-*"
+  echo ""
+fi
 
 # Determine build output
 BUILD_OUTPUT=""
@@ -175,17 +215,24 @@ fi
 
 # Build backend
 if [ "$BUILD_BACKEND" = true ]; then
+  BACKEND_START=$(date +%s)
+  echo -e "${YELLOW}Starting backend build...${NC}"
+
   docker buildx build \
     --platform "${PLATFORMS}" \
     --file "${DOCKERFILE_BACKEND}" \
     --tag "${BACKEND_IMAGE}:${IMAGE_TAG}" \
     --tag "${BACKEND_IMAGE}:latest" \
     ${BACKEND_BUILD_ARGS} \
+    ${CACHE_FROM_BACKEND} \
+    ${CACHE_TO_BACKEND} \
     ${BUILD_OUTPUT} \
     "${PROJECT_ROOT}"
 
   if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Successfully built ${BACKEND_IMAGE}${NC}"
+    BACKEND_END=$(date +%s)
+    BACKEND_DURATION=$((BACKEND_END - BACKEND_START))
+    echo -e "${GREEN}✓ Successfully built ${BACKEND_IMAGE} (took ${BACKEND_DURATION}s)${NC}"
   else
     echo -e "${RED}✗ Failed to build ${BACKEND_IMAGE}${NC}"
     exit 1
@@ -194,25 +241,39 @@ fi
 
 # Build frontend
 if [ "$BUILD_FRONTEND" = true ]; then
+  FRONTEND_START=$(date +%s)
+  echo -e "${YELLOW}Starting frontend build...${NC}"
+
   docker buildx build \
     --platform "${PLATFORMS}" \
     --file "${DOCKERFILE_FRONTEND}" \
     --tag "${FRONTEND_IMAGE}:${IMAGE_TAG}" \
     --tag "${FRONTEND_IMAGE}:latest" \
     ${FRONTEND_BUILD_ARGS} \
+    ${CACHE_FROM_FRONTEND} \
+    ${CACHE_TO_FRONTEND} \
     ${BUILD_OUTPUT} \
     "${PROJECT_ROOT}"
 
   if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Successfully built ${FRONTEND_IMAGE}${NC}"
+    FRONTEND_END=$(date +%s)
+    FRONTEND_DURATION=$((FRONTEND_END - FRONTEND_START))
+    echo -e "${GREEN}✓ Successfully built ${FRONTEND_IMAGE} (took ${FRONTEND_DURATION}s)${NC}"
   else
     echo -e "${RED}✗ Failed to build ${FRONTEND_IMAGE}${NC}"
     exit 1
   fi
 fi
 
+# Calculate total build time
+END_TIME=$(date +%s)
+TOTAL_DURATION=$((END_TIME - START_TIME))
+MINUTES=$((TOTAL_DURATION / 60))
+SECONDS=$((TOTAL_DURATION % 60))
+
 echo ""
 echo -e "${GREEN}=== Build Complete ===${NC}"
 echo "Backend image: ${BACKEND_IMAGE}:${IMAGE_TAG}"
 echo "Frontend image: ${FRONTEND_IMAGE}:${IMAGE_TAG}"
 echo "Platforms: ${PLATFORMS}"
+echo "Total build time: ${MINUTES}m ${SECONDS}s"

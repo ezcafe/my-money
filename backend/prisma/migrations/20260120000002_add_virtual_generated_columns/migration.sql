@@ -5,9 +5,14 @@
 -- Add year_month virtual generated column to Transaction table
 -- This column extracts year-month from the date for easier grouping in reports
 -- Using STORED type for better query performance (computed once, stored)
+-- Note: Using EXTRACT and string concatenation instead of TO_CHAR because
+-- TO_CHAR is STABLE (depends on locale) but generated columns require IMMUTABLE expressions
 ALTER TABLE "Transaction"
   ADD COLUMN IF NOT EXISTS "year_month" TEXT
-  GENERATED ALWAYS AS (TO_CHAR("date", 'YYYY-MM')) STORED;
+  GENERATED ALWAYS AS (
+    EXTRACT(YEAR FROM "date")::text || '-' || 
+    LPAD(EXTRACT(MONTH FROM "date")::text, 2, '0')
+  ) STORED;
 
 -- Create index on year_month for efficient date range queries
 CREATE INDEX IF NOT EXISTS "transaction_year_month_idx"

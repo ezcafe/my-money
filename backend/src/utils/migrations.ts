@@ -9,6 +9,7 @@ import {join} from 'path';
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
 import {logError, logInfo, logWarn} from './logger';
+import {adjustDatabaseConnectionString} from '../config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,10 +34,22 @@ function sleep(ms: number): Promise<void> {
  */
 async function checkDatabaseAccessibility(): Promise<boolean> {
   try {
-    // Import Prisma client dynamically to check connectivity
-    const {prisma} = await import('./prisma');
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
+    // Import Prisma client and config dynamically to check connectivity
+    const {Client} = await import('pg');
+    const {config} = await import('../config');
+
+    // config.database.url already has adjusted hostname via getter
+    const connectionString = config.database.url;
+
+    // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
+    const client = new Client({connectionString});
+    try {
+      await client.connect();
+      await client.query('SELECT 1');
+      return true;
+    } finally {
+      await client.end();
+    }
   } catch {
     return false;
   }
@@ -133,8 +146,13 @@ async function runDbPushWithConditionalAccept(
   backendPath: string,
   timeoutMs: number,
 ): Promise<void> {
+  // Adjust DATABASE_URL for the current environment before passing to Prisma CLI
+  const databaseUrl = process.env.DATABASE_URL;
+  const adjustedDatabaseUrl = databaseUrl ? adjustDatabaseConnectionString(databaseUrl) : undefined;
+
   const env = {
     ...process.env,
+    ...(adjustedDatabaseUrl && {DATABASE_URL: adjustedDatabaseUrl}),
     PRISMA_SCHEMA_PATH: join(backendPath, 'prisma/schema.prisma'),
   };
 
@@ -258,6 +276,10 @@ export async function runMigrations(
       });
 
       try {
+        // Adjust DATABASE_URL for the current environment before passing to Prisma CLI
+        const databaseUrl = process.env.DATABASE_URL;
+        const adjustedDatabaseUrl = databaseUrl ? adjustDatabaseConnectionString(databaseUrl) : undefined;
+
         // Use prisma migrate deploy in production
         // This applies pending migrations safely
         execSync('npx prisma migrate deploy', {
@@ -266,6 +288,7 @@ export async function runMigrations(
           timeout: timeoutMs,
           env: {
             ...process.env,
+            ...(adjustedDatabaseUrl && {DATABASE_URL: adjustedDatabaseUrl}),
             PRISMA_SCHEMA_PATH: join(backendPath, 'prisma/schema.prisma'),
           },
         });

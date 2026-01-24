@@ -3,7 +3,7 @@
  * Handles all database operations for accounts
  */
 
-import type {Account, PrismaClient} from '@prisma/client';
+import type {Account, AccountType, PrismaClient} from '@prisma/client';
 import {BaseRepository} from './BaseRepository';
 
 type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
@@ -65,6 +65,34 @@ export class AccountRepository extends BaseRepository {
       select?: Record<string, boolean>;
     } = {
       where: {workspaceId, isDefault: true},
+    };
+
+    if (select) {
+      queryOptions.select = select;
+    }
+
+    return this.prisma.account.findFirst(queryOptions);
+  }
+
+  /**
+   * Find account by name and account type in a workspace
+   * @param workspaceId - Workspace ID
+   * @param name - Account name
+   * @param accountType - Account type
+   * @param select - Optional select clause
+   * @returns Account if found, null otherwise
+   */
+  async findByNameAndType(
+    workspaceId: string,
+    name: string,
+    accountType: AccountType,
+    select?: Record<string, boolean>,
+  ): Promise<Account | null> {
+    const queryOptions: {
+      where: {workspaceId: string; name: string; accountType: AccountType};
+      select?: Record<string, boolean>;
+    } = {
+      where: {workspaceId, name, accountType},
     };
 
     if (select) {

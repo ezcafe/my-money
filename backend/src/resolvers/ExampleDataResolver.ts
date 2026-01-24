@@ -11,7 +11,7 @@ import {getUserDefaultWorkspace} from '../services/WorkspaceService';
 export class ExampleDataResolver {
   /**
    * Add example data to database
-   * Creates example accounts, categories, and payees if they don't already exist
+   * Creates example categories and payees if they don't already exist
    * @param _ - Parent resolver (unused)
    * @param __ - Arguments (unused)
    * @param context - GraphQL context with user and database access
@@ -23,35 +23,6 @@ export class ExampleDataResolver {
     await withPrismaErrorHandling(
       async () =>
         await context.prisma.$transaction(async (tx) => {
-          // Example accounts
-          const exampleAccounts = [
-            {name: 'Credit Card', accountType: 'CreditCard' as const},
-            {name: 'Bank', accountType: 'Bank' as const},
-          ];
-          for (const account of exampleAccounts) {
-            const existing = await tx.account.findFirst({
-              where: {
-                workspaceId,
-                name: account.name,
-              },
-            });
-
-            if (!existing) {
-              await tx.account.create({
-                data: {
-                  name: sanitizeUserInput(account.name),
-                  workspaceId,
-                  createdBy: context.userId,
-                  lastEditedBy: context.userId,
-                  initBalance: 0,
-                  balance: 0,
-                  isDefault: false,
-                  accountType: account.accountType,
-                },
-              });
-            }
-          }
-
           // Example expense categories
           const expenseCategoryNames = [
             'Utilities & Bills',

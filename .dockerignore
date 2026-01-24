@@ -4,6 +4,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.pnp
+.pnp.js
 
 # Build outputs
 dist
@@ -11,6 +13,7 @@ build
 coverage
 .turbo
 *.tsbuildinfo
+*.map
 
 # Testing
 __tests__
@@ -20,6 +23,8 @@ __tests__
 *.spec.tsx
 coverage
 .nyc_output
+jest.config.*
+*.config.test.*
 
 # Environment files
 .env
@@ -30,6 +35,7 @@ coverage
 .git
 .gitignore
 .gitattributes
+.gitkeep
 
 # IDE
 .vscode
@@ -37,10 +43,17 @@ coverage
 *.swp
 *.swo
 *~
+.project
+.classpath
+.settings
 
 # OS
 .DS_Store
 Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 
 # Documentation
 README.md
@@ -52,19 +65,34 @@ docs
 .cache
 .eslintcache
 .temp
+.tmp
+*.tmp
 
 # Logs
 *.log
 logs
+*.log.*
 
 # Prisma (keep schema, ignore generated)
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 
 # Docker
 docker-compose.override.yml
 Dockerfile*.local
+.dockerignore
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
 
 # Misc
-.pnp
-.pnp.js
+.editorconfig
+.prettierrc*
+.eslintrc*
+# Note: Lock files (package-lock.json, yarn.lock, pnpm-lock.yaml) are needed for npm ci
+# Do not ignore them - they are required for reproducible builds

@@ -15,15 +15,40 @@ WORKDIR /app
 
 # Copy only package files for dependency installation (better layer caching)
 # Order: root package files first (least likely to change), then workspace packages
-COPY package*.json package-lock.json ./
-COPY backend/package*.json ./backend/
-COPY shared/package*.json ./shared/
+# package-lock.json is required for npm ci to work properly
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+COPY shared/package.json ./shared/
 
 # Install all dependencies with BuildKit cache mounts for faster rebuilds
-# Cache both npm cache and node_modules for maximum efficiency
-RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
-    --mount=type=cache,target=/app/node_modules,id=node-modules-cache \
-    npm ci --include-workspace-root
+# Cache npm cache for faster dependency downloads
+# Use --prefer-offline=true to leverage cache when available
+# Note: We don't cache node_modules directly as npm ci needs to clean/recreate it
+# Add retry logic for network issues and clear corrupted cache entries
+RUN --mount=type=cache,target=/root/.npm,id=npm-cache-backend-deps \
+    sh -c ' \
+    MAX_RETRIES=3; \
+    RETRY_DELAY=5; \
+    EXIT_CODE=1; \
+    for i in $(seq 1 $MAX_RETRIES); do \
+      echo "Attempt $i of $MAX_RETRIES: Installing dependencies..."; \
+      if npm ci --include-workspace-root --prefer-offline=true --no-audit --no-fund; then \
+        echo "Dependencies installed successfully"; \
+        exit 0; \
+      fi; \
+      EXIT_CODE=$?; \
+      echo "Installation failed with exit code $EXIT_CODE"; \
+      if [ $i -lt $MAX_RETRIES ]; then \
+        echo "Clearing potentially corrupted cache and retrying in ${RETRY_DELAY}s..."; \
+        npm cache clean --force || true; \
+        sleep $RETRY_DELAY; \
+        RETRY_DELAY=$((RETRY_DELAY * 2)); \
+      else \
+        echo "All retry attempts failed"; \
+        exit $EXIT_CODE; \
+      fi; \
+    done; \
+    exit $EXIT_CODE'
 
 # ============================================================================
 # Prisma generation stage - Generate Prisma client
@@ -35,18 +60,23 @@ WORKDIR /app
 # Copy dependencies from deps stage
 # In npm workspaces, dependencies are hoisted to root node_modules
 COPY --from=deps /app/node_modules ./node_modules
-# Create workspace node_modules directories (may not exist if all deps are hoisted)
-RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
 
 # Copy Prisma schema and migrations (schema changes less frequently than source code)
 COPY backend/prisma ./backend/prisma
 # Copy Prisma config file (required for Prisma 7+)
 COPY backend/prisma.config.ts ./backend/prisma.config.ts
 
+# Set Prisma environment variables for explicit binary targets
+# Use binary engine type and specify musl target for Alpine Linux
+ENV PRISMA_CLIENT_ENGINE_TYPE=binary
+ENV PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3.0.x
+ENV PRISMA_GENERATE_DATAPROXY=false
+
 # Generate Prisma client with cache mount for Prisma generation cache
+# Use explicit schema path for clarity and reliability
 WORKDIR /app/backend
-RUN --mount=type=cache,target=/root/.cache/prisma,id=prisma-cache \
-    npx prisma generate
+RUN --mount=type=cache,target=/root/.cache/prisma,id=prisma-cache-v2 \
+    npx prisma generate --schema=./prisma/schema.prisma
 
 # ============================================================================
 # Builder stage - Build the application
@@ -55,31 +85,15 @@ FROM node:${NODE_VERSION}-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies
-# In npm workspaces, dependencies are hoisted to root node_modules
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-# Create workspace node_modules directories (may not exist if all deps are hoisted)
-RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
 
-# Copy Prisma generated client
-# First, copy the entire prisma-generator stage to a temp location to check where .prisma was generated
-COPY --from=prisma-generator /app /tmp/prisma-stage
-# Then copy .prisma from wherever it was generated
-# In npm workspaces, @prisma/client is in root node_modules, so .prisma should be in root node_modules/.prisma
+# Copy Prisma generated client from prisma-generator stage
+# Prisma generates to node_modules/.prisma in the workspace root
+# Copy directly from known location (simplified logic)
+COPY --from=prisma-generator /app/node_modules/.prisma /app/node_modules/.prisma
 RUN mkdir -p /app/backend/node_modules && \
-    if [ -d "/tmp/prisma-stage/node_modules/.prisma" ]; then \
-        cp -r /tmp/prisma-stage/node_modules/.prisma /app/node_modules/.prisma; \
-        cp -r /tmp/prisma-stage/node_modules/.prisma /app/backend/node_modules/.prisma; \
-    elif [ -d "/tmp/prisma-stage/backend/node_modules/.prisma" ]; then \
-        cp -r /tmp/prisma-stage/backend/node_modules/.prisma /app/node_modules/.prisma; \
-        cp -r /tmp/prisma-stage/backend/node_modules/.prisma /app/backend/node_modules/.prisma; \
-    else \
-        echo "Error: Prisma client not found. Checked:" && \
-        ls -la /tmp/prisma-stage/backend/node_modules/ 2>/dev/null || echo "backend/node_modules not found" && \
-        ls -la /tmp/prisma-stage/node_modules/.prisma 2>/dev/null || echo "root node_modules/.prisma not found" && \
-        exit 1; \
-    fi && \
-    rm -rf /tmp/prisma-stage
+    cp -r /app/node_modules/.prisma /app/backend/node_modules/.prisma
 
 # Copy config files first (change less frequently than source code)
 COPY tsconfig.json ./tsconfig.json
@@ -88,15 +102,21 @@ COPY shared ./shared
 # Copy backend source (changes most frequently, so copy last)
 COPY backend ./backend
 
+# Remove any dist folders that might have been copied (defense against stale cache)
 # Build shared package first with cache mount for TypeScript compilation cache
+RUN rm -rf /app/shared/dist /app/backend/dist
+
 WORKDIR /app/shared
-RUN --mount=type=cache,target=/app/shared/.tsbuildinfo,id=tsbuild-cache-shared \
+RUN --mount=type=cache,target=/app/shared/.tsbuildinfo,id=tsbuild-cache-shared-v2 \
     npm run build
 
 # Build backend with cache mount for TypeScript compilation cache
 WORKDIR /app/backend
-RUN --mount=type=cache,target=/app/backend/.tsbuildinfo,id=tsbuild-cache-backend \
-    npm run build
+RUN --mount=type=cache,target=/app/backend/.tsbuildinfo,id=tsbuild-cache-backend-v3 \
+    npm run build && \
+    if [ ! -d "dist" ] || [ ! -f "dist/src/index.js" ]; then \
+        echo "ERROR: Build failed - dist/src/index.js not found!" && exit 1; \
+    fi
 
 # ============================================================================
 # Production dependencies stage - Install only production deps
@@ -106,59 +126,95 @@ FROM node:${NODE_VERSION}-alpine AS prod-deps
 WORKDIR /app
 
 # Copy package files
-COPY package*.json package-lock.json ./
-COPY backend/package*.json ./backend/
-COPY shared/package*.json ./shared/
+# package-lock.json is required for npm ci to work properly
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+COPY shared/package.json ./shared/
 
 # Install production dependencies only with cache mounts
-RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
-    --mount=type=cache,target=/app/node_modules,id=node-modules-prod-cache \
-    npm ci --omit=dev --include-workspace-root
+# Cache npm cache for faster dependency downloads
+# Use --prefer-offline=true to leverage cache when available
+# Note: We don't cache node_modules directly as npm ci needs to clean/recreate it
+# Add retry logic for network issues and clear corrupted cache entries
+RUN --mount=type=cache,target=/root/.npm,id=npm-cache-backend-prod \
+    sh -c ' \
+    MAX_RETRIES=3; \
+    RETRY_DELAY=5; \
+    EXIT_CODE=1; \
+    for i in $(seq 1 $MAX_RETRIES); do \
+      echo "Attempt $i of $MAX_RETRIES: Installing production dependencies..."; \
+      if npm ci --omit=dev --include-workspace-root --prefer-offline=true --no-audit --no-fund; then \
+        echo "Production dependencies installed successfully"; \
+        exit 0; \
+      fi; \
+      EXIT_CODE=$?; \
+      echo "Installation failed with exit code $EXIT_CODE"; \
+      if [ $i -lt $MAX_RETRIES ]; then \
+        echo "Clearing potentially corrupted cache and retrying in ${RETRY_DELAY}s..."; \
+        npm cache clean --force || true; \
+        sleep $RETRY_DELAY; \
+        RETRY_DELAY=$((RETRY_DELAY * 2)); \
+      else \
+        echo "All retry attempts failed"; \
+        exit $EXIT_CODE; \
+      fi; \
+    done; \
+    exit $EXIT_CODE'
 
 # ============================================================================
-# Node modules preparation stage - Handle conditional copying
+# Node modules preparation stage - Prepare final node_modules
 # ============================================================================
 FROM node:${NODE_VERSION}-alpine AS node-modules-prep
 
 WORKDIR /app
 
-# Copy production dependencies
-COPY --from=prod-deps /app/node_modules ./node_modules
-
-# Create workspace directories and copy workspace-specific node_modules if they exist
-RUN mkdir -p /app/backend/node_modules /app/shared/node_modules
+# Copy production dependencies and prepare workspace structure
+# Copy Prisma CLI and generated client from builder in a single step
 RUN --mount=from=prod-deps,source=/app,target=/tmp/prod-deps \
+    --mount=from=builder,source=/app,target=/tmp/builder \
+    cp -r /tmp/prod-deps/node_modules /app/node_modules && \
+    mkdir -p /app/backend/node_modules /app/shared/node_modules /app/node_modules/.bin && \
+    # Copy workspace node_modules if they exist
     if [ -d "/tmp/prod-deps/backend/node_modules" ] && [ "$(ls -A /tmp/prod-deps/backend/node_modules 2>/dev/null)" ]; then \
         cp -r /tmp/prod-deps/backend/node_modules/* /app/backend/node_modules/; \
-    fi
-
-# Copy Prisma CLI from builder (needed for migrations, it's in devDependencies)
-# Prisma CLI is required for running migrations programmatically
-RUN --mount=from=builder,source=/app,target=/tmp/builder \
+    fi && \
+    # Copy Prisma CLI from builder (needed for migrations, it's in devDependencies)
+    # First remove any existing prisma package to ensure clean copy
     if [ -d "/tmp/builder/node_modules/prisma" ]; then \
-        mkdir -p /app/node_modules/prisma && \
-        cp -r /tmp/builder/node_modules/prisma/* /app/node_modules/prisma/; \
-        mkdir -p /app/node_modules/.bin && \
-        if [ -f "/tmp/builder/node_modules/.bin/prisma" ]; then \
-            cp /tmp/builder/node_modules/.bin/prisma /app/node_modules/.bin/prisma; \
-        fi; \
-    fi
-
-# Copy Prisma generated client from builder
-RUN --mount=from=builder,source=/app,target=/tmp/builder \
-    mkdir -p /app/node_modules && \
-    if [ -d "/tmp/builder/node_modules/.prisma" ]; then \
-        cp -r /tmp/builder/node_modules/.prisma /app/node_modules/.prisma; \
-    elif [ -d "/tmp/builder/backend/node_modules/.prisma" ]; then \
-        cp -r /tmp/builder/backend/node_modules/.prisma /app/node_modules/.prisma; \
+        rm -rf /app/node_modules/prisma && \
+        cp -r /tmp/builder/node_modules/prisma /app/node_modules/prisma && \
+        # Verify the CLI was copied correctly (should be > 2MB)
+        CLI_SIZE=$(wc -c < /app/node_modules/prisma/build/index.js 2>/dev/null || echo "0") && \
+        if [ "$CLI_SIZE" -lt 1000000 ]; then \
+            echo "Error: Prisma CLI not copied correctly (size: $CLI_SIZE bytes, expected > 2MB)" && \
+            ls -la /tmp/builder/node_modules/prisma/build/ && \
+            exit 1; \
+        fi && \
+        echo "Prisma CLI copied successfully (size: $CLI_SIZE bytes)" && \
+        # Remove existing symlink first (crucial: echo > symlink overwrites the target!)
+        rm -f /app/node_modules/.bin/prisma && \
+        # Create the bin wrapper as a regular file
+        echo '#!/usr/bin/env node' > /app/node_modules/.bin/prisma && \
+        echo 'require("/app/node_modules/prisma/build/index.js")' >> /app/node_modules/.bin/prisma && \
+        chmod +x /app/node_modules/.bin/prisma; \
     else \
+        echo "Warning: Prisma CLI not found in builder stage"; \
+    fi && \
+    # Copy Prisma generated client from builder (simplified - known location)
+    if [ ! -d "/tmp/builder/node_modules/.prisma" ]; then \
         echo "Error: Prisma client not found in builder stage" && exit 1; \
-    fi
+    fi && \
+    cp -r /tmp/builder/node_modules/.prisma /app/node_modules/.prisma
 
 # ============================================================================
 # Production stage - Final runtime image
 # ============================================================================
 FROM node:${NODE_VERSION}-alpine
+
+# Redeclare build arguments for use in this stage
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION
 
 # Add metadata labels
 LABEL maintainer="my-money-app" \
@@ -168,37 +224,29 @@ LABEL maintainer="my-money-app" \
       org.label-schema.description="My Money Backend Service" \
       org.label-schema.name="my-money-backend"
 
-# Create non-root user for security
-# Use fixed UID/GID for consistency
+# Create non-root user and set up working directory in a single layer
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+    adduser -S nodejs -u 1001 && \
+    mkdir -p /app/backend /app/shared
 
 WORKDIR /app
 
-# Copy production dependencies and Prisma CLI
+# Copy production dependencies and workspace node_modules
 COPY --from=node-modules-prep --chown=nodejs:nodejs /app/node_modules ./node_modules
-# Copy workspace node_modules if they exist (may be empty, that's ok)
 COPY --from=node-modules-prep --chown=nodejs:nodejs /app/backend/node_modules ./backend/node_modules
 COPY --from=node-modules-prep --chown=nodejs:nodejs /app/shared/node_modules ./shared/node_modules
 
-# Copy Prisma schema and migrations (needed for programmatic migrations)
+# Copy Prisma schema, migrations, and config (needed for programmatic migrations)
 COPY --from=builder --chown=nodejs:nodejs /app/backend/prisma ./backend/prisma
-# Copy Prisma config file (required for Prisma 7+ migrations)
 COPY --from=builder --chown=nodejs:nodejs /app/backend/prisma.config.ts ./backend/prisma.config.ts
 
-# Copy built application
+# Copy built application and GraphQL schema
 COPY --from=builder --chown=nodejs:nodejs /app/backend/dist ./backend/dist
-
-# Copy GraphQL schema file (needed at runtime, not compiled by TypeScript)
-COPY --from=builder --chown=nodejs:nodejs /app/backend/src/schema/schema.graphql ./backend/dist/schema/schema.graphql
+COPY --from=builder --chown=nodejs:nodejs /app/backend/src/schema/schema.graphql ./backend/dist/src/schema/schema.graphql
 
 # Copy shared built files (needed at runtime)
 COPY --from=builder --chown=nodejs:nodejs /app/shared/dist ./shared/dist
 COPY --from=builder --chown=nodejs:nodejs /app/shared/package.json ./shared/package.json
-
-# Ensure Prisma CLI is available in node_modules (needed for migrations)
-# Prisma should be in production dependencies, but verify it's copied
-# If not in prod deps, we need to copy it from builder
 
 WORKDIR /app/backend
 
@@ -215,6 +263,5 @@ HEALTHCHECK --interval=20s --timeout=8s --start-period=40s --retries=3 \
   CMD ["node", "-e", "require('http').get('http://localhost:4000/health', {timeout: 5000}, (r) => {let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);const healthy=j.status==='ok'||j.status==='degraded';process.exit(healthy?0:1)}catch{process.exit(r.statusCode===200?0:1)}})}).on('error',()=>process.exit(1)).on('timeout',()=>process.exit(1))"]
 
 # Start application directly (migrations run programmatically in index.ts)
-CMD ["node", "dist/index.js"]
-
-
+# Note: TypeScript preserves src directory structure due to baseUrl setting
+CMD ["node", "dist/src/index.js"]

@@ -3,7 +3,7 @@
  * Provides metrics and health checks for database connection pool
  */
 
-import {prisma} from './prisma';
+import {Client} from 'pg';
 import {logInfo, logWarn, logError} from './logger';
 import {config} from '../config';
 
@@ -26,6 +26,36 @@ export interface PoolMetrics {
 }
 
 /**
+ * Get a database client for database operations
+ * Uses a direct Client connection instead of the pool to avoid connection issues
+ * The pool may have connection string issues in Docker, so we create a fresh client
+ */
+async function getDbClient(maxRetries = 5, delayMs = 1000): Promise<Client> {
+  // config.database.url already has adjusted hostname via getter
+  const connectionString = config.database.url;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const client = new Client({connectionString});
+    try {
+      await client.connect();
+      return client;
+    } catch (error) {
+      try {
+        await client.end();
+      } catch {
+        // Ignore cleanup errors
+      }
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Failed to get database client after retries');
+}
+
+/**
  * Get database connection pool metrics
  * @returns Pool metrics
  */
@@ -34,8 +64,14 @@ export async function getPoolMetrics(): Promise<PoolMetrics> {
     const dbConfig = config.database;
 
     // Execute a simple query to check pool health
+    // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
     const startTime = Date.now();
-    await prisma.$queryRaw`SELECT 1`;
+    const client = await getDbClient();
+    try {
+      await client.query('SELECT 1');
+    } finally {
+      await client.end();
+    }
     const queryTime = Date.now() - startTime;
 
     // Note: Prisma doesn't expose direct pool metrics
@@ -85,39 +121,44 @@ export async function getDetailedPoolStats(): Promise<{
   };
 }> {
   try {
-    // Get PostgreSQL max_connections setting
-    const maxConnResult = await prisma.$queryRaw<Array<{setting: string}>>`
-      SELECT setting FROM pg_settings WHERE name = 'max_connections'
-    `;
-    const maxConnections = maxConnResult[0] ? Number.parseInt(maxConnResult[0].setting, 10) : 100;
+    // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      // Get PostgreSQL max_connections setting
+      const maxConnResult = await client.query<{setting: string}>(
+        "SELECT setting FROM pg_settings WHERE name = 'max_connections'"
+      );
+      const maxConnections = maxConnResult.rows[0] ? Number.parseInt(maxConnResult.rows[0].setting, 10) : 100;
 
-    // Get current connection count
-    const connCountResult = await prisma.$queryRaw<Array<{count: bigint}>>`
-      SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()
-    `;
-    const currentConnections = Number(connCountResult[0]?.count ?? 0);
+      // Get current connection count
+      const connCountResult = await client.query<{count: bigint}>(
+        "SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()"
+      );
+      const currentConnections = Number(connCountResult.rows[0]?.count ?? 0);
 
-    // Get active queries
-    const activeQueriesResult = await prisma.$queryRaw<Array<{count: bigint}>>`
-      SELECT count(*) as count FROM pg_stat_activity
-      WHERE datname = current_database() AND state = 'active'
-    `;
-    const activeQueries = Number(activeQueriesResult[0]?.count ?? 0);
+      // Get active queries
+      const activeQueriesResult = await client.query<{count: bigint}>(
+        "SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database() AND state = 'active'"
+      );
+      const activeQueries = Number(activeQueriesResult.rows[0]?.count ?? 0);
 
-    // Get idle connections
-    const idleConnections = currentConnections - activeQueries;
+      // Get idle connections
+      const idleConnections = currentConnections - activeQueries;
 
-    return {
-      maxConnections,
-      currentConnections,
-      activeQueries,
-      idleConnections,
-      poolConfig: {
-        max: config.database.poolMax,
-        connectionTimeoutMs: config.database.connectionTimeoutMs,
-        idleTimeoutMs: config.database.idleTimeoutMs,
-      },
-    };
+      return {
+        maxConnections,
+        currentConnections,
+        activeQueries,
+        idleConnections,
+        poolConfig: {
+          max: config.database.poolMax,
+          connectionTimeoutMs: config.database.connectionTimeoutMs,
+          idleTimeoutMs: config.database.idleTimeoutMs,
+        },
+      };
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Failed to get detailed pool stats', {

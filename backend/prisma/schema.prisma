@@ -145,7 +145,7 @@ model Account {
   recurringTransactions RecurringTransaction[]
   importMatchRules      ImportMatchRule[]
   budgets               Budget[]
-  // Check constraint: balance >= 0 (enforced at database level via migration)
+  // Balance can be positive, zero, or negative (no constraint enforced)
 
   @@unique([workspaceId, name])
   @@index([workspaceId])

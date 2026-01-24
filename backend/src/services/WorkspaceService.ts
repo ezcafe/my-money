@@ -3,7 +3,7 @@
  * Provides business logic for workspace membership, permissions, and default workspace management
  */
 
-import type {WorkspaceRole} from '@prisma/client';
+import type {WorkspaceRole, WorkspaceMember} from '@prisma/client';
 import {prisma} from '../utils/prisma';
 import {NotFoundError, ForbiddenError} from '../utils/errors';
 
@@ -26,7 +26,7 @@ export async function getUserWorkspaces(userId: string): Promise<string[]> {
  * @param userId - User ID (for permission check)
  * @returns Array of workspace members
  */
-export async function getWorkspaceMembers(workspaceId: string, userId: string) {
+export async function getWorkspaceMembers(workspaceId: string, userId: string): Promise<WorkspaceMember[]> {
   // Verify user has access to workspace
   await checkWorkspaceAccess(workspaceId, userId);
 

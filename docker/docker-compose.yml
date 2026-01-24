@@ -8,6 +8,11 @@ services:
   postgres:
     image: postgres:18-alpine
     container_name: my-money-postgres
+    labels:
+      - "com.docker.compose.project=my-money"
+      - "com.docker.compose.service=postgres"
+      - "security.scan=true"
+      - "security.policy=restricted"
     env_file:
       - ../.env
     environment:
@@ -16,10 +21,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-mymoney}
-      # Disable unnecessary extensions for security
-      POSTGRES_INITDB_ARGS: "-A trust"
     # PostgreSQL 18 Asynchronous I/O (AIO) configuration
     # AIO improves I/O performance for sequential scans, bitmap heap scans, and maintenance tasks
+    # Use password authentication with scram-sha-256 (secure default)
     command: >
       postgres
       -c io_method=worker
@@ -29,6 +33,7 @@ services:
       -c io_max_concurrency=-1
       -c io_combine_limit=128kB
       -c io_max_combine_limit=128kB
+      -c password_encryption=scram-sha-256
     # Database port exposed for local development only
     # Remove in production or use conditional port mapping
     ports:
@@ -64,30 +69,54 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-      platforms:
-        - linux/amd64
-        - linux/arm64
       args:
         BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
         VCS_REF: ${VCS_REF:-$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')}
         VERSION: ${VERSION:-1.0.0}
         NODE_VERSION: ${NODE_VERSION:-25.2.1}
     container_name: my-money-backend
+    labels:
+      - "com.docker.compose.project=my-money"
+      - "com.docker.compose.service=backend"
+      - "security.scan=true"
+      - "security.policy=restricted"
+      - "prometheus.scrape=true"
+      - "prometheus.port=4000"
+      - "prometheus.path=/metrics"
     env_file:
       - ../.env
     environment:
-      # Database connection - adjust host if using external database
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mymoney}}
+      # Database connection - construct DATABASE_URL with correct Docker hostname
+      # IMPORTANT: Use 'postgres' (the service name) as host, NOT localhost
+      # localhost inside Docker refers to the container itself, not the postgres service
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mymoney}?connection_limit=100&pool_timeout=20&connect_timeout=10"
+      # Individual components for reference/fallback
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: "${POSTGRES_DB:-mymoney}"
+      POSTGRES_HOST: "postgres"
       PORT: 4000
       NODE_ENV: production
+      # Node.js memory limit (768MB out of 1GB limit, leaving room for other processes)
+      NODE_OPTIONS: "--max-old-space-size=768"
+      # Database connection pool settings
+      DATABASE_POOL_MIN: ${DATABASE_POOL_MIN:-2}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      # URLs for OAuth callback and frontend redirect
+      # These are required for proper OAuth flow in Docker environment
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:4000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # CORS origins - frontend URL for cookie credentials
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       # OIDC variables are loaded from env_file (.env) above
       # No need to set them explicitly here - env_file will load them into the container
     ports:
       - "4000:4000"
-    # Uncomment when using local postgres service
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
+    # Wait for postgres to be healthy before starting backend
+    # Comment out if using external database
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - my-money-network
     healthcheck:
@@ -129,9 +158,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
-      platforms:
-        - linux/amd64
-        - linux/arm64
       args:
         BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
         VCS_REF: ${VCS_REF:-$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')}
@@ -139,6 +165,11 @@ services:
         NODE_VERSION: ${NODE_VERSION:-25.2.1}
         NGINX_VERSION: ${NGINX_VERSION:-alpine}
     container_name: my-money-frontend
+    labels:
+      - "com.docker.compose.project=my-money"
+      - "com.docker.compose.service=frontend"
+      - "security.scan=true"
+      - "security.policy=restricted"
     ports:
       - "3000:80"
     depends_on:
@@ -149,7 +180,8 @@ services:
     healthcheck:
       # Enhanced health check for frontend nginx
       # Tests both nginx configuration and HTTP endpoint availability
-      test: ["CMD-SHELL", "nginx -t && wget --no-verbose --tries=1 --spider --timeout=5 http://127.0.0.1/health 2>/dev/null || exit 1"]
+      # Uses curl for reliable HTTP check (matches Dockerfile HEALTHCHECK)
+      test: ["CMD-SHELL", "nginx -t && curl -f http://127.0.0.1/health >/dev/null 2>&1"]
       interval: 20s
       timeout: 8s
       retries: 3
@@ -187,5 +219,11 @@ volumes:
 networks:
   my-money-network:
     driver: bridge
+    labels:
+      - "com.docker.compose.network=my-money-network"
+      - "com.docker.compose.project=my-money"
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 

@@ -153,6 +153,10 @@ fi
 echo "  Cleaning dangling build cache..."
 docker builder prune -f --filter "until=24h" 2>/dev/null || true
 
+# Clean all unused build cache (general cleanup)
+echo "  Cleaning all unused build cache..."
+docker builder prune -f 2>/dev/null || true
+
 echo -e "${GREEN}✓ Build cache removed${NC}"
 echo ""
 

@@ -4,9 +4,10 @@
  * Uses PostgreSQL UNLOGGED table for high-performance token revocation checks
  */
 
-import {prisma} from './prisma';
+import {Client} from 'pg';
 import {createHash} from 'crypto';
 import {logError, logInfo} from './logger';
+import {config} from '../config';
 
 /**
  * Hash token for secure storage in revocation list
@@ -26,13 +27,17 @@ function hashToken(token: string): string {
 export async function isTokenRevoked(token: string): Promise<boolean> {
   try {
     const tokenHash = hashToken(token);
-    const result = await prisma.$queryRaw<Array<{key: string}>>`
-      SELECT key
-      FROM "token_revocation"
-      WHERE key = ${tokenHash} AND expires_at > NOW()
-    `;
-
-    return result.length > 0;
+    // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClientForDDL();
+    try {
+      const result = await client.query<{key: string}>(
+        'SELECT key FROM "token_revocation" WHERE key = $1 AND expires_at > NOW()',
+        [tokenHash]
+      );
+      return result.rows.length > 0;
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Token revocation check failed', {
@@ -102,20 +107,23 @@ export function revokeUserTokens(subject: string): void {
  */
 export async function clearExpiredRevocations(): Promise<number> {
   try {
-    const result = await prisma.$executeRaw`
-      DELETE FROM "token_revocation"
-      WHERE expires_at <= NOW()
-    `;
-
-    const deletedCount = typeof result === 'number' ? result : 0;
-    if (deletedCount > 0) {
-      logInfo('Expired token revocations cleared', {
-        event: 'token_revocation_cleanup',
-        deletedCount,
-      });
+    // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClientForDDL();
+    try {
+      const result = await client.query(
+        'DELETE FROM "token_revocation" WHERE expires_at <= NOW()'
+      );
+      const deletedCount = result.rowCount ?? 0;
+      if (deletedCount > 0) {
+        logInfo('Expired token revocations cleared', {
+          event: 'token_revocation_cleanup',
+          deletedCount,
+        });
+      }
+      return deletedCount;
+    } finally {
+      await client.end();
     }
-
-    return deletedCount;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Failed to clear expired token revocations', {
@@ -132,19 +140,21 @@ export async function clearExpiredRevocations(): Promise<number> {
  */
 export async function clearAllRevocations(): Promise<number> {
   try {
-    const result = await prisma.$executeRaw`
-      DELETE FROM "token_revocation"
-    `;
-
-    const deletedCount = typeof result === 'number' ? result : 0;
-    if (deletedCount > 0) {
-      logInfo('All token revocations cleared', {
-        event: 'token_revocation_clear_all',
-        deletedCount,
-      });
+    // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClientForDDL();
+    try {
+      const result = await client.query('DELETE FROM "token_revocation"');
+      const deletedCount = result.rowCount ?? 0;
+      if (deletedCount > 0) {
+        logInfo('All token revocations cleared', {
+          event: 'token_revocation_clear_all',
+          deletedCount,
+        });
+      }
+      return deletedCount;
+    } finally {
+      await client.end();
     }
-
-    return deletedCount;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Failed to clear all token revocations', {
@@ -158,22 +168,57 @@ export async function clearAllRevocations(): Promise<number> {
  * Initialize token revocation table if it doesn't exist
  * Creates UNLOGGED table for high-performance token revocation checks
  */
+/**
+ * Get a database client for DDL operations
+ * Uses a direct Client connection instead of the pool to avoid connection issues
+ * The pool may have connection string issues in Docker, so we create a fresh client
+ */
+async function getDbClientForDDL(maxRetries = 5, delayMs = 1000): Promise<Client> {
+  // config.database.url already has adjusted hostname via getter
+  const connectionString = config.database.url;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const client = new Client({connectionString});
+    try {
+      await client.connect();
+      return client;
+    } catch (error) {
+      // Clean up failed client
+      try {
+        await client.end();
+      } catch {
+        // Ignore cleanup errors
+      }
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Failed to get database client after retries');
+}
+
 export async function initializeTokenRevocationTable(): Promise<void> {
   try {
     // Create token_revocation table
-    await prisma.$executeRaw`
-      CREATE UNLOGGED TABLE IF NOT EXISTS "token_revocation" (
-        "key" TEXT NOT NULL,
-        "expires_at" TIMESTAMPTZ NOT NULL,
-        "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        CONSTRAINT "token_revocation_pkey" PRIMARY KEY ("key")
-      )
-    `;
+    // Use a direct Client connection for DDL operations
+    // PrismaPg adapter doesn't support raw DDL, and pool may have connection issues
+    const client = await getDbClientForDDL();
+    try {
+      const createTableSql = `CREATE UNLOGGED TABLE IF NOT EXISTS "token_revocation" (
+          "key" TEXT NOT NULL,
+          "expires_at" TIMESTAMPTZ NOT NULL,
+          "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          CONSTRAINT "token_revocation_pkey" PRIMARY KEY ("key")
+        )`;
+      await client.query(createTableSql);
 
-    // Create index on expires_at for efficient cleanup queries
-    await prisma.$executeRaw`
-      CREATE INDEX IF NOT EXISTS "token_revocation_expires_at_idx" ON "token_revocation"("expires_at")
-    `;
+      // Create index on expires_at for efficient cleanup queries
+      await client.query('CREATE INDEX IF NOT EXISTS "token_revocation_expires_at_idx" ON "token_revocation"("expires_at")');
+    } finally {
+      await client.end();
+    }
 
     logInfo('Token revocation table initialized', {});
   } catch (error) {

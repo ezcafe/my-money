@@ -3,7 +3,7 @@
  * Handles version tracking, conflict detection, and version history management
  */
 
-import type {PrismaClient, Prisma} from '@prisma/client';
+import type {PrismaClient, Prisma, EntityVersion, EntityConflict} from '@prisma/client';
 import {prisma} from '../utils/prisma';
 import {ConflictError} from '../utils/errors';
 
@@ -33,7 +33,7 @@ export class VersionService {
     newData: Record<string, unknown>,
     editedBy: string,
     tx?: PrismaTransaction,
-  ) {
+  ): Promise<EntityVersion> {
     const client = tx ?? prisma;
 
     // Get current version from entity
@@ -58,7 +58,7 @@ export class VersionService {
    * @param limit - Maximum number of versions to return (default: 50)
    * @returns Array of EntityVersion records
    */
-  async getEntityVersions(entityType: EntityType, entityId: string, limit = 50) {
+  async getEntityVersions(entityType: EntityType, entityId: string, limit = 50): Promise<EntityVersion[]> {
     return prisma.entityVersion.findMany({
       where: {
         entityType,
@@ -86,7 +86,7 @@ export class VersionService {
    * @param version - Version number
    * @returns EntityVersion record or null
    */
-  async getEntityVersion(entityType: EntityType, entityId: string, version: number) {
+  async getEntityVersion(entityType: EntityType, entityId: string, version: number): Promise<EntityVersion | null> {
     return prisma.entityVersion.findUnique({
       where: {
         entityType_entityId_version: {
@@ -128,7 +128,7 @@ export class VersionService {
     incomingData: Record<string, unknown>,
     workspaceId: string,
     tx?: PrismaTransaction,
-  ) {
+  ): Promise<EntityConflict | null> {
     // If no expectedVersion provided, assume no conflict (first update)
     if (expectedVersion === undefined) {
       return null;
@@ -194,7 +194,7 @@ export class VersionService {
     resolvedBy: string,
     mergeData?: Record<string, unknown>,
     tx?: PrismaTransaction,
-  ) {
+  ): Promise<EntityConflict> {
     const client = tx ?? prisma;
 
     const conflict = await client.entityConflict.findUnique({
@@ -226,7 +226,7 @@ export class VersionService {
    * @param workspaceId - Workspace ID
    * @returns Array of unresolved EntityConflict records
    */
-  async getUnresolvedConflicts(workspaceId: string) {
+  async getUnresolvedConflicts(workspaceId: string): Promise<EntityConflict[]> {
     return prisma.entityConflict.findMany({
       where: {
         workspaceId,
@@ -251,7 +251,7 @@ export class VersionService {
    * @param conflictId - Conflict ID
    * @returns EntityConflict record or null
    */
-  async getConflict(conflictId: string) {
+  async getConflict(conflictId: string): Promise<EntityConflict | null> {
     return prisma.entityConflict.findUnique({
       where: {id: conflictId},
       include: {

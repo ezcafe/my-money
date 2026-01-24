@@ -21,7 +21,7 @@ export const RATE_LIMITS = {
   /** File upload rate limit (requests per minute) */
   UPLOADS: isDevelopment ? 100 : 10,
   /** Authentication endpoint rate limit (requests per minute) */
-  AUTH: isDevelopment ? 50 : 5,
+  AUTH: isDevelopment ? 200 : 5,
   /** Rate limit window in milliseconds */
   WINDOW_MS: 60 * 1000, // 1 minute
 } as const;
@@ -112,6 +112,10 @@ export const CACHE = {
 export const DEFAULTS = {
   /** Default account name */
   ACCOUNT_NAME: 'Cash',
+  /** Credit Card account name */
+  CREDIT_CARD_ACCOUNT_NAME: 'Credit Card',
+  /** Bank account name */
+  BANK_ACCOUNT_NAME: 'Bank',
 } as const;
 
 // Legacy exports for backward compatibility
@@ -135,6 +139,10 @@ export const DATALOADER_CACHE_SIZE_LIMIT = CACHE.DATALOADER_SIZE_LIMIT;
 export const TOKEN_CACHE_TTL_MS = CACHE_TTL.TOKEN;
 /** @deprecated Use DEFAULTS.ACCOUNT_NAME instead */
 export const DEFAULT_ACCOUNT_NAME = DEFAULTS.ACCOUNT_NAME;
+/** @deprecated Use DEFAULTS.CREDIT_CARD_ACCOUNT_NAME instead */
+export const DEFAULT_CREDIT_CARD_ACCOUNT_NAME = DEFAULTS.CREDIT_CARD_ACCOUNT_NAME;
+/** @deprecated Use DEFAULTS.BANK_ACCOUNT_NAME instead */
+export const DEFAULT_BANK_ACCOUNT_NAME = DEFAULTS.BANK_ACCOUNT_NAME;
 /** @deprecated Use FILE_UPLOAD.MAX_MULTIPART_SIZE instead */
 export const MAX_MULTIPART_FILE_SIZE = FILE_UPLOAD.MAX_MULTIPART_SIZE;
 

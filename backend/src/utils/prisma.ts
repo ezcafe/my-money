@@ -52,7 +52,7 @@ const globalForPrisma = globalThis as unknown as GlobalForPrisma;
  */
 
 // Create PostgreSQL pool using centralized configuration
-const pool = new Pool({
+export const pool = new Pool({
   connectionString: config.database.url,
   max: config.database.poolMax,
   connectionTimeoutMillis: config.database.connectionTimeoutMs,
@@ -62,10 +62,8 @@ const pool = new Pool({
 // Create Prisma adapter
 const adapter = new PrismaPg(pool);
 
-
 export const prisma =
   globalForPrisma.prisma ??
-
   new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
@@ -117,7 +115,17 @@ export async function checkDatabaseHealth(): Promise<{healthy: boolean; queryTim
   const startTime = Date.now();
   try {
     await executeWithCircuitBreaker(async () => {
-      await prisma.$queryRaw`SELECT 1`;
+      // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
+      const {Client} = await import('pg');
+      // config.database.url already has adjusted hostname, but we use it directly here
+      const connectionString = config.database.url;
+      const client = new Client({connectionString});
+      try {
+        await client.connect();
+        await client.query('SELECT 1');
+      } finally {
+        await client.end();
+      }
     });
     const queryTimeMs = Date.now() - startTime;
     return {healthy: true, queryTimeMs};

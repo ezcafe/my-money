@@ -9,8 +9,9 @@
  * - Survives server restarts (until database restart)
  */
 
-import {prisma} from './prisma';
+import {Client} from 'pg';
 import {logError, logWarn, logInfo} from './logger';
+import {config} from '../config';
 
 /**
  * Cache version for breaking changes
@@ -63,33 +64,38 @@ export function resetCacheMetrics(): void {
  */
 export async function get<T>(key: string, expectedVersion: number = CACHE_VERSION): Promise<T | null> {
   try {
-    const result = await prisma.$queryRaw<Array<{value: unknown; expires_at: Date; version: number | null}>>`
-      SELECT value, expires_at, COALESCE(version, 0) as version
-      FROM "cache"
-      WHERE key = ${key} AND expires_at > NOW()
-    `;
+    // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      const result = await client.query<{value: unknown; expires_at: Date; version: number | null}>(
+        'SELECT value, expires_at, COALESCE(version, 0) as version FROM "cache" WHERE key = $1 AND expires_at > NOW()',
+        [key]
+      );
 
-    if (result.length === 0 || !result[0]) {
-      cacheMetrics.misses++;
-      return null;
+      if (result.rows.length === 0 || !result.rows[0]) {
+        cacheMetrics.misses++;
+        return null;
+      }
+
+      const row = result.rows[0];
+      // Check version match
+      const entryVersion = row.version ?? 0;
+      if (entryVersion !== expectedVersion) {
+        cacheMetrics.misses++;
+        logInfo('Cache version mismatch', {
+          event: 'cache_version_mismatch',
+          key,
+          entryVersion,
+          expectedVersion,
+        });
+        return null;
+      }
+
+      cacheMetrics.hits++;
+      return row.value as T;
+    } finally {
+      await client.end();
     }
-
-    const row = result[0];
-    // Check version match
-    const entryVersion = row.version ?? 0;
-    if (entryVersion !== expectedVersion) {
-      cacheMetrics.misses++;
-      logInfo('Cache version mismatch', {
-        event: 'cache_version_mismatch',
-        key,
-        entryVersion,
-        expectedVersion,
-      });
-      return null;
-    }
-
-    cacheMetrics.hits++;
-    return row.value as T;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     cacheMetrics.misses++;
@@ -113,18 +119,24 @@ export async function get<T>(key: string, expectedVersion: number = CACHE_VERSIO
 export async function set<T>(key: string, value: T, ttlMs: number, tags: string[] = [], version: number = CACHE_VERSION): Promise<void> {
   try {
     const expiresAt = new Date(Date.now() + ttlMs);
-
-    await prisma.$executeRaw`
-      INSERT INTO "cache" (key, value, expires_at, created_at, tags, version)
-      VALUES (${key}, ${JSON.stringify(value)}::jsonb, ${expiresAt}, NOW(), ${tags}, ${version})
-      ON CONFLICT (key) DO UPDATE
-        SET value = EXCLUDED.value,
-            expires_at = EXCLUDED.expires_at,
-            created_at = NOW(),
-            tags = EXCLUDED.tags,
-            version = EXCLUDED.version
-    `;
-    cacheMetrics.sets++;
+    // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      await client.query(
+        `INSERT INTO "cache" (key, value, expires_at, created_at, tags, version)
+        VALUES ($1, $2::jsonb, $3, NOW(), $4, $5)
+        ON CONFLICT (key) DO UPDATE
+          SET value = EXCLUDED.value,
+              expires_at = EXCLUDED.expires_at,
+              created_at = NOW(),
+              tags = EXCLUDED.tags,
+              version = EXCLUDED.version`,
+        [key, JSON.stringify(value), expiresAt, tags, version]
+      );
+      cacheMetrics.sets++;
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Cache set failed', {
@@ -141,10 +153,14 @@ export async function set<T>(key: string, value: T, ttlMs: number, tags: string[
  */
 export async function deleteKey(key: string): Promise<void> {
   try {
-    await prisma.$executeRaw`
-      DELETE FROM "cache" WHERE key = ${key}
-    `;
-    cacheMetrics.deletes++;
+    // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      await client.query('DELETE FROM "cache" WHERE key = $1', [key]);
+      cacheMetrics.deletes++;
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Cache delete failed', {
@@ -161,9 +177,13 @@ export async function deleteKey(key: string): Promise<void> {
  */
 export async function deletePattern(pattern: string): Promise<void> {
   try {
-    await prisma.$executeRaw`
-      DELETE FROM "cache" WHERE key LIKE ${pattern}
-    `;
+    // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      await client.query('DELETE FROM "cache" WHERE key LIKE $1', [pattern]);
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Cache delete pattern failed', {
@@ -215,9 +235,13 @@ export async function getOrSet<T>(
  */
 export async function invalidateByTag(tag: string): Promise<void> {
   try {
-    await prisma.$executeRaw`
-      DELETE FROM "cache" WHERE ${tag} = ANY(tags)
-    `;
+    // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      await client.query('DELETE FROM "cache" WHERE $1 = ANY(tags)', [tag]);
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Cache invalidation by tag failed', {
@@ -233,9 +257,13 @@ export async function invalidateByTag(tag: string): Promise<void> {
  */
 export async function invalidateByTags(tags: string[]): Promise<void> {
   try {
-    await prisma.$executeRaw`
-      DELETE FROM "cache" WHERE tags && ${tags}
-    `;
+    // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      await client.query('DELETE FROM "cache" WHERE tags && $1', [tags]);
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logError('Cache invalidation by tags failed', {
@@ -270,12 +298,14 @@ export async function invalidateUserCache(userId: string): Promise<void> {
  */
 export async function clearExpired(): Promise<number> {
   try {
-    const result = await prisma.$executeRaw`
-      DELETE FROM "cache" WHERE expires_at <= NOW()
-    `;
-
-    // $executeRaw returns number of affected rows
-    return typeof result === 'number' ? result : 0;
+    // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      const result = await client.query('DELETE FROM "cache" WHERE expires_at <= NOW()');
+      return result.rowCount ?? 0;
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     // Check if it's a "relation does not exist" error
@@ -302,30 +332,32 @@ export async function getStats(): Promise<{
   hitRate: number;
 }> {
   try {
-    const [totalResult, expiredResult] = await Promise.all([
-      prisma.$queryRaw<Array<{count: bigint}>>`
-        SELECT COUNT(*) as count FROM "cache"
-      `,
-      prisma.$queryRaw<Array<{count: bigint}>>`
-        SELECT COUNT(*) as count FROM "cache" WHERE expires_at <= NOW()
-      `,
-    ]);
+    // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
+    const client = await getDbClient();
+    try {
+      const [totalResult, expiredResult] = await Promise.all([
+        client.query<{count: bigint}>('SELECT COUNT(*) as count FROM "cache"'),
+        client.query<{count: bigint}>('SELECT COUNT(*) as count FROM "cache" WHERE expires_at <= NOW()'),
+      ]);
 
-    const totalEntries = Number(totalResult[0]?.count ?? 0);
-    const expiredEntries = Number(expiredResult[0]?.count ?? 0);
-    const activeEntries = totalEntries - expiredEntries;
+      const totalEntries = Number(totalResult.rows[0]?.count ?? 0);
+      const expiredEntries = Number(expiredResult.rows[0]?.count ?? 0);
+      const activeEntries = totalEntries - expiredEntries;
 
-    const metrics = getCacheMetrics();
-    const totalRequests = metrics.hits + metrics.misses;
-    const hitRate = totalRequests > 0 ? (metrics.hits / totalRequests) * 100 : 0;
+      const metrics = getCacheMetrics();
+      const totalRequests = metrics.hits + metrics.misses;
+      const hitRate = totalRequests > 0 ? (metrics.hits / totalRequests) * 100 : 0;
 
-    return {
-      totalEntries,
-      expiredEntries,
-      activeEntries,
-      metrics,
-      hitRate: Math.round(hitRate * 100) / 100,
-    };
+      return {
+        totalEntries,
+        expiredEntries,
+        activeEntries,
+        metrics,
+        hitRate: Math.round(hitRate * 100) / 100,
+      };
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     // Check if it's a "relation does not exist" error
@@ -356,44 +388,93 @@ export async function getStats(): Promise<{
  * Initialize cache tables if they don't exist
  * Creates UNLOGGED tables for high-performance caching
  */
+/**
+ * Get a database client for database operations
+ * Uses a direct Client connection instead of the pool to avoid connection issues
+ * The pool may have connection string issues in Docker, so we create a fresh client
+ * This is used for both DDL and DML operations since PrismaPg adapter doesn't support raw queries
+ */
+async function getDbClient(maxRetries = 5, delayMs = 1000): Promise<Client> {
+  // config.database.url already has adjusted hostname via getter
+  const connectionString = config.database.url;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const client = new Client({connectionString});
+    try {
+      await client.connect();
+      return client;
+    } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      // Clean up failed client
+      try {
+        await client.end();
+      } catch {
+        // Ignore cleanup errors
+      }
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+        continue;
+      }
+      throw errorObj;
+    }
+  }
+  throw new Error('Failed to get database client after retries');
+}
+
 export async function initializeCacheTables(): Promise<void> {
   try {
     // Create cache table
-    await prisma.$executeRaw`
-      DROP TABLE IF EXISTS "cache"
-    `;
+    // Use a direct Client connection for DDL operations
+    // PrismaPg adapter doesn't support raw DDL, and pool may have connection issues
+    const client = await getDbClient();
+    try {
+      await client.query('DROP TABLE IF EXISTS "cache"');
 
-    await prisma.$executeRawUnsafe(`
-      CREATE UNLOGGED TABLE "cache" (
-        "key" TEXT NOT NULL,
-        "value" JSONB NOT NULL,
-        "expires_at" TIMESTAMPTZ NOT NULL,
-        "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        "tags" TEXT[] DEFAULT '{}',
-        "version" INTEGER DEFAULT ${CACHE_VERSION},
-        CONSTRAINT "cache_pkey" PRIMARY KEY ("key")
-      )
-    `);
+      const createTableSql = `
+        CREATE UNLOGGED TABLE "cache" (
+          "key" TEXT NOT NULL,
+          "value" JSONB NOT NULL,
+          "expires_at" TIMESTAMPTZ NOT NULL,
+          "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "tags" TEXT[] DEFAULT '{}',
+          "version" INTEGER DEFAULT ${CACHE_VERSION},
+          CONSTRAINT "cache_pkey" PRIMARY KEY ("key")
+        )
+      `;
+      await client.query(createTableSql);
 
-    // Create cache indexes
-    await prisma.$executeRaw`
-      CREATE INDEX IF NOT EXISTS "cache_expires_at_idx" ON "cache"("expires_at")
-    `;
-
-    await prisma.$executeRaw`
-      CREATE INDEX IF NOT EXISTS "cache_value_gin_idx" ON "cache" USING GIN ("value")
-    `;
-
-    await prisma.$executeRaw`
-      CREATE INDEX IF NOT EXISTS "cache_tags_gin_idx" ON "cache" USING GIN ("tags")
-    `;
+      // Create cache indexes
+      await client.query('CREATE INDEX IF NOT EXISTS "cache_expires_at_idx" ON "cache"("expires_at")');
+      await client.query('CREATE INDEX IF NOT EXISTS "cache_value_gin_idx" ON "cache" USING GIN ("value")');
+      await client.query('CREATE INDEX IF NOT EXISTS "cache_tags_gin_idx" ON "cache" USING GIN ("tags")');
+    } finally {
+      await client.end();
+    }
 
     logInfo('Cache tables initialized', {});
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to initialize cache tables', {
-      event: 'cache_tables_init_failed',
-    }, errorObj);
+    const errorMessage = errorObj.message;
+
+    // Check if it's a connection or database not ready error
+    const isConnectionError = errorMessage.includes('ECONNREFUSED') ||
+                              errorMessage.includes('connection') ||
+                              errorMessage.includes('connect') ||
+                              errorMessage.includes('does not exist') ||
+                              errorMessage.includes('relation') ||
+                              errorMessage.includes('timeout');
+
+    if (isConnectionError) {
+      logWarn('Cache tables initialization: Database not ready yet. This is normal during startup. Cache will be initialized when database is available.', {
+        event: 'cache_tables_init_deferred',
+        hint: 'The database may still be starting up. Cache functionality will be available once the database is ready.',
+      });
+    } else {
+      logError('Failed to initialize cache tables', {
+        event: 'cache_tables_init_failed',
+        error: errorMessage,
+      }, errorObj);
+    }
     throw errorObj;
   }
 }
