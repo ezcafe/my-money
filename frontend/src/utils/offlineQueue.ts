@@ -28,8 +28,11 @@ async function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onerror = () => reject(request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed'));
-    
+    request.onerror = () =>
+      reject(
+        request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed')
+      );
+
     request.onsuccess = () => {
       const db = request.result;
       // Check if object store exists after opening
@@ -38,18 +41,31 @@ async function openDB(): Promise<IDBDatabase> {
         db.close();
         // Delete the corrupted database
         const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
-        deleteRequest.onerror = () => reject(deleteRequest.error ? new Error(String(deleteRequest.error)) : new Error('IndexedDB delete failed'));
+        deleteRequest.onerror = () =>
+          reject(
+            deleteRequest.error
+              ? new Error(String(deleteRequest.error))
+              : new Error('IndexedDB delete failed')
+          );
         deleteRequest.onsuccess = () => {
           // Reopen with proper structure - this will trigger onupgradeneeded
           const recreateRequest = indexedDB.open(DB_NAME, DB_VERSION);
-          recreateRequest.onerror = () => reject(recreateRequest.error ? new Error(String(recreateRequest.error)) : new Error('IndexedDB recreation failed'));
+          recreateRequest.onerror = () =>
+            reject(
+              recreateRequest.error
+                ? new Error(String(recreateRequest.error))
+                : new Error('IndexedDB recreation failed')
+            );
           recreateRequest.onsuccess = () => resolve(recreateRequest.result);
           recreateRequest.onupgradeneeded = (event) => {
             const recreateDb = (event.target as IDBOpenDBRequest).result;
             if (!recreateDb.objectStoreNames.contains(STORE_NAME)) {
-              const store = recreateDb.createObjectStore(STORE_NAME, {keyPath: 'id', autoIncrement: false});
-              store.createIndex('timestamp', 'timestamp', {unique: false});
-              store.createIndex('retryCount', 'retryCount', {unique: false});
+              const store = recreateDb.createObjectStore(STORE_NAME, {
+                keyPath: 'id',
+                autoIncrement: false,
+              });
+              store.createIndex('timestamp', 'timestamp', { unique: false });
+              store.createIndex('retryCount', 'retryCount', { unique: false });
             }
           };
         };
@@ -62,9 +78,9 @@ async function openDB(): Promise<IDBDatabase> {
       const db = (event.target as IDBOpenDBRequest).result;
       // Only create if it doesn't exist
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, {keyPath: 'id', autoIncrement: false});
-        store.createIndex('timestamp', 'timestamp', {unique: false});
-        store.createIndex('retryCount', 'retryCount', {unique: false});
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: false });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+        store.createIndex('retryCount', 'retryCount', { unique: false });
       }
     };
   });
@@ -78,7 +94,7 @@ async function openDB(): Promise<IDBDatabase> {
  */
 export async function queueMutation(
   mutation: string,
-  variables: Record<string, unknown>,
+  variables: Record<string, unknown>
 ): Promise<string> {
   const db = await openDB();
   const id = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -96,7 +112,10 @@ export async function queueMutation(
     const request = store.add(entry);
 
     request.onsuccess = () => resolve(id);
-    request.onerror = () => reject(request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed'));
+    request.onerror = () =>
+      reject(
+        request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed')
+      );
   });
 }
 
@@ -119,7 +138,9 @@ export async function getQueuedMutations(): Promise<QueuedMutation[]> {
 
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => {
-        const error = request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed');
+        const error = request.error
+          ? new Error(String(request.error))
+          : new Error('IndexedDB operation failed');
         // If object store doesn't exist, return empty array instead of failing
         if (error.message.includes('not a known object store')) {
           console.warn('Object store not found, returning empty array');
@@ -148,7 +169,10 @@ export async function removeQueuedMutation(id: string): Promise<void> {
     const request = store.delete(id);
 
     request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed'));
+    request.onerror = () =>
+      reject(
+        request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed')
+      );
   });
 }
 
@@ -161,7 +185,7 @@ export async function removeQueuedMutation(id: string): Promise<void> {
 export async function updateQueuedMutation(
   id: string,
   retryCount: number,
-  error?: string,
+  error?: string
 ): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -178,12 +202,22 @@ export async function updateQueuedMutation(
         }
         const updateRequest = store.put(entry);
         updateRequest.onsuccess = () => resolve();
-        updateRequest.onerror = () => reject(updateRequest.error ? new Error(String(updateRequest.error)) : new Error('IndexedDB operation failed'));
+        updateRequest.onerror = () =>
+          reject(
+            updateRequest.error
+              ? new Error(String(updateRequest.error))
+              : new Error('IndexedDB operation failed')
+          );
       } else {
         resolve();
       }
     };
-    getRequest.onerror = () => reject(getRequest.error ? new Error(String(getRequest.error)) : new Error('IndexedDB operation failed'));
+    getRequest.onerror = () =>
+      reject(
+        getRequest.error
+          ? new Error(String(getRequest.error))
+          : new Error('IndexedDB operation failed')
+      );
   });
 }
 
@@ -216,12 +250,22 @@ export async function incrementRetryCount(id: string, maxRetries: number = 5): P
         const shouldRetry = entry.retryCount <= maxRetries;
         const updateRequest = store.put(entry);
         updateRequest.onsuccess = () => resolve(shouldRetry);
-        updateRequest.onerror = () => reject(updateRequest.error ? new Error(String(updateRequest.error)) : new Error('IndexedDB operation failed'));
+        updateRequest.onerror = () =>
+          reject(
+            updateRequest.error
+              ? new Error(String(updateRequest.error))
+              : new Error('IndexedDB operation failed')
+          );
       } else {
         resolve(false);
       }
     };
-    getRequest.onerror = () => reject(getRequest.error ? new Error(String(getRequest.error)) : new Error('IndexedDB operation failed'));
+    getRequest.onerror = () =>
+      reject(
+        getRequest.error
+          ? new Error(String(getRequest.error))
+          : new Error('IndexedDB operation failed')
+      );
   });
 }
 
@@ -236,6 +280,9 @@ export async function clearQueuedMutations(): Promise<void> {
     const request = store.clear();
 
     request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed'));
+    request.onerror = () =>
+      reject(
+        request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed')
+      );
   });
 }

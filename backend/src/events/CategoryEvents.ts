@@ -3,7 +3,7 @@
  * Defines all category-related events and their payloads
  */
 
-import type {Category} from '@prisma/client';
+import type { Category } from '@prisma/client';
 
 /**
  * Category event payloads
@@ -14,7 +14,7 @@ export interface CategoryEventPayloads extends Record<string, unknown[]> {
   'category.deleted': [Category];
 }
 
-import type {TypedEventEmitter} from './EventEmitter';
+import type { TypedEventEmitter } from './EventEmitter';
 
 /**
  * Category event emitter type

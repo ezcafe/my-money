@@ -4,10 +4,13 @@
  * Simplifies authorization checks by applying decorators to methods
  */
 
-import type {GraphQLContext} from './context';
-import {requireWorkspaceAccess, requireWorkspacePermission} from './authorization';
-import type {WorkspaceRole} from '@prisma/client';
-import {getUserDefaultWorkspace} from '../services/WorkspaceService';
+import type { GraphQLContext } from './context';
+import {
+  requireWorkspaceAccess,
+  requireWorkspacePermission,
+} from './authorization';
+import type { WorkspaceRole } from '@prisma/client';
+import { getUserDefaultWorkspace } from '../services/WorkspaceService';
 
 /**
  * Metadata key for storing authorization requirements
@@ -20,7 +23,10 @@ const AUTHORIZATION_METADATA_KEY = Symbol('authorization');
 interface AuthorizationMetadata {
   requireWorkspaceAccess?: boolean;
   requiredRole?: WorkspaceRole;
-  workspaceIdResolver?: (args: unknown, context: GraphQLContext) => Promise<string> | string;
+  workspaceIdResolver?: (
+    args: unknown,
+    context: GraphQLContext
+  ) => Promise<string> | string;
 }
 
 /**
@@ -29,9 +35,14 @@ interface AuthorizationMetadata {
 function setAuthorizationMetadata(
   target: object,
   propertyKey: string,
-  metadata: AuthorizationMetadata,
+  metadata: AuthorizationMetadata
 ): void {
-  Reflect.defineMetadata(AUTHORIZATION_METADATA_KEY, metadata, target, propertyKey);
+  Reflect.defineMetadata(
+    AUTHORIZATION_METADATA_KEY,
+    metadata,
+    target,
+    propertyKey
+  );
 }
 
 /**
@@ -41,17 +52,20 @@ function setAuthorizationMetadata(
  * @returns Method decorator
  */
 export function RequireWorkspaceAccess(
-  workspaceIdResolver?: (args: unknown, context: GraphQLContext) => Promise<string> | string,
+  workspaceIdResolver?: (
+    args: unknown,
+    context: GraphQLContext
+  ) => Promise<string> | string
 ) {
   return function (
     target: object,
     propertyKey: string,
-    descriptor: PropertyDescriptor,
+    descriptor: PropertyDescriptor
   ): void {
     const originalMethod = descriptor.value as (
       parent: unknown,
       args: unknown,
-      context: GraphQLContext,
+      context: GraphQLContext
     ) => Promise<unknown>;
 
     setAuthorizationMetadata(target, propertyKey, {
@@ -63,16 +77,21 @@ export function RequireWorkspaceAccess(
       this: unknown,
       parent: unknown,
       args: unknown,
-      context: GraphQLContext,
+      context: GraphQLContext
     ): Promise<unknown> {
       // Resolve workspace ID
       let workspaceId: string;
       if (workspaceIdResolver) {
         const resolved = workspaceIdResolver(args, context);
-        workspaceId = typeof resolved === 'string' ? resolved : await Promise.resolve(resolved);
+        workspaceId =
+          typeof resolved === 'string'
+            ? resolved
+            : await Promise.resolve(resolved);
       } else {
         // Default: get from context or user's default workspace
-        workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+        workspaceId =
+          context.currentWorkspaceId ??
+          (await getUserDefaultWorkspace(context.userId));
       }
 
       // Check workspace access
@@ -93,17 +112,20 @@ export function RequireWorkspaceAccess(
  */
 export function RequireRole(
   requiredRole: WorkspaceRole,
-  workspaceIdResolver?: (args: unknown, context: GraphQLContext) => Promise<string> | string,
+  workspaceIdResolver?: (
+    args: unknown,
+    context: GraphQLContext
+  ) => Promise<string> | string
 ) {
   return function (
     target: object,
     propertyKey: string,
-    descriptor: PropertyDescriptor,
+    descriptor: PropertyDescriptor
   ): void {
     const originalMethod = descriptor.value as (
       parent: unknown,
       args: unknown,
-      context: GraphQLContext,
+      context: GraphQLContext
     ) => Promise<unknown>;
 
     setAuthorizationMetadata(target, propertyKey, {
@@ -116,20 +138,30 @@ export function RequireRole(
       this: unknown,
       parent: unknown,
       args: unknown,
-      context: GraphQLContext,
+      context: GraphQLContext
     ): Promise<unknown> {
       // Resolve workspace ID
       let workspaceId: string;
       if (workspaceIdResolver) {
         const resolved = workspaceIdResolver(args, context);
-        workspaceId = typeof resolved === 'string' ? resolved : await Promise.resolve(resolved);
+        workspaceId =
+          typeof resolved === 'string'
+            ? resolved
+            : await Promise.resolve(resolved);
       } else {
         // Default: get from context or user's default workspace
-        workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+        workspaceId =
+          context.currentWorkspaceId ??
+          (await getUserDefaultWorkspace(context.userId));
       }
 
       // Check workspace permission
-      await requireWorkspacePermission(workspaceId, context.userId, requiredRole, context);
+      await requireWorkspacePermission(
+        workspaceId,
+        context.userId,
+        requiredRole,
+        context
+      );
 
       // Execute original method
       return originalMethod.call(this, parent, args, context);
@@ -143,11 +175,11 @@ export function RequireRole(
  */
 export function getWorkspaceIdFromInput(args: unknown): string | undefined {
   if (args && typeof args === 'object' && 'input' in args) {
-    const input = (args as {input?: {workspaceId?: string}}).input;
+    const input = (args as { input?: { workspaceId?: string } }).input;
     return input?.workspaceId;
   }
   if (args && typeof args === 'object' && 'workspaceId' in args) {
-    return (args as {workspaceId?: string}).workspaceId;
+    return (args as { workspaceId?: string }).workspaceId;
   }
   return undefined;
 }

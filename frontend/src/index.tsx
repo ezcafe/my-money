@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import {createRoot} from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from './App';
 
 const container = document.getElementById('root');
@@ -15,15 +15,16 @@ const root = createRoot(container);
 root.render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
+  </React.StrictMode>
 );
 
 // Register service worker for PWA (only in production)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const isDevelopment = window.location.hostname === 'localhost' ||
-                         window.location.hostname === '127.0.0.1' ||
-                         window.location.port === '3000';
+    const isDevelopment =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.port === '3000';
 
     if (isDevelopment) {
       // In development, unregister any existing service workers to prevent caching issues
@@ -42,7 +43,7 @@ if ('serviceWorker' in navigator) {
     }
 
     // In production, register the service worker
-    void fetch('/sw.js', {method: 'HEAD'})
+    void fetch('/sw.js', { method: 'HEAD' })
       .then((response) => {
         if (response.ok) {
           return navigator.serviceWorker.register('/sw.js');
@@ -57,5 +58,3 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-
-

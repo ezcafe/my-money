@@ -3,13 +3,13 @@
  * Provides date input with relative date shortcuts and quick date options
  */
 
-import React, {useState, useCallback} from 'react';
-import {TextField, Menu, MenuItem, Button, Box, Chip, Stack} from '@mui/material';
-import {Today, DateRange} from '@mui/icons-material';
-import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
-import {DatePicker} from '@mui/x-date-pickers/DatePicker';
-import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs';
-import dayjs, {type Dayjs} from 'dayjs';
+import React, { useState, useCallback } from 'react';
+import { TextField, Menu, MenuItem, Button, Box, Chip, Stack } from '@mui/material';
+import { Today, DateRange } from '@mui/icons-material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 
 export interface DateInputProps {
   /** Label for the date input */
@@ -23,22 +23,22 @@ export interface DateInputProps {
   /** Whether to show relative date shortcuts */
   showShortcuts?: boolean;
   /** Custom date shortcuts */
-  shortcuts?: Array<{label: string; getDate: () => Dayjs}>;
+  shortcuts?: Array<{ label: string; getDate: () => Dayjs }>;
 }
 
 /**
  * Get relative date shortcuts
  */
-function getDefaultShortcuts(): Array<{label: string; getDate: () => Dayjs}> {
+function getDefaultShortcuts(): Array<{ label: string; getDate: () => Dayjs }> {
   return [
-    {label: 'Today', getDate: () => dayjs()},
-    {label: 'Yesterday', getDate: () => dayjs().subtract(1, 'day')},
-    {label: 'This Week', getDate: () => dayjs().startOf('week')},
-    {label: 'Last Week', getDate: () => dayjs().subtract(1, 'week').startOf('week')},
-    {label: 'This Month', getDate: () => dayjs().startOf('month')},
-    {label: 'Last Month', getDate: () => dayjs().subtract(1, 'month').startOf('month')},
-    {label: 'This Year', getDate: () => dayjs().startOf('year')},
-    {label: 'Last Year', getDate: () => dayjs().subtract(1, 'year').startOf('year')},
+    { label: 'Today', getDate: () => dayjs() },
+    { label: 'Yesterday', getDate: () => dayjs().subtract(1, 'day') },
+    { label: 'This Week', getDate: () => dayjs().startOf('week') },
+    { label: 'Last Week', getDate: () => dayjs().subtract(1, 'week').startOf('week') },
+    { label: 'This Month', getDate: () => dayjs().startOf('month') },
+    { label: 'Last Month', getDate: () => dayjs().subtract(1, 'month').startOf('month') },
+    { label: 'This Year', getDate: () => dayjs().startOf('year') },
+    { label: 'Last Year', getDate: () => dayjs().subtract(1, 'year').startOf('year') },
   ];
 }
 
@@ -61,34 +61,43 @@ export function DateInput({
   /**
    * Handle date picker button click
    */
-  const handlePickerClick = useCallback((event: React.MouseEvent<HTMLElement>): void => {
-    if (showShortcuts) {
-      setAnchorEl(event.currentTarget);
-    } else {
-      setIsPickerOpen(true);
-    }
-  }, [showShortcuts]);
+  const handlePickerClick = useCallback(
+    (event: React.MouseEvent<HTMLElement>): void => {
+      if (showShortcuts) {
+        setAnchorEl(event.currentTarget);
+      } else {
+        setIsPickerOpen(true);
+      }
+    },
+    [showShortcuts]
+  );
 
   /**
    * Handle shortcut selection
    */
-  const handleShortcutClick = useCallback((getDate: () => Dayjs): void => {
-    const date = getDate();
-    onChange(date.format('YYYY-MM-DD'));
-    setAnchorEl(null);
-  }, [onChange]);
+  const handleShortcutClick = useCallback(
+    (getDate: () => Dayjs): void => {
+      const date = getDate();
+      onChange(date.format('YYYY-MM-DD'));
+      setAnchorEl(null);
+    },
+    [onChange]
+  );
 
   /**
    * Handle date picker change
    */
-  const handleDateChange = useCallback((newValue: Dayjs | null): void => {
-    if (newValue) {
-      onChange(newValue.format('YYYY-MM-DD'));
-    } else {
-      onChange(null);
-    }
-    setIsPickerOpen(false);
-  }, [onChange]);
+  const handleDateChange = useCallback(
+    (newValue: Dayjs | null): void => {
+      if (newValue) {
+        onChange(newValue.format('YYYY-MM-DD'));
+      } else {
+        onChange(null);
+      }
+      setIsPickerOpen(false);
+    },
+    [onChange]
+  );
 
   /**
    * Format date for display
@@ -121,13 +130,15 @@ export function DateInput({
                         <Button
                           size="small"
                           onClick={handlePickerClick}
-                          sx={{minWidth: 'auto', p: 1}}
+                          sx={{ minWidth: 'auto', p: 1 }}
                           aria-label="Date shortcuts"
                         >
                           <DateRange fontSize="small" />
                         </Button>
                       </>
-                    ) : inputProps.endAdornment,
+                    ) : (
+                      inputProps.endAdornment
+                    ),
                   }}
                 />
               );
@@ -146,16 +157,13 @@ export function DateInput({
               }}
             >
               {dateShortcuts.map((shortcut, index) => (
-                <MenuItem
-                  key={index}
-                  onClick={() => handleShortcutClick(shortcut.getDate)}
-                >
+                <MenuItem key={index} onClick={() => handleShortcutClick(shortcut.getDate)}>
                   {shortcut.label}
                 </MenuItem>
               ))}
             </Menu>
             {/* Quick date chips */}
-            <Stack direction="row" spacing={1} sx={{mt: 1, flexWrap: 'wrap', gap: 1}}>
+            <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 1 }}>
               {dateShortcuts.slice(0, 4).map((shortcut, index) => (
                 <Chip
                   key={index}

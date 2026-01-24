@@ -3,8 +3,8 @@
  * Provides accounts data with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
-import {GET_ACCOUNTS} from '../graphql/queries';
+import { useQuery } from '@apollo/client/react';
+import { GET_ACCOUNTS } from '../graphql/queries';
 
 /**
  * Account type from GraphQL query
@@ -37,7 +37,7 @@ interface GetAccountsData {
 }
 
 export function useAccounts(): UseAccountsResult {
-  const {data, loading, error, refetch} = useQuery<GetAccountsData>(GET_ACCOUNTS, {
+  const { data, loading, error, refetch } = useQuery<GetAccountsData>(GET_ACCOUNTS, {
     errorPolicy: 'all',
     fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
@@ -65,4 +65,3 @@ export function useAccounts(): UseAccountsResult {
     },
   };
 }
-

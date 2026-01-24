@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import {Box, CircularProgress, Typography} from '@mui/material';
-import {SkeletonLoader, type SkeletonLoaderProps} from './SkeletonLoader';
+import { Box, CircularProgress, Typography } from '@mui/material';
+import { SkeletonLoader, type SkeletonLoaderProps } from './SkeletonLoader';
 
 interface LoadingSpinnerProps {
   message?: string;
@@ -43,12 +43,13 @@ export function LoadingSpinner({
       }}
     >
       <CircularProgress />
-      {message ? <Typography variant="body1" color="text.secondary">
+      {message ? (
+        <Typography variant="body1" color="text.secondary">
           {message}
-        </Typography> : null}
+        </Typography>
+      ) : null}
     </Box>
   );
 
   return content;
 }
-

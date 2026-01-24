@@ -5,7 +5,7 @@
  */
 
 import * as postgresCache from './postgresCache';
-import {categoryKey, payeeKey, accountKey} from './cacheKeys';
+import { categoryKey, payeeKey, accountKey } from './cacheKeys';
 
 /**
  * Reference data cache TTL (15 minutes)
@@ -20,10 +20,14 @@ const REFERENCE_DATA_CACHE_TTL_MS = 15 * 60 * 1000;
  */
 export async function getCategory<T>(
   categoryId: string,
-  factory: () => Promise<T>,
+  factory: () => Promise<T>
 ): Promise<T> {
   const key = categoryKey(categoryId);
-  return await postgresCache.getOrSet(key, factory, REFERENCE_DATA_CACHE_TTL_MS);
+  return await postgresCache.getOrSet(
+    key,
+    factory,
+    REFERENCE_DATA_CACHE_TTL_MS
+  );
 }
 
 /**
@@ -34,10 +38,14 @@ export async function getCategory<T>(
  */
 export async function getPayee<T>(
   payeeId: string,
-  factory: () => Promise<T>,
+  factory: () => Promise<T>
 ): Promise<T> {
   const key = payeeKey(payeeId);
-  return await postgresCache.getOrSet(key, factory, REFERENCE_DATA_CACHE_TTL_MS);
+  return await postgresCache.getOrSet(
+    key,
+    factory,
+    REFERENCE_DATA_CACHE_TTL_MS
+  );
 }
 
 /**
@@ -48,10 +56,14 @@ export async function getPayee<T>(
  */
 export async function getAccount<T>(
   accountId: string,
-  factory: () => Promise<T>,
+  factory: () => Promise<T>
 ): Promise<T> {
   const key = accountKey(accountId);
-  return await postgresCache.getOrSet(key, factory, REFERENCE_DATA_CACHE_TTL_MS);
+  return await postgresCache.getOrSet(
+    key,
+    factory,
+    REFERENCE_DATA_CACHE_TTL_MS
+  );
 }
 
 /**
@@ -85,7 +97,9 @@ export async function invalidateAccount(accountId: string): Promise<void> {
  * Invalidate all reference data caches for a user
  * @param userId - User ID
  */
-export async function invalidateUserReferenceData(userId: string): Promise<void> {
+export async function invalidateUserReferenceData(
+  userId: string
+): Promise<void> {
   // Invalidate all user-related reference data
   await Promise.all([
     postgresCache.deletePattern(`category:${userId}:%`),

@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import {ProtectedRoute} from './ProtectedRoute';
-import {RouteErrorBoundary} from './RouteErrorBoundary';
+import { ProtectedRoute } from './ProtectedRoute';
+import { RouteErrorBoundary } from './RouteErrorBoundary';
 
 interface ProtectedRouteWithErrorBoundaryProps {
   children: React.ReactNode;
@@ -24,10 +24,3 @@ export function ProtectedRouteWithErrorBoundary({
     </ProtectedRoute>
   );
 }
-
-
-
-
-
-
-

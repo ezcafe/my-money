@@ -84,22 +84,3 @@ export function isDarkTime(): boolean {
 export function getThemeByTime(): 'dark' | 'light' {
   return isDarkTime() ? 'dark' : 'light';
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

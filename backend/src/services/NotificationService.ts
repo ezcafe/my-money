@@ -3,11 +3,13 @@
  * Handles budget threshold notifications
  */
 
- 
-import type {PrismaClient} from '@prisma/client';
-import {prisma} from '../utils/prisma';
+import type { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Get budget name for notification message
@@ -15,13 +17,16 @@ type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' |
  * @param tx - Prisma transaction client
  * @returns Budget name (account, category, or payee name)
  */
-async function getBudgetName(budgetId: string, tx: PrismaTransaction | PrismaClient): Promise<string> {
+async function getBudgetName(
+  budgetId: string,
+  tx: PrismaTransaction | PrismaClient
+): Promise<string> {
   const budget = await tx.budget.findUnique({
-    where: {id: budgetId},
+    where: { id: budgetId },
     include: {
-      account: {select: {name: true}},
-      category: {select: {name: true}},
-      payee: {select: {name: true}},
+      account: { select: { name: true } },
+      category: { select: { name: true } },
+      payee: { select: { name: true } },
     },
   });
 
@@ -54,7 +59,7 @@ export async function createBudgetNotification(
   userId: string,
   budgetId: string,
   threshold: number,
-  tx?: PrismaTransaction | PrismaClient,
+  tx?: PrismaTransaction | PrismaClient
 ): Promise<void> {
   const client = tx ?? prisma;
 
@@ -80,24 +85,26 @@ export async function createBudgetNotification(
  */
 export async function getBudgetNotifications(
   userId: string,
-  read?: boolean,
-): Promise<Array<{
-  id: string;
-  userId: string;
-  budgetId: string;
-  threshold: number;
-  message: string;
-  read: boolean;
-  createdAt: Date;
-}>> {
-  const where: {userId: string; read?: boolean} = {userId};
+  read?: boolean
+): Promise<
+  Array<{
+    id: string;
+    userId: string;
+    budgetId: string;
+    threshold: number;
+    message: string;
+    read: boolean;
+    createdAt: Date;
+  }>
+> {
+  const where: { userId: string; read?: boolean } = { userId };
   if (read !== undefined) {
     where.read = read;
   }
 
   const notifications = await prisma.budgetNotification.findMany({
     where,
-    orderBy: {createdAt: 'desc'},
+    orderBy: { createdAt: 'desc' },
   });
 
   return notifications.map((n) => ({
@@ -119,7 +126,7 @@ export async function getBudgetNotifications(
  */
 export async function markNotificationRead(
   userId: string,
-  notificationId: string,
+  notificationId: string
 ): Promise<boolean> {
   await prisma.budgetNotification.updateMany({
     where: {
@@ -133,4 +140,3 @@ export async function markNotificationRead(
 
   return true;
 }
-

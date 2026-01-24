@@ -3,10 +3,13 @@
  * Handles all database operations for categories
  */
 
-import type {Category, PrismaClient} from '@prisma/client';
-import {BaseRepository} from './BaseRepository';
+import type { Category, PrismaClient } from '@prisma/client';
+import { BaseRepository } from './BaseRepository';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Category Repository
@@ -23,13 +26,13 @@ export class CategoryRepository extends BaseRepository {
   async findById(
     id: string,
     workspaceId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Category | null> {
     const queryOptions: {
-      where: {id: string; workspaceId: string};
+      where: { id: string; workspaceId: string };
       select?: Record<string, boolean>;
     } = {
-      where: {id, workspaceId},
+      where: { id, workspaceId },
     };
 
     if (select) {
@@ -47,13 +50,13 @@ export class CategoryRepository extends BaseRepository {
    */
   async findMany(
     workspaceId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Category[]> {
     const queryOptions: {
-      where: {workspaceId: string};
+      where: { workspaceId: string };
       select?: Record<string, boolean>;
     } = {
-      where: {workspaceId},
+      where: { workspaceId },
     };
 
     if (select) {
@@ -78,10 +81,10 @@ export class CategoryRepository extends BaseRepository {
       createdBy: string;
       lastEditedBy: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Category> {
     const client = tx ?? this.prisma;
-    return client.category.create({data});
+    return client.category.create({ data });
   }
 
   /**
@@ -99,11 +102,11 @@ export class CategoryRepository extends BaseRepository {
       isDefault?: boolean;
       lastEditedBy?: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Category> {
     const client = tx ?? this.prisma;
     return client.category.update({
-      where: {id},
+      where: { id },
       data,
     });
   }
@@ -117,7 +120,7 @@ export class CategoryRepository extends BaseRepository {
   async delete(id: string, tx?: PrismaTransaction): Promise<Category> {
     const client = tx ?? this.prisma;
     return client.category.delete({
-      where: {id},
+      where: { id },
     });
   }
 
@@ -128,7 +131,7 @@ export class CategoryRepository extends BaseRepository {
    */
   async count(workspaceId: string): Promise<number> {
     return this.prisma.category.count({
-      where: {workspaceId},
+      where: { workspaceId },
     });
   }
 }

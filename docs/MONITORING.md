@@ -9,6 +9,7 @@ This guide describes how to monitor the My Money application in production.
 **Endpoint:** `GET /health` (no authentication required, no rate limiting)
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -35,15 +36,18 @@ This guide describes how to monitor the My Money application in production.
 ```
 
 **Status Values:**
+
 - `ok` - All systems operational
 - `degraded` - Some systems unavailable (e.g., database disconnected)
 
 **Component Status:**
+
 - `database.status`: `connected` | `disconnected`
 - `oidc.status`: `configured` | `unconfigured`
 - `oidc.reachable`: `true` | `false` (if OIDC provider is accessible)
 
 **Monitoring Recommendations:**
+
 - Check every 30-60 seconds
 - Alert if status is not "ok" for > 2 minutes
 - Alert if database is "disconnected"
@@ -357,16 +361,19 @@ Sentry.init({
 ## Troubleshooting with Logs
 
 1. **Find errors for a specific user:**
+
    ```bash
    grep "userId:user-123" logs/*.log | grep error
    ```
 
 2. **Track a request:**
+
    ```bash
    grep "requestId:req-456" logs/*.log
    ```
 
 3. **Find database errors:**
+
    ```bash
    grep "database_operation_failed" logs/*.log
    ```

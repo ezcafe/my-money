@@ -3,15 +3,15 @@
  * Extracted from ImportResolver to reduce function complexity and improve maintainability
  */
 
-import {createWriteStream} from 'fs';
-import {join} from 'path';
-import {tmpdir} from 'os';
-import {randomUUID} from 'crypto';
-import {pipeline} from 'stream';
-import {promisify} from 'util';
-import {ValidationError} from '../utils/errors';
-import {sanitizeFilename} from '../resolvers/ImportResolver';
-import {MAX_PDF_FILE_SIZE, MAX_CSV_FILE_SIZE} from '../utils/constants';
+import { createWriteStream } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { randomUUID } from 'crypto';
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+import { ValidationError } from '../utils/errors';
+import { sanitizeFilename } from '../resolvers/ImportResolver';
+import { MAX_PDF_FILE_SIZE, MAX_CSV_FILE_SIZE } from '../utils/constants';
 
 const streamPipeline = promisify(pipeline);
 
@@ -42,7 +42,7 @@ export function extractFileProperties(fileData: {
     throw new ValidationError('Invalid file upload. File stream is missing.');
   }
 
-  return {filename, mimetype, createReadStream};
+  return { filename, mimetype, createReadStream };
 }
 
 /**
@@ -54,7 +54,7 @@ export function extractFileProperties(fileData: {
 export async function streamFileWithSizeLimit(
   readStream: NodeJS.ReadableStream,
   maxSize: number,
-  tempPath: string,
+  tempPath: string
 ): Promise<void> {
   let totalSize = 0;
   const writeStream = createWriteStream(tempPath);
@@ -68,7 +68,9 @@ export async function streamFileWithSizeLimit(
         readStream.destroy();
       }
       writeStream.destroy();
-      throw new ValidationError(`File size exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB`);
+      throw new ValidationError(
+        `File size exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB`
+      );
     }
   });
 
@@ -94,7 +96,7 @@ export function createTempFilePath(filename: string): string {
  */
 export async function cleanupTempFile(tempPath: string): Promise<void> {
   try {
-    const {unlinkSync} = await import('fs');
+    const { unlinkSync } = await import('fs');
     unlinkSync(tempPath);
   } catch {
     // Ignore cleanup errors
@@ -114,18 +116,23 @@ export async function validateAndStreamPDF(
   },
   validateFileExtension: (filename: string) => boolean,
   validateFileMagicNumber: (buffer: Buffer, type: 'pdf' | 'csv') => boolean,
-  allowedMimeTypes: string[],
+  allowedMimeTypes: string[]
 ): Promise<string> {
-  const {filename, mimetype, createReadStream} = extractFileProperties(fileData);
+  const { filename, mimetype, createReadStream } =
+    extractFileProperties(fileData);
 
   // Validate MIME type
   if (mimetype && !allowedMimeTypes.includes(mimetype)) {
-    throw new ValidationError(`Invalid file type. Only PDF files are allowed. Received: ${mimetype}`);
+    throw new ValidationError(
+      `Invalid file type. Only PDF files are allowed. Received: ${mimetype}`
+    );
   }
 
   // Validate file extension
   if (!validateFileExtension(filename)) {
-    throw new ValidationError('Invalid file extension. Only .pdf files are allowed.');
+    throw new ValidationError(
+      'Invalid file extension. Only .pdf files are allowed.'
+    );
   }
 
   const tempPath = createTempFilePath(filename);
@@ -135,12 +142,14 @@ export async function validateAndStreamPDF(
     await streamFileWithSizeLimit(readStream, MAX_PDF_FILE_SIZE, tempPath);
 
     // Validate file content using magic numbers
-    const {readFileSync} = await import('fs');
+    const { readFileSync } = await import('fs');
     const buffer: Buffer = readFileSync(tempPath) as Buffer;
 
     if (!validateFileMagicNumber(buffer, 'pdf')) {
       await cleanupTempFile(tempPath);
-      throw new ValidationError('Invalid file content. File does not appear to be a valid PDF file.');
+      throw new ValidationError(
+        'Invalid file content. File does not appear to be a valid PDF file.'
+      );
     }
 
     return tempPath;
@@ -164,20 +173,25 @@ export async function validateAndStreamCSV(
   validateFileExtension: (filename: string) => boolean,
   validateFileMagicNumber: (buffer: Buffer, type: 'pdf' | 'csv') => boolean,
   allowedMimeTypes: string[],
-  maxFileSize: number = MAX_CSV_FILE_SIZE,
+  maxFileSize: number = MAX_CSV_FILE_SIZE
 ): Promise<string> {
-  const {filename, mimetype, createReadStream} = extractFileProperties(fileData);
+  const { filename, mimetype, createReadStream } =
+    extractFileProperties(fileData);
 
   // Validate MIME type (be lenient for CSV)
   if (mimetype && !allowedMimeTypes.includes(mimetype)) {
     if (!mimetype.includes('csv') && !mimetype.includes('text')) {
-      throw new ValidationError(`Invalid file type. Only CSV files are allowed. Received: ${mimetype}`);
+      throw new ValidationError(
+        `Invalid file type. Only CSV files are allowed. Received: ${mimetype}`
+      );
     }
   }
 
   // Validate file extension
   if (!validateFileExtension(filename)) {
-    throw new ValidationError('Invalid file extension. Only .csv files are allowed.');
+    throw new ValidationError(
+      'Invalid file extension. Only .csv files are allowed.'
+    );
   }
 
   const tempPath = createTempFilePath(filename);
@@ -187,13 +201,17 @@ export async function validateAndStreamCSV(
     await streamFileWithSizeLimit(readStream, maxFileSize, tempPath);
 
     // Validate file content using magic numbers
-    const {readFileSync} = await import('fs');
+    const { readFileSync } = await import('fs');
     const fileBuffer = readFileSync(tempPath);
-    const firstBytes = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    const firstBytes = Buffer.isBuffer(fileBuffer)
+      ? fileBuffer
+      : Buffer.from(fileBuffer);
 
     if (!validateFileMagicNumber(firstBytes, 'csv')) {
       await cleanupTempFile(tempPath);
-      throw new ValidationError('Invalid file content. File does not appear to be a valid CSV/text file.');
+      throw new ValidationError(
+        'Invalid file content. File does not appear to be a valid CSV/text file.'
+      );
     }
 
     return tempPath;
@@ -202,4 +220,3 @@ export async function validateAndStreamCSV(
     throw error;
   }
 }
-

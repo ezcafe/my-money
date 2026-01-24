@@ -4,25 +4,25 @@
  * Follows Material Design 3 patterns
  */
 
-import React, {memo, useEffect, useMemo} from 'react';
-import {List, ListItemButton, ListItemText, Divider} from '@mui/material';
-import {useNavigate, useLocation} from 'react-router';
-import {Person} from '@mui/icons-material';
-import {usePayees} from '../hooks/usePayees';
-import {useSearch} from '../contexts/SearchContext';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {EmptyState} from '../components/common/EmptyState';
-import {Card} from '../components/ui/Card';
-import {PageContainer} from '../components/common/PageContainer';
+import React, { memo, useEffect, useMemo } from 'react';
+import { List, ListItemButton, ListItemText, Divider } from '@mui/material';
+import { useNavigate, useLocation } from 'react-router';
+import { Person } from '@mui/icons-material';
+import { usePayees } from '../hooks/usePayees';
+import { useSearch } from '../contexts/SearchContext';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { EmptyState } from '../components/common/EmptyState';
+import { Card } from '../components/ui/Card';
+import { PageContainer } from '../components/common/PageContainer';
 
 /**
  * Payees Page Component
  */
 const PayeesPageComponent = (): React.JSX.Element => {
   const location = useLocation();
-  const {payees, loading, error, refetch} = usePayees();
-  const {searchQuery} = useSearch();
+  const { payees, loading, error, refetch } = usePayees();
+  const { searchQuery } = useSearch();
   const navigate = useNavigate();
 
   // Refetch when returning from create page
@@ -74,40 +74,41 @@ const PayeesPageComponent = (): React.JSX.Element => {
 
   return (
     <PageContainer>
-      {hasNoSearchResults ? <EmptyState
-          title="No payees found"
-          description="Try adjusting your search query"
-        /> : null}
-      {hasSearchResults ? <Card>
+      {hasNoSearchResults ? (
+        <EmptyState title="No payees found" description="Try adjusting your search query" />
+      ) : null}
+      {hasSearchResults ? (
+        <Card>
           <List disablePadding>
             {filteredPayees.map((payee, index) => (
-            <React.Fragment key={payee.id}>
-              {index > 0 && <Divider />}
-              <ListItemButton
-                onClick={(): void => {
-                  void navigate(`/payees/${payee.id}`);
-                }}
-                sx={{
-                  py: 1.5,
-                  px: 2,
-                  transition: 'background-color 0.2s ease',
-                  '&:hover': {
-                    backgroundColor: 'action.hover',
-                  },
-                }}
-              >
-                <ListItemText
-                  primary={payee.name}
-                  primaryTypographyProps={{
-                    variant: 'body1',
-                    fontWeight: 500,
+              <React.Fragment key={payee.id}>
+                {index > 0 && <Divider />}
+                <ListItemButton
+                  onClick={(): void => {
+                    void navigate(`/payees/${payee.id}`);
                   }}
-                />
-              </ListItemButton>
-            </React.Fragment>
-          ))}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    transition: 'background-color 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
+                >
+                  <ListItemText
+                    primary={payee.name}
+                    primaryTypographyProps={{
+                      variant: 'body1',
+                      fontWeight: 500,
+                    }}
+                  />
+                </ListItemButton>
+              </React.Fragment>
+            ))}
           </List>
-        </Card> : null}
+        </Card>
+      ) : null}
     </PageContainer>
   );
 };
@@ -115,4 +116,3 @@ const PayeesPageComponent = (): React.JSX.Element => {
 PayeesPageComponent.displayName = 'PayeesPage';
 
 export const PayeesPage = memo(PayeesPageComponent);
-

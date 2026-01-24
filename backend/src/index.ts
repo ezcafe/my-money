@@ -3,34 +3,37 @@
  */
 
 import 'reflect-metadata';
-import {Hono} from 'hono';
-import {serve} from '@hono/node-server';
-import {readFileSync} from 'fs';
-import {fileURLToPath} from 'url';
-import {dirname, join} from 'path';
-import {resolvers} from './resolvers/index';
-import {DateTime, Decimal, Upload} from './schema/scalars';
-import {initializeOIDC} from './middleware/auth';
-import {disconnectPrisma} from './utils/prisma';
-import {startRecurringTransactionsCron} from './cron/recurringTransactions';
-import {startBudgetResetCron} from './cron/budgetReset';
-import {startBalanceReconciliationCron} from './cron/balanceReconciliation';
-import {startCacheCleanupCron} from './cron/cacheCleanup';
-import {startBackupCron} from './cron/backup';
-import {startDataArchivalCron} from './cron/dataArchival';
-import {registerSecurityPlugins} from './config/security';
-import {registerMultipartHandler} from './config/multipart';
-import {createApolloServer} from './config/apollo';
-import {createApolloHandler} from './config/apolloHandler';
-import {createSubscriptionServer} from './config/subscriptions';
-import {makeExecutableSchema} from '@graphql-tools/schema';
-import {registerAuthRoutes} from './routes/auth';
-import {checkDatabaseHealth} from './utils/prisma';
-import {getOIDCConfig} from './middleware/auth';
-import {config} from './config';
-import {runMigrationsWithRetry} from './utils/migrations';
-import {startDatabaseListener, stopDatabaseListener} from './utils/databaseListener';
-import {logInfo, logError, logWarn} from './utils/logger';
+import { Hono } from 'hono';
+import { serve } from '@hono/node-server';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { resolvers } from './resolvers/index';
+import { DateTime, Decimal, Upload } from './schema/scalars';
+import { initializeOIDC } from './middleware/auth';
+import { disconnectPrisma } from './utils/prisma';
+import { startRecurringTransactionsCron } from './cron/recurringTransactions';
+import { startBudgetResetCron } from './cron/budgetReset';
+import { startBalanceReconciliationCron } from './cron/balanceReconciliation';
+import { startCacheCleanupCron } from './cron/cacheCleanup';
+import { startBackupCron } from './cron/backup';
+import { startDataArchivalCron } from './cron/dataArchival';
+import { registerSecurityPlugins } from './config/security';
+import { registerMultipartHandler } from './config/multipart';
+import { createApolloServer } from './config/apollo';
+import { createApolloHandler } from './config/apolloHandler';
+import { createSubscriptionServer } from './config/subscriptions';
+import { makeExecutableSchema } from '@graphql-tools/schema';
+import { registerAuthRoutes } from './routes/auth';
+import { checkDatabaseHealth } from './utils/prisma';
+import { getOIDCConfig } from './middleware/auth';
+import { config } from './config';
+import { runMigrationsWithRetry } from './utils/migrations';
+import {
+  startDatabaseListener,
+  stopDatabaseListener,
+} from './utils/databaseListener';
+import { logInfo, logError, logWarn } from './utils/logger';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -57,7 +60,9 @@ function validateEnvironmentVariables(): void {
   }
 
   if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    throw new Error(
+      `Missing required environment variables: ${missing.join(', ')}`
+    );
   }
 }
 
@@ -66,29 +71,33 @@ function validateEnvironmentVariables(): void {
 app.get('/api/nonce', async (c) => {
   // Get nonce from context (set by securityHeaders middleware)
   // Use get() with proper typing for Hono context
-  const nonce = (c.get('nonce' as never) as string | undefined);
+  const nonce = c.get('nonce' as never) as string | undefined;
   if (!nonce) {
     // Generate nonce if not already set (shouldn't happen if middleware is registered)
-    const {randomBytes} = await import('crypto');
+    const { randomBytes } = await import('crypto');
     const generatedNonce = randomBytes(16).toString('base64');
     c.set('nonce' as never, generatedNonce);
-    return c.json({nonce: generatedNonce});
+    return c.json({ nonce: generatedNonce });
   }
-  return c.json({nonce});
+  return c.json({ nonce });
 });
 
 // Health check endpoint (no rate limit)
 // Verifies database connectivity, OIDC configuration, and system resources
 app.get('/health', async (c) => {
   const checks: {
-    database: {status: string; queryTimeMs?: number};
-    oidc: {status: string; reachable?: boolean};
-    memory: {usedMB: number; totalMB: number; percentage: number};
-    pool?: {maxConnections: number; currentConnections: number; utilizationPercent: number};
+    database: { status: string; queryTimeMs?: number };
+    oidc: { status: string; reachable?: boolean };
+    memory: { usedMB: number; totalMB: number; percentage: number };
+    pool?: {
+      maxConnections: number;
+      currentConnections: number;
+      utilizationPercent: number;
+    };
   } = {
-    database: {status: 'unknown'},
-    oidc: {status: 'unknown'},
-    memory: {usedMB: 0, totalMB: 0, percentage: 0},
+    database: { status: 'unknown' },
+    oidc: { status: 'unknown' },
+    memory: { usedMB: 0, totalMB: 0, percentage: 0 },
   };
 
   // Check database connectivity with timing
@@ -101,11 +110,12 @@ app.get('/health', async (c) => {
   // Check pool metrics if database is healthy
   if (dbHealth.healthy) {
     try {
-      const {getDetailedPoolStats} = await import('./utils/poolMonitoring');
+      const { getDetailedPoolStats } = await import('./utils/poolMonitoring');
       const poolStats = await getDetailedPoolStats();
-      const utilization = poolStats.maxConnections > 0
-        ? (poolStats.currentConnections / poolStats.maxConnections) * 100
-        : 0;
+      const utilization =
+        poolStats.maxConnections > 0
+          ? (poolStats.currentConnections / poolStats.maxConnections) * 100
+          : 0;
       checks.pool = {
         maxConnections: poolStats.maxConnections,
         currentConnections: poolStats.currentConnections,
@@ -119,11 +129,11 @@ app.get('/health', async (c) => {
   // Check OIDC configuration and connectivity
   try {
     getOIDCConfig();
-    checks.oidc = {status: 'configured', reachable: true};
+    checks.oidc = { status: 'configured', reachable: true };
     // Optionally test OIDC provider connectivity with timeout
     // This is a lightweight check that doesn't make full auth calls
   } catch {
-    checks.oidc = {status: 'unconfigured', reachable: false};
+    checks.oidc = { status: 'unconfigured', reachable: false };
   }
 
   // Check memory usage
@@ -131,7 +141,7 @@ app.get('/health', async (c) => {
   const usedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
   const totalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
   const percentage = totalMB > 0 ? Math.round((usedMB / totalMB) * 100) : 0;
-  checks.memory = {usedMB, totalMB, percentage};
+  checks.memory = { usedMB, totalMB, percentage };
 
   // Determine overall status
   const status = checks.database.status === 'connected' ? 'ok' : 'degraded';
@@ -167,10 +177,14 @@ async function startServer(): Promise<void> {
             event: 'startup_migrations_completed',
           });
         } catch (error) {
-          logError('Database migrations failed', {
-            durationMs: Date.now() - migrationStart,
-            event: 'startup_migrations_failed',
-          }, error instanceof Error ? error : new Error(String(error)));
+          logError(
+            'Database migrations failed',
+            {
+              durationMs: Date.now() - migrationStart,
+              event: 'startup_migrations_failed',
+            },
+            error instanceof Error ? error : new Error(String(error))
+          );
           throw error;
         }
       })(),
@@ -183,10 +197,14 @@ async function startServer(): Promise<void> {
             event: 'startup_oidc_initialized',
           });
         } catch (error) {
-          logError('OIDC initialization failed', {
-            durationMs: Date.now() - oidcStart,
-            event: 'startup_oidc_failed',
-          }, error instanceof Error ? error : new Error(String(error)));
+          logError(
+            'OIDC initialization failed',
+            {
+              durationMs: Date.now() - oidcStart,
+              event: 'startup_oidc_failed',
+            },
+            error instanceof Error ? error : new Error(String(error))
+          );
           throw error;
         }
       })(),
@@ -204,10 +222,16 @@ async function startServer(): Promise<void> {
     if (oidcResult.status === 'rejected') {
       const isDevelopment = process.env.NODE_ENV !== 'production';
       if (isDevelopment) {
-        logWarn('OIDC initialization failed, but continuing in development mode. Authentication may not work until OIDC is available.', {
-          event: 'startup_oidc_failed_development',
-          error: oidcResult.reason instanceof Error ? oidcResult.reason.message : String(oidcResult.reason),
-        });
+        logWarn(
+          'OIDC initialization failed, but continuing in development mode. Authentication may not work until OIDC is available.',
+          {
+            event: 'startup_oidc_failed_development',
+            error:
+              oidcResult.reason instanceof Error
+                ? oidcResult.reason.message
+                : String(oidcResult.reason),
+          }
+        );
       } else {
         // In production, OIDC is required
         throw oidcResult.reason;
@@ -217,9 +241,11 @@ async function startServer(): Promise<void> {
     // Initialize cache, rate limit, and token revocation tables (after migrations)
     const cacheInitStart = Date.now();
     try {
-      const {initializeCacheTables} = await import('./utils/postgresCache');
-      const {initializeRateLimitTables} = await import('./utils/postgresRateLimiter');
-      const {initializeTokenRevocationTable, clearAllRevocations} = await import('./utils/tokenRevocation');
+      const { initializeCacheTables } = await import('./utils/postgresCache');
+      const { initializeRateLimitTables } =
+        await import('./utils/postgresRateLimiter');
+      const { initializeTokenRevocationTable, clearAllRevocations } =
+        await import('./utils/tokenRevocation');
       await Promise.all([
         initializeCacheTables(),
         initializeRateLimitTables(),
@@ -239,29 +265,38 @@ async function startServer(): Promise<void> {
         event: 'startup_cache_tables_initialized',
       });
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
       const errorMessage = errorObj.message;
 
       // Check if it's a connection or database not ready error
-      const isConnectionError = errorMessage.includes('ECONNREFUSED') ||
-                                errorMessage.includes('connection') ||
-                                errorMessage.includes('connect') ||
-                                errorMessage.includes('does not exist') ||
-                                errorMessage.includes('relation') ||
-                                errorMessage.includes('timeout');
+      const isConnectionError =
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('connection') ||
+        errorMessage.includes('connect') ||
+        errorMessage.includes('does not exist') ||
+        errorMessage.includes('relation') ||
+        errorMessage.includes('timeout');
 
       if (isConnectionError) {
-        logWarn('Cache tables initialization deferred: Database not ready yet. This is normal during startup.', {
-          durationMs: Date.now() - cacheInitStart,
-          event: 'startup_cache_tables_deferred',
-          hint: 'Cache tables will be initialized automatically once the database is ready. The application will continue to function normally.',
-        });
+        logWarn(
+          'Cache tables initialization deferred: Database not ready yet. This is normal during startup.',
+          {
+            durationMs: Date.now() - cacheInitStart,
+            event: 'startup_cache_tables_deferred',
+            hint: 'Cache tables will be initialized automatically once the database is ready. The application will continue to function normally.',
+          }
+        );
       } else {
-        logError('Cache tables initialization failed', {
-          durationMs: Date.now() - cacheInitStart,
-          event: 'startup_cache_tables_failed',
-          error: errorMessage,
-        }, errorObj);
+        logError(
+          'Cache tables initialization failed',
+          {
+            durationMs: Date.now() - cacheInitStart,
+            event: 'startup_cache_tables_failed',
+            error: errorMessage,
+          },
+          errorObj
+        );
       }
       // Don't throw - cache tables are optional and can be created later
     }
@@ -275,10 +310,14 @@ async function startServer(): Promise<void> {
         event: 'startup_database_listener_started',
       });
     } catch (error) {
-      logError('Database listener startup failed', {
-        durationMs: Date.now() - dbListenerStart,
-        event: 'startup_database_listener_failed',
-      }, error instanceof Error ? error : new Error(String(error)));
+      logError(
+        'Database listener startup failed',
+        {
+          durationMs: Date.now() - dbListenerStart,
+          event: 'startup_database_listener_failed',
+        },
+        error instanceof Error ? error : new Error(String(error))
+      );
       // Don't throw - database listener is optional and can be started later
       // Events will still work from application-level emitters
     }
@@ -310,7 +349,10 @@ async function startServer(): Promise<void> {
 
     // Read GraphQL schema
     const schemaStart = Date.now();
-    const typeDefs = readFileSync(join(__dirname, 'schema', 'schema.graphql'), 'utf-8');
+    const typeDefs = readFileSync(
+      join(__dirname, 'schema', 'schema.graphql'),
+      'utf-8'
+    );
     logInfo('GraphQL schema loaded', {
       durationMs: Date.now() - schemaStart,
       event: 'startup_schema_loaded',
@@ -330,10 +372,7 @@ async function startServer(): Promise<void> {
 
     // Create Apollo Server
     const apolloCreateStart = Date.now();
-    const server = createApolloServer(
-      typeDefs,
-      allResolvers,
-    );
+    const server = createApolloServer(typeDefs, allResolvers);
     logInfo('Apollo Server created', {
       durationMs: Date.now() - apolloCreateStart,
       event: 'startup_apollo_server_created',
@@ -364,20 +403,23 @@ async function startServer(): Promise<void> {
 
     // Start HTTP server
     const serverStartStart = Date.now();
-    const serverInstance = serve({
-      fetch: app.fetch,
-      port: config.server.port,
-      hostname: config.server.host,
-    }, (info) => {
-      const totalTime = Date.now() - startTime;
-      logInfo('Server ready', {
-        totalStartupTimeMs: totalTime,
-        port: info.port,
-        graphqlUrl: `http://localhost:${info.port}/graphql`,
-        wsUrl: `ws://localhost:${info.port}/graphql-ws`,
-        event: 'startup_server_ready',
-      });
-    });
+    const serverInstance = serve(
+      {
+        fetch: app.fetch,
+        port: config.server.port,
+        hostname: config.server.host,
+      },
+      (info) => {
+        const totalTime = Date.now() - startTime;
+        logInfo('Server ready', {
+          totalStartupTimeMs: totalTime,
+          port: info.port,
+          graphqlUrl: `http://localhost:${info.port}/graphql`,
+          wsUrl: `ws://localhost:${info.port}/graphql-ws`,
+          event: 'startup_server_ready',
+        });
+      }
+    );
     logInfo('HTTP server started', {
       durationMs: Date.now() - serverStartStart,
       event: 'startup_http_server_started',
@@ -392,14 +434,28 @@ async function startServer(): Promise<void> {
     });
 
     // Store server instances for graceful shutdown
-    (globalThis as {serverInstance?: typeof serverInstance; wsServer?: typeof wsServer}).serverInstance = serverInstance;
-    (globalThis as {serverInstance?: typeof serverInstance; wsServer?: typeof wsServer}).wsServer = wsServer;
+    (
+      globalThis as {
+        serverInstance?: typeof serverInstance;
+        wsServer?: typeof wsServer;
+      }
+    ).serverInstance = serverInstance;
+    (
+      globalThis as {
+        serverInstance?: typeof serverInstance;
+        wsServer?: typeof wsServer;
+      }
+    ).wsServer = wsServer;
   } catch (error) {
     const totalTime = Date.now() - startTime;
-    logError('Server startup error', {
-      totalStartupTimeMs: totalTime,
-      event: 'startup_failed',
-    }, error instanceof Error ? error : new Error(String(error)));
+    logError(
+      'Server startup error',
+      {
+        totalStartupTimeMs: totalTime,
+        event: 'startup_failed',
+      },
+      error instanceof Error ? error : new Error(String(error))
+    );
     process.exit(1);
   }
 }
@@ -420,20 +476,27 @@ async function gracefulShutdown(): Promise<void> {
     await disconnectPrisma();
 
     // Close WebSocket server first
-    const wsServer = (globalThis as {wsServer?: {close: () => void}}).wsServer;
+    const wsServer = (globalThis as { wsServer?: { close: () => void } })
+      .wsServer;
     if (wsServer?.close) {
       wsServer.close();
     }
 
-    const serverInstance = (globalThis as {serverInstance?: {close: () => Promise<void>}}).serverInstance;
+    const serverInstance = (
+      globalThis as { serverInstance?: { close: () => Promise<void> } }
+    ).serverInstance;
     if (serverInstance?.close) {
       await serverInstance.close();
     }
     process.exit(0);
   } catch (error) {
-    logError('Error during shutdown', {
-      event: 'shutdown_error',
-    }, error instanceof Error ? error : new Error(String(error)));
+    logError(
+      'Error during shutdown',
+      {
+        event: 'shutdown_error',
+      },
+      error instanceof Error ? error : new Error(String(error))
+    );
     process.exit(1);
   }
 }

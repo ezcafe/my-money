@@ -4,18 +4,21 @@
  * Extracted from TransactionResolver to improve separation of concerns
  */
 
-import type {PrismaClient} from '@prisma/client';
-import {AccountBalanceService} from './AccountBalanceService';
-import {updateBudgetForTransaction} from './BudgetService';
-import {transactionEventEmitter} from '../events';
-import {sanitizeUserInput} from '../utils/sanitization';
-import {NotFoundError} from '../utils/errors';
+import type { PrismaClient } from '@prisma/client';
+import { AccountBalanceService } from './AccountBalanceService';
+import { updateBudgetForTransaction } from './BudgetService';
+import { transactionEventEmitter } from '../events';
+import { sanitizeUserInput } from '../utils/sanitization';
+import { NotFoundError } from '../utils/errors';
 import * as postgresCache from '../utils/postgresCache';
-import {invalidateAccountBalance} from '../utils/cache';
-import {getContainer} from '../utils/container';
-import {prisma} from '../utils/prisma';
+import { invalidateAccountBalance } from '../utils/cache';
+import { getContainer } from '../utils/container';
+import { prisma } from '../utils/prisma';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Transaction Service Class
@@ -57,7 +60,7 @@ export class TransactionService {
     },
     userId: string,
     workspaceId: string,
-    tx?: PrismaTransaction | PrismaClient,
+    tx?: PrismaTransaction | PrismaClient
   ): Promise<{
     id: string;
     value: number | string;
@@ -80,20 +83,29 @@ export class TransactionService {
     const accountBalanceService = new AccountBalanceService(client);
 
     // Verify account belongs to workspace
-    const account = await accountRepository.findById(validatedInput.accountId, workspaceId, {id: true});
+    const account = await accountRepository.findById(
+      validatedInput.accountId,
+      workspaceId,
+      { id: true }
+    );
     if (!account) {
       throw new NotFoundError('Account');
     }
 
     // Verify category and payee in parallel if both are provided
-    let category: {categoryType: 'Income' | 'Expense'} | null = null;
+    let category: { categoryType: 'Income' | 'Expense' } | null = null;
 
     const [foundCategory, foundPayee] = await Promise.all([
       validatedInput.categoryId
-        ? categoryRepository.findById(validatedInput.categoryId, workspaceId, {id: true, categoryType: true})
+        ? categoryRepository.findById(validatedInput.categoryId, workspaceId, {
+            id: true,
+            categoryType: true,
+          })
         : Promise.resolve(null),
       validatedInput.payeeId
-        ? payeeRepository.findById(validatedInput.payeeId, workspaceId, {id: true})
+        ? payeeRepository.findById(validatedInput.payeeId, workspaceId, {
+            id: true,
+          })
         : Promise.resolve(null),
     ]);
 
@@ -108,9 +120,10 @@ export class TransactionService {
 
     // Calculate balance delta based on category type
     // Income categories add money, Expense categories (or no category) subtract money
-    const balanceDelta = category?.categoryType === 'Income'
-      ? validatedInput.value
-      : -validatedInput.value;
+    const balanceDelta =
+      category?.categoryType === 'Income'
+        ? validatedInput.value
+        : -validatedInput.value;
 
     // Create transaction
     const newTransaction = await transactionRepository.create({
@@ -125,7 +138,11 @@ export class TransactionService {
     });
 
     // Update account balance incrementally based on category type
-    await accountBalanceService.incrementAccountBalance(validatedInput.accountId, balanceDelta, tx);
+    await accountBalanceService.incrementAccountBalance(
+      validatedInput.accountId,
+      balanceDelta,
+      tx
+    );
 
     // Return transaction with relations
     const transactionWithRelations = await transactionRepository.findById(
@@ -136,7 +153,7 @@ export class TransactionService {
         account: true,
         category: true,
         payee: true,
-      },
+      }
     );
 
     if (!transactionWithRelations) {
@@ -158,7 +175,7 @@ export class TransactionService {
       },
       'create',
       undefined,
-      tx,
+      tx
     );
 
     const result = {
@@ -180,7 +197,10 @@ export class TransactionService {
 
     // Emit event after transaction creation (for additional side effects)
     // Note: Balance and budget updates are done synchronously above for data integrity
-    transactionEventEmitter.emit('transaction.created', transactionWithRelations);
+    transactionEventEmitter.emit(
+      'transaction.created',
+      transactionWithRelations
+    );
 
     // Invalidate caches after transaction creation (only if not in transaction)
     // If in transaction, cache will be invalidated after transaction commits
@@ -223,13 +243,13 @@ export class TransactionService {
       value: number;
       accountId: string;
       categoryId: string | null;
-      category: {categoryType: 'Income' | 'Expense'} | null;
+      category: { categoryType: 'Income' | 'Expense' } | null;
       date: Date;
     },
-    newCategory: {categoryType: 'Income' | 'Expense'} | null,
+    newCategory: { categoryType: 'Income' | 'Expense' } | null,
     userId: string,
     workspaceId: string,
-    tx?: PrismaTransaction | PrismaClient,
+    tx?: PrismaTransaction | PrismaClient
   ): Promise<{
     id: string;
     value: number | string;
@@ -251,34 +271,48 @@ export class TransactionService {
     // Calculate old balance delta based on old category type
     const oldCategory = existingTransaction.category;
     const oldValue = Number(existingTransaction.value);
-    const oldBalanceDelta = oldCategory?.categoryType === 'Income'
-      ? oldValue
-      : -oldValue;
+    const oldBalanceDelta =
+      oldCategory?.categoryType === 'Income' ? oldValue : -oldValue;
 
     const newValue = validatedInput.value ?? oldValue;
     const oldAccountId = existingTransaction.accountId;
     const newAccountId = validatedInput.accountId ?? oldAccountId;
 
     // Calculate new balance delta based on new category type
-    const newBalanceDelta = newCategory?.categoryType === 'Income'
-      ? newValue
-      : -newValue;
+    const newBalanceDelta =
+      newCategory?.categoryType === 'Income' ? newValue : -newValue;
 
     // Update transaction
-    const updatedTransaction = await transactionRepository.update(transactionId, {
-      ...(validatedInput.value !== undefined && {value: validatedInput.value}),
-      ...(validatedInput.date !== undefined && {date: validatedInput.date}),
-      ...(validatedInput.accountId !== undefined && {accountId: validatedInput.accountId}),
-      ...(validatedInput.categoryId !== undefined && {categoryId: validatedInput.categoryId}),
-      ...(validatedInput.payeeId !== undefined && {payeeId: validatedInput.payeeId}),
-      ...(validatedInput.note !== undefined && {note: validatedInput.note ? sanitizeUserInput(validatedInput.note) : null}),
-    });
+    const updatedTransaction = await transactionRepository.update(
+      transactionId,
+      {
+        ...(validatedInput.value !== undefined && {
+          value: validatedInput.value,
+        }),
+        ...(validatedInput.date !== undefined && { date: validatedInput.date }),
+        ...(validatedInput.accountId !== undefined && {
+          accountId: validatedInput.accountId,
+        }),
+        ...(validatedInput.categoryId !== undefined && {
+          categoryId: validatedInput.categoryId,
+        }),
+        ...(validatedInput.payeeId !== undefined && {
+          payeeId: validatedInput.payeeId,
+        }),
+        ...(validatedInput.note !== undefined && {
+          note: validatedInput.note
+            ? sanitizeUserInput(validatedInput.note)
+            : null,
+        }),
+      }
+    );
 
     // Adjust account balances
     // Need to reverse old balance change and apply new balance change
-    const needsBalanceUpdate = validatedInput.value !== undefined
-      || validatedInput.accountId !== undefined
-      || validatedInput.categoryId !== undefined;
+    const needsBalanceUpdate =
+      validatedInput.value !== undefined ||
+      validatedInput.accountId !== undefined ||
+      validatedInput.categoryId !== undefined;
 
     if (needsBalanceUpdate) {
       if (oldAccountId === newAccountId) {
@@ -288,12 +322,24 @@ export class TransactionService {
         // - Same types: reverse old, then apply new
         const totalDelta = -oldBalanceDelta + newBalanceDelta;
         if (totalDelta !== 0) {
-          await accountBalanceService.incrementAccountBalance(newAccountId, totalDelta, tx);
+          await accountBalanceService.incrementAccountBalance(
+            newAccountId,
+            totalDelta,
+            tx
+          );
         }
       } else {
         // Different accounts: reverse old on old account, apply new on new account
-        await accountBalanceService.incrementAccountBalance(oldAccountId, -oldBalanceDelta, tx);
-        await accountBalanceService.incrementAccountBalance(newAccountId, newBalanceDelta, tx);
+        await accountBalanceService.incrementAccountBalance(
+          oldAccountId,
+          -oldBalanceDelta,
+          tx
+        );
+        await accountBalanceService.incrementAccountBalance(
+          newAccountId,
+          newBalanceDelta,
+          tx
+        );
       }
     }
 
@@ -319,7 +365,7 @@ export class TransactionService {
         date: existingTransaction.date,
         categoryType: oldCategory?.categoryType ?? null,
       },
-      tx,
+      tx
     );
 
     // Get old transaction for event (before update)
@@ -331,7 +377,7 @@ export class TransactionService {
         account: true,
         category: true,
         payee: true,
-      },
+      }
     );
 
     // Return transaction with relations
@@ -343,7 +389,7 @@ export class TransactionService {
         account: true,
         category: true,
         payee: true,
-      },
+      }
     );
     if (!result) {
       throw new Error('Transaction not found after update');
@@ -368,7 +414,11 @@ export class TransactionService {
 
     // Emit event after transaction update (for additional side effects)
     if (oldTransaction) {
-      transactionEventEmitter.emit('transaction.updated', oldTransaction, result);
+      transactionEventEmitter.emit(
+        'transaction.updated',
+        oldTransaction,
+        result
+      );
     }
 
     // Invalidate caches after transaction update (only if not in transaction)
@@ -376,7 +426,7 @@ export class TransactionService {
       const accountIdsToInvalidate = new Set([oldAccountId, newAccountId]);
       await Promise.all([
         ...Array.from(accountIdsToInvalidate).map((accountId) =>
-          invalidateAccountBalance(accountId).catch(() => {}),
+          invalidateAccountBalance(accountId).catch(() => {})
         ),
         postgresCache.invalidateUserCache(userId).catch(() => {}),
       ]);
@@ -394,7 +444,9 @@ let defaultInstance: TransactionService | null = null;
  * @param prismaClient - Optional Prisma client (uses default if not provided)
  * @returns Default service instance
  */
-export function getTransactionService(prismaClient?: PrismaTransaction | PrismaClient): TransactionService {
+export function getTransactionService(
+  prismaClient?: PrismaTransaction | PrismaClient
+): TransactionService {
   if (!defaultInstance || prismaClient) {
     defaultInstance = new TransactionService(prismaClient ?? prisma);
   }
@@ -416,7 +468,7 @@ export async function createTransaction(
   },
   userId: string,
   workspaceId: string,
-  tx: PrismaTransaction | PrismaClient,
+  tx: PrismaTransaction | PrismaClient
 ): Promise<{
   id: string;
   value: number | string;
@@ -451,13 +503,13 @@ export async function updateTransactionWithBalance(
     value: number;
     accountId: string;
     categoryId: string | null;
-    category: {categoryType: 'Income' | 'Expense'} | null;
+    category: { categoryType: 'Income' | 'Expense' } | null;
     date: Date;
   },
-  newCategory: {categoryType: 'Income' | 'Expense'} | null,
+  newCategory: { categoryType: 'Income' | 'Expense' } | null,
   userId: string,
   workspaceId: string,
-  tx: PrismaTransaction | PrismaClient,
+  tx: PrismaTransaction | PrismaClient
 ): Promise<{
   id: string;
   value: number | string;
@@ -479,6 +531,6 @@ export async function updateTransactionWithBalance(
     newCategory,
     userId,
     workspaceId,
-    tx,
+    tx
   );
 }

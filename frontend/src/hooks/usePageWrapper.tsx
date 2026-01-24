@@ -3,13 +3,13 @@
  * Provides reusable page wrapper logic for common page patterns
  */
 
-import {useCallback, type ReactNode} from 'react';
-import {useParams} from 'react-router';
-import {Layout} from '../components/common/Layout';
-import {useNavigationWithReturn} from './useNavigationWithReturn';
-import {useDeleteConfirmation} from './useDeleteConfirmation';
-import {useMutationWithErrorHandling} from './useMutationWithErrorHandling';
-import type {DocumentNode} from 'graphql';
+import { useCallback, type ReactNode } from 'react';
+import { useParams } from 'react-router';
+import { Layout } from '../components/common/Layout';
+import { useNavigationWithReturn } from './useNavigationWithReturn';
+import { useDeleteConfirmation } from './useDeleteConfirmation';
+import { useMutationWithErrorHandling } from './useMutationWithErrorHandling';
+import type { DocumentNode } from 'graphql';
 
 /**
  * Options for page wrapper
@@ -48,7 +48,7 @@ interface UsePageWrapperOptions {
  */
 interface UsePageWrapperReturn {
   /** Layout component with context menu */
-  PageLayout: (props: {children: ReactNode}) => React.JSX.Element;
+  PageLayout: (props: { children: ReactNode }) => React.JSX.Element;
   /** Delete confirmation dialog */
   DeleteDialog: React.JSX.Element;
   /** Navigate to edit page */
@@ -77,18 +77,19 @@ export function usePageWrapper(options: UsePageWrapperOptions): UsePageWrapperRe
     disableDelete = false,
   } = options;
 
-  const {id} = useParams<{id: string}>();
-  const {navigate, navigateBack} = useNavigationWithReturn({defaultReturnUrl});
+  const { id } = useParams<{ id: string }>();
+  const { navigate, navigateBack } = useNavigationWithReturn({ defaultReturnUrl });
 
   // Delete mutation with error handling
   // Note: We always call the hook to satisfy React hooks rules, but only use it if deleteMutation is provided
-  const deleteMutationToUse = deleteMutation ?? ({kind: 'Document', definitions: []} as DocumentNode);
+  const deleteMutationToUse =
+    deleteMutation ?? ({ kind: 'Document', definitions: [] } as DocumentNode);
   const [deleteEntity, deleteResult] = useMutationWithErrorHandling(deleteMutationToUse, {
     refetchQueries,
     awaitRefetchQueries: true,
     successMessage: 'Item deleted successfully',
     onCompleted: () => {
-      navigateBack({replace: true});
+      navigateBack({ replace: true });
     },
   });
 
@@ -103,12 +104,12 @@ export function usePageWrapper(options: UsePageWrapperOptions): UsePageWrapperRe
 
   const handleDelete = useCallback(() => {
     if (id && getDeleteVariables && deleteEntity && deleteMutation) {
-      void deleteEntity({variables: getDeleteVariables(id) as Record<string, unknown>});
+      void deleteEntity({ variables: getDeleteVariables(id) as Record<string, unknown> });
     }
   }, [id, getDeleteVariables, deleteEntity, deleteMutation]);
 
   // Delete confirmation
-  const {openDialog: openDeleteDialog, DeleteDialog} = useDeleteConfirmation({
+  const { openDialog: openDeleteDialog, DeleteDialog } = useDeleteConfirmation({
     title: deleteTitle,
     message: deleteMessage,
     deleting,
@@ -116,7 +117,7 @@ export function usePageWrapper(options: UsePageWrapperOptions): UsePageWrapperRe
   });
 
   const PageLayout = useCallback(
-    ({children}: {children: ReactNode}): React.JSX.Element => {
+    ({ children }: { children: ReactNode }): React.JSX.Element => {
       return (
         <Layout
           title={title}
@@ -125,10 +126,12 @@ export function usePageWrapper(options: UsePageWrapperOptions): UsePageWrapperRe
           contextMenu={
             editPath || deleteMutation
               ? {
-                  ...(editPath ? {onEdit: handleEdit} : {}),
-                  onDelete: deleteMutation ? openDeleteDialog : (): void => {
-                    // No-op if delete mutation not provided
-                  },
+                  ...(editPath ? { onEdit: handleEdit } : {}),
+                  onDelete: deleteMutation
+                    ? openDeleteDialog
+                    : (): void => {
+                        // No-op if delete mutation not provided
+                      },
                   disableDelete,
                 }
               : undefined
@@ -138,7 +141,16 @@ export function usePageWrapper(options: UsePageWrapperOptions): UsePageWrapperRe
         </Layout>
       );
     },
-    [title, hideSearch, actionButton, editPath, deleteMutation, handleEdit, openDeleteDialog, disableDelete],
+    [
+      title,
+      hideSearch,
+      actionButton,
+      editPath,
+      deleteMutation,
+      handleEdit,
+      openDeleteDialog,
+      disableDelete,
+    ]
   );
 
   return {
@@ -148,4 +160,3 @@ export function usePageWrapper(options: UsePageWrapperOptions): UsePageWrapperRe
     navigateBack,
   };
 }
-

@@ -5,10 +5,10 @@
  */
 
 import React from 'react';
-import {Typography, Button, Stack} from '@mui/material';
-import {Card} from '../ui/Card';
-import {Layout} from './Layout';
-import {PageContainer} from './PageContainer';
+import { Typography, Button, Stack } from '@mui/material';
+import { Card } from '../ui/Card';
+import { Layout } from './Layout';
+import { PageContainer } from './PageContainer';
 
 interface ErrorPageProps {
   /** Optional error message to display */
@@ -39,7 +39,7 @@ export function ErrorPage({
   return (
     <Layout title="Error" hideSearch>
       <PageContainer>
-        <Card sx={{p: 3}}>
+        <Card sx={{ p: 3 }}>
           <Stack spacing={2}>
             <Typography variant="h5" component="h1" color="error" gutterBottom>
               {isApplicationDown ? 'Application Unavailable' : 'Something went wrong on this page'}
@@ -48,7 +48,7 @@ export function ErrorPage({
               {errorMessage ?? defaultMessage}
             </Typography>
             {showResetButton && onReset !== undefined ? (
-              <Button variant="contained" onClick={onReset} sx={{alignSelf: 'flex-start'}}>
+              <Button variant="contained" onClick={onReset} sx={{ alignSelf: 'flex-start' }}>
                 Try again
               </Button>
             ) : null}
@@ -58,7 +58,7 @@ export function ErrorPage({
                 onClick={() => {
                   window.location.reload();
                 }}
-                sx={{alignSelf: 'flex-start'}}
+                sx={{ alignSelf: 'flex-start' }}
               >
                 Refresh Page
               </Button>

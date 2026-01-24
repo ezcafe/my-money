@@ -3,7 +3,7 @@
  * Queries and mutations for entity conflicts
  */
 
-import {gql} from '@apollo/client';
+import { gql } from '@apollo/client';
 
 /**
  * Entity conflict fields fragment

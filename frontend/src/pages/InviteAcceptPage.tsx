@@ -3,18 +3,21 @@
  * Allows users to accept workspace invitations via token
  */
 
-import React, {useEffect, useState} from 'react';
-import {useSearchParams, useNavigate} from 'react-router';
-import {Box, Typography, Stack, CircularProgress} from '@mui/material';
-import {useQuery, useMutation} from '@apollo/client/react';
-import {CheckCircle, Error as ErrorIcon} from '@mui/icons-material';
-import {GET_INVITATION_BY_TOKEN, ACCEPT_WORKSPACE_INVITATION} from '../graphql/workspaceOperations';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {Card} from '../components/ui/Card';
-import {Button} from '../components/ui/Button';
-import {PageContainer} from '../components/common/PageContainer';
-import {formatDateShort} from '../utils/formatting';
-import {useDateFormat} from '../hooks/useDateFormat';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router';
+import { Box, Typography, Stack, CircularProgress } from '@mui/material';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { CheckCircle, Error as ErrorIcon } from '@mui/icons-material';
+import {
+  GET_INVITATION_BY_TOKEN,
+  ACCEPT_WORKSPACE_INVITATION,
+} from '../graphql/workspaceOperations';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { PageContainer } from '../components/common/PageContainer';
+import { formatDateShort } from '../utils/formatting';
+import { useDateFormat } from '../hooks/useDateFormat';
 
 /**
  * Invite Accept Page Component
@@ -22,12 +25,16 @@ import {useDateFormat} from '../hooks/useDateFormat';
 export function InviteAcceptPage(): React.JSX.Element {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const {dateFormat} = useDateFormat();
+  const { dateFormat } = useDateFormat();
   const token = searchParams.get('token');
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const {data, loading, error: queryError} = useQuery<{
+  const {
+    data,
+    loading,
+    error: queryError,
+  } = useQuery<{
     invitationByToken: {
       id: string;
       email: string;
@@ -44,12 +51,12 @@ export function InviteAcceptPage(): React.JSX.Element {
       };
     };
   }>(GET_INVITATION_BY_TOKEN, {
-    variables: {token: token ?? ''},
+    variables: { token: token ?? '' },
     skip: !token,
     fetchPolicy: 'network-only',
   });
 
-  const [acceptInvitation, {loading: accepting}] = useMutation(ACCEPT_WORKSPACE_INVITATION, {
+  const [acceptInvitation, { loading: accepting }] = useMutation(ACCEPT_WORKSPACE_INVITATION, {
     onCompleted: () => {
       setAccepted(true);
       setTimeout(() => {
@@ -93,13 +100,14 @@ export function InviteAcceptPage(): React.JSX.Element {
     return (
       <PageContainer>
         <Card>
-          <Stack spacing={2} alignItems="center" sx={{py: 4}}>
-            <ErrorIcon color="error" sx={{fontSize: 48}} />
+          <Stack spacing={2} alignItems="center" sx={{ py: 4 }}>
+            <ErrorIcon color="error" sx={{ fontSize: 48 }} />
             <Typography variant="h6" color="error">
               {error ?? queryError?.message ?? 'Invalid Invitation'}
             </Typography>
             <Typography variant="body2" color="text.secondary" textAlign="center">
-              This invitation link is invalid or has expired. Please contact the workspace owner for a new invitation.
+              This invitation link is invalid or has expired. Please contact the workspace owner for
+              a new invitation.
             </Typography>
             <Button
               onClick={() => {
@@ -118,11 +126,12 @@ export function InviteAcceptPage(): React.JSX.Element {
     return (
       <PageContainer>
         <Card>
-          <Stack spacing={2} alignItems="center" sx={{py: 4}}>
-            <CheckCircle color="success" sx={{fontSize: 48}} />
+          <Stack spacing={2} alignItems="center" sx={{ py: 4 }}>
+            <CheckCircle color="success" sx={{ fontSize: 48 }} />
             <Typography variant="h6">Invitation Already Accepted</Typography>
             <Typography variant="body2" color="text.secondary" textAlign="center">
-              This invitation has already been accepted. You can access the workspace from your workspaces page.
+              This invitation has already been accepted. You can access the workspace from your
+              workspaces page.
             </Typography>
             <Button
               onClick={() => {
@@ -143,13 +152,14 @@ export function InviteAcceptPage(): React.JSX.Element {
     return (
       <PageContainer>
         <Card>
-          <Stack spacing={2} alignItems="center" sx={{py: 4}}>
-            <ErrorIcon color="error" sx={{fontSize: 48}} />
+          <Stack spacing={2} alignItems="center" sx={{ py: 4 }}>
+            <ErrorIcon color="error" sx={{ fontSize: 48 }} />
             <Typography variant="h6" color="error">
               Invitation Expired
             </Typography>
             <Typography variant="body2" color="text.secondary" textAlign="center">
-              This invitation expired on {formatDateShort(invitation.expiresAt, dateFormat)}. Please contact the workspace owner for a new invitation.
+              This invitation expired on {formatDateShort(invitation.expiresAt, dateFormat)}. Please
+              contact the workspace owner for a new invitation.
             </Typography>
             <Button
               onClick={() => {
@@ -168,8 +178,8 @@ export function InviteAcceptPage(): React.JSX.Element {
     return (
       <PageContainer>
         <Card>
-          <Stack spacing={2} alignItems="center" sx={{py: 4}}>
-            <CheckCircle color="success" sx={{fontSize: 48}} />
+          <Stack spacing={2} alignItems="center" sx={{ py: 4 }}>
+            <CheckCircle color="success" sx={{ fontSize: 48 }} />
             <Typography variant="h6">Invitation Accepted!</Typography>
             <Typography variant="body2" color="text.secondary" textAlign="center">
               You have successfully joined {invitation.workspace.name}. Redirecting to workspaces...
@@ -184,7 +194,7 @@ export function InviteAcceptPage(): React.JSX.Element {
   return (
     <PageContainer>
       <Card>
-        <Stack spacing={3} sx={{py: 2}}>
+        <Stack spacing={3} sx={{ py: 2 }}>
           <Box>
             <Typography variant="h5" gutterBottom>
               Workspace Invitation

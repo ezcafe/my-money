@@ -6,16 +6,15 @@
  * Prisma 7+ requires using an adapter for database connections
  */
 
-import {PrismaClient} from '@prisma/client';
-import {PrismaPg} from '@prisma/adapter-pg';
-import {Pool} from 'pg';
-import {retry, isRetryableError} from './retry';
-import {executeWithCircuitBreaker} from './circuitBreaker';
-import {logError} from './logger';
-import {config} from '../config';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import { retry, isRetryableError } from './retry';
+import { executeWithCircuitBreaker } from './circuitBreaker';
+import { logError } from './logger';
+import { config } from '../config';
 
 interface GlobalForPrisma {
-
   prisma: PrismaClient | undefined;
 }
 
@@ -72,7 +71,6 @@ export const prisma =
   });
 
 if (process.env.NODE_ENV !== 'production') {
-
   globalForPrisma.prisma = prisma;
 }
 
@@ -84,7 +82,7 @@ if (process.env.NODE_ENV !== 'production') {
  */
 export async function executeDbOperation<T>(
   operation: () => Promise<T>,
-  context?: {operation?: string; resource?: string},
+  context?: { operation?: string; resource?: string }
 ): Promise<T> {
   try {
     // First, check circuit breaker
@@ -99,10 +97,14 @@ export async function executeDbOperation<T>(
     });
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Database operation failed', {
-      event: 'database_operation_failed',
-      ...context,
-    }, errorObj);
+    logError(
+      'Database operation failed',
+      {
+        event: 'database_operation_failed',
+        ...context,
+      },
+      errorObj
+    );
     throw error;
   }
 }
@@ -111,15 +113,18 @@ export async function executeDbOperation<T>(
  * Check database connection health with timing
  * @returns Object with health status and query time in milliseconds
  */
-export async function checkDatabaseHealth(): Promise<{healthy: boolean; queryTimeMs?: number}> {
+export async function checkDatabaseHealth(): Promise<{
+  healthy: boolean;
+  queryTimeMs?: number;
+}> {
   const startTime = Date.now();
   try {
     await executeWithCircuitBreaker(async () => {
       // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
-      const {Client} = await import('pg');
+      const { Client } = await import('pg');
       // config.database.url already has adjusted hostname, but we use it directly here
       const connectionString = config.database.url;
-      const client = new Client({connectionString});
+      const client = new Client({ connectionString });
       try {
         await client.connect();
         await client.query('SELECT 1');
@@ -128,9 +133,9 @@ export async function checkDatabaseHealth(): Promise<{healthy: boolean; queryTim
       }
     });
     const queryTimeMs = Date.now() - startTime;
-    return {healthy: true, queryTimeMs};
+    return { healthy: true, queryTimeMs };
   } catch {
-    return {healthy: false};
+    return { healthy: false };
   }
 }
 
@@ -145,10 +150,12 @@ export async function disconnectPrisma(): Promise<void> {
     await pool.end();
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Error disconnecting from database', {
-      event: 'database_disconnect_error',
-    }, errorObj);
+    logError(
+      'Error disconnecting from database',
+      {
+        event: 'database_disconnect_error',
+      },
+      errorObj
+    );
   }
 }
-
-

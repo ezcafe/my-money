@@ -2,7 +2,7 @@
  * Hook for syncing offline mutations when connection is restored
  */
 
-import {useEffect, useState, useCallback} from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   getQueuedMutations,
   removeQueuedMutation,
@@ -43,7 +43,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): {
   syncQueue: () => Promise<void>;
   clearQueue: () => void;
 } {
-  const {autoSync = true, checkInterval = 1000} = options;
+  const { autoSync = true, checkInterval = 1000 } = options;
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [queueSize, setQueueSize] = useState(0);
 

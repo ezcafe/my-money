@@ -2,8 +2,8 @@
  * GraphQL Scalar Type Definitions
  */
 
-import {GraphQLScalarType, Kind} from 'graphql';
-import {DateTimeResolver} from 'graphql-scalars';
+import { GraphQLScalarType, Kind } from 'graphql';
+import { DateTimeResolver } from 'graphql-scalars';
 
 export const DateTime = DateTimeResolver;
 
@@ -31,8 +31,11 @@ export const Decimal = new GraphQLScalarType({
     // Handle Prisma Decimal type (object with toNumber or can be converted with Number)
     if (typeof value === 'object') {
       // Check if it's a Prisma Decimal with toNumber method
-      if ('toNumber' in value && typeof (value as {toNumber: () => number}).toNumber === 'function') {
-        return (value as {toNumber: () => number}).toNumber();
+      if (
+        'toNumber' in value &&
+        typeof (value as { toNumber: () => number }).toNumber === 'function'
+      ) {
+        return (value as { toNumber: () => number }).toNumber();
       }
 
       // Try converting with Number() (works for Prisma Decimal)
@@ -91,5 +94,3 @@ export const Upload = new GraphQLScalarType({
     return null;
   },
 });
-
-

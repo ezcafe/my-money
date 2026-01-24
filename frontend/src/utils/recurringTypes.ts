@@ -52,7 +52,7 @@ export function getCronExpression(type: RecurringType): string {
  * Filters out 'minutely' option unless in development mode
  * @returns Array of recurring type options
  */
-export function getRecurringTypeOptions(): Array<{value: RecurringType; label: string}> {
+export function getRecurringTypeOptions(): Array<{ value: RecurringType; label: string }> {
   const isDevelopment = process.env.NODE_ENV === 'development';
   return Object.entries(RECURRING_TYPE_LABELS)
     .filter(([value]) => {
@@ -67,4 +67,3 @@ export function getRecurringTypeOptions(): Array<{value: RecurringType; label: s
       label,
     }));
 }
-

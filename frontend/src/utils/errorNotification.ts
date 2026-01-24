@@ -47,8 +47,8 @@ export function showErrorNotification(message: string, details?: ErrorNotificati
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('app-error', {
-        detail: {message, details},
-      }),
+        detail: { message, details },
+      })
     );
   }
 }
@@ -93,5 +93,3 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
 
   return 'An unexpected error occurred. Please try again.';
 }
-
-

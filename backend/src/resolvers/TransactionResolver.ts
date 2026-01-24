@@ -4,11 +4,11 @@
  * Split into Query, Mutation, and Field resolvers for better organization
  */
 
-import type {GraphQLContext} from '../middleware/context';
-import type {Transaction} from '@prisma/client';
-import {TransactionQueryResolver} from './transaction/TransactionQueryResolver';
-import {TransactionMutationResolver} from './transaction/TransactionMutationResolver';
-import {TransactionFieldResolver} from './transaction/TransactionFieldResolver';
+import type { GraphQLContext } from '../middleware/context';
+import type { Transaction } from '@prisma/client';
+import { TransactionQueryResolver } from './transaction/TransactionQueryResolver';
+import { TransactionMutationResolver } from './transaction/TransactionMutationResolver';
+import { TransactionFieldResolver } from './transaction/TransactionFieldResolver';
 
 /**
  * Transaction Resolver
@@ -42,22 +42,34 @@ export class TransactionResolver {
       after?: string;
       last?: number;
       before?: string;
-      orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'};
+      orderBy?: {
+        field: 'date' | 'value' | 'category' | 'account' | 'payee';
+        direction: 'asc' | 'desc';
+      };
       note?: string;
     },
-    context: GraphQLContext,
-  ): Promise<{items: Transaction[]; totalCount: number; hasMore: boolean; nextCursor: string | null}> {
-    return this.queryResolver.transactions(_, {
-      accountId,
-      categoryId,
-      payeeId,
-      first,
-      after,
-      last,
-      before,
-      orderBy,
-      note,
-    }, context);
+    context: GraphQLContext
+  ): Promise<{
+    items: Transaction[];
+    totalCount: number;
+    hasMore: boolean;
+    nextCursor: string | null;
+  }> {
+    return this.queryResolver.transactions(
+      _,
+      {
+        accountId,
+        categoryId,
+        payeeId,
+        first,
+        after,
+        last,
+        before,
+        orderBy,
+        note,
+      },
+      context
+    );
   }
 
   /**
@@ -66,8 +78,14 @@ export class TransactionResolver {
    */
   async recentTransactions(
     _: unknown,
-    args: {limit?: number; orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'}},
-    context: GraphQLContext,
+    args: {
+      limit?: number;
+      orderBy?: {
+        field: 'date' | 'value' | 'category' | 'account' | 'payee';
+        direction: 'asc' | 'desc';
+      };
+    },
+    context: GraphQLContext
   ): Promise<Transaction[]> {
     return this.queryResolver.recentTransactions(_, args, context);
   }
@@ -76,8 +94,12 @@ export class TransactionResolver {
    * Get transaction by ID
    * Delegates to TransactionQueryResolver
    */
-  async transaction(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Transaction | null> {
-    return this.queryResolver.transaction(_, {id}, context);
+  async transaction(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<Transaction | null> {
+    return this.queryResolver.transaction(_, { id }, context);
   }
 
   /**
@@ -86,10 +108,10 @@ export class TransactionResolver {
    */
   async topUsedValues(
     _: unknown,
-    {days = 90}: {days?: number},
-    context: GraphQLContext,
-  ): Promise<Array<{value: string; count: number}>> {
-    return this.queryResolver.topUsedValues(_, {days}, context);
+    { days = 90 }: { days?: number },
+    context: GraphQLContext
+  ): Promise<Array<{ value: string; count: number }>> {
+    return this.queryResolver.topUsedValues(_, { days }, context);
   }
 
   /**
@@ -98,10 +120,19 @@ export class TransactionResolver {
    */
   async mostUsedTransactionDetails(
     _: unknown,
-    {amount, days = 90}: {amount: number; days?: number},
-    context: GraphQLContext,
-  ): Promise<{accountId: string | null; payeeId: string | null; categoryId: string | null; count: number} | null> {
-    return this.queryResolver.mostUsedTransactionDetails(_, {amount, days}, context);
+    { amount, days = 90 }: { amount: number; days?: number },
+    context: GraphQLContext
+  ): Promise<{
+    accountId: string | null;
+    payeeId: string | null;
+    categoryId: string | null;
+    count: number;
+  } | null> {
+    return this.queryResolver.mostUsedTransactionDetails(
+      _,
+      { amount, days },
+      context
+    );
   }
 
   /**
@@ -110,10 +141,10 @@ export class TransactionResolver {
    */
   async createTransaction(
     _: unknown,
-    {input}: {input: unknown},
-    context: GraphQLContext,
+    { input }: { input: unknown },
+    context: GraphQLContext
   ): Promise<Transaction> {
-    return this.mutationResolver.createTransaction(_, {input}, context);
+    return this.mutationResolver.createTransaction(_, { input }, context);
   }
 
   /**
@@ -122,25 +153,33 @@ export class TransactionResolver {
    */
   async updateTransaction(
     _: unknown,
-    {id, input}: {id: string; input: unknown},
-    context: GraphQLContext,
+    { id, input }: { id: string; input: unknown },
+    context: GraphQLContext
   ): Promise<Transaction> {
-    return this.mutationResolver.updateTransaction(_, {id, input}, context);
+    return this.mutationResolver.updateTransaction(_, { id, input }, context);
   }
 
   /**
    * Delete transaction
    * Delegates to TransactionMutationResolver
    */
-  async deleteTransaction(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
-    return this.mutationResolver.deleteTransaction(_, {id}, context);
+  async deleteTransaction(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<boolean> {
+    return this.mutationResolver.deleteTransaction(_, { id }, context);
   }
 
   /**
    * Field resolver for versions
    * Delegates to TransactionFieldResolver
    */
-  async versions(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async versions(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     return this.fieldResolver.versions(parent, _, context);
   }
 
@@ -148,7 +187,11 @@ export class TransactionResolver {
    * Field resolver for createdBy
    * Delegates to TransactionFieldResolver
    */
-  async createdBy(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async createdBy(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     return this.fieldResolver.createdBy(parent, _, context);
   }
 
@@ -156,9 +199,11 @@ export class TransactionResolver {
    * Field resolver for lastEditedBy
    * Delegates to TransactionFieldResolver
    */
-  async lastEditedBy(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async lastEditedBy(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     return this.fieldResolver.lastEditedBy(parent, _, context);
   }
 }
-
-

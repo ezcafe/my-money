@@ -59,22 +59,26 @@ export const validationRules = {
   /**
    * String length validation
    */
-  minLength: (min: number) => (value: string): string | null => {
-    if (typeof value === 'string' && value.length < min) {
-      return `Must be at least ${min} characters`;
-    }
-    return null;
-  },
+  minLength:
+    (min: number) =>
+    (value: string): string | null => {
+      if (typeof value === 'string' && value.length < min) {
+        return `Must be at least ${min} characters`;
+      }
+      return null;
+    },
 
   /**
    * String max length validation
    */
-  maxLength: (max: number) => (value: string): string | null => {
-    if (typeof value === 'string' && value.length > max) {
-      return `Must be at most ${max} characters`;
-    }
-    return null;
-  },
+  maxLength:
+    (max: number) =>
+    (value: string): string | null => {
+      if (typeof value === 'string' && value.length > max) {
+        return `Must be at most ${max} characters`;
+      }
+      return null;
+    },
 
   /**
    * Number validation
@@ -83,7 +87,8 @@ export const validationRules = {
     if (value === null || value === undefined || value === '') {
       return null; // Let required rule handle empty values
     }
-    const valueStr = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+    const valueStr =
+      typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
     const num = Number.parseFloat(valueStr);
     if (Number.isNaN(num)) {
       return 'Must be a valid number';
@@ -98,7 +103,8 @@ export const validationRules = {
     if (value === null || value === undefined || value === '') {
       return null;
     }
-    const valueStr = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+    const valueStr =
+      typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
     const num = Number.parseFloat(valueStr);
     if (Number.isNaN(num) || num <= 0) {
       return 'Must be a positive number';
@@ -113,7 +119,8 @@ export const validationRules = {
     if (value === null || value === undefined || value === '') {
       return null;
     }
-    const valueStr = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+    const valueStr =
+      typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
     const num = Number.parseFloat(valueStr);
     if (Number.isNaN(num) || num === 0) {
       return 'Value cannot be zero';
@@ -124,17 +131,20 @@ export const validationRules = {
   /**
    * Decimal precision validation
    */
-  maxDecimals: (maxDecimals: number) => (value: unknown): string | null => {
-    if (value === null || value === undefined || value === '') {
+  maxDecimals:
+    (maxDecimals: number) =>
+    (value: unknown): string | null => {
+      if (value === null || value === undefined || value === '') {
+        return null;
+      }
+      const valueStr =
+        typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+      const decimalParts = valueStr.split('.');
+      if (decimalParts.length > 1 && decimalParts[1] && decimalParts[1].length > maxDecimals) {
+        return `Maximum ${maxDecimals} decimal places allowed`;
+      }
       return null;
-    }
-    const valueStr = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
-    const decimalParts = valueStr.split('.');
-    if (decimalParts.length > 1 && decimalParts[1] && decimalParts[1].length > maxDecimals) {
-      return `Maximum ${maxDecimals} decimal places allowed`;
-    }
-    return null;
-  },
+    },
 
   /**
    * Email validation
@@ -172,7 +182,10 @@ export const validationRules = {
  * @param schema - Validation schema
  * @returns Validation result
  */
-export function validateForm(values: Record<string, unknown>, schema: FormValidationSchema): ValidationResult {
+export function validateForm(
+  values: Record<string, unknown>,
+  schema: FormValidationSchema
+): ValidationResult {
   const fieldErrors: Record<string, string> = {};
   let formError: string | null = null;
 
@@ -216,17 +229,22 @@ export function validateForm(values: Record<string, unknown>, schema: FormValida
  * @param fields - Field configurations
  * @returns Validation schema
  */
-export function createEntityValidationSchema(fields: Array<{key: string; required?: boolean; type?: 'string' | 'number'}>): FormValidationSchema {
+export function createEntityValidationSchema(
+  fields: Array<{ key: string; required?: boolean; type?: 'string' | 'number' }>
+): FormValidationSchema {
   return {
     fields: fields.map((field) => ({
       key: field.key,
       required: field.required ?? false,
       rules: [
         ...(field.required ? [validationRules.required as (value: unknown) => string | null] : []),
-        ...(field.type === 'number' ? [validationRules.number as (value: unknown) => string | null] : []),
-        ...(field.type === 'string' ? [validationRules.minLength(1) as (value: unknown) => string | null] : []),
+        ...(field.type === 'number'
+          ? [validationRules.number as (value: unknown) => string | null]
+          : []),
+        ...(field.type === 'string'
+          ? [validationRules.minLength(1) as (value: unknown) => string | null]
+          : []),
       ],
     })),
   };
 }
-

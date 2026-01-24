@@ -22,6 +22,7 @@ cp .env.example .env
 ```
 
 **Required Backend Variables:**
+
 - `DATABASE_URL` - PostgreSQL connection string with connection pooling parameters
 - `PORT` - Server port (default: 4000)
 - `NODE_ENV` - Set to `production`
@@ -30,11 +31,13 @@ cp .env.example .env
 - `OPENID_DISCOVERY_URL` - OIDC discovery endpoint URL
 
 **Required Frontend Variables:**
+
 - `REACT_APP_GRAPHQL_URL` - GraphQL API endpoint URL (must match backend)
 - `REACT_APP_OPENID_CLIENT_ID` - OIDC client ID (must match backend)
 - `REACT_APP_OPENID_DISCOVERY_URL` - OIDC discovery endpoint URL
 
 **Optional Backend Variables:**
+
 - `CORS_ORIGIN` - Comma-separated list of allowed origins for CORS
 - `ALLOWED_ORIGINS` - Comma-separated origins for CSRF validation
 - `RUN_MIGRATIONS` - Set to `true` to run migrations on startup (default: auto-detected in production)
@@ -44,6 +47,7 @@ cp .env.example .env
 - `SUBSCRIPTION_PATH` - WebSocket path for GraphQL subscriptions (default: `/graphql-ws`)
 
 **Optional Frontend Variables:**
+
 - `REACT_APP_ENABLE_SERVICE_WORKER` - Enable PWA service worker (default: true)
 - `REACT_APP_ENABLE_OFFLINE_SYNC` - Enable offline sync (default: true)
 
@@ -60,12 +64,14 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 ### Option 1: Docker Compose (Recommended)
 
 1. **Configure environment variables:**
+
    ```bash
    cp .env.example .env
    # Edit .env with production values
    ```
 
 2. **Build and start services:**
+
    ```bash
    npm run docker:build
    npm run docker:up
@@ -75,6 +81,7 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    Migrations run automatically on startup if `RUN_MIGRATIONS=true` or `NODE_ENV=production`.
 
    To manually run migrations:
+
    ```bash
    docker exec -it my-money-backend npm run prisma:deploy
    ```
@@ -93,16 +100,19 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 ### Option 2: Manual Deployment
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Build applications:**
+
    ```bash
    npm run build
    ```
 
 3. **Set up database:**
+
    ```bash
    cd backend
    npm run prisma:generate
@@ -110,6 +120,7 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    ```
 
 4. **Start backend:**
+
    ```bash
    cd backend
    NODE_ENV=production npm start
@@ -132,6 +143,7 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 ## Production Checklist
 
 ### Environment & Configuration
+
 - [ ] All environment variables configured and validated
 - [ ] Database connection string includes pooling parameters
 - [ ] OIDC provider configured and tested
@@ -141,12 +153,14 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 - [ ] Rate limiting configured appropriately
 
 ### Database
+
 - [ ] Database migrations applied (`prisma:deploy`)
 - [ ] Database backups configured and tested
 - [ ] Connection pooling parameters optimized
 - [ ] Database indexes verified (Prisma generates automatically)
 
 ### Application
+
 - [ ] Health checks passing (`/health` endpoint)
 - [ ] GraphQL endpoint accessible (`/graphql`)
 - [ ] WebSocket subscriptions working (`/graphql-ws`)
@@ -155,6 +169,7 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 - [ ] PWA manifest configured correctly
 
 ### Security
+
 - [ ] HTTPS enabled (required for service workers)
 - [ ] Security headers configured (Helmet)
 - [ ] CSRF protection enabled
@@ -164,6 +179,7 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 - [ ] OIDC token validation working
 
 ### Monitoring & Operations
+
 - [ ] Error monitoring configured (Sentry, etc.)
 - [ ] Logging configured and centralized
 - [ ] Health check monitoring set up
@@ -173,6 +189,7 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 - [ ] Alerting configured for critical issues
 
 ### Performance
+
 - [ ] Database connection pool sized appropriately
 - [ ] Query caching enabled
 - [ ] Frontend bundle optimized
@@ -188,6 +205,7 @@ The application provides comprehensive health check endpoints:
 **Endpoint:** `GET /health`
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -214,10 +232,12 @@ The application provides comprehensive health check endpoints:
 ```
 
 **Status Values:**
+
 - `ok` - All systems operational
 - `degraded` - Some systems unavailable (e.g., database disconnected)
 
 **Monitoring Recommendations:**
+
 - Check every 30-60 seconds
 - Alert if status is not "ok" for > 2 minutes
 - Alert if database status is "disconnected"
@@ -233,6 +253,7 @@ The frontend serves a basic health check at `/health` for load balancer health c
 ### Automatic Migrations
 
 Migrations run automatically on startup when:
+
 - `RUN_MIGRATIONS=true` is set, OR
 - `NODE_ENV=production` is set
 
@@ -241,18 +262,21 @@ This is handled by the backend startup script.
 ### Manual Migrations
 
 **For Development:**
+
 ```bash
 cd backend
 npm run prisma:migrate  # Creates and applies migrations
 ```
 
 **For Production:**
+
 ```bash
 cd backend
 npm run prisma:deploy  # Applies existing migrations only
 ```
 
 **Important Notes:**
+
 - Always backup database before running migrations in production
 - Test migrations in staging environment first
 - Use `prisma:deploy` in production (not `prisma:migrate`)

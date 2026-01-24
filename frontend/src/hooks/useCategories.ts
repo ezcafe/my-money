@@ -3,8 +3,8 @@
  * Provides categories data with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
-import {GET_CATEGORIES} from '../graphql/queries';
+import { useQuery } from '@apollo/client/react';
+import { GET_CATEGORIES } from '../graphql/queries';
 
 /**
  * Category type from GraphQL query
@@ -35,7 +35,7 @@ interface GetCategoriesData {
 }
 
 export function useCategories(): UseCategoriesResult {
-  const {data, loading, error, refetch} = useQuery<GetCategoriesData>(GET_CATEGORIES, {
+  const { data, loading, error, refetch } = useQuery<GetCategoriesData>(GET_CATEGORIES, {
     errorPolicy: 'all',
     fetchPolicy: 'network-only',
   });
@@ -62,4 +62,3 @@ export function useCategories(): UseCategoriesResult {
     },
   };
 }
-

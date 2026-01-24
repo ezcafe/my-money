@@ -7,21 +7,26 @@ Common issues and solutions for the My Money application.
 ### Error: "Database connection failed"
 
 **Symptoms:**
+
 - Health check shows `database: "disconnected"`
 - GraphQL queries fail with connection errors
 
 **Solutions:**
+
 1. Verify `DATABASE_URL` is correct:
+
    ```bash
    echo $DATABASE_URL
    ```
 
 2. Test database connectivity:
+
    ```bash
    psql $DATABASE_URL -c "SELECT 1"
    ```
 
 3. Check database is running:
+
    ```bash
    # For Docker
    docker ps | grep postgres
@@ -31,6 +36,7 @@ Common issues and solutions for the My Money application.
    ```
 
 4. Verify connection pool settings in `DATABASE_URL`:
+
    ```
    ?connection_limit=100&pool_timeout=20&connect_timeout=10
    ```
@@ -40,6 +46,7 @@ Common issues and solutions for the My Money application.
 ### Error: "Connection timeout"
 
 **Solutions:**
+
 - Increase `connect_timeout` in `DATABASE_URL`
 - Check network latency
 - Verify database server resources (CPU, memory)
@@ -49,11 +56,14 @@ Common issues and solutions for the My Money application.
 ### Error: "OIDC configuration missing"
 
 **Symptoms:**
+
 - Server fails to start
 - Error message lists missing environment variables
 
 **Solutions:**
+
 1. Verify all OIDC variables are set:
+
    ```bash
    echo $OPENID_CLIENT_ID
    echo $OPENID_CLIENT_SECRET
@@ -61,6 +71,7 @@ Common issues and solutions for the My Money application.
    ```
 
 2. Test OIDC discovery endpoint:
+
    ```bash
    curl $OPENID_DISCOVERY_URL
    ```
@@ -70,6 +81,7 @@ Common issues and solutions for the My Money application.
 ### Error: "Invalid or expired token"
 
 **Solutions:**
+
 - Clear browser localStorage and re-authenticate
 - Check token expiration settings
 - Verify OIDC provider token lifetime
@@ -79,9 +91,11 @@ Common issues and solutions for the My Money application.
 ### Error: "File size exceeds maximum"
 
 **Symptoms:**
+
 - PDF upload fails with size error
 
 **Solutions:**
+
 - Maximum PDF size: 10MB
 - Maximum CSV size: 5MB
 - Compress or split large files
@@ -89,9 +103,11 @@ Common issues and solutions for the My Money application.
 ### Error: "Invalid file content"
 
 **Symptoms:**
+
 - Upload fails even with correct file extension
 
 **Solutions:**
+
 - File content validation uses magic numbers (file signatures)
 - Ensure file is actually a PDF/CSV, not just renamed
 - Re-save file in correct format
@@ -101,6 +117,7 @@ Common issues and solutions for the My Money application.
 ### Error: "Module not found"
 
 **Solutions:**
+
 ```bash
 # Clean install
 rm -rf node_modules package-lock.json
@@ -113,6 +130,7 @@ npm run build
 ### Error: "TypeScript compilation errors"
 
 **Solutions:**
+
 ```bash
 # Check TypeScript version
 npx tsc --version
@@ -126,13 +144,16 @@ npx tsc --noEmit
 ### Error: "Container fails to start"
 
 **Solutions:**
+
 1. Check logs:
+
    ```bash
    docker logs my-money-backend
    docker logs my-money-frontend
    ```
 
 2. Verify environment variables:
+
    ```bash
    docker exec -it my-money-backend env | grep -E "(DATABASE|OPENID)"
    ```
@@ -145,12 +166,15 @@ npx tsc --noEmit
 ### Error: "Migration fails"
 
 **Solutions:**
+
 1. Verify database is accessible:
+
    ```bash
    docker exec -it my-money-backend npm run prisma:studio
    ```
 
 2. Check migration status:
+
    ```bash
    docker exec -it my-money-backend npx prisma migrate status
    ```
@@ -165,6 +189,7 @@ npx tsc --noEmit
 ### Slow GraphQL queries
 
 **Solutions:**
+
 - Check database indexes (Prisma generates these automatically)
 - Review query complexity
 - Check connection pool usage
@@ -173,6 +198,7 @@ npx tsc --noEmit
 ### High memory usage
 
 **Solutions:**
+
 - Review file upload limits
 - Check for memory leaks in logs
 - Adjust Docker resource limits
@@ -183,10 +209,12 @@ npx tsc --noEmit
 ### Error: "Failed to fetch"
 
 **Symptoms:**
+
 - GraphQL requests fail
 - Network errors in browser console
 
 **Solutions:**
+
 1. Verify `REACT_APP_GRAPHQL_URL` is correct and accessible
 2. Check CORS configuration matches frontend origin
 3. Verify backend is running and healthy
@@ -197,6 +225,7 @@ npx tsc --noEmit
 ### Error: "Service worker registration failed"
 
 **Solutions:**
+
 - Clear browser cache and service worker
 - Verify HTTPS is enabled (required for service workers)
 - Check browser console for specific errors
@@ -207,6 +236,7 @@ npx tsc --noEmit
 ### Error: "Subscription connection failed"
 
 **Solutions:**
+
 1. Verify WebSocket URL is correct
 2. Check browser supports WebSocket
 3. Verify backend subscription server is running
@@ -216,6 +246,7 @@ npx tsc --noEmit
 ### Error: "Workspace selector not showing"
 
 **Solutions:**
+
 1. Verify user has workspaces:
    ```graphql
    query {
@@ -234,7 +265,9 @@ npx tsc --noEmit
 ### Health check returns "degraded"
 
 **Solutions:**
+
 1. Check individual components:
+
    ```bash
    curl http://localhost:4000/health
    ```
@@ -247,6 +280,7 @@ npx tsc --noEmit
 ### No logs appearing
 
 **Solutions:**
+
 - Verify `NODE_ENV` is set correctly
 - Check log level configuration
 - Verify logging permissions
@@ -257,12 +291,15 @@ npx tsc --noEmit
 ### Error: "Workspace not found" or "Access denied"
 
 **Symptoms:**
+
 - Cannot access workspace data
 - 403 Forbidden errors
 - Missing accounts/categories/payees
 
 **Solutions:**
+
 1. Verify user is a member of the workspace:
+
    ```graphql
    query {
      workspaces {
@@ -286,11 +323,13 @@ npx tsc --noEmit
 ### Error: "Conflict detected" when editing
 
 **Symptoms:**
+
 - Cannot save changes
 - Conflict resolution dialog appears
 - Version mismatch errors
 
 **Solutions:**
+
 1. This is expected behavior for concurrent edits
 2. Use conflict resolution dialog to choose version or merge
 3. Check version history to see what changed
@@ -299,6 +338,7 @@ npx tsc --noEmit
 ### Error: "Invitation expired" or "Invalid invitation token"
 
 **Solutions:**
+
 1. Invitations expire after 7 days (default)
 2. Request a new invitation from workspace owner
 3. Verify invitation token is correct
@@ -309,6 +349,7 @@ npx tsc --noEmit
 ### Error: "Budget not found" or "Budget access denied"
 
 **Solutions:**
+
 1. Verify budget belongs to current workspace
 2. Check user has access to workspace
 3. Verify budget ID is correct
@@ -316,6 +357,7 @@ npx tsc --noEmit
 ### Budget notifications not appearing
 
 **Solutions:**
+
 1. Check budget threshold is configured correctly
 2. Verify budget reset cron job is running
 3. Check notification service is working
@@ -335,11 +377,13 @@ npx tsc --noEmit
 ### WebSocket connection fails
 
 **Symptoms:**
+
 - Real-time updates not working
 - Subscription errors in console
 - Connection drops frequently
 
 **Solutions:**
+
 1. Verify WebSocket endpoint is accessible: `ws://your-domain/graphql-ws`
 2. Check firewall/proxy allows WebSocket connections
 3. Verify backend subscription server is running
@@ -349,6 +393,7 @@ npx tsc --noEmit
 ### Subscriptions not receiving updates
 
 **Solutions:**
+
 1. Verify subscription is properly subscribed
 2. Check workspace ID matches current workspace
 3. Verify entity belongs to subscribed workspace
@@ -358,6 +403,7 @@ npx tsc --noEmit
 ## Common Error Codes
 
 ### Database Errors
+
 - `P1001` - Connection error
 - `P1008` - Operation timeout
 - `P2024` - Connection timeout
@@ -366,6 +412,7 @@ npx tsc --noEmit
 - `P2003` - Foreign key constraint violation
 
 ### GraphQL Errors
+
 - `UNAUTHORIZED` - Authentication required
 - `FORBIDDEN` - CSRF validation failed or insufficient permissions
 - `VALIDATION_ERROR` - Input validation failed
@@ -379,6 +426,7 @@ npx tsc --noEmit
 ### PDF Import fails
 
 **Solutions:**
+
 1. Verify PDF file is valid and not corrupted
 2. Check file size (max 10MB)
 3. Verify PDF contains text (not scanned image)
@@ -388,6 +436,7 @@ npx tsc --noEmit
 ### CSV Import fails
 
 **Solutions:**
+
 1. Verify CSV format matches expected schema
 2. Check file encoding (should be UTF-8)
 3. Verify required columns are present
@@ -397,6 +446,7 @@ npx tsc --noEmit
 ### Export data incomplete
 
 **Solutions:**
+
 1. Verify workspace filter is correct
 2. Check date range filters
 3. Verify user has access to all data
@@ -408,6 +458,7 @@ npx tsc --noEmit
 ### Batch operation partially fails
 
 **Solutions:**
+
 1. Review errors array in response
 2. Check individual item validation
 3. Verify all required fields are provided
@@ -447,6 +498,7 @@ npx tsc --noEmit
 ## Debug Mode
 
 Enable debug logging by setting:
+
 ```bash
 NODE_ENV=development
 ```

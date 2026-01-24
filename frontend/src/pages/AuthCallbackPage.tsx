@@ -3,13 +3,13 @@
  * Processes OIDC redirect and exchanges authorization code for tokens
  */
 
-import React, {useEffect, useState} from 'react';
-import {useNavigate, useSearchParams} from 'react-router';
-import {Typography, Stack} from '@mui/material';
-import {handleCallback} from '../utils/oidc';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {Button} from '../components/ui/Button';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Typography, Stack } from '@mui/material';
+import { handleCallback } from '../utils/oidc';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { Button } from '../components/ui/Button';
 
 /**
  * Auth Callback Page Component
@@ -49,7 +49,7 @@ export function AuthCallbackPage(): React.JSX.Element {
           // State matches, clear it and redirect to home
           sessionStorage.removeItem('oidc_state');
           setLoading(false);
-          void navigate('/', {replace: true});
+          void navigate('/', { replace: true });
           return;
         } else if (!state || !storedState) {
           // Missing state - might be a direct visit or session expired
@@ -82,7 +82,7 @@ export function AuthCallbackPage(): React.JSX.Element {
 
   if (loading) {
     return (
-      <Stack justifyContent="center" alignItems="center" sx={{minHeight: '100vh'}}>
+      <Stack justifyContent="center" alignItems="center" sx={{ minHeight: '100vh' }}>
         <LoadingSpinner message="Completing authentication..." />
       </Stack>
     );
@@ -90,7 +90,7 @@ export function AuthCallbackPage(): React.JSX.Element {
 
   if (error) {
     return (
-      <Stack justifyContent="center" alignItems="center" sx={{minHeight: '100vh'}}>
+      <Stack justifyContent="center" alignItems="center" sx={{ minHeight: '100vh' }}>
         <Stack spacing={2}>
           <Typography variant="h5" component="h2">
             Authentication Error
@@ -112,9 +112,8 @@ export function AuthCallbackPage(): React.JSX.Element {
 
   // This should not be reached, but return a loading state just in case
   return (
-    <Stack justifyContent="center" alignItems="center" sx={{minHeight: '100vh'}}>
+    <Stack justifyContent="center" alignItems="center" sx={{ minHeight: '100vh' }}>
       <LoadingSpinner message="Redirecting..." />
     </Stack>
   );
 }
-

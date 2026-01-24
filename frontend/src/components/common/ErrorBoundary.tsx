@@ -4,9 +4,9 @@
  * Enhanced with error recovery mechanisms and error reporting
  */
 
-import React, {Component, type ReactNode} from 'react';
-import {ErrorPage} from './ErrorPage';
-import {showErrorNotification} from '../../utils/errorNotification';
+import React, { Component, type ReactNode } from 'react';
+import { ErrorPage } from './ErrorPage';
+import { showErrorNotification } from '../../utils/errorNotification';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -55,7 +55,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     // Store error info for reporting
-    this.setState({errorInfo});
+    this.setState({ errorInfo });
 
     // Log error with structured information
     const errorContext = {
@@ -80,9 +80,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
 
     // Show user-friendly error notification
-    const userMessage = this.props.errorMessage ?? 
+    const userMessage =
+      this.props.errorMessage ??
       `An error occurred in ${this.props.componentName ?? 'this component'}. Please try again.`;
-    
+
     showErrorNotification(userMessage, {
       originalError: error.message,
       code: 'COMPONENT_ERROR',
@@ -103,7 +104,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
    * Handle reset with exponential backoff retry
    */
   handleReset = (): void => {
-    const {retryCount} = this.state;
+    const { retryCount } = this.state;
     const maxRetries = 3;
 
     if (retryCount >= maxRetries) {
@@ -137,9 +138,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
 
-      const errorMessage = this.props.errorMessage ?? 
-        this.state.error?.message ?? 
-        'An unexpected error occurred.';
+      const errorMessage =
+        this.props.errorMessage ?? this.state.error?.message ?? 'An unexpected error occurred.';
 
       return (
         <ErrorPage
@@ -154,4 +154,3 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return this.props.children;
   }
 }
-

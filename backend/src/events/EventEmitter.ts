@@ -22,7 +22,10 @@ export class TypedEventEmitter<TEventMap extends Record<string, unknown[]>> {
    * @param args - Event arguments (must match TEventMap[eventName])
    * @returns True if event had listeners, false otherwise
    */
-  emit<K extends keyof TEventMap>(eventName: K, ...args: TEventMap[K]): boolean {
+  emit<K extends keyof TEventMap>(
+    eventName: K,
+    ...args: TEventMap[K]
+  ): boolean {
     return this.emitter.emit(eventName as string, ...args);
   }
 
@@ -34,9 +37,12 @@ export class TypedEventEmitter<TEventMap extends Record<string, unknown[]>> {
    */
   on<K extends keyof TEventMap>(
     eventName: K,
-    listener: (...args: TEventMap[K]) => void,
+    listener: (...args: TEventMap[K]) => void
   ): this {
-    this.emitter.on(eventName as string, listener as (...args: unknown[]) => void);
+    this.emitter.on(
+      eventName as string,
+      listener as (...args: unknown[]) => void
+    );
     return this;
   }
 
@@ -48,9 +54,12 @@ export class TypedEventEmitter<TEventMap extends Record<string, unknown[]>> {
    */
   once<K extends keyof TEventMap>(
     eventName: K,
-    listener: (...args: TEventMap[K]) => void,
+    listener: (...args: TEventMap[K]) => void
   ): this {
-    this.emitter.once(eventName as string, listener as (...args: unknown[]) => void);
+    this.emitter.once(
+      eventName as string,
+      listener as (...args: unknown[]) => void
+    );
     return this;
   }
 
@@ -62,9 +71,12 @@ export class TypedEventEmitter<TEventMap extends Record<string, unknown[]>> {
    */
   off<K extends keyof TEventMap>(
     eventName: K,
-    listener: (...args: TEventMap[K]) => void,
+    listener: (...args: TEventMap[K]) => void
   ): this {
-    this.emitter.off(eventName as string, listener as (...args: unknown[]) => void);
+    this.emitter.off(
+      eventName as string,
+      listener as (...args: unknown[]) => void
+    );
     return this;
   }
 

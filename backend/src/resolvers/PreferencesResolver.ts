@@ -3,12 +3,11 @@
  * Handles user preferences GraphQL operations
  */
 
-
-import type {GraphQLContext} from '../middleware/context';
-import type {UserPreferences} from '@prisma/client';
-import {z} from 'zod';
-import {validate} from '../utils/validation';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import type { GraphQLContext } from '../middleware/context';
+import type { UserPreferences } from '@prisma/client';
+import { z } from 'zod';
+import { validate } from '../utils/validation';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
 
 const UpdatePreferencesInputSchema = z.object({
   currency: z.string().length(3).optional(),
@@ -22,11 +21,15 @@ export class PreferencesResolver {
   /**
    * Get user preferences
    */
-  async preferences(_: unknown, __: unknown, context: GraphQLContext): Promise<UserPreferences> {
+  async preferences(
+    _: unknown,
+    __: unknown,
+    context: GraphQLContext
+  ): Promise<UserPreferences> {
     return await withPrismaErrorHandling(
       async () => {
         let preferences = await context.prisma.userPreferences.findUnique({
-          where: {userId: context.userId},
+          where: { userId: context.userId },
         });
 
         // Create default preferences if they don't exist
@@ -41,7 +44,7 @@ export class PreferencesResolver {
 
         return preferences;
       },
-      {resource: 'Preferences', operation: 'read'},
+      { resource: 'Preferences', operation: 'read' }
     );
   }
 
@@ -50,8 +53,18 @@ export class PreferencesResolver {
    */
   async updatePreferences(
     _: unknown,
-    {input}: {input: {currency?: string; useThousandSeparator?: boolean; colorScheme?: string | null; colorSchemeValue?: string | null; dateFormat?: string | null}},
-    context: GraphQLContext,
+    {
+      input,
+    }: {
+      input: {
+        currency?: string;
+        useThousandSeparator?: boolean;
+        colorScheme?: string | null;
+        colorSchemeValue?: string | null;
+        dateFormat?: string | null;
+      };
+    },
+    context: GraphQLContext
   ): Promise<UserPreferences> {
     const validatedInput = validate(UpdatePreferencesInputSchema, input);
 
@@ -59,15 +72,23 @@ export class PreferencesResolver {
       async () => {
         // Upsert preferences
         const preferences = await context.prisma.userPreferences.upsert({
-          where: {userId: context.userId},
+          where: { userId: context.userId },
           update: {
-            ...(validatedInput.currency !== undefined && {currency: validatedInput.currency}),
+            ...(validatedInput.currency !== undefined && {
+              currency: validatedInput.currency,
+            }),
             ...(validatedInput.useThousandSeparator !== undefined && {
               useThousandSeparator: validatedInput.useThousandSeparator,
             }),
-            ...(validatedInput.colorScheme !== undefined && {colorScheme: validatedInput.colorScheme}),
-            ...(validatedInput.colorSchemeValue !== undefined && {colorSchemeValue: validatedInput.colorSchemeValue}),
-            ...(validatedInput.dateFormat !== undefined && {dateFormat: validatedInput.dateFormat}),
+            ...(validatedInput.colorScheme !== undefined && {
+              colorScheme: validatedInput.colorScheme,
+            }),
+            ...(validatedInput.colorSchemeValue !== undefined && {
+              colorSchemeValue: validatedInput.colorSchemeValue,
+            }),
+            ...(validatedInput.dateFormat !== undefined && {
+              dateFormat: validatedInput.dateFormat,
+            }),
           },
           create: {
             userId: context.userId,
@@ -81,8 +102,7 @@ export class PreferencesResolver {
 
         return preferences;
       },
-      {resource: 'Preferences', operation: 'update'},
+      { resource: 'Preferences', operation: 'update' }
     );
   }
 }
-

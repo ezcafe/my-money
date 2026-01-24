@@ -3,15 +3,15 @@
  * Manages calculator state and operations
  */
 
-import {useState, useCallback, useMemo} from 'react';
-import {useMutation} from '@apollo/client/react';
-import {CREATE_TRANSACTION} from '../graphql/mutations';
-import {GET_RECENT_TRANSACTIONS} from '../graphql/queries';
-import {useRecentTransactions} from './useTransactions';
-import {useAccounts} from './useAccounts';
-import {useCategories} from './useCategories';
-import {usePayees} from './usePayees';
-import {MAX_RECENT_TRANSACTIONS} from '../constants';
+import { useState, useCallback, useMemo } from 'react';
+import { useMutation } from '@apollo/client/react';
+import { CREATE_TRANSACTION } from '../graphql/mutations';
+import { GET_RECENT_TRANSACTIONS } from '../graphql/queries';
+import { useRecentTransactions } from './useTransactions';
+import { useAccounts } from './useAccounts';
+import { useCategories } from './useCategories';
+import { usePayees } from './usePayees';
+import { MAX_RECENT_TRANSACTIONS } from '../constants';
 
 /**
  * Calculator state interface
@@ -49,17 +49,17 @@ export interface UseCalculatorReturn {
  * Manages calculator state and operations
  */
 export function useCalculator(): UseCalculatorReturn {
-  const {accounts} = useAccounts();
-  const {categories} = useCategories();
-  const {payees} = usePayees();
-  const {refetch: refetchRecentTransactions} = useRecentTransactions(
-    MAX_RECENT_TRANSACTIONS,
-    {field: 'date', direction: 'desc'},
-  );
+  const { accounts } = useAccounts();
+  const { categories } = useCategories();
+  const { payees } = usePayees();
+  const { refetch: refetchRecentTransactions } = useRecentTransactions(MAX_RECENT_TRANSACTIONS, {
+    field: 'date',
+    direction: 'desc',
+  });
   const [error, setError] = useState<string | null>(null);
 
-  const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
-    refetchQueries: [{query: GET_RECENT_TRANSACTIONS}],
+  const [createTransaction, { loading: creatingTransaction }] = useMutation(CREATE_TRANSACTION, {
+    refetchQueries: [{ query: GET_RECENT_TRANSACTIONS }],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -90,7 +90,7 @@ export function useCalculator(): UseCalculatorReturn {
   // Get default category ID (Food & Groceries)
   const defaultCategoryId = useMemo(() => {
     const defaultCategory = categories.find(
-      (cat) => cat.name === 'Food & Groceries' && cat.categoryType === 'Expense',
+      (cat) => cat.name === 'Food & Groceries' && cat.categoryType === 'Expense'
     );
     return defaultCategory?.id ?? null;
   }, [categories]);
@@ -228,7 +228,14 @@ export function useCalculator(): UseCalculatorReturn {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
     }
-  }, [state.display, defaultAccountId, defaultCategoryId, defaultPayeeId, createTransaction, handleClear]);
+  }, [
+    state.display,
+    defaultAccountId,
+    defaultCategoryId,
+    defaultPayeeId,
+    createTransaction,
+    handleClear,
+  ]);
 
   return {
     state,
@@ -266,4 +273,3 @@ function calculate(a: number, b: number, operation: string): number {
       return b;
   }
 }
-

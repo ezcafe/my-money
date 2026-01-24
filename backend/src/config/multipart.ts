@@ -3,10 +3,10 @@
  * Handles GraphQL multipart requests for file uploads
  */
 
-import type {Hono} from 'hono';
-import type {IncomingMessage} from 'http';
-import {MAX_MULTIPART_FILE_SIZE} from '../utils/constants';
-import {Readable} from 'stream';
+import type { Hono } from 'hono';
+import type { IncomingMessage } from 'http';
+import { MAX_MULTIPART_FILE_SIZE } from '../utils/constants';
+import { Readable } from 'stream';
 import Busboy from 'busboy';
 
 /**
@@ -27,9 +27,20 @@ export function registerMultipartHandler(app: Hono): void {
     }
 
     try {
-      const operations: {query?: string; variables?: Record<string, unknown>} = {};
+      const operations: {
+        query?: string;
+        variables?: Record<string, unknown>;
+      } = {};
       const map: Record<string, string[]> = {};
-      const files: Record<string, {filename: string; mimetype?: string; encoding?: string; createReadStream: () => NodeJS.ReadableStream}> = {};
+      const files: Record<
+        string,
+        {
+          filename: string;
+          mimetype?: string;
+          encoding?: string;
+          createReadStream: () => NodeJS.ReadableStream;
+        }
+      > = {};
 
       // Get raw request from Hono - try to get Node.js IncomingMessage
       const rawReq = c.req.raw;
@@ -54,14 +65,16 @@ export function registerMultipartHandler(app: Hono): void {
         nodeStream = new Readable({
           async read(): Promise<void> {
             try {
-              const {done, value} = await reader.read();
+              const { done, value } = await reader.read();
               if (done) {
                 this.push(null);
               } else {
                 this.push(Buffer.from(value));
               }
             } catch (error) {
-              this.destroy(error instanceof Error ? error : new Error(String(error)));
+              this.destroy(
+                error instanceof Error ? error : new Error(String(error))
+              );
             }
           },
         });
@@ -82,35 +95,51 @@ export function registerMultipartHandler(app: Hono): void {
 
       // Parse multipart form data using busboy
       const fields: Record<string, string[]> = {};
-      const parsedFiles: Record<string, Array<{buffer: Buffer; filename: string; mimetype?: string}>> = {};
+      const parsedFiles: Record<
+        string,
+        Array<{ buffer: Buffer; filename: string; mimetype?: string }>
+      > = {};
 
       await new Promise<void>((resolve, reject) => {
-        const busboy = Busboy({headers: nodeReq.headers as Record<string, string>});
+        const busboy = Busboy({
+          headers: nodeReq.headers as Record<string, string>,
+        });
 
         busboy.on('field', (name: string, value: string) => {
           fields[name] ??= [];
           fields[name].push(value);
         });
 
-        busboy.on('file', (name: string, file: NodeJS.ReadableStream, info: {filename: string; encoding: string; mimeType: string}) => {
-          const chunks: Buffer[] = [];
-          file.on('data', (chunk: Buffer) => {
-            chunks.push(chunk);
-          });
-          file.on('end', () => {
-            const buffer = Buffer.concat(chunks);
-            if (buffer.length > MAX_MULTIPART_FILE_SIZE) {
-              reject(new Error(`File size exceeds maximum allowed size of ${MAX_MULTIPART_FILE_SIZE / 1024 / 1024}MB`));
-              return;
-            }
-            parsedFiles[name] ??= [];
-            parsedFiles[name].push({
-              buffer,
-              filename: info.filename,
-              mimetype: info.mimeType,
+        busboy.on(
+          'file',
+          (
+            name: string,
+            file: NodeJS.ReadableStream,
+            info: { filename: string; encoding: string; mimeType: string }
+          ) => {
+            const chunks: Buffer[] = [];
+            file.on('data', (chunk: Buffer) => {
+              chunks.push(chunk);
             });
-          });
-        });
+            file.on('end', () => {
+              const buffer = Buffer.concat(chunks);
+              if (buffer.length > MAX_MULTIPART_FILE_SIZE) {
+                reject(
+                  new Error(
+                    `File size exceeds maximum allowed size of ${MAX_MULTIPART_FILE_SIZE / 1024 / 1024}MB`
+                  )
+                );
+                return;
+              }
+              parsedFiles[name] ??= [];
+              parsedFiles[name].push({
+                buffer,
+                filename: info.filename,
+                mimetype: info.mimeType,
+              });
+            });
+          }
+        );
 
         busboy.on('finish', () => {
           resolve();
@@ -133,7 +162,8 @@ export function registerMultipartHandler(app: Hono): void {
               filename: file.filename,
               mimetype: file.mimetype,
               encoding: 'utf-8',
-              createReadStream: (): NodeJS.ReadableStream => Readable.from(file.buffer),
+              createReadStream: (): NodeJS.ReadableStream =>
+                Readable.from(file.buffer),
             };
             files[fieldname] = fileObj;
           }
@@ -154,7 +184,11 @@ export function registerMultipartHandler(app: Hono): void {
         const variables = operations.variables;
         for (const [fileKey, filePaths] of Object.entries(map)) {
           // fileKey is the file part fieldname (e.g., "0"), filePaths is array of variable paths (e.g., ["file"])
-          if (Array.isArray(filePaths) && filePaths.length > 0 && files[fileKey]) {
+          if (
+            Array.isArray(filePaths) &&
+            filePaths.length > 0 &&
+            files[fileKey]
+          ) {
             const variablePath = filePaths[0]; // e.g., "file"
             if (!variablePath) {
               continue;
@@ -189,16 +223,23 @@ export function registerMultipartHandler(app: Hono): void {
 
       // Store files in context for fallback when Promise serialization loses properties
       // Store both in Hono context and as a property on the request for easy access
-      (c as {set: (key: string, value: unknown) => void}).set('uploadFiles', files);
+      (c as { set: (key: string, value: unknown) => void }).set(
+        'uploadFiles',
+        files
+      );
       // Also store directly on request object for easier access in resolver
-      (c.req as {uploadFiles?: typeof files}).uploadFiles = files;
+      (c.req as { uploadFiles?: typeof files }).uploadFiles = files;
 
       // Set body for Apollo Server
-      (c.req as {body?: unknown}).body = operations;
+      (c.req as { body?: unknown }).body = operations;
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
       console.error('Error processing multipart GraphQL request:', errorObj);
-      return c.json({errors: [{message: 'Failed to process file upload'}]}, 400);
+      return c.json(
+        { errors: [{ message: 'Failed to process file upload' }] },
+        400
+      );
     }
 
     return next();

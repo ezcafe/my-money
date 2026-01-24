@@ -4,16 +4,16 @@
  * This provides comprehensive event coverage even for changes made outside the application
  */
 
-import {Client} from 'pg';
-import {logInfo, logWarn, logError} from './logger';
+import { Client } from 'pg';
+import { logInfo, logWarn, logError } from './logger';
 import {
   accountEventEmitter,
   categoryEventEmitter,
   payeeEventEmitter,
   transactionEventEmitter,
 } from '../events';
-import type {Account, Category, Payee, Transaction} from '@prisma/client';
-import {adjustDatabaseConnectionString} from '../config';
+import type { Account, Category, Payee, Transaction } from '@prisma/client';
+import { adjustDatabaseConnectionString } from '../config';
 
 /**
  * Safely convert an unknown error to a string message
@@ -111,24 +111,32 @@ export async function startDatabaseListener(): Promise<void> {
     // Handle connection errors
     listenClient.on('error', (error: unknown) => {
       const errorMessage = getErrorMessage(error);
-      const isConnectionError = errorMessage.includes('ECONNREFUSED') ||
-                                errorMessage.includes('connection') ||
-                                errorMessage.includes('connect');
+      const isConnectionError =
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('connection') ||
+        errorMessage.includes('connect');
 
       if (isConnectionError && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        logWarn('Database listener: Connection error (expected during startup). The database may still be initializing. Automatic reconnection will continue.', {
-          event: 'database_listener_connection_error_expected',
-          attempt: reconnectAttempts + 1,
-          maxAttempts: MAX_RECONNECT_ATTEMPTS,
-          error: errorMessage,
-          explanation: 'This is normal during application startup when the database is still starting up or not yet ready to accept LISTEN/NOTIFY connections.',
-          whenWillSucceed: 'Connection will succeed once the database is fully initialized and ready to accept connections. The listener will automatically retry with exponential backoff (5s, 10s, 20s, 40s, up to 60s).',
-          howToVerify: 'Once connected, you will see a log message: "Database listener started and listening to entity_changes channel". You can also verify by checking that database triggers are firing and NOTIFY events are being received.',
-        });
+        logWarn(
+          'Database listener: Connection error (expected during startup). The database may still be initializing. Automatic reconnection will continue.',
+          {
+            event: 'database_listener_connection_error_expected',
+            attempt: reconnectAttempts + 1,
+            maxAttempts: MAX_RECONNECT_ATTEMPTS,
+            error: errorMessage,
+            explanation:
+              'This is normal during application startup when the database is still starting up or not yet ready to accept LISTEN/NOTIFY connections.',
+            whenWillSucceed:
+              'Connection will succeed once the database is fully initialized and ready to accept connections. The listener will automatically retry with exponential backoff (5s, 10s, 20s, 40s, up to 60s).',
+            howToVerify:
+              'Once connected, you will see a log message: "Database listener started and listening to entity_changes channel". You can also verify by checking that database triggers are firing and NOTIFY events are being received.',
+          }
+        );
       } else {
         logError('Database listener connection error', {
           error: errorMessage,
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          errorType:
+            error instanceof Error ? error.constructor.name : typeof error,
         });
       }
       isListening = false;
@@ -146,14 +154,20 @@ export async function startDatabaseListener(): Promise<void> {
     // Handle connection end
     listenClient.on('end', () => {
       if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        logWarn('Database listener: Connection closed (expected during startup). Will attempt to reconnect automatically.', {
-          event: 'database_listener_connection_ended_expected',
-          attempt: reconnectAttempts + 1,
-          maxAttempts: MAX_RECONNECT_ATTEMPTS,
-          explanation: 'This is normal during application startup when the database connection is not yet established.',
-          whenWillSucceed: 'Connection will succeed once the database is fully ready. The listener will automatically retry with exponential backoff.',
-          howToVerify: 'Once connected, you will see: "Database listener started and listening to entity_changes channel".',
-        });
+        logWarn(
+          'Database listener: Connection closed (expected during startup). Will attempt to reconnect automatically.',
+          {
+            event: 'database_listener_connection_ended_expected',
+            attempt: reconnectAttempts + 1,
+            maxAttempts: MAX_RECONNECT_ATTEMPTS,
+            explanation:
+              'This is normal during application startup when the database connection is not yet established.',
+            whenWillSucceed:
+              'Connection will succeed once the database is fully ready. The listener will automatically retry with exponential backoff.',
+            howToVerify:
+              'Once connected, you will see: "Database listener started and listening to entity_changes channel".',
+          }
+        );
       } else {
         logWarn('Database listener connection ended');
       }
@@ -167,35 +181,51 @@ export async function startDatabaseListener(): Promise<void> {
 
     isListening = true;
     reconnectAttempts = 0; // Reset on successful connection
-    logInfo('Database listener started and listening to entity_changes channel', {
-      event: 'database_listener_connected',
-      channel: 'entity_changes',
-      status: 'connected',
-      howToVerify: 'The listener is now ready to receive NOTIFY events from database triggers. You can verify it is working by creating/updating/deleting entities (Account, Category, Payee, Transaction) and checking that corresponding application events are emitted.',
-    });
+    logInfo(
+      'Database listener started and listening to entity_changes channel',
+      {
+        event: 'database_listener_connected',
+        channel: 'entity_changes',
+        status: 'connected',
+        howToVerify:
+          'The listener is now ready to receive NOTIFY events from database triggers. You can verify it is working by creating/updating/deleting entities (Account, Category, Payee, Transaction) and checking that corresponding application events are emitted.',
+      }
+    );
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
-    const isConnectionError = errorMessage.includes('ECONNREFUSED') ||
-                              errorMessage.includes('connection') ||
-                              errorMessage.includes('connect');
+    const isConnectionError =
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('connect');
 
     if (isConnectionError && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-      logWarn('Database listener: Unable to connect to database (expected during startup). Automatic reconnection will continue.', {
-        event: 'database_listener_startup_connection_error_expected',
-        attempt: reconnectAttempts + 1,
-        maxAttempts: MAX_RECONNECT_ATTEMPTS,
-        error: errorMessage,
-        explanation: 'This is normal during application startup when the database is still initializing or not yet ready to accept LISTEN/NOTIFY connections.',
-        whenWillSucceed: 'Connection will succeed once the database is fully initialized and ready. The listener will automatically retry with exponential backoff (5s, 10s, 20s, 40s, up to 60s) for up to 10 attempts.',
-        howToVerify: 'Once connected successfully, you will see a log message: "Database listener started and listening to entity_changes channel". The listener will then be ready to receive real-time database change notifications via PostgreSQL NOTIFY events.',
-      });
+      logWarn(
+        'Database listener: Unable to connect to database (expected during startup). Automatic reconnection will continue.',
+        {
+          event: 'database_listener_startup_connection_error_expected',
+          attempt: reconnectAttempts + 1,
+          maxAttempts: MAX_RECONNECT_ATTEMPTS,
+          error: errorMessage,
+          explanation:
+            'This is normal during application startup when the database is still initializing or not yet ready to accept LISTEN/NOTIFY connections.',
+          whenWillSucceed:
+            'Connection will succeed once the database is fully initialized and ready. The listener will automatically retry with exponential backoff (5s, 10s, 20s, 40s, up to 60s) for up to 10 attempts.',
+          howToVerify:
+            'Once connected successfully, you will see a log message: "Database listener started and listening to entity_changes channel". The listener will then be ready to receive real-time database change notifications via PostgreSQL NOTIFY events.',
+        }
+      );
     } else {
       const errorStack = error instanceof Error ? error.stack : undefined;
-      logError('Failed to start database listener', {
-        error: errorMessage,
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
-        stack: errorStack,
-      }, error instanceof Error ? error : new Error(errorMessage));
+      logError(
+        'Failed to start database listener',
+        {
+          error: errorMessage,
+          errorType:
+            error instanceof Error ? error.constructor.name : typeof error,
+          stack: errorStack,
+        },
+        error instanceof Error ? error : new Error(errorMessage)
+      );
     }
     isListening = false;
     // Clean up the failed client
@@ -219,7 +249,7 @@ export async function startDatabaseListener(): Promise<void> {
  * Emits corresponding application-level events
  */
 function handleEntityChange(payload: EntityChangePayload): void {
-  const {entityType, operation, data} = payload;
+  const { entityType, operation, data } = payload;
 
   try {
     switch (entityType) {
@@ -263,14 +293,18 @@ function handleEntityChange(payload: EntityChangePayload): void {
         if (operation === 'created') {
           transactionEventEmitter.emit('transaction.created', transaction);
         } else if (operation === 'updated') {
-          transactionEventEmitter.emit('transaction.updated', transaction, transaction);
+          transactionEventEmitter.emit(
+            'transaction.updated',
+            transaction,
+            transaction
+          );
         } else if (operation === 'deleted') {
           transactionEventEmitter.emit('transaction.deleted', transaction);
         }
         break;
       }
       default:
-        logWarn('Unknown entity type in database notification', {entityType});
+        logWarn('Unknown entity type in database notification', { entityType });
     }
   } catch (error) {
     logError('Failed to handle entity change event', {
@@ -296,15 +330,21 @@ function scheduleReconnect(): void {
 
   // Stop reconnecting after max attempts to avoid infinite loops
   if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
-    logWarn('Database listener: Max reconnection attempts reached. Stopping reconnection attempts.', {
-      attempts: reconnectAttempts,
-    });
+    logWarn(
+      'Database listener: Max reconnection attempts reached. Stopping reconnection attempts.',
+      {
+        attempts: reconnectAttempts,
+      }
+    );
     return;
   }
 
   // Exponential backoff: start with 5 seconds, max 60 seconds
   const baseDelay = 5000;
-  const delay = Math.min(baseDelay * Math.pow(2, Math.min(reconnectAttempts - 1, 3)), 60000);
+  const delay = Math.min(
+    baseDelay * Math.pow(2, Math.min(reconnectAttempts - 1, 3)),
+    60000
+  );
 
   reconnectTimeout = setTimeout(() => {
     logInfo('Database listener: Attempting to reconnect...', {
@@ -312,30 +352,42 @@ function scheduleReconnect(): void {
       attempt: reconnectAttempts,
       maxAttempts: MAX_RECONNECT_ATTEMPTS,
       nextRetryIn: `${Math.round(delay / 1000)}s`,
-      explanation: 'This is expected during startup. The listener will continue retrying until the database is ready.',
+      explanation:
+        'This is expected during startup. The listener will continue retrying until the database is ready.',
     });
     void startDatabaseListener().catch((error: unknown) => {
       const errorMessage = getErrorMessage(error);
-      const isConnectionError = errorMessage.includes('ECONNREFUSED') ||
-                                errorMessage.includes('connection') ||
-                                errorMessage.includes('connect');
+      const isConnectionError =
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('connection') ||
+        errorMessage.includes('connect');
 
       if (isConnectionError && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         // Don't log as error for connection issues during startup
-        logWarn('Database listener: Reconnection attempt failed (expected during startup). Will retry automatically.', {
-          event: 'database_listener_reconnect_failed_expected',
-          attempt: reconnectAttempts,
-          maxAttempts: MAX_RECONNECT_ATTEMPTS,
-          error: errorMessage,
-          explanation: 'This is normal during startup. The database may still be initializing.',
-          whenWillSucceed: 'Connection will succeed once the database is fully ready. Retries will continue with exponential backoff.',
-          howToVerify: 'Once connected, you will see: "Database listener started and listening to entity_changes channel".',
-        });
+        logWarn(
+          'Database listener: Reconnection attempt failed (expected during startup). Will retry automatically.',
+          {
+            event: 'database_listener_reconnect_failed_expected',
+            attempt: reconnectAttempts,
+            maxAttempts: MAX_RECONNECT_ATTEMPTS,
+            error: errorMessage,
+            explanation:
+              'This is normal during startup. The database may still be initializing.',
+            whenWillSucceed:
+              'Connection will succeed once the database is fully ready. Retries will continue with exponential backoff.',
+            howToVerify:
+              'Once connected, you will see: "Database listener started and listening to entity_changes channel".',
+          }
+        );
       } else {
-        logError('Database listener reconnection failed', {
-          error: errorMessage,
-          attempt: reconnectAttempts,
-        }, error instanceof Error ? error : new Error(errorMessage));
+        logError(
+          'Database listener reconnection failed',
+          {
+            error: errorMessage,
+            attempt: reconnectAttempts,
+          },
+          error instanceof Error ? error : new Error(errorMessage)
+        );
       }
     });
   }, delay);
@@ -359,9 +411,13 @@ export async function stopDatabaseListener(): Promise<void> {
       logInfo('Database listener stopped');
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
-      logError('Error stopping database listener', {
-        error: errorMessage,
-      }, error instanceof Error ? error : new Error(errorMessage));
+      logError(
+        'Error stopping database listener',
+        {
+          error: errorMessage,
+        },
+        error instanceof Error ? error : new Error(errorMessage)
+      );
     } finally {
       listenClient?.removeAllListeners();
       listenClient = null;

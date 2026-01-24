@@ -3,8 +3,8 @@
  * Groups accounts by accountType and categories by type
  */
 
-import type {Account} from '../hooks/useAccounts';
-import type {Category} from '../hooks/useCategories';
+import type { Account } from '../hooks/useAccounts';
+import type { Category } from '../hooks/useCategories';
 
 /**
  * Account type label mapping
@@ -46,7 +46,13 @@ export interface GroupedCategory {
 /**
  * Account type order for consistent grouping
  */
-const ACCOUNT_TYPE_ORDER: Account['accountType'][] = ['Cash', 'Bank', 'CreditCard', 'Saving', 'Loans'];
+const ACCOUNT_TYPE_ORDER: Account['accountType'][] = [
+  'Cash',
+  'Bank',
+  'CreditCard',
+  'Saving',
+  'Loans',
+];
 
 /**
  * Category type order for consistent grouping

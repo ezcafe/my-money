@@ -2,8 +2,15 @@
  * GraphQL Queries
  */
 
-import {gql} from '@apollo/client';
-import {ACCOUNT_FIELDS, CATEGORY_FIELDS, PAYEE_FIELDS, TRANSACTION_FIELDS, BUDGET_FIELDS, RECURRING_TRANSACTION_FIELDS} from './fragments';
+import { gql } from '@apollo/client';
+import {
+  ACCOUNT_FIELDS,
+  CATEGORY_FIELDS,
+  PAYEE_FIELDS,
+  TRANSACTION_FIELDS,
+  BUDGET_FIELDS,
+  RECURRING_TRANSACTION_FIELDS,
+} from './fragments';
 
 export const GET_ACCOUNTS = gql`
   query GetAccounts {
@@ -33,8 +40,24 @@ export const GET_RECENT_TRANSACTIONS = gql`
 `;
 
 export const GET_TRANSACTIONS = gql`
-  query GetTransactions($accountId: ID, $categoryId: ID, $payeeId: ID, $first: Int, $after: String, $orderBy: TransactionOrderInput, $note: String) {
-    transactions(accountId: $accountId, categoryId: $categoryId, payeeId: $payeeId, first: $first, after: $after, orderBy: $orderBy, note: $note) {
+  query GetTransactions(
+    $accountId: ID
+    $categoryId: ID
+    $payeeId: ID
+    $first: Int
+    $after: String
+    $orderBy: TransactionOrderInput
+    $note: String
+  ) {
+    transactions(
+      accountId: $accountId
+      categoryId: $categoryId
+      payeeId: $payeeId
+      first: $first
+      after: $after
+      orderBy: $orderBy
+      note: $note
+    ) {
       items {
         ...TransactionFields
       }
@@ -307,10 +330,3 @@ export const GET_BUDGET_NOTIFICATIONS = gql`
     }
   }
 `;
-
-
-
-
-
-
-

@@ -5,17 +5,19 @@
  */
 
 import cron from 'node-cron';
-import {prisma} from '../utils/prisma';
-import {logInfo, logError, logWarn} from '../utils/logger';
+import { prisma } from '../utils/prisma';
+import { logInfo, logError, logWarn } from '../utils/logger';
 
 /**
  * Recalculate account balance from all transactions
  * @param accountId - Account ID to recalculate
  * @returns Calculated balance
  */
-async function recalculateAccountBalanceFromTransactions(accountId: string): Promise<number> {
+async function recalculateAccountBalanceFromTransactions(
+  accountId: string
+): Promise<number> {
   const result = await prisma.transaction.aggregate({
-    where: {accountId},
+    where: { accountId },
     _sum: {
       value: true,
     },
@@ -23,8 +25,8 @@ async function recalculateAccountBalanceFromTransactions(accountId: string): Pro
 
   // Get initial balance
   const account = await prisma.account.findUnique({
-    where: {id: accountId},
-    select: {initBalance: true},
+    where: { id: accountId },
+    select: { initBalance: true },
   });
 
   const initBalance = account ? Number(account.initBalance) : 0;
@@ -47,8 +49,8 @@ async function reconcileAccount(accountId: string): Promise<{
   fixed: boolean;
 }> {
   const account = await prisma.account.findUnique({
-    where: {id: accountId},
-    select: {id: true, balance: true},
+    where: { id: accountId },
+    select: { id: true, balance: true },
   });
 
   if (!account) {
@@ -56,15 +58,16 @@ async function reconcileAccount(accountId: string): Promise<{
   }
 
   const storedBalance = Number(account.balance);
-  const calculatedBalance = await recalculateAccountBalanceFromTransactions(accountId);
+  const calculatedBalance =
+    await recalculateAccountBalanceFromTransactions(accountId);
   const discrepancy = calculatedBalance - storedBalance;
 
   let fixed = false;
   if (Math.abs(discrepancy) > 0.01) {
     // Only fix if discrepancy is more than 1 cent (to account for floating point errors)
     await prisma.account.update({
-      where: {id: accountId},
-      data: {balance: calculatedBalance},
+      where: { id: accountId },
+      data: { balance: calculatedBalance },
     });
     fixed = true;
   }
@@ -97,7 +100,7 @@ export async function reconcileAccountBalances(): Promise<{
   logInfo('Starting balance reconciliation', {});
 
   const accounts = await prisma.account.findMany({
-    select: {id: true},
+    select: { id: true },
   });
 
   logInfo(`Found ${accounts.length} accounts to reconcile`, {
@@ -133,10 +136,15 @@ export async function reconcileAccountBalances(): Promise<{
         }
       }
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Failed to reconcile account balance', {
-        accountId: account.id,
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Failed to reconcile account balance',
+        {
+          accountId: account.id,
+        },
+        errorObj
+      );
     }
   }
 
@@ -180,10 +188,15 @@ export function startBalanceReconciliationCron(): void {
         fixed: stats.fixed,
       });
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Balance reconciliation - failed', {
-        jobName: 'balanceReconciliation',
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Balance reconciliation - failed',
+        {
+          jobName: 'balanceReconciliation',
+        },
+        errorObj
+      );
     }
   });
 

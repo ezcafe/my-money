@@ -3,7 +3,7 @@
  * Defines all budget-related events and their payloads
  */
 
-import type {Budget} from '@prisma/client';
+import type { Budget } from '@prisma/client';
 
 /**
  * Budget event payloads
@@ -14,7 +14,7 @@ export interface BudgetEventPayloads extends Record<string, unknown[]> {
   'budget.deleted': [Budget];
 }
 
-import type {TypedEventEmitter} from './EventEmitter';
+import type { TypedEventEmitter } from './EventEmitter';
 
 /**
  * Budget event emitter type

@@ -4,25 +4,25 @@
  * Follows Material Design 3 patterns
  */
 
-import React, {memo, useMemo, useTransition} from 'react';
-import {Typography, List, ListItemButton, ListItemText, Divider} from '@mui/material';
-import {useNavigate} from 'react-router';
-import {AccountBalance} from '@mui/icons-material';
-import {useAccounts} from '../hooks/useAccounts';
-import {useSearch} from '../contexts/SearchContext';
-import {formatCurrencyPreserveDecimals} from '../utils/formatting';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {EmptyState} from '../components/common/EmptyState';
-import {Card} from '../components/ui/Card';
-import {PageContainer} from '../components/common/PageContainer';
+import React, { memo, useMemo, useTransition } from 'react';
+import { Typography, List, ListItemButton, ListItemText, Divider } from '@mui/material';
+import { useNavigate } from 'react-router';
+import { AccountBalance } from '@mui/icons-material';
+import { useAccounts } from '../hooks/useAccounts';
+import { useSearch } from '../contexts/SearchContext';
+import { formatCurrencyPreserveDecimals } from '../utils/formatting';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { EmptyState } from '../components/common/EmptyState';
+import { Card } from '../components/ui/Card';
+import { PageContainer } from '../components/common/PageContainer';
 
 /**
  * Accounts Page Component
  */
 const AccountsPageComponent = (): React.JSX.Element => {
-  const {accounts, loading, error} = useAccounts();
-  const {searchQuery} = useSearch();
+  const { accounts, loading, error } = useAccounts();
+  const { searchQuery } = useSearch();
   const navigate = useNavigate();
   const [_isPending, _startTransition] = useTransition();
 
@@ -68,43 +68,44 @@ const AccountsPageComponent = (): React.JSX.Element => {
 
   return (
     <PageContainer>
-      {hasNoSearchResults ? <EmptyState
-          title="No accounts found"
-          description="Try adjusting your search query"
-        /> : null}
-      {hasSearchResults ? <Card>
+      {hasNoSearchResults ? (
+        <EmptyState title="No accounts found" description="Try adjusting your search query" />
+      ) : null}
+      {hasSearchResults ? (
+        <Card>
           <List disablePadding>
             {filteredAccounts.map((account, index) => (
-            <React.Fragment key={account.id}>
-              {index > 0 && <Divider />}
-              <ListItemButton
-                onClick={(): void => {
-                  void navigate(`/accounts/${account.id}`);
-                }}
-                sx={{
-                  py: 1.5,
-                  px: 2,
-                  transition: 'background-color 0.2s ease',
-                  '&:hover': {
-                    backgroundColor: 'action.hover',
-                  },
-                }}
-              >
-                <ListItemText
-                  primary={account.name}
-                  primaryTypographyProps={{
-                    variant: 'body1',
-                    fontWeight: 500,
+              <React.Fragment key={account.id}>
+                {index > 0 && <Divider />}
+                <ListItemButton
+                  onClick={(): void => {
+                    void navigate(`/accounts/${account.id}`);
                   }}
-                />
-                <Typography variant="body1" fontWeight={500} color="text.primary">
-                  {formatCurrencyPreserveDecimals(account.balance)}
-                </Typography>
-              </ListItemButton>
-            </React.Fragment>
-          ))}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    transition: 'background-color 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
+                >
+                  <ListItemText
+                    primary={account.name}
+                    primaryTypographyProps={{
+                      variant: 'body1',
+                      fontWeight: 500,
+                    }}
+                  />
+                  <Typography variant="body1" fontWeight={500} color="text.primary">
+                    {formatCurrencyPreserveDecimals(account.balance)}
+                  </Typography>
+                </ListItemButton>
+              </React.Fragment>
+            ))}
           </List>
-        </Card> : null}
+        </Card>
+      ) : null}
     </PageContainer>
   );
 };
@@ -112,5 +113,3 @@ const AccountsPageComponent = (): React.JSX.Element => {
 AccountsPageComponent.displayName = 'AccountsPage';
 
 export const AccountsPage = memo(AccountsPageComponent);
-
-

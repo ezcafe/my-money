@@ -3,10 +3,10 @@
  * Manages description mappings and card number mapping for import transactions
  */
 
-import {useState, useEffect, useMemo} from 'react';
-import {useAccounts} from './useAccounts';
-import {useCategories} from './useCategories';
-import {usePayees} from './usePayees';
+import { useState, useEffect, useMemo } from 'react';
+import { useAccounts } from './useAccounts';
+import { useCategories } from './useCategories';
+import { usePayees } from './usePayees';
 
 /**
  * Unmapped transaction type
@@ -41,7 +41,11 @@ export interface UseImportMappingsReturn {
   descriptionMappings: Map<string, DescriptionMapping>;
   cardNumber: string | null;
   cardAccountId: string;
-  setDescriptionMapping: (description: string, field: keyof DescriptionMapping, value: string) => void;
+  setDescriptionMapping: (
+    description: string,
+    field: keyof DescriptionMapping,
+    value: string
+  ) => void;
   setCardAccountId: (accountId: string) => void;
   uniqueDescriptions: string[];
   validateMappings: () => string[];
@@ -52,12 +56,16 @@ export interface UseImportMappingsReturn {
  * @param unmappedTransactions - Array of unmapped transactions
  * @returns Mapping state and handlers
  */
-export function useImportMappings(unmappedTransactions: UnmappedTransaction[]): UseImportMappingsReturn {
-  const {accounts} = useAccounts();
-  const {categories} = useCategories();
-  const {payees} = usePayees();
+export function useImportMappings(
+  unmappedTransactions: UnmappedTransaction[]
+): UseImportMappingsReturn {
+  const { accounts } = useAccounts();
+  const { categories } = useCategories();
+  const { payees } = usePayees();
 
-  const [descriptionMappings, setDescriptionMappings] = useState<Map<string, DescriptionMapping>>(new Map());
+  const [descriptionMappings, setDescriptionMappings] = useState<Map<string, DescriptionMapping>>(
+    new Map()
+  );
   const [cardNumber, setCardNumber] = useState<string | null>(null);
   const [cardAccountId, setCardAccountId] = useState<string>('');
 
@@ -87,11 +95,11 @@ export function useImportMappings(unmappedTransactions: UnmappedTransaction[]): 
         if (firstTxn && !newMappings.has(desc)) {
           // Determine default categories (Salary for income, Food & Groceries for expense)
           const defaultIncomeCategory = categories.find(
-            (category) => category.isDefault && category.categoryType === 'Income',
+            (category) => category.isDefault && category.categoryType === 'Income'
           );
 
           const defaultExpenseCategory = categories.find(
-            (category) => category.isDefault && category.categoryType === 'Expense',
+            (category) => category.isDefault && category.categoryType === 'Expense'
           );
 
           // Determine initial category based on transaction type
@@ -139,11 +147,15 @@ export function useImportMappings(unmappedTransactions: UnmappedTransaction[]): 
   /**
    * Update a description mapping field
    */
-  const setDescriptionMapping = (description: string, field: keyof DescriptionMapping, value: string): void => {
+  const setDescriptionMapping = (
+    description: string,
+    field: keyof DescriptionMapping,
+    value: string
+  ): void => {
     const mapping = descriptionMappings.get(description);
     if (!mapping) return;
 
-    const updated = {...mapping, [field]: value};
+    const updated = { ...mapping, [field]: value };
     setDescriptionMappings(new Map(descriptionMappings.set(description, updated)));
   };
 

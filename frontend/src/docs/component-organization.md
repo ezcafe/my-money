@@ -3,6 +3,7 @@
 ## Current Structure
 
 Components are organized by type:
+
 - `components/common/` - Shared components
 - `components/ui/` - UI components
 - `pages/` - Page components

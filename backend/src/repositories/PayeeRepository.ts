@@ -3,10 +3,13 @@
  * Handles all database operations for payees
  */
 
-import type {Payee, PrismaClient} from '@prisma/client';
-import {BaseRepository} from './BaseRepository';
+import type { Payee, PrismaClient } from '@prisma/client';
+import { BaseRepository } from './BaseRepository';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Payee Repository
@@ -23,13 +26,13 @@ export class PayeeRepository extends BaseRepository {
   async findById(
     id: string,
     workspaceId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Payee | null> {
     const queryOptions: {
-      where: {id: string; workspaceId: string};
+      where: { id: string; workspaceId: string };
       select?: Record<string, boolean>;
     } = {
-      where: {id, workspaceId},
+      where: { id, workspaceId },
     };
 
     if (select) {
@@ -47,13 +50,13 @@ export class PayeeRepository extends BaseRepository {
    */
   async findMany(
     workspaceId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Payee[]> {
     const queryOptions: {
-      where: {workspaceId: string};
+      where: { workspaceId: string };
       select?: Record<string, boolean>;
     } = {
-      where: {workspaceId},
+      where: { workspaceId },
     };
 
     if (select) {
@@ -77,10 +80,10 @@ export class PayeeRepository extends BaseRepository {
       createdBy: string;
       lastEditedBy: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Payee> {
     const client = tx ?? this.prisma;
-    return client.payee.create({data});
+    return client.payee.create({ data });
   }
 
   /**
@@ -97,11 +100,11 @@ export class PayeeRepository extends BaseRepository {
       isDefault?: boolean;
       lastEditedBy?: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Payee> {
     const client = tx ?? this.prisma;
     return client.payee.update({
-      where: {id},
+      where: { id },
       data,
     });
   }
@@ -115,7 +118,7 @@ export class PayeeRepository extends BaseRepository {
   async delete(id: string, tx?: PrismaTransaction): Promise<Payee> {
     const client = tx ?? this.prisma;
     return client.payee.delete({
-      where: {id},
+      where: { id },
     });
   }
 
@@ -126,7 +129,7 @@ export class PayeeRepository extends BaseRepository {
    */
   async count(workspaceId: string): Promise<number> {
     return this.prisma.payee.count({
-      where: {workspaceId},
+      where: { workspaceId },
     });
   }
 }

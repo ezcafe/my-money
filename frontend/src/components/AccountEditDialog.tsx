@@ -3,24 +3,24 @@
  * Dialog for creating/editing accounts
  */
 
-import React, {useState, useEffect} from 'react';
-import {Box, Typography, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
-import {useMutation} from '@apollo/client/react';
-import {Dialog} from './ui/Dialog';
-import {Button} from './ui/Button';
-import {TextField} from './ui/TextField';
-import {CREATE_ACCOUNT, UPDATE_ACCOUNT} from '../graphql/mutations';
-import {GET_ACCOUNTS, GET_ACCOUNT} from '../graphql/queries';
-import type {Account} from '../hooks/useAccounts';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { useMutation } from '@apollo/client/react';
+import { Dialog } from './ui/Dialog';
+import { Button } from './ui/Button';
+import { TextField } from './ui/TextField';
+import { CREATE_ACCOUNT, UPDATE_ACCOUNT } from '../graphql/mutations';
+import { GET_ACCOUNTS, GET_ACCOUNT } from '../graphql/queries';
+import type { Account } from '../hooks/useAccounts';
 
 type AccountType = 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
 
-const ACCOUNT_TYPES: Array<{value: AccountType; label: string}> = [
-  {value: 'Cash', label: 'Cash'},
-  {value: 'CreditCard', label: 'Credit Card'},
-  {value: 'Bank', label: 'Bank'},
-  {value: 'Saving', label: 'Saving'},
-  {value: 'Loans', label: 'Loans'},
+const ACCOUNT_TYPES: Array<{ value: AccountType; label: string }> = [
+  { value: 'Cash', label: 'Cash' },
+  { value: 'CreditCard', label: 'Credit Card' },
+  { value: 'Bank', label: 'Bank' },
+  { value: 'Saving', label: 'Saving' },
+  { value: 'Loans', label: 'Loans' },
 ];
 
 /**
@@ -47,8 +47,8 @@ export function AccountEditDialog({
   const [accountType, setAccountType] = useState<AccountType>('Cash');
   const [error, setError] = useState<string | null>(null);
 
-  const [createAccount, {loading: creating}] = useMutation(CREATE_ACCOUNT, {
-    refetchQueries: [{query: GET_ACCOUNTS}],
+  const [createAccount, { loading: creating }] = useMutation(CREATE_ACCOUNT, {
+    refetchQueries: [{ query: GET_ACCOUNTS }],
     awaitRefetchQueries: true,
     onCompleted: () => {
       onSuccess();
@@ -59,8 +59,10 @@ export function AccountEditDialog({
     },
   });
 
-  const [updateAccount, {loading: updating}] = useMutation(UPDATE_ACCOUNT, {
-    refetchQueries: account ? [{query: GET_ACCOUNTS}, {query: GET_ACCOUNT, variables: {id: account.id}}] : [{query: GET_ACCOUNTS}],
+  const [updateAccount, { loading: updating }] = useMutation(UPDATE_ACCOUNT, {
+    refetchQueries: account
+      ? [{ query: GET_ACCOUNTS }, { query: GET_ACCOUNT, variables: { id: account.id } }]
+      : [{ query: GET_ACCOUNTS }],
     awaitRefetchQueries: true,
     onCompleted: () => {
       onSuccess();
@@ -111,7 +113,7 @@ export function AccountEditDialog({
           id: account.id,
           input: {
             name,
-            ...(balance !== undefined ? {initBalance: balance} : {}),
+            ...(balance !== undefined ? { initBalance: balance } : {}),
             accountType,
           },
         },
@@ -122,7 +124,7 @@ export function AccountEditDialog({
         variables: {
           input: {
             name,
-            ...(balance !== undefined ? {initBalance: balance} : {}),
+            ...(balance !== undefined ? { initBalance: balance } : {}),
             accountType,
           },
         },
@@ -131,7 +133,7 @@ export function AccountEditDialog({
   };
 
   const actions = (
-    <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end'}}>
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
       <Button onClick={onClose} disabled={loading} variant="outlined">
         Cancel
       </Button>
@@ -148,10 +150,12 @@ export function AccountEditDialog({
       title={account ? 'Edit Account' : 'Create Account'}
       actions={actions}
     >
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-        {error ? <Typography color="error" variant="body2">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {error ? (
+          <Typography color="error" variant="body2">
             {error}
-          </Typography> : null}
+          </Typography>
+        ) : null}
 
         <TextField
           label="Name"
@@ -168,7 +172,7 @@ export function AccountEditDialog({
           onChange={(e) => setInitBalance(e.target.value)}
           fullWidth
           required={false}
-          inputProps={{step: '0.01'}}
+          inputProps={{ step: '0.01' }}
         />
 
         <FormControl fullWidth>
@@ -189,4 +193,3 @@ export function AccountEditDialog({
     </Dialog>
   );
 }
-

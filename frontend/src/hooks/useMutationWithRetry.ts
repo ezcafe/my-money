@@ -3,14 +3,16 @@
  * Implements exponential backoff for transient failures
  */
 
-import {useMutation, type MutationHookOptions, type MutationTuple} from '@apollo/client/react';
-import type {DocumentNode, OperationVariables} from '@apollo/client';
+import { useMutation, type MutationHookOptions, type MutationTuple } from '@apollo/client/react';
+import type { DocumentNode, OperationVariables } from '@apollo/client';
 
 /**
  * Options for useMutationWithRetry hook
  */
-export interface UseMutationWithRetryOptions<TData = unknown, TVariables extends OperationVariables = OperationVariables>
-  extends MutationHookOptions<TData, TVariables> {
+export interface UseMutationWithRetryOptions<
+  TData = unknown,
+  TVariables extends OperationVariables = OperationVariables,
+> extends MutationHookOptions<TData, TVariables> {
   /**
    * Maximum number of retry attempts (default: 3)
    */
@@ -36,11 +38,14 @@ export interface UseMutationWithRetryOptions<TData = unknown, TVariables extends
  * @param options - Mutation options including retry configuration
  * @returns Mutation tuple with retry logic
  */
-export function useMutationWithRetry<TData = unknown, TVariables extends OperationVariables = OperationVariables>(
+export function useMutationWithRetry<
+  TData = unknown,
+  TVariables extends OperationVariables = OperationVariables,
+>(
   mutation: DocumentNode,
-  options: UseMutationWithRetryOptions<TData, TVariables> = {},
+  options: UseMutationWithRetryOptions<TData, TVariables> = {}
 ): MutationTuple<TData, TVariables> {
-  const {retryCount = 3, retryDelay = 1000, shouldRetry, ...mutationOptions} = options;
+  const { retryCount = 3, retryDelay = 1000, shouldRetry, ...mutationOptions } = options;
 
   /**
    * Default retry predicate
@@ -60,7 +65,7 @@ export function useMutationWithRetry<TData = unknown, TVariables extends Operati
     }
     // Check for 5xx status codes
     if (error && typeof error === 'object' && 'statusCode' in error) {
-      const statusCode = (error as {statusCode?: number}).statusCode;
+      const statusCode = (error as { statusCode?: number }).statusCode;
       if (typeof statusCode === 'number' && statusCode >= 500 && statusCode < 600) {
         return true;
       }
@@ -74,37 +79,40 @@ export function useMutationWithRetry<TData = unknown, TVariables extends Operati
     ...mutationOptions,
     onError: (error: unknown, ...args: unknown[]): void => {
       void (async (): Promise<void> => {
-      // Call original onError if provided
-      if (mutationOptions.onError) {
-        // Type assertion needed because Apollo Client's onError signature is complex
-        (mutationOptions.onError as unknown as (error: unknown, ...args: unknown[]) => void)(error, ...args);
-      }
+        // Call original onError if provided
+        if (mutationOptions.onError) {
+          // Type assertion needed because Apollo Client's onError signature is complex
+          (mutationOptions.onError as unknown as (error: unknown, ...args: unknown[]) => void)(
+            error,
+            ...args
+          );
+        }
 
-      // Don't retry if error shouldn't be retried
-      if (!retryPredicate(error)) {
-        return;
-      }
+        // Don't retry if error shouldn't be retried
+        if (!retryPredicate(error)) {
+          return;
+        }
 
-      // Attempt retries with exponential backoff
-      for (let attempt = 1; attempt <= retryCount; attempt++) {
-        const delay = retryDelay * Math.pow(2, attempt - 1); // Exponential backoff
-        await new Promise((resolve) => {
-          setTimeout(resolve, delay);
-        });
+        // Attempt retries with exponential backoff
+        for (let attempt = 1; attempt <= retryCount; attempt++) {
+          const delay = retryDelay * Math.pow(2, attempt - 1); // Exponential backoff
+          await new Promise((resolve) => {
+            setTimeout(resolve, delay);
+          });
 
-        try {
-          // Retry the mutation with the same variables
-          // Note: This is a simplified retry - in practice, you'd need to store
-          // the variables from the original mutation call
-          // For a complete implementation, consider using a mutation queue
-          break;
-        } catch (retryError: unknown) {
-          // If this was the last attempt, the error will be handled by the original onError
-          if (attempt === retryCount) {
-            throw retryError;
+          try {
+            // Retry the mutation with the same variables
+            // Note: This is a simplified retry - in practice, you'd need to store
+            // the variables from the original mutation call
+            // For a complete implementation, consider using a mutation queue
+            break;
+          } catch (retryError: unknown) {
+            // If this was the last attempt, the error will be handled by the original onError
+            if (attempt === retryCount) {
+              throw retryError;
+            }
           }
         }
-      }
       })();
     },
   });
@@ -112,7 +120,9 @@ export function useMutationWithRetry<TData = unknown, TVariables extends Operati
   /**
    * Wrapped mutate function with retry logic
    */
-  const mutateWithRetry = async (...args: Parameters<typeof mutate>): Promise<ReturnType<typeof mutate>> => {
+  const mutateWithRetry = async (
+    ...args: Parameters<typeof mutate>
+  ): Promise<ReturnType<typeof mutate>> => {
     let lastError: unknown;
 
     for (let attempt = 0; attempt <= retryCount; attempt++) {

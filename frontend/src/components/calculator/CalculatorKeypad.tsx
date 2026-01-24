@@ -4,25 +4,25 @@
  */
 
 import React from 'react';
-import {FormControl, Select, MenuItem, Autocomplete} from '@mui/material';
+import { FormControl, Select, MenuItem, Autocomplete } from '@mui/material';
 import Grid from '@mui/material/Grid2';
-import {ArrowForward as GoIcon} from '@mui/icons-material';
-import {MoreHorizOutlined as MoreIcon} from '@mui/icons-material';
-import {Button} from '../ui/Button';
-import {TextField} from '../ui/TextField';
+import { ArrowForward as GoIcon } from '@mui/icons-material';
+import { MoreHorizOutlined as MoreIcon } from '@mui/icons-material';
+import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
   GROUP_HEADER_STYLES,
 } from '../../utils/groupSelectOptions';
-import type {Account} from '../../hooks/useAccounts';
-import type {Category} from '../../hooks/useCategories';
+import type { Account } from '../../hooks/useAccounts';
+import type { Category } from '../../hooks/useCategories';
 
 interface CalculatorKeypadProps {
   selectedPayeeId: string;
   selectedAccountId: string;
   selectedCategoryId: string;
-  payees: Array<{id: string; name: string}>;
+  payees: Array<{ id: string; name: string }>;
   accounts: Account[];
   categories: Category[];
   useThousandSeparator: boolean;
@@ -68,7 +68,7 @@ export function CalculatorKeypad({
   return (
     <Grid container spacing={1}>
       {/* Row 1: Payee, Account, Category, ÷ */}
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <FormControl
           fullWidth
           sx={{
@@ -92,7 +92,7 @@ export function CalculatorKeypad({
           </Select>
         </FormControl>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Autocomplete<Account, false, false, false>
           options={accounts}
           getOptionLabel={(option) => option.name}
@@ -119,7 +119,7 @@ export function CalculatorKeypad({
           )}
         />
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Autocomplete<Category, false, false, false>
           options={categories}
           getOptionLabel={(option) => option.name}
@@ -146,194 +146,194 @@ export function CalculatorKeypad({
           )}
         />
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="outlined"
           onClick={() => {
             onOperationClick('/');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           ÷
         </Button>
       </Grid>
 
       {/* Row 2: 7, 8, 9, × */}
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('7');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           7
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('8');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           8
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('9');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           9
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="outlined"
           onClick={() => {
             onOperationClick('*');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           ×
         </Button>
       </Grid>
 
       {/* Row 3: 4, 5, 6, − */}
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('4');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           4
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('5');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           5
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('6');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           6
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="outlined"
           onClick={() => {
             onOperationClick('-');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           −
         </Button>
       </Grid>
 
       {/* Row 4: 1, 2, 3, + */}
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('1');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           1
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('2');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           2
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('3');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           3
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="outlined"
           onClick={() => {
             onOperationClick('+');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           +
         </Button>
       </Grid>
 
       {/* Row 5: Settings, 0, 000/., = */}
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="outlined"
           onClick={onSettingsClick}
           aria-label="Preferences"
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           <MoreIcon />
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           onClick={() => {
             onNumberClick('0');
           }}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           0
         </Button>
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         {useThousandSeparator ? (
           <Button
             fullWidth
@@ -341,7 +341,7 @@ export function CalculatorKeypad({
             onClick={() => {
               onNumberClick('000');
             }}
-            sx={{height: buttonHeight}}
+            sx={{ height: buttonHeight }}
           >
             000
           </Button>
@@ -352,20 +352,20 @@ export function CalculatorKeypad({
             onClick={() => {
               onNumberClick('.');
             }}
-            sx={{height: buttonHeight}}
+            sx={{ height: buttonHeight }}
           >
             .
           </Button>
         )}
       </Grid>
-      <Grid size={{xs: 3}}>
+      <Grid size={{ xs: 3 }}>
         <Button
           fullWidth
           variant="contained"
           color="primary"
           onClick={onEqualsClick}
           disabled={creatingTransaction || !canSubmit}
-          sx={{height: buttonHeight}}
+          sx={{ height: buttonHeight }}
         >
           {creatingTransaction ? '...' : <GoIcon />}
         </Button>
@@ -373,4 +373,3 @@ export function CalculatorKeypad({
     </Grid>
   );
 }
-

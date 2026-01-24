@@ -1,11 +1,11 @@
 import path from 'path';
-import {fileURLToPath} from 'url';
+import { fileURLToPath } from 'url';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
 import webpack from 'webpack';
-import type {Configuration} from 'webpack';
-import {config as dotenvConfig} from 'dotenv';
-import {BundleAnalyzerPlugin} from 'webpack-bundle-analyzer';
+import type { Configuration } from 'webpack';
+import { config as dotenvConfig } from 'dotenv';
+import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
 // Load environment variables from .env file
 dotenvConfig();
@@ -54,10 +54,7 @@ const config: Configuration = {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/,
-        include: [
-          path.resolve(__dirname, 'src'),
-          path.resolve(__dirname, '../shared/src'),
-        ],
+        include: [path.resolve(__dirname, 'src'), path.resolve(__dirname, '../shared/src')],
       },
       {
         test: /\.m?js$/,
@@ -109,13 +106,13 @@ const config: Configuration = {
       : []),
     new webpack.DefinePlugin({
       'process.env.REACT_APP_GRAPHQL_URL': JSON.stringify(
-        process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql',
+        process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:4000/graphql'
       ),
       'process.env.REACT_APP_OPENID_DISCOVERY_URL': JSON.stringify(
-        process.env.REACT_APP_OPENID_DISCOVERY_URL,
+        process.env.REACT_APP_OPENID_DISCOVERY_URL
       ),
       'process.env.REACT_APP_OPENID_CLIENT_ID': JSON.stringify(
-        process.env.REACT_APP_OPENID_CLIENT_ID,
+        process.env.REACT_APP_OPENID_CLIENT_ID
       ),
       // SECURITY: Client secrets should NEVER be exposed in frontend code
       // REACT_APP_OPENID_CLIENT_SECRET removed - use backend proxy for OIDC flows
@@ -201,5 +198,3 @@ const config: Configuration = {
 };
 
 export default config;
-
-

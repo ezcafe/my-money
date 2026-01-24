@@ -4,12 +4,15 @@
  * Tracks spending against budgets for accounts, categories, or payees
  */
 
-import type {PrismaClient} from '@prisma/client';
-import {prisma} from '../utils/prisma';
-import {createBudgetNotification} from './NotificationService';
-import {getContainer} from '../utils/container';
+import type { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
+import { createBudgetNotification } from './NotificationService';
+import { getContainer } from '../utils/container';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Get start of current month in server timezone
@@ -28,7 +31,15 @@ export function getCurrentMonthStart(): Date {
 export function isCurrentMonth(date: Date): boolean {
   const now = new Date();
   const monthStart = getCurrentMonthStart();
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const monthEnd = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999
+  );
   return date >= monthStart && date <= monthEnd;
 }
 
@@ -40,8 +51,12 @@ export function isCurrentMonth(date: Date): boolean {
  * @returns Spending change (positive for expenses, 0 for income or non-current-month)
  */
 function calculateSpendingChange(
-  transaction: {value: number | string; date: Date; categoryId: string | null},
-  categoryType: 'Income' | 'Expense' | null,
+  transaction: {
+    value: number | string;
+    date: Date;
+    categoryId: string | null;
+  },
+  categoryType: 'Income' | 'Expense' | null
 ): number {
   // Only count Expense transactions
   if (categoryType !== 'Expense') {
@@ -53,7 +68,10 @@ function calculateSpendingChange(
     return 0;
   }
 
-  const value = typeof transaction.value === 'string' ? parseFloat(transaction.value) : transaction.value;
+  const value =
+    typeof transaction.value === 'string'
+      ? parseFloat(transaction.value)
+      : transaction.value;
   return Math.abs(value); // Always positive for expenses
 }
 
@@ -64,12 +82,20 @@ function calculateSpendingChange(
  * @returns Array of affected budgets
  */
 async function findAffectedBudgets(
-  transaction: {accountId: string; categoryId: string | null; payeeId: string | null},
+  transaction: {
+    accountId: string;
+    categoryId: string | null;
+    payeeId: string | null;
+  },
   workspaceId: string,
-  tx: PrismaTransaction | PrismaClient,
-): Promise<Array<{id: string; amount: number; currentSpent: number}>> {
+  tx: PrismaTransaction | PrismaClient
+): Promise<Array<{ id: string; amount: number; currentSpent: number }>> {
   const budgetRepository = getContainer().getBudgetRepository(tx);
-  return budgetRepository.findAffectedByTransaction(transaction, workspaceId, tx);
+  return budgetRepository.findAffectedByTransaction(
+    transaction,
+    workspaceId,
+    tx
+  );
 }
 
 /**
@@ -80,9 +106,9 @@ async function findAffectedBudgets(
  * @param tx - Prisma transaction client
  */
 async function checkBudgetThresholds(
-  budget: {id: string; amount: number; currentSpent: number},
+  budget: { id: string; amount: number; currentSpent: number },
   userId: string,
-  tx: PrismaTransaction | PrismaClient,
+  tx: PrismaTransaction | PrismaClient
 ): Promise<void> {
   const percentage = (budget.currentSpent / budget.amount) * 100;
 
@@ -115,7 +141,12 @@ async function checkBudgetThresholds(
 
     if (!existingNotification) {
       // Create notification only for the highest threshold
-      await createBudgetNotification(userId, budget.id, highestThresholdReached, tx);
+      await createBudgetNotification(
+        userId,
+        budget.id,
+        highestThresholdReached,
+        tx
+      );
     }
   }
 }
@@ -131,7 +162,7 @@ async function checkBudgetThresholds(
 export async function recalculateBudgetBalance(
   budgetId: string,
   userId: string,
-  tx?: PrismaTransaction | PrismaClient,
+  tx?: PrismaTransaction | PrismaClient
 ): Promise<number> {
   const client = tx ?? prisma;
   const container = getContainer();
@@ -150,7 +181,7 @@ export async function recalculateBudgetBalance(
       categoryId: true,
       payeeId: true,
     },
-    tx,
+    tx
   );
 
   if (!budget) {
@@ -166,7 +197,7 @@ export async function recalculateBudgetBalance(
     23,
     59,
     59,
-    999,
+    999
   );
 
   // Build OR conditions based on budget type
@@ -177,13 +208,13 @@ export async function recalculateBudgetBalance(
   }> = [];
 
   if (budget.accountId) {
-    orConditions.push({accountId: budget.accountId});
+    orConditions.push({ accountId: budget.accountId });
   }
   if (budget.categoryId) {
-    orConditions.push({categoryId: budget.categoryId});
+    orConditions.push({ categoryId: budget.categoryId });
   }
   if (budget.payeeId) {
-    orConditions.push({payeeId: budget.payeeId});
+    orConditions.push({ payeeId: budget.payeeId });
   }
 
   // Get all matching transactions with their categories
@@ -200,15 +231,15 @@ export async function recalculateBudgetBalance(
       category: {
         categoryType: 'Expense',
       },
-      ...(orConditions.length > 0 && {OR: orConditions}),
+      ...(orConditions.length > 0 && { OR: orConditions }),
     },
     {
       include: {
         category: {
-          select: {categoryType: true},
+          select: { categoryType: true },
         },
       },
-    },
+    }
   );
 
   // Calculate total spending (only EXPENSE transactions in current month)
@@ -216,19 +247,26 @@ export async function recalculateBudgetBalance(
   for (const transaction of transactions) {
     // Double-check category type (should already be filtered, but be safe)
     const transactionWithCategory = transaction as typeof transaction & {
-      category?: {categoryType: 'Income' | 'Expense'};
+      category?: { categoryType: 'Income' | 'Expense' };
     };
-    if (transactionWithCategory.category?.categoryType === 'Expense' && isCurrentMonth(transaction.date)) {
+    if (
+      transactionWithCategory.category?.categoryType === 'Expense' &&
+      isCurrentMonth(transaction.date)
+    ) {
       const value = Number(transaction.value);
       totalSpent += Math.abs(value);
     }
   }
 
   // Update budget with recalculated amount
-  await budgetRepository.update(budgetId, {currentSpent: totalSpent}, tx);
+  await budgetRepository.update(budgetId, { currentSpent: totalSpent }, tx);
 
   // Check thresholds with updated budget
-  const budgetAmount = await budgetRepository.findUnique(budgetId, {amount: true}, tx);
+  const budgetAmount = await budgetRepository.findUnique(
+    budgetId,
+    { amount: true },
+    tx
+  );
 
   if (budgetAmount) {
     const updatedBudget = {
@@ -270,15 +308,20 @@ export async function updateBudgetForTransaction(
     date: Date;
     categoryType?: 'Income' | 'Expense' | null;
   },
-  tx?: PrismaTransaction | PrismaClient,
+  tx?: PrismaTransaction | PrismaClient
 ): Promise<void> {
   const client = tx ?? prisma;
 
   // Get category type if not provided
   const categoryRepository = getContainer().getCategoryRepository(client);
-  let categoryType: 'Income' | 'Expense' | null = transaction.categoryType ?? null;
+  let categoryType: 'Income' | 'Expense' | null =
+    transaction.categoryType ?? null;
   if (!categoryType && transaction.categoryId) {
-    const category = await categoryRepository.findById(transaction.categoryId, transaction.workspaceId, {categoryType: true});
+    const category = await categoryRepository.findById(
+      transaction.categoryId,
+      transaction.workspaceId,
+      { categoryType: true }
+    );
     categoryType = category?.categoryType ?? null;
   }
 
@@ -295,7 +338,7 @@ export async function updateBudgetForTransaction(
             date: oldTransaction.date,
             categoryId: oldTransaction.categoryId,
           },
-          oldTransaction.categoryType ?? null,
+          oldTransaction.categoryType ?? null
         )
       : 0;
     const newSpending = calculateSpendingChange(transaction, categoryType);
@@ -319,14 +362,14 @@ export async function updateBudgetForTransaction(
       payeeId: transaction.payeeId,
     },
     transaction.workspaceId,
-    client,
+    client
   );
 
   // Update each affected budget
   for (const budget of affectedBudgets) {
     const newSpent = Math.max(0, budget.currentSpent + spendingChange);
 
-    await budgetRepository.update(budget.id, {currentSpent: newSpent}, tx);
+    await budgetRepository.update(budget.id, { currentSpent: newSpent }, tx);
 
     // Check thresholds with updated budget
     const updatedBudget = {
@@ -337,4 +380,3 @@ export async function updateBudgetForTransaction(
     await checkBudgetThresholds(updatedBudget, transaction.userId, client);
   }
 }
-

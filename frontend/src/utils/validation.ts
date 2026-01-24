@@ -4,7 +4,10 @@
  * Shared validation functions are imported from @my-money/shared
  */
 
-import {validateDateRange as sharedValidateDateRange, validateReturnUrl as sharedValidateReturnUrl} from '@my-money/shared';
+import {
+  validateDateRange as sharedValidateDateRange,
+  validateReturnUrl as sharedValidateReturnUrl,
+} from '@my-money/shared';
 
 /**
  * Validate file type
@@ -42,8 +45,9 @@ export function validateDateRange(startDate: Date | string, endDate: Date | stri
  * @param defaultUrl - Default URL to return if validation fails (default: '/')
  * @returns Validated URL or default URL if validation fails
  */
-export function validateReturnUrl(url: string | null | undefined, defaultUrl: string = '/'): string {
+export function validateReturnUrl(
+  url: string | null | undefined,
+  defaultUrl: string = '/'
+): string {
   return sharedValidateReturnUrl(url, defaultUrl);
 }
-
-

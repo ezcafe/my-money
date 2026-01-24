@@ -3,10 +3,10 @@
  * Handles adding example data to the database
  */
 
-import type {GraphQLContext} from '../middleware/context';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
-import {sanitizeUserInput} from '../utils/sanitization';
-import {getUserDefaultWorkspace} from '../services/WorkspaceService';
+import type { GraphQLContext } from '../middleware/context';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import { sanitizeUserInput } from '../utils/sanitization';
+import { getUserDefaultWorkspace } from '../services/WorkspaceService';
 
 export class ExampleDataResolver {
   /**
@@ -17,8 +17,14 @@ export class ExampleDataResolver {
    * @param context - GraphQL context with user and database access
    * @returns True if successful
    */
-  async addExampleData(_: unknown, __: unknown, context: GraphQLContext): Promise<boolean> {
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+  async addExampleData(
+    _: unknown,
+    __: unknown,
+    context: GraphQLContext
+  ): Promise<boolean> {
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     await withPrismaErrorHandling(
       async () =>
@@ -119,7 +125,7 @@ export class ExampleDataResolver {
             }
           }
         }),
-      {resource: 'ExampleData', operation: 'create'},
+      { resource: 'ExampleData', operation: 'create' }
     );
 
     return true;

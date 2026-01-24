@@ -3,12 +3,31 @@
  * Handles chart type selection and rendering of various chart types
  */
 
-import React, {useCallback, useMemo, use, useState, useEffect} from 'react';
-import {Box, Typography, ToggleButton, ToggleButtonGroup, CircularProgress, useTheme, IconButton, useMediaQuery} from '@mui/material';
-import {ShowChart, BarChart as BarChartIcon, TrendingUp, TrendingDown, DonutLarge, Layers, Timeline, ZoomIn, Close} from '@mui/icons-material';
-import {Card} from '../ui/Card';
-import {SankeyChart} from '../SankeyChart';
-import {Dialog} from '../ui/Dialog';
+import React, { useCallback, useMemo, use, useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+  CircularProgress,
+  useTheme,
+  IconButton,
+  useMediaQuery,
+} from '@mui/material';
+import {
+  ShowChart,
+  BarChart as BarChartIcon,
+  TrendingUp,
+  TrendingDown,
+  DonutLarge,
+  Layers,
+  Timeline,
+  ZoomIn,
+  Close,
+} from '@mui/icons-material';
+import { Card } from '../ui/Card';
+import { SankeyChart } from '../SankeyChart';
+import { Dialog } from '../ui/Dialog';
 import type {
   ChartDataPoint,
   PieChartDataPoint,
@@ -35,7 +54,9 @@ interface Budget {
  */
 interface ReportChartsProps {
   chartType: 'line' | 'bar' | 'pie' | 'sankey' | 'stacked' | 'area' | 'categoryBreakdown';
-  onChartTypeChange: (type: 'line' | 'bar' | 'pie' | 'sankey' | 'stacked' | 'area' | 'categoryBreakdown') => void;
+  onChartTypeChange: (
+    type: 'line' | 'bar' | 'pie' | 'sankey' | 'stacked' | 'area' | 'categoryBreakdown'
+  ) => void;
   chartData: ChartDataPoint[];
   pieChartData: PieChartDataPoint[];
   budgetChartData: BudgetChartDataPoint[];
@@ -73,7 +94,12 @@ interface CustomTooltipProps {
 /**
  * Custom Tooltip Component
  */
-const CustomTooltip = ({active, payload, currency, formatCurrencyAbbreviated}: CustomTooltipProps): React.JSX.Element | null => {
+const CustomTooltip = ({
+  active,
+  payload,
+  currency,
+  formatCurrencyAbbreviated,
+}: CustomTooltipProps): React.JSX.Element | null => {
   if (active && payload && payload.length > 0) {
     const payloadData = payload[0]?.payload;
     const date = payloadData?.date ?? '';
@@ -88,7 +114,7 @@ const CustomTooltip = ({active, payload, currency, formatCurrencyAbbreviated}: C
           boxShadow: 2,
         }}
       >
-        <Typography variant="body2" sx={{mb: 1}}>
+        <Typography variant="body2" sx={{ mb: 1 }}>
           <strong>{date}</strong>
         </Typography>
         {payload.map((entry, index) => {
@@ -99,7 +125,7 @@ const CustomTooltip = ({active, payload, currency, formatCurrencyAbbreviated}: C
             <Typography
               key={index}
               variant="body2"
-              sx={{color: entry.color ?? 'text.primary', mb: 0.5}}
+              sx={{ color: entry.color ?? 'text.primary', mb: 0.5 }}
             >
               {entry.name}: {formatCurrencyAbbreviated(Number(entry.value), currency)}
             </Typography>
@@ -170,30 +196,46 @@ export function ReportCharts({
   const rechartsPromise = useMemo(() => import('recharts'), []);
   const recharts = use(rechartsPromise);
 
-  const rechartsComponents = useMemo(() => ({
-    LineChart: recharts.LineChart,
-    Line: recharts.Line,
-    BarChart: recharts.BarChart,
-    Bar: recharts.Bar,
-    PieChart: recharts.PieChart,
-    Pie: recharts.Pie,
-    Cell: recharts.Cell,
-    XAxis: recharts.XAxis,
-    YAxis: recharts.YAxis,
-    CartesianGrid: recharts.CartesianGrid,
-    Tooltip: recharts.Tooltip,
-    Legend: recharts.Legend,
-    ResponsiveContainer: recharts.ResponsiveContainer,
-    AreaChart: recharts.AreaChart,
-    Area: recharts.Area,
-  }), [recharts]);
+  const rechartsComponents = useMemo(
+    () => ({
+      LineChart: recharts.LineChart,
+      Line: recharts.Line,
+      BarChart: recharts.BarChart,
+      Bar: recharts.Bar,
+      PieChart: recharts.PieChart,
+      Pie: recharts.Pie,
+      Cell: recharts.Cell,
+      XAxis: recharts.XAxis,
+      YAxis: recharts.YAxis,
+      CartesianGrid: recharts.CartesianGrid,
+      Tooltip: recharts.Tooltip,
+      Legend: recharts.Legend,
+      ResponsiveContainer: recharts.ResponsiveContainer,
+      AreaChart: recharts.AreaChart,
+      Area: recharts.Area,
+    }),
+    [recharts]
+  );
 
   // Memoize CustomTooltip with currency and formatter
   const CustomTooltipMemo = useCallback(
-    (props: {active?: boolean; payload?: Array<{name: string; value: number; dataKey: string; color?: string; payload?: ChartDataPoint}>}) => (
-      <CustomTooltip {...props} currency={currency} formatCurrencyAbbreviated={formatCurrencyAbbreviated} />
+    (props: {
+      active?: boolean;
+      payload?: Array<{
+        name: string;
+        value: number;
+        dataKey: string;
+        color?: string;
+        payload?: ChartDataPoint;
+      }>;
+    }) => (
+      <CustomTooltip
+        {...props}
+        currency={currency}
+        formatCurrencyAbbreviated={formatCurrencyAbbreviated}
+      />
     ),
-    [currency, formatCurrencyAbbreviated],
+    [currency, formatCurrencyAbbreviated]
   );
 
   /**
@@ -205,14 +247,20 @@ export function ReportCharts({
     (height: number): React.JSX.Element => {
       if (!rechartsComponents) {
         return (
-          <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%'}}>
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}
+          >
             <CircularProgress />
           </Box>
         );
       }
 
       if (chartType === 'sankey') {
-        return sankeyData ? <SankeyChart data={sankeyData} height={height} currency={currency} /> : <Box />;
+        return sankeyData ? (
+          <SankeyChart data={sankeyData} height={height} currency={currency} />
+        ) : (
+          <Box />
+        );
       }
 
       if (chartType === 'pie') {
@@ -224,7 +272,9 @@ export function ReportCharts({
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({name, percent}: {name: string; percent: number}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }: { name: string; percent: number }) =>
+                  `${name}: ${(percent * 100).toFixed(0)}%`
+                }
                 outerRadius={height < 600 ? 120 : 180}
                 fill="#8884d8"
                 dataKey="value"
@@ -232,15 +282,23 @@ export function ReportCharts({
                 {pieChartData.map((item, index) => {
                   const baseColor = getSeriesColor(index);
                   const opacity = hiddenSeries.has(item.name) ? 0.3 : 1;
-                  return <rechartsComponents.Cell key={`cell-${item.name}`} fill={baseColor} opacity={opacity} />;
+                  return (
+                    <rechartsComponents.Cell
+                      key={`cell-${item.name}`}
+                      fill={baseColor}
+                      opacity={opacity}
+                    />
+                  );
                 })}
               </rechartsComponents.Pie>
               <rechartsComponents.Tooltip
-                formatter={(value: unknown): string => formatCurrencyAbbreviated(Number(value), currency)}
+                formatter={(value: unknown): string =>
+                  formatCurrencyAbbreviated(Number(value), currency)
+                }
               />
               <rechartsComponents.Legend
                 onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
-                  const payload = data as {value?: unknown; dataKey?: string | number};
+                  const payload = data as { value?: unknown; dataKey?: string | number };
                   if (payload.value && typeof payload.value === 'string') {
                     handleLegendClick(payload.value);
                   }
@@ -254,7 +312,7 @@ export function ReportCharts({
                 }}
                 align="left"
                 iconSize={12}
-                wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                wrapperStyle={{ cursor: 'pointer', fontSize: '11px', opacity: 0.5 }}
               />
             </rechartsComponents.PieChart>
           </rechartsComponents.ResponsiveContainer>
@@ -264,11 +322,20 @@ export function ReportCharts({
       if (chartType === 'stacked') {
         if (budgetChartData.length === 0) {
           return (
-            <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 2}}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
               <Typography variant="body2" color="text.secondary">
                 No budget data available for the selected period
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{opacity: 0.7}}>
+              <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.7 }}>
                 Create budgets and add expense transactions to see budget vs actual comparison
               </Typography>
             </Box>
@@ -278,28 +345,35 @@ export function ReportCharts({
         return (
           <rechartsComponents.ResponsiveContainer width="100%" height="100%">
             <rechartsComponents.BarChart data={budgetChartData}>
-              <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+              <rechartsComponents.CartesianGrid
+                strokeDasharray="3 3"
+                stroke={theme.palette.divider}
+                opacity={0.3}
+              />
               <rechartsComponents.XAxis
                 dataKey="month"
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.YAxis
                 tickFormatter={formatYAxisTick}
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.Tooltip content={<CustomTooltipMemo />} />
               <rechartsComponents.Legend
                 onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
-                  const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
+                  const payload = data as {
+                    value?: unknown;
+                    dataKey?: string | number | ((obj: unknown) => unknown);
+                  };
                   if (payload.dataKey && typeof payload.dataKey === 'string') {
                     handleLegendClick(payload.dataKey);
                   }
                 }}
                 align="left"
                 iconSize={12}
-                wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                wrapperStyle={{ cursor: 'pointer', fontSize: '11px', opacity: 0.5 }}
               />
               {budgets
                 .filter((budget) => budget.categoryId)
@@ -335,32 +409,43 @@ export function ReportCharts({
         );
       }
 
-      if (chartType === 'area' && rechartsComponents?.AreaChart !== undefined && rechartsComponents?.Area !== undefined) {
+      if (
+        chartType === 'area' &&
+        rechartsComponents?.AreaChart !== undefined &&
+        rechartsComponents?.Area !== undefined
+      ) {
         return (
           <rechartsComponents.ResponsiveContainer width="100%" height="100%">
             <rechartsComponents.AreaChart data={chartData}>
-              <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+              <rechartsComponents.CartesianGrid
+                strokeDasharray="3 3"
+                stroke={theme.palette.divider}
+                opacity={0.3}
+              />
               <rechartsComponents.XAxis
                 dataKey="date"
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.YAxis
                 tickFormatter={formatYAxisTick}
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.Tooltip content={<CustomTooltipMemo />} />
               <rechartsComponents.Legend
                 onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
-                  const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
+                  const payload = data as {
+                    value?: unknown;
+                    dataKey?: string | number | ((obj: unknown) => unknown);
+                  };
                   if (payload.dataKey && typeof payload.dataKey === 'string') {
                     handleLegendClick(payload.dataKey);
                   }
                 }}
                 align="left"
                 iconSize={12}
-                wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                wrapperStyle={{ cursor: 'pointer', fontSize: '11px', opacity: 0.5 }}
               />
               <rechartsComponents.Area
                 type="monotone"
@@ -391,21 +476,27 @@ export function ReportCharts({
         return (
           <rechartsComponents.ResponsiveContainer width="100%" height="100%">
             <rechartsComponents.BarChart data={pieChartData} layout="vertical">
-              <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+              <rechartsComponents.CartesianGrid
+                strokeDasharray="3 3"
+                stroke={theme.palette.divider}
+                opacity={0.3}
+              />
               <rechartsComponents.XAxis
                 type="number"
                 tickFormatter={formatYAxisTick}
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.YAxis
                 type="category"
                 dataKey="name"
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.Tooltip
-                formatter={(value: unknown): string => formatCurrencyAbbreviated(Number(value), currency)}
+                formatter={(value: unknown): string =>
+                  formatCurrencyAbbreviated(Number(value), currency)
+                }
               />
               <rechartsComponents.Bar
                 dataKey="value"
@@ -415,7 +506,13 @@ export function ReportCharts({
                 {pieChartData.map((item, index) => {
                   const baseColor = getSeriesColor(index);
                   const opacity = hiddenSeries.has(item.name) ? 0.3 : 1;
-                  return <rechartsComponents.Cell key={`cell-${item.name}`} fill={baseColor} opacity={opacity} />;
+                  return (
+                    <rechartsComponents.Cell
+                      key={`cell-${item.name}`}
+                      fill={baseColor}
+                      opacity={opacity}
+                    />
+                  );
                 })}
               </rechartsComponents.Bar>
             </rechartsComponents.BarChart>
@@ -428,28 +525,35 @@ export function ReportCharts({
         <rechartsComponents.ResponsiveContainer width="100%" height="100%">
           {chartType === 'line' ? (
             <rechartsComponents.LineChart data={chartData}>
-              <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+              <rechartsComponents.CartesianGrid
+                strokeDasharray="3 3"
+                stroke={theme.palette.divider}
+                opacity={0.3}
+              />
               <rechartsComponents.XAxis
                 dataKey="date"
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.YAxis
                 tickFormatter={formatYAxisTick}
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.Tooltip content={<CustomTooltipMemo />} />
               <rechartsComponents.Legend
                 onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
-                  const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
+                  const payload = data as {
+                    value?: unknown;
+                    dataKey?: string | number | ((obj: unknown) => unknown);
+                  };
                   if (payload.dataKey && typeof payload.dataKey === 'string') {
                     handleLegendClick(payload.dataKey);
                   }
                 }}
                 align="left"
                 iconSize={12}
-                wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                wrapperStyle={{ cursor: 'pointer', fontSize: '11px', opacity: 0.5 }}
               />
               <rechartsComponents.Line
                 type="monotone"
@@ -457,8 +561,12 @@ export function ReportCharts({
                 stroke={theme.palette.success.main}
                 name="Income"
                 strokeWidth={2}
-                dot={{fill: theme.palette.success.main, r: 3, opacity: hiddenSeries.has('income') ? 0.3 : 1}}
-                activeDot={{r: 5, fill: theme.palette.success.main}}
+                dot={{
+                  fill: theme.palette.success.main,
+                  r: 3,
+                  opacity: hiddenSeries.has('income') ? 0.3 : 1,
+                }}
+                activeDot={{ r: 5, fill: theme.palette.success.main }}
                 connectNulls
                 strokeOpacity={hiddenSeries.has('income') ? 0.3 : 1}
               />
@@ -468,36 +576,47 @@ export function ReportCharts({
                 stroke={theme.palette.error.main}
                 name="Expense"
                 strokeWidth={2}
-                dot={{fill: theme.palette.error.main, r: 3, opacity: hiddenSeries.has('expense') ? 0.3 : 1}}
-                activeDot={{r: 5, fill: theme.palette.error.main}}
+                dot={{
+                  fill: theme.palette.error.main,
+                  r: 3,
+                  opacity: hiddenSeries.has('expense') ? 0.3 : 1,
+                }}
+                activeDot={{ r: 5, fill: theme.palette.error.main }}
                 connectNulls
                 strokeOpacity={hiddenSeries.has('expense') ? 0.3 : 1}
               />
             </rechartsComponents.LineChart>
           ) : (
             <rechartsComponents.BarChart data={chartData}>
-              <rechartsComponents.CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.3} />
+              <rechartsComponents.CartesianGrid
+                strokeDasharray="3 3"
+                stroke={theme.palette.divider}
+                opacity={0.3}
+              />
               <rechartsComponents.XAxis
                 dataKey="date"
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.YAxis
                 tickFormatter={formatYAxisTick}
                 stroke={theme.palette.text.secondary}
-                tick={{fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5}}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 12, opacity: 0.5 }}
               />
               <rechartsComponents.Tooltip content={<CustomTooltipMemo />} />
               <rechartsComponents.Legend
                 onClick={(data: unknown, _index: number, _event: React.MouseEvent) => {
-                  const payload = data as {value?: unknown; dataKey?: string | number | ((obj: unknown) => unknown)};
+                  const payload = data as {
+                    value?: unknown;
+                    dataKey?: string | number | ((obj: unknown) => unknown);
+                  };
                   if (payload.dataKey && typeof payload.dataKey === 'string') {
                     handleLegendClick(payload.dataKey);
                   }
                 }}
                 align="left"
                 iconSize={12}
-                wrapperStyle={{cursor: 'pointer', fontSize: '11px', opacity: 0.5}}
+                wrapperStyle={{ cursor: 'pointer', fontSize: '11px', opacity: 0.5 }}
               />
               {chartSeriesKeys.map((seriesKey, index) => {
                 const opacity = hiddenSeries.has(seriesKey) ? 0.3 : 1;
@@ -534,7 +653,7 @@ export function ReportCharts({
       chartData,
       chartSeriesKeys,
       CustomTooltipMemo,
-    ],
+    ]
   );
 
   // Don't render if no filters applied, loading, or no transactions
@@ -544,7 +663,10 @@ export function ReportCharts({
 
   // Check if chart should be visible based on chart type and data availability
   const shouldShowChart =
-    (chartType !== 'sankey' && chartType !== 'pie' && chartType !== 'stacked' && chartData.length > 0) ||
+    (chartType !== 'sankey' &&
+      chartType !== 'pie' &&
+      chartType !== 'stacked' &&
+      chartData.length > 0) ||
     (chartType === 'pie' && pieChartData.length > 0) ||
     (chartType === 'sankey' && sankeyData !== null) ||
     (chartType === 'stacked' && shouldShowStackedChart);
@@ -560,8 +682,8 @@ export function ReportCharts({
 
   return (
     <>
-      <Card sx={{p: 3, mb: 3}}>
-        <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
+      <Card sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6" component="h2">
             Trends
           </Typography>
@@ -579,7 +701,13 @@ export function ReportCharts({
               value={chartType}
               exclusive
               onChange={(_, value) => {
-                if (value !== null && typeof value === 'string' && ['line', 'bar', 'pie', 'sankey', 'stacked', 'area', 'categoryBreakdown'].includes(value)) {
+                if (
+                  value !== null &&
+                  typeof value === 'string' &&
+                  ['line', 'bar', 'pie', 'sankey', 'stacked', 'area', 'categoryBreakdown'].includes(
+                    value
+                  )
+                ) {
                   onChartTypeChange(value as typeof chartType);
                 }
               }}
@@ -615,15 +743,13 @@ export function ReportCharts({
               }}
               size="small"
               aria-label="Zoom chart to fullscreen"
-              sx={{ml: 1}}
+              sx={{ ml: 1 }}
             >
               <ZoomIn />
             </IconButton>
           </Box>
         </Box>
-        <Box sx={{width: '100%', height: 400}}>
-          {renderChart(400)}
-        </Box>
+        <Box sx={{ width: '100%', height: 400 }}>{renderChart(400)}</Box>
         {/* Chart Descriptions - Hidden when printing */}
         <Box
           sx={{
@@ -633,13 +759,19 @@ export function ReportCharts({
             },
           }}
         >
-          <Typography variant="body2" color="text.secondary" sx={{fontSize: '0.875rem'}}>
-            {chartType === 'line' && 'Visualizes income and expense trends over time to identify patterns and seasonal variations'}
-            {chartType === 'area' && 'Shows cumulative income and expense trends with filled areas for better visual impact'}
-            {chartType === 'pie' && 'Shows the proportion of expenses across different categories to identify spending patterns'}
-            {chartType === 'stacked' && 'Compares budgeted amounts with actual spending to track financial discipline'}
-            {chartType === 'categoryBreakdown' && 'Displays category spending in horizontal bars for easy comparison of expense amounts'}
-            {chartType === 'sankey' && 'Illustrates cash flow from income sources through categories to expenses, showing how money moves through your financial system'}
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+            {chartType === 'line' &&
+              'Visualizes income and expense trends over time to identify patterns and seasonal variations'}
+            {chartType === 'area' &&
+              'Shows cumulative income and expense trends with filled areas for better visual impact'}
+            {chartType === 'pie' &&
+              'Shows the proportion of expenses across different categories to identify spending patterns'}
+            {chartType === 'stacked' &&
+              'Compares budgeted amounts with actual spending to track financial discipline'}
+            {chartType === 'categoryBreakdown' &&
+              'Displays category spending in horizontal bars for easy comparison of expense amounts'}
+            {chartType === 'sankey' &&
+              'Illustrates cash flow from income sources through categories to expenses, showing how money moves through your financial system'}
             {chartType === 'bar' && 'Displays transaction data in bar format for easy comparison'}
           </Typography>
         </Box>
@@ -672,7 +804,14 @@ export function ReportCharts({
           },
         }}
         title={
-          <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              width: '100%',
+            }}
+          >
             <Typography variant="h6">Chart - Fullscreen</Typography>
             <IconButton
               onClick={() => {
@@ -696,7 +835,7 @@ export function ReportCharts({
             flexDirection: 'column',
           }}
         >
-          <Box sx={{width: '100%', height: '100%', flex: 1, position: 'relative'}}>
+          <Box sx={{ width: '100%', height: '100%', flex: 1, position: 'relative' }}>
             {renderChart(fullscreenHeight)}
           </Box>
         </Box>

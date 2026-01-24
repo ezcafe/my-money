@@ -3,18 +3,20 @@
  * Handles payee-related GraphQL operations
  */
 
-
-import type {GraphQLContext} from '../middleware/context';
-import type {Payee} from '@prisma/client';
-import {NotFoundError, ValidationError} from '../utils/errors';
-import {z} from 'zod';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
-import {sanitizeUserInput} from '../utils/sanitization';
-import {BaseResolver} from './BaseResolver';
-import {payeeEventEmitter} from '../events';
-import {checkWorkspaceAccess, getUserDefaultWorkspace} from '../services/WorkspaceService';
-import {publishPayeeUpdate} from './SubscriptionResolver';
-import {getContainer} from '../utils/container';
+import type { GraphQLContext } from '../middleware/context';
+import type { Payee } from '@prisma/client';
+import { NotFoundError, ValidationError } from '../utils/errors';
+import { z } from 'zod';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import { sanitizeUserInput } from '../utils/sanitization';
+import { BaseResolver } from './BaseResolver';
+import { payeeEventEmitter } from '../events';
+import {
+  checkWorkspaceAccess,
+  getUserDefaultWorkspace,
+} from '../services/WorkspaceService';
+import { publishPayeeUpdate } from './SubscriptionResolver';
+import { getContainer } from '../utils/container';
 
 const CreatePayeeInputSchema = z.object({
   name: z.string().min(1).max(255),
@@ -31,9 +33,15 @@ export class PayeeResolver extends BaseResolver {
    * Get all payees for the current workspace
    * Sorted by: isDefault (desc) → transaction count (desc) → name (asc)
    */
-  async payees(_: unknown, __: unknown, context: GraphQLContext): Promise<Payee[]> {
+  async payees(
+    _: unknown,
+    __: unknown,
+    context: GraphQLContext
+  ): Promise<Payee[]> {
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -49,14 +57,14 @@ export class PayeeResolver extends BaseResolver {
         const payeesWithCounts = await Promise.all(
           payeesList.map(async (payee) => {
             const count = await context.prisma.transaction.count({
-              where: {payeeId: payee.id},
+              where: { payeeId: payee.id },
             });
-            return {...payee, _count: {transactions: count}};
-          }),
+            return { ...payee, _count: { transactions: count } };
+          })
         );
         return payeesWithCounts;
       },
-      {resource: 'Payee', operation: 'read'},
+      { resource: 'Payee', operation: 'read' }
     );
 
     // Sort: isDefault desc → transaction count desc → name asc
@@ -66,7 +74,8 @@ export class PayeeResolver extends BaseResolver {
         return b.isDefault ? 1 : -1;
       }
       // Then by transaction count (most used first)
-      const countDiff = (b._count?.transactions ?? 0) - (a._count?.transactions ?? 0);
+      const countDiff =
+        (b._count?.transactions ?? 0) - (a._count?.transactions ?? 0);
       if (countDiff !== 0) return countDiff;
       // Finally alphabetical
       return a.name.localeCompare(b.name);
@@ -74,7 +83,7 @@ export class PayeeResolver extends BaseResolver {
 
     // Map to return type without _count
     return payees.map((payee) => {
-      const {_count, ...payeeWithoutCount} = payee;
+      const { _count, ...payeeWithoutCount } = payee;
       return payeeWithoutCount;
     });
   }
@@ -82,9 +91,15 @@ export class PayeeResolver extends BaseResolver {
   /**
    * Get payee by ID
    */
-  async payee(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Payee | null> {
+  async payee(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<Payee | null> {
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -98,13 +113,16 @@ export class PayeeResolver extends BaseResolver {
    */
   async createPayee(
     _: unknown,
-    {input}: {input: {name: string; workspaceId?: string}},
-    context: GraphQLContext,
+    { input }: { input: { name: string; workspaceId?: string } },
+    context: GraphQLContext
   ): Promise<Payee> {
     const validatedInput = this.validateInput(CreatePayeeInputSchema, input);
 
     // Get workspace ID from input or context (default to user's default workspace)
-    const workspaceId = validatedInput.workspaceId ?? context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      validatedInput.workspaceId ??
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -113,7 +131,9 @@ export class PayeeResolver extends BaseResolver {
 
     // Check if payee with same name already exists in this workspace
     const existingPayees = await payeeRepository.findMany(workspaceId);
-    const nameExists = existingPayees.some((payee) => payee.name === validatedInput.name);
+    const nameExists = existingPayees.some(
+      (payee) => payee.name === validatedInput.name
+    );
 
     if (nameExists) {
       throw new ValidationError('Payee with this name already exists');
@@ -128,7 +148,7 @@ export class PayeeResolver extends BaseResolver {
           createdBy: context.userId,
           lastEditedBy: context.userId,
         }),
-      {resource: 'Payee', operation: 'create'},
+      { resource: 'Payee', operation: 'create' }
     );
 
     // Emit event after payee creation
@@ -143,13 +163,18 @@ export class PayeeResolver extends BaseResolver {
    */
   async updatePayee(
     _: unknown,
-    {id, input}: {id: string; input: {name?: string; expectedVersion?: number}},
-    context: GraphQLContext,
+    {
+      id,
+      input,
+    }: { id: string; input: { name?: string; expectedVersion?: number } },
+    context: GraphQLContext
   ): Promise<Payee> {
     const validatedInput = this.validateInput(UpdatePayeeInputSchema, input);
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -163,13 +188,15 @@ export class PayeeResolver extends BaseResolver {
     }
 
     // Store old payee for event and version tracking
-    const oldPayee = {...existingPayee};
+    const oldPayee = { ...existingPayee };
     const versionService = getContainer().getVersionService(context.prisma);
 
     // Prepare new payee data
     const newPayeeData = {
       ...existingPayee,
-      ...(validatedInput.name !== undefined && {name: sanitizeUserInput(validatedInput.name)}),
+      ...(validatedInput.name !== undefined && {
+        name: sanitizeUserInput(validatedInput.name),
+      }),
       version: existingPayee.version + 1,
       lastEditedBy: context.userId,
     };
@@ -182,13 +209,15 @@ export class PayeeResolver extends BaseResolver {
       validatedInput.expectedVersion,
       existingPayee as unknown as Record<string, unknown>,
       newPayeeData as unknown as Record<string, unknown>,
-      workspaceId,
+      workspaceId
     );
 
     // Check name uniqueness if name is being updated
     if (validatedInput.name && validatedInput.name !== existingPayee.name) {
       const existingPayees = await payeeRepository.findMany(workspaceId);
-      const nameExists = existingPayees.some((payee) => payee.id !== id && payee.name === validatedInput.name);
+      const nameExists = existingPayees.some(
+        (payee) => payee.id !== id && payee.name === validatedInput.name
+      );
 
       if (nameExists) {
         throw new ValidationError('Payee with this name already exists');
@@ -206,19 +235,21 @@ export class PayeeResolver extends BaseResolver {
         existingPayee as unknown as Record<string, unknown>,
         newPayeeData as unknown as Record<string, unknown>,
         context.userId,
-        tx,
+        tx
       );
 
       const txPayeeRepository = getContainer().getPayeeRepository(tx);
       await txPayeeRepository.update(id, {
-        ...(validatedInput.name !== undefined && {name: sanitizeUserInput(validatedInput.name)}),
+        ...(validatedInput.name !== undefined && {
+          name: sanitizeUserInput(validatedInput.name),
+        }),
       });
 
       // Increment version and update lastEditedBy
       await tx.payee.update({
-        where: {id},
+        where: { id },
         data: {
-          version: {increment: 1},
+          version: { increment: 1 },
           lastEditedBy: context.userId,
         },
       });
@@ -241,9 +272,15 @@ export class PayeeResolver extends BaseResolver {
   /**
    * Delete payee (cannot delete default payees)
    */
-  async deletePayee(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
+  async deletePayee(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<boolean> {
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -257,7 +294,7 @@ export class PayeeResolver extends BaseResolver {
     }
 
     // Store payee for event before deletion
-    const payeeToDelete = {...payee};
+    const payeeToDelete = { ...payee };
 
     await payeeRepository.delete(id);
 
@@ -271,7 +308,11 @@ export class PayeeResolver extends BaseResolver {
   /**
    * Field resolver for versions
    */
-  async versions(parent: Payee, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async versions(
+    parent: Payee,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     const versionService = getContainer().getVersionService(context.prisma);
     return versionService.getEntityVersions('Payee', parent.id);
   }
@@ -279,15 +320,22 @@ export class PayeeResolver extends BaseResolver {
   /**
    * Field resolver for createdBy
    */
-  async createdBy(parent: Payee, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async createdBy(
+    parent: Payee,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     return context.userLoader.load(parent.createdBy);
   }
 
   /**
    * Field resolver for lastEditedBy
    */
-  async lastEditedBy(parent: Payee, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async lastEditedBy(
+    parent: Payee,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     return context.userLoader.load(parent.lastEditedBy);
   }
 }
-

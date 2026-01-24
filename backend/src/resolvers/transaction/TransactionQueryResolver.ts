@@ -3,17 +3,20 @@
  * Handles all transaction-related GraphQL queries
  */
 
-import type {GraphQLContext} from '../../middleware/context';
-import type {Transaction} from '@prisma/client';
-import {NotFoundError} from '../../utils/errors';
-import {withPrismaErrorHandling} from '../../utils/prismaErrors';
-import {buildOrderBy} from '../../utils/queryBuilder';
-import {BaseResolver} from '../BaseResolver';
+import type { GraphQLContext } from '../../middleware/context';
+import type { Transaction } from '@prisma/client';
+import { NotFoundError } from '../../utils/errors';
+import { withPrismaErrorHandling } from '../../utils/prismaErrors';
+import { buildOrderBy } from '../../utils/queryBuilder';
+import { BaseResolver } from '../BaseResolver';
 import * as postgresCache from '../../utils/postgresCache';
-import {transactionQueryKey, hashFilters} from '../../utils/cacheKeys';
-import {checkWorkspaceAccess, getUserDefaultWorkspace} from '../../services/WorkspaceService';
-import {getContainer} from '../../utils/container';
-import {CACHE_TAGS} from '../../utils/cacheTags';
+import { transactionQueryKey, hashFilters } from '../../utils/cacheKeys';
+import {
+  checkWorkspaceAccess,
+  getUserDefaultWorkspace,
+} from '../../services/WorkspaceService';
+import { getContainer } from '../../utils/container';
+import { CACHE_TAGS } from '../../utils/cacheTags';
 
 /**
  * Transaction Query Resolver
@@ -43,11 +46,19 @@ export class TransactionQueryResolver extends BaseResolver {
       after?: string;
       last?: number;
       before?: string;
-      orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'};
+      orderBy?: {
+        field: 'date' | 'value' | 'category' | 'account' | 'payee';
+        direction: 'asc' | 'desc';
+      };
       note?: string;
     },
-    context: GraphQLContext,
-  ): Promise<{items: Transaction[]; totalCount: number; hasMore: boolean; nextCursor: string | null}> {
+    context: GraphQLContext
+  ): Promise<{
+    items: Transaction[];
+    totalCount: number;
+    hasMore: boolean;
+    nextCursor: string | null;
+  }> {
     // Cursor-based pagination (offset-based for compatibility)
     // Note: For better performance with large datasets, consider migrating to true cursor-based
     // pagination using record IDs or timestamps instead of offsets
@@ -57,7 +68,9 @@ export class TransactionQueryResolver extends BaseResolver {
     // Parse cursor (base64 encoded JSON with offset and orderBy info)
     if (after) {
       try {
-        const cursorData = JSON.parse(Buffer.from(after, 'base64').toString('utf-8')) as {offset: number; orderBy?: string};
+        const cursorData = JSON.parse(
+          Buffer.from(after, 'base64').toString('utf-8')
+        ) as { offset: number; orderBy?: string };
         offset = cursorData.offset ?? 0;
         // Validate orderBy matches if provided in cursor
         if (cursorData.orderBy && orderBy) {
@@ -70,20 +83,28 @@ export class TransactionQueryResolver extends BaseResolver {
       } catch {
         // Fallback to simple offset parsing for backward compatibility
         try {
-          offset = Number.parseInt(Buffer.from(after, 'base64').toString('utf-8'), 10);
+          offset = Number.parseInt(
+            Buffer.from(after, 'base64').toString('utf-8'),
+            10
+          );
         } catch {
           offset = 0;
         }
       }
     } else if (before) {
       try {
-        const cursorData = JSON.parse(Buffer.from(before, 'base64').toString('utf-8')) as {offset: number; orderBy?: string};
+        const cursorData = JSON.parse(
+          Buffer.from(before, 'base64').toString('utf-8')
+        ) as { offset: number; orderBy?: string };
         const beforeOffset = cursorData.offset ?? 0;
         offset = Math.max(0, beforeOffset - (last ?? 20));
       } catch {
         // Fallback to simple offset parsing for backward compatibility
         try {
-          const beforeOffset = Number.parseInt(Buffer.from(before, 'base64').toString('utf-8'), 10);
+          const beforeOffset = Number.parseInt(
+            Buffer.from(before, 'base64').toString('utf-8'),
+            10
+          );
           offset = Math.max(0, beforeOffset - (last ?? 20));
         } catch {
           offset = 0;
@@ -92,7 +113,9 @@ export class TransactionQueryResolver extends BaseResolver {
     }
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -101,24 +124,28 @@ export class TransactionQueryResolver extends BaseResolver {
     const MAX_PAGE_SIZE = 100;
     limit = Math.min(limit, MAX_PAGE_SIZE);
     const container = getContainer();
-    const transactionRepository = container.getTransactionRepository(context.prisma);
+    const transactionRepository = container.getTransactionRepository(
+      context.prisma
+    );
     const categoryRepository = container.getCategoryRepository(context.prisma);
     const payeeRepository = container.getPayeeRepository(context.prisma);
     const accountRepository = container.getAccountRepository(context.prisma);
 
     const where: {
-      account: {workspaceId: string};
+      account: { workspaceId: string };
       accountId?: string;
       categoryId?: string | null;
       payeeId?: string | null;
-      note?: {contains: string; mode: 'insensitive'};
+      note?: { contains: string; mode: 'insensitive' };
     } = {
-      account: {workspaceId},
+      account: { workspaceId },
     };
 
     if (accountId) {
       // Verify account belongs to workspace
-      const account = await accountRepository.findById(accountId, workspaceId, {id: true});
+      const account = await accountRepository.findById(accountId, workspaceId, {
+        id: true,
+      });
       if (!account) {
         throw new NotFoundError('Account');
       }
@@ -127,7 +154,11 @@ export class TransactionQueryResolver extends BaseResolver {
 
     if (categoryId) {
       // Verify category exists and is accessible in workspace
-      const category = await categoryRepository.findById(categoryId, workspaceId, {id: true});
+      const category = await categoryRepository.findById(
+        categoryId,
+        workspaceId,
+        { id: true }
+      );
 
       if (!category) {
         throw new NotFoundError('Category');
@@ -138,7 +169,9 @@ export class TransactionQueryResolver extends BaseResolver {
 
     if (payeeId) {
       // Verify payee exists and is accessible in workspace
-      const payee = await payeeRepository.findById(payeeId, workspaceId, {id: true});
+      const payee = await payeeRepository.findById(payeeId, workspaceId, {
+        id: true,
+      });
 
       if (!payee) {
         throw new NotFoundError('Payee');
@@ -181,10 +214,15 @@ export class TransactionQueryResolver extends BaseResolver {
       totalCount = await transactionRepository.count(where);
 
       // Cache totalCount (fire and forget)
-      const cacheTags = [CACHE_TAGS.TRANSACTIONS(workspaceId), CACHE_TAGS.TRANSACTION_QUERIES(workspaceId)];
-      void postgresCache.set(cacheKey, totalCount, TRANSACTION_QUERY_CACHE_TTL_MS, cacheTags).catch(() => {
-        // Ignore cache errors
-      });
+      const cacheTags = [
+        CACHE_TAGS.TRANSACTIONS(workspaceId),
+        CACHE_TAGS.TRANSACTION_QUERIES(workspaceId),
+      ];
+      void postgresCache
+        .set(cacheKey, totalCount, TRANSACTION_QUERY_CACHE_TTL_MS, cacheTags)
+        .catch(() => {
+          // Ignore cache errors
+        });
     }
 
     // Always fetch items (not cached due to pagination and frequent updates)
@@ -202,10 +240,15 @@ export class TransactionQueryResolver extends BaseResolver {
     // Generate cursor for next page (base64 encoded JSON with offset and orderBy)
     // This allows validation of orderBy consistency across pagination
     const nextCursor = hasMore
-      ? Buffer.from(JSON.stringify({
-          offset: offset + limit,
-          orderBy: orderBy ? `${orderBy.field}:${orderBy.direction}` : 'date:desc',
-        }), 'utf-8').toString('base64')
+      ? Buffer.from(
+          JSON.stringify({
+            offset: offset + limit,
+            orderBy: orderBy
+              ? `${orderBy.field}:${orderBy.direction}`
+              : 'date:desc',
+          }),
+          'utf-8'
+        ).toString('base64')
       : null;
 
     return {
@@ -228,12 +271,17 @@ export class TransactionQueryResolver extends BaseResolver {
       orderBy,
     }: {
       limit?: number;
-      orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'};
+      orderBy?: {
+        field: 'date' | 'value' | 'category' | 'account' | 'payee';
+        direction: 'asc' | 'desc';
+      };
     },
-    context: GraphQLContext,
+    context: GraphQLContext
   ): Promise<Transaction[]> {
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -241,17 +289,19 @@ export class TransactionQueryResolver extends BaseResolver {
     // Build Prisma orderBy based on field type
     const prismaOrderBy = buildOrderBy(orderBy);
 
-    const transactionRepository = getContainer().getTransactionRepository(context.prisma);
+    const transactionRepository = getContainer().getTransactionRepository(
+      context.prisma
+    );
 
     // Get transactions with ordering
     // Relations are loaded via DataLoaders in GraphQL field resolvers
     // This prevents N+1 query problems and reduces memory usage
     const transactions = await transactionRepository.findMany(
-      {account: {workspaceId}},
+      { account: { workspaceId } },
       {
         take: limit,
         orderBy: prismaOrderBy,
-      },
+      }
     );
 
     return transactions;
@@ -260,14 +310,22 @@ export class TransactionQueryResolver extends BaseResolver {
   /**
    * Get transaction by ID
    */
-  async transaction(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Transaction | null> {
+  async transaction(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<Transaction | null> {
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
 
-    const transactionRepository = getContainer().getTransactionRepository(context.prisma);
+    const transactionRepository = getContainer().getTransactionRepository(
+      context.prisma
+    );
     const transaction = await transactionRepository.findById(
       id,
       workspaceId,
@@ -276,7 +334,7 @@ export class TransactionQueryResolver extends BaseResolver {
         account: true,
         category: true,
         payee: true,
-      },
+      }
     );
 
     return transaction;
@@ -289,20 +347,24 @@ export class TransactionQueryResolver extends BaseResolver {
    */
   async topUsedValues(
     _: unknown,
-    {days = 90}: {days?: number},
-    context: GraphQLContext,
-  ): Promise<Array<{value: string; count: number}>> {
+    { days = 90 }: { days?: number },
+    context: GraphQLContext
+  ): Promise<Array<{ value: string; count: number }>> {
     // Calculate start date
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
 
-    const transactionRepository = getContainer().getTransactionRepository(context.prisma);
+    const transactionRepository = getContainer().getTransactionRepository(
+      context.prisma
+    );
 
     // Use Prisma groupBy to get values with counts
     // Note: Prisma groupBy doesn't support orderBy with _count, so we sort in JavaScript
@@ -311,7 +373,7 @@ export class TransactionQueryResolver extends BaseResolver {
         await transactionRepository.groupBy(
           ['value'],
           {
-            account: {workspaceId},
+            account: { workspaceId },
             date: {
               gte: startDate,
             },
@@ -320,9 +382,9 @@ export class TransactionQueryResolver extends BaseResolver {
             _count: {
               value: true,
             },
-          },
+          }
         ),
-      {resource: 'Transaction', operation: 'topUsedValues'},
+      { resource: 'Transaction', operation: 'topUsedValues' }
     );
 
     // Sort by count descending and take top 5
@@ -346,20 +408,29 @@ export class TransactionQueryResolver extends BaseResolver {
    */
   async mostUsedTransactionDetails(
     _: unknown,
-    {amount, days = 90}: {amount: number; days?: number},
-    context: GraphQLContext,
-  ): Promise<{accountId: string | null; payeeId: string | null; categoryId: string | null; count: number} | null> {
+    { amount, days = 90 }: { amount: number; days?: number },
+    context: GraphQLContext
+  ): Promise<{
+    accountId: string | null;
+    payeeId: string | null;
+    categoryId: string | null;
+    count: number;
+  } | null> {
     // Calculate start date
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
 
-    const transactionRepository = getContainer().getTransactionRepository(context.prisma);
+    const transactionRepository = getContainer().getTransactionRepository(
+      context.prisma
+    );
 
     // Use Prisma groupBy to get combinations with counts
     // Group by accountId, payeeId, categoryId to find most common combination
@@ -368,7 +439,7 @@ export class TransactionQueryResolver extends BaseResolver {
         await transactionRepository.groupBy(
           ['accountId', 'payeeId', 'categoryId'],
           {
-            account: {workspaceId},
+            account: { workspaceId },
             value: amount, // Exact amount match
             date: {
               gte: startDate,
@@ -381,9 +452,9 @@ export class TransactionQueryResolver extends BaseResolver {
             _max: {
               date: true,
             },
-          },
+          }
         ),
-      {resource: 'Transaction', operation: 'mostUsedTransactionDetails'},
+      { resource: 'Transaction', operation: 'mostUsedTransactionDetails' }
     );
 
     if (results.length === 0) {

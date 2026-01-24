@@ -4,8 +4,8 @@
  */
 
 import DataLoader from 'dataloader';
-import {prisma} from './prisma';
-import type {Account, Category, Payee, User} from '@prisma/client';
+import { prisma } from './prisma';
+import type { Account, Category, Payee, User } from '@prisma/client';
 
 /**
  * Create a cache map with size limit to prevent unbounded memory growth
@@ -33,7 +33,10 @@ class LimitedCacheMap<K, V> implements Map<K, V> {
     return this.map.delete(key);
   }
 
-  forEach(callbackfn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown): void {
+  forEach(
+    callbackfn: (value: V, key: K, map: Map<K, V>) => void,
+    thisArg?: unknown
+  ): void {
     this.map.forEach(callbackfn, thisArg);
   }
 
@@ -89,27 +92,29 @@ const CACHE_SIZE_LIMIT = 1000; // Maximum number of items to cache per DataLoade
 export function createAccountBalanceLoader(): DataLoader<string, number> {
   return new DataLoader<string, number>(
     async (accountIds: readonly string[]): Promise<number[]> => {
-    // Fetch accounts with balance column
-    const accounts = await prisma.account.findMany({
-      where: {id: {in: [...accountIds]}},
-      select: {id: true, balance: true},
-    });
+      // Fetch accounts with balance column
+      const accounts = await prisma.account.findMany({
+        where: { id: { in: [...accountIds] } },
+        select: { id: true, balance: true },
+      });
 
-    // Create map for efficient lookup
-    const accountMap = new Map<string, number>(
-      accounts.map((account) => [account.id, Number(account.balance)]),
-    );
+      // Create map for efficient lookup
+      const accountMap = new Map<string, number>(
+        accounts.map((account) => [account.id, Number(account.balance)])
+      );
 
-    // Return balance for each account ID, defaulting to 0 if not found
-    return accountIds.map((id) => accountMap.get(id) ?? 0);
+      // Return balance for each account ID, defaulting to 0 if not found
+      return accountIds.map((id) => accountMap.get(id) ?? 0);
     },
     {
       // Type assertion needed: DataLoader's CacheMap interface expects get() to return Promise<V> | void,
       // but our LimitedCacheMap returns V | undefined. DataLoader internally handles Promises,
       // so this type mismatch is acceptable. The cache still works correctly.
       // Using a more specific type assertion instead of 'any'
-      cacheMap: new LimitedCacheMap<string, number>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, number>['cacheMap'],
-    },
+      cacheMap: new LimitedCacheMap<string, number>(
+        CACHE_SIZE_LIMIT
+      ) as unknown as DataLoader.Options<string, number>['cacheMap'],
+    }
   );
 }
 
@@ -120,18 +125,20 @@ export function createCategoryLoader(): DataLoader<string, Category | null> {
   return new DataLoader<string, Category | null>(
     async (categoryIds: readonly string[]): Promise<Array<Category | null>> => {
       const categories = await prisma.category.findMany({
-        where: {id: {in: [...categoryIds]}},
+        where: { id: { in: [...categoryIds] } },
       });
 
       const categoryMap = new Map<string, Category>(
-        categories.map((cat) => [cat.id, cat]),
+        categories.map((cat) => [cat.id, cat])
       );
       return categoryIds.map((id) => categoryMap.get(id) ?? null);
     },
     {
       // Type assertion needed: See comment in createAccountBalanceLoader for explanation
-      cacheMap: new LimitedCacheMap<string, Category | null>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, Category | null>['cacheMap'],
-    },
+      cacheMap: new LimitedCacheMap<string, Category | null>(
+        CACHE_SIZE_LIMIT
+      ) as unknown as DataLoader.Options<string, Category | null>['cacheMap'],
+    }
   );
 }
 
@@ -142,18 +149,20 @@ export function createPayeeLoader(): DataLoader<string, Payee | null> {
   return new DataLoader<string, Payee | null>(
     async (payeeIds: readonly string[]): Promise<Array<Payee | null>> => {
       const payees = await prisma.payee.findMany({
-        where: {id: {in: [...payeeIds]}},
+        where: { id: { in: [...payeeIds] } },
       });
 
       const payeeMap = new Map<string, Payee>(
-        payees.map((payee) => [payee.id, payee]),
+        payees.map((payee) => [payee.id, payee])
       );
       return payeeIds.map((id) => payeeMap.get(id) ?? null);
     },
     {
       // Type assertion needed: See comment in createAccountBalanceLoader for explanation
-      cacheMap: new LimitedCacheMap<string, Payee | null>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, Payee | null>['cacheMap'],
-    },
+      cacheMap: new LimitedCacheMap<string, Payee | null>(
+        CACHE_SIZE_LIMIT
+      ) as unknown as DataLoader.Options<string, Payee | null>['cacheMap'],
+    }
   );
 }
 
@@ -164,18 +173,20 @@ export function createAccountLoader(): DataLoader<string, Account | null> {
   return new DataLoader<string, Account | null>(
     async (accountIds: readonly string[]): Promise<Array<Account | null>> => {
       const accounts = await prisma.account.findMany({
-        where: {id: {in: [...accountIds]}},
+        where: { id: { in: [...accountIds] } },
       });
 
       const accountMap = new Map<string, Account>(
-        accounts.map((acc) => [acc.id, acc]),
+        accounts.map((acc) => [acc.id, acc])
       );
       return accountIds.map((id) => accountMap.get(id) ?? null);
     },
     {
       // Type assertion needed: See comment in createAccountBalanceLoader for explanation
-      cacheMap: new LimitedCacheMap<string, Account | null>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, Account | null>['cacheMap'],
-    },
+      cacheMap: new LimitedCacheMap<string, Account | null>(
+        CACHE_SIZE_LIMIT
+      ) as unknown as DataLoader.Options<string, Account | null>['cacheMap'],
+    }
   );
 }
 
@@ -186,18 +197,20 @@ export function createUserLoader(): DataLoader<string, User | null> {
   return new DataLoader<string, User | null>(
     async (userIds: readonly string[]): Promise<Array<User | null>> => {
       const users = await prisma.user.findMany({
-        where: {id: {in: [...userIds]}},
+        where: { id: { in: [...userIds] } },
       });
 
       const userMap = new Map<string, User>(
-        users.map((user) => [user.id, user]),
+        users.map((user) => [user.id, user])
       );
       return userIds.map((id) => userMap.get(id) ?? null);
     },
     {
       // Type assertion needed: See comment in createAccountBalanceLoader for explanation
-      cacheMap: new LimitedCacheMap<string, User | null>(CACHE_SIZE_LIMIT) as unknown as DataLoader.Options<string, User | null>['cacheMap'],
-    },
+      cacheMap: new LimitedCacheMap<string, User | null>(
+        CACHE_SIZE_LIMIT
+      ) as unknown as DataLoader.Options<string, User | null>['cacheMap'],
+    }
   );
 }
 
@@ -224,4 +237,3 @@ export function createDataLoaders(): DataLoaderContext {
     userLoader: createUserLoader(),
   };
 }
-

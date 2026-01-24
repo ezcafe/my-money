@@ -4,29 +4,32 @@
  * Uses httpOnly cookies for secure token storage
  */
 
-import type {Hono, Context, Next} from 'hono';
-import {getCookie, deleteCookie} from 'hono/cookie';
-import {getTokenEndpoint} from '../middleware/auth';
+import type { Hono, Context, Next } from 'hono';
+import { getCookie, deleteCookie } from 'hono/cookie';
+import { getTokenEndpoint } from '../middleware/auth';
 import {
   setAccessTokenCookie,
   setRefreshTokenCookie,
   clearAuthCookies,
   COOKIE_NAMES,
 } from '../middleware/cookies';
-import {logError} from '../utils/logger';
-import {checkRateLimit} from '../utils/postgresRateLimiter';
-import {ErrorCode} from '../utils/errorCodes';
-import {RATE_LIMITS} from '../utils/constants';
+import { logError } from '../utils/logger';
+import { checkRateLimit } from '../utils/postgresRateLimiter';
+import { ErrorCode } from '../utils/errorCodes';
+import { RATE_LIMITS } from '../utils/constants';
 
 /**
  * Map to track ongoing refresh token operations by refresh token hash
  * Prevents concurrent refresh calls with the same token
  */
-const ongoingRefreshOperations = new Map<string, Promise<{
-  access_token?: string;
-  refresh_token?: string;
-  expires_in?: number;
-}>>();
+const ongoingRefreshOperations = new Map<
+  string,
+  Promise<{
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+  }>
+>();
 
 /**
  * Map to track tokens that are scheduled for revocation
@@ -43,14 +46,18 @@ const ongoingRefreshOperations = new Map<string, Promise<{
 function authRateLimiter() {
   return async (c: Context, next: Next): Promise<Response | void> => {
     // Get IP address for rate limiting
-    const ip = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? c.req.header('cf-connecting-ip') ?? 'unknown';
+    const ip =
+      c.req.header('x-forwarded-for') ??
+      c.req.header('x-real-ip') ??
+      c.req.header('cf-connecting-ip') ??
+      'unknown';
     const key = `auth:${ip}`;
 
     try {
       const result = await checkRateLimit(
         key,
         RATE_LIMITS.AUTH,
-        RATE_LIMITS.WINDOW_MS,
+        RATE_LIMITS.WINDOW_MS
       );
 
       if (!result.allowed) {
@@ -61,7 +68,7 @@ function authRateLimiter() {
             error: 'Too many authentication requests, please try again later',
             message: `Authentication rate limit exceeded, retry in ${ttl} seconds`,
           },
-          429,
+          429
         );
       }
 
@@ -97,7 +104,9 @@ export function registerAuthRoutes(app: Hono): void {
       const state = c.req.query('state');
 
       if (!code) {
-        return c.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=missing_code`);
+        return c.redirect(
+          `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=missing_code`
+        );
       }
 
       const clientId = process.env.OPENID_CLIENT_ID ?? '';
@@ -110,7 +119,9 @@ export function registerAuthRoutes(app: Hono): void {
         logError('Code verifier not found in cookies', {
           event: 'code_verifier_missing',
         });
-        return c.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=code_verifier_missing`);
+        return c.redirect(
+          `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=code_verifier_missing`
+        );
       }
 
       // Exchange authorization code for tokens
@@ -140,7 +151,9 @@ export function registerAuthRoutes(app: Hono): void {
         logError('Token endpoint not found in OIDC configuration', {
           event: 'token_endpoint_missing',
         });
-        return c.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=token_endpoint_missing`);
+        return c.redirect(
+          `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=token_endpoint_missing`
+        );
       }
       const tokenResponse = await fetch(tokenEndpoint, {
         method: 'POST',
@@ -151,13 +164,17 @@ export function registerAuthRoutes(app: Hono): void {
       });
 
       if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text().catch(() => 'Unknown error');
+        const errorText = await tokenResponse
+          .text()
+          .catch(() => 'Unknown error');
         logError('Token exchange failed', {
           event: 'token_exchange_failed',
           status: tokenResponse.status,
           error: errorText,
         });
-        return c.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=token_exchange_failed`);
+        return c.redirect(
+          `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=token_exchange_failed`
+        );
       }
 
       const tokenData = (await tokenResponse.json()) as {
@@ -180,12 +197,18 @@ export function registerAuthRoutes(app: Hono): void {
       // Redirect to frontend with success and state for validation
       const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
       const stateParam = state ? `&state=${encodeURIComponent(state)}` : '';
-      return c.redirect(`${frontendUrl}/auth/callback?success=true${stateParam}`);
+      return c.redirect(
+        `${frontendUrl}/auth/callback?success=true${stateParam}`
+      );
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error(String(err));
-      logError('OIDC callback error', {
-        event: 'oidc_callback_error',
-      }, errorObj);
+      logError(
+        'OIDC callback error',
+        {
+          event: 'oidc_callback_error',
+        },
+        errorObj
+      );
       const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
       return c.redirect(`${frontendUrl}/auth/callback?error=callback_failed`);
     }
@@ -206,14 +229,18 @@ export function registerAuthRoutes(app: Hono): void {
             error: 'No refresh token provided',
             code: 'UNAUTHORIZED',
           },
-          401,
+          401
         );
       }
 
       // Create a hash of the refresh token to use as a key for the lock
       // This prevents concurrent refresh calls with the same token
       const crypto = await import('crypto');
-      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex').substring(0, 16);
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(refreshToken)
+        .digest('hex')
+        .substring(0, 16);
 
       // Check if there's already an ongoing refresh operation for this token
       const existingOperation = ongoingRefreshOperations.get(tokenHash);
@@ -318,7 +345,7 @@ export function registerAuthRoutes(app: Hono): void {
             error: 'Token refresh failed',
             code: 'UNAUTHORIZED',
           },
-          401,
+          401
         );
       } finally {
         // Always remove from map after completion (success or failure)
@@ -355,17 +382,22 @@ export function registerAuthRoutes(app: Hono): void {
         success: true,
       });
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Token refresh error', {
-        event: 'token_refresh_error',
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Token refresh error',
+        {
+          event: 'token_refresh_error',
+        },
+        errorObj
+      );
       clearAuthCookies(c);
       return c.json(
         {
           error: 'Token refresh failed',
           code: 'INTERNAL_SERVER_ERROR',
         },
-        500,
+        500
       );
     }
   });
@@ -381,10 +413,15 @@ export function registerAuthRoutes(app: Hono): void {
         success: true,
       });
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Logout error', {
-        event: 'logout_error',
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Logout error',
+        {
+          event: 'logout_error',
+        },
+        errorObj
+      );
       // Still clear cookies even on error
       clearAuthCookies(c);
       return c.json({

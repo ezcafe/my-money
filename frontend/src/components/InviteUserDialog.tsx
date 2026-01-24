@@ -3,13 +3,13 @@
  * Dialog for inviting users to a workspace
  */
 
-import React, {useState} from 'react';
-import {Box, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
-import {useMutation} from '@apollo/client/react';
-import {Dialog} from './ui/Dialog';
-import {Button} from './ui/Button';
-import {TextField} from './ui/TextField';
-import {INVITE_USER_TO_WORKSPACE} from '../graphql/workspaceOperations';
+import React, { useState } from 'react';
+import { Box, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { useMutation } from '@apollo/client/react';
+import { Dialog } from './ui/Dialog';
+import { Button } from './ui/Button';
+import { TextField } from './ui/TextField';
+import { INVITE_USER_TO_WORKSPACE } from '../graphql/workspaceOperations';
 
 type WorkspaceRole = 'Owner' | 'Admin' | 'Member';
 
@@ -32,7 +32,7 @@ export function InviteUserDialog({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<WorkspaceRole>('Member');
 
-  const [inviteUser, {loading, error}] = useMutation(INVITE_USER_TO_WORKSPACE, {
+  const [inviteUser, { loading, error }] = useMutation(INVITE_USER_TO_WORKSPACE, {
     onCompleted: () => {
       setEmail('');
       setRole('Member');
@@ -65,7 +65,7 @@ export function InviteUserDialog({
       onClose={onClose}
       title="Invite User to Workspace"
       actions={
-        <Box sx={{display: 'flex', gap: 1}}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button onClick={onClose} disabled={loading}>
             Cancel
           </Button>
@@ -75,9 +75,9 @@ export function InviteUserDialog({
         </Box>
       }
     >
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {error ? (
-          <Box sx={{color: 'error.main', typography: 'body2'}}>{error.message}</Box>
+          <Box sx={{ color: 'error.main', typography: 'body2' }}>{error.message}</Box>
         ) : null}
 
         <TextField
@@ -95,9 +95,13 @@ export function InviteUserDialog({
 
         <FormControl fullWidth>
           <InputLabel>Role</InputLabel>
-          <Select value={role} label="Role" onChange={(e) => {
-            setRole(e.target.value as WorkspaceRole);
-          }}>
+          <Select
+            value={role}
+            label="Role"
+            onChange={(e) => {
+              setRole(e.target.value as WorkspaceRole);
+            }}
+          >
             <MenuItem value="Member">Member</MenuItem>
             <MenuItem value="Admin">Admin</MenuItem>
             <MenuItem value="Owner">Owner</MenuItem>

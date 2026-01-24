@@ -3,9 +3,9 @@
  * Provides business logic for workspace membership, permissions, and default workspace management
  */
 
-import type {WorkspaceRole, WorkspaceMember} from '@prisma/client';
-import {prisma} from '../utils/prisma';
-import {NotFoundError, ForbiddenError} from '../utils/errors';
+import type { WorkspaceRole, WorkspaceMember } from '@prisma/client';
+import { prisma } from '../utils/prisma';
+import { NotFoundError, ForbiddenError } from '../utils/errors';
 
 /**
  * Get all workspaces a user belongs to
@@ -14,8 +14,8 @@ import {NotFoundError, ForbiddenError} from '../utils/errors';
  */
 export async function getUserWorkspaces(userId: string): Promise<string[]> {
   const members = await prisma.workspaceMember.findMany({
-    where: {userId},
-    select: {workspaceId: true},
+    where: { userId },
+    select: { workspaceId: true },
   });
   return members.map((m) => m.workspaceId);
 }
@@ -26,12 +26,15 @@ export async function getUserWorkspaces(userId: string): Promise<string[]> {
  * @param userId - User ID (for permission check)
  * @returns Array of workspace members
  */
-export async function getWorkspaceMembers(workspaceId: string, userId: string): Promise<WorkspaceMember[]> {
+export async function getWorkspaceMembers(
+  workspaceId: string,
+  userId: string
+): Promise<WorkspaceMember[]> {
   // Verify user has access to workspace
   await checkWorkspaceAccess(workspaceId, userId);
 
   return prisma.workspaceMember.findMany({
-    where: {workspaceId},
+    where: { workspaceId },
     include: {
       user: {
         select: {
@@ -49,10 +52,13 @@ export async function getWorkspaceMembers(workspaceId: string, userId: string): 
  * @param userId - User ID
  * @throws NotFoundError if workspace not found or user doesn't have access
  */
-export async function checkWorkspaceAccess(workspaceId: string, userId: string): Promise<void> {
+export async function checkWorkspaceAccess(
+  workspaceId: string,
+  userId: string
+): Promise<void> {
   const workspace = await prisma.workspace.findUnique({
-    where: {id: workspaceId},
-    select: {id: true},
+    where: { id: workspaceId },
+    select: { id: true },
   });
 
   if (!workspace) {
@@ -66,7 +72,7 @@ export async function checkWorkspaceAccess(workspaceId: string, userId: string):
         userId,
       },
     },
-    select: {id: true},
+    select: { id: true },
   });
 
   if (!member) {
@@ -84,7 +90,7 @@ export async function checkWorkspaceAccess(workspaceId: string, userId: string):
 export async function checkWorkspacePermission(
   workspaceId: string,
   userId: string,
-  requiredRole: WorkspaceRole,
+  requiredRole: WorkspaceRole
 ): Promise<void> {
   // First check access
   await checkWorkspaceAccess(workspaceId, userId);
@@ -96,7 +102,7 @@ export async function checkWorkspacePermission(
         userId,
       },
     },
-    select: {role: true},
+    select: { role: true },
   });
 
   if (!member) {
@@ -129,9 +135,9 @@ export async function getUserDefaultWorkspace(userId: string): Promise<string> {
 
   // Check if user has any workspace
   const member = await prisma.workspaceMember.findFirst({
-    where: {userId},
-    select: {workspaceId: true},
-    orderBy: {joinedAt: 'asc'}, // Get first workspace (oldest)
+    where: { userId },
+    select: { workspaceId: true },
+    orderBy: { joinedAt: 'asc' }, // Get first workspace (oldest)
   });
 
   if (member) {
@@ -149,7 +155,7 @@ export async function getUserDefaultWorkspace(userId: string): Promise<string> {
         },
       },
     },
-    select: {id: true},
+    select: { id: true },
   });
 
   return workspace.id;

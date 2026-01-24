@@ -3,10 +3,13 @@
  * Handles all database operations for accounts
  */
 
-import type {Account, AccountType, PrismaClient} from '@prisma/client';
-import {BaseRepository} from './BaseRepository';
+import type { Account, AccountType, PrismaClient } from '@prisma/client';
+import { BaseRepository } from './BaseRepository';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Account Repository
@@ -23,13 +26,13 @@ export class AccountRepository extends BaseRepository {
   async findById(
     id: string,
     workspaceId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Account | null> {
     return this.findByIdWithWorkspace(
       this.prisma.account,
       id,
       workspaceId,
-      select ? {select} : undefined,
+      select ? { select } : undefined
     );
   }
 
@@ -41,12 +44,12 @@ export class AccountRepository extends BaseRepository {
    */
   async findMany(
     workspaceId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Account[]> {
     return this.findManyWithWorkspace(
       this.prisma.account,
       workspaceId,
-      select ? {select} : undefined,
+      select ? { select } : undefined
     );
   }
 
@@ -58,13 +61,13 @@ export class AccountRepository extends BaseRepository {
    */
   async findDefault(
     workspaceId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Account | null> {
     const queryOptions: {
-      where: {workspaceId: string; isDefault: boolean};
+      where: { workspaceId: string; isDefault: boolean };
       select?: Record<string, boolean>;
     } = {
-      where: {workspaceId, isDefault: true},
+      where: { workspaceId, isDefault: true },
     };
 
     if (select) {
@@ -86,13 +89,13 @@ export class AccountRepository extends BaseRepository {
     workspaceId: string,
     name: string,
     accountType: AccountType,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Account | null> {
     const queryOptions: {
-      where: {workspaceId: string; name: string; accountType: AccountType};
+      where: { workspaceId: string; name: string; accountType: AccountType };
       select?: Record<string, boolean>;
     } = {
-      where: {workspaceId, name, accountType},
+      where: { workspaceId, name, accountType },
     };
 
     if (select) {
@@ -119,10 +122,10 @@ export class AccountRepository extends BaseRepository {
       createdBy: string;
       lastEditedBy: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Account> {
     const client = this.getClient(tx);
-    return client.account.create({data});
+    return client.account.create({ data });
   }
 
   /**
@@ -141,11 +144,11 @@ export class AccountRepository extends BaseRepository {
       isDefault?: boolean;
       accountType?: 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Account> {
     const client = this.getClient(tx);
     return client.account.update({
-      where: {id},
+      where: { id },
       data,
     });
   }
@@ -159,7 +162,7 @@ export class AccountRepository extends BaseRepository {
   async delete(id: string, tx?: PrismaTransaction): Promise<Account> {
     const client = this.getClient(tx);
     return client.account.delete({
-      where: {id},
+      where: { id },
     });
   }
 
@@ -183,17 +186,17 @@ export class AccountRepository extends BaseRepository {
   async incrementBalance(
     id: string,
     delta: number,
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<number> {
     const client = tx ?? this.prisma;
     const account = await client.account.update({
-      where: {id},
+      where: { id },
       data: {
         balance: {
           increment: delta,
         },
       },
-      select: {balance: true},
+      select: { balance: true },
     });
     return Number(account.balance);
   }

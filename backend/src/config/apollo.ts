@@ -3,17 +3,20 @@
  * Configures Apollo Server with plugins and error handling
  */
 
-import {ApolloServer} from '@apollo/server';
-import type {GraphQLRequestContext, GraphQLRequestListener} from '@apollo/server';
-import {GraphQLError} from 'graphql';
+import { ApolloServer } from '@apollo/server';
+import type {
+  GraphQLRequestContext,
+  GraphQLRequestListener,
+} from '@apollo/server';
+import { GraphQLError } from 'graphql';
 import depthLimit from 'graphql-depth-limit';
-import type {GraphQLContext} from '../middleware/context';
-import {AppError} from '../utils/errors';
-import {inputSanitizationPlugin} from '../middleware/inputSanitizationPlugin';
-import {validationPlugin} from '../middleware/validationPlugin';
-import {queryComplexityPlugin} from '../middleware/queryComplexityPlugin';
-import {queryCostPlugin} from '../middleware/queryCostPlugin';
-import {graphqlCachePlugin} from '../middleware/graphqlCachePlugin';
+import type { GraphQLContext } from '../middleware/context';
+import { AppError } from '../utils/errors';
+import { inputSanitizationPlugin } from '../middleware/inputSanitizationPlugin';
+import { validationPlugin } from '../middleware/validationPlugin';
+import { queryComplexityPlugin } from '../middleware/queryComplexityPlugin';
+import { queryCostPlugin } from '../middleware/queryCostPlugin';
+import { graphqlCachePlugin } from '../middleware/graphqlCachePlugin';
 
 /**
  * Create Apollo Server instance
@@ -23,7 +26,7 @@ import {graphqlCachePlugin} from '../middleware/graphqlCachePlugin';
  */
 export function createApolloServer(
   typeDefs: string,
-  resolvers: unknown,
+  resolvers: unknown
 ): ApolloServer<GraphQLContext | Record<string, never>> {
   return new ApolloServer<GraphQLContext | Record<string, never>>({
     typeDefs,
@@ -31,9 +34,7 @@ export function createApolloServer(
     // Disable introspection in production for security
     introspection: process.env.NODE_ENV !== 'production',
     // Query depth limiting - prevent deeply nested queries
-    validationRules: [
-      depthLimit(10, {ignore: ['__typename']}),
-    ],
+    validationRules: [depthLimit(10, { ignore: ['__typename'] })],
     plugins: [
       // Cache plugin should be early to check cache before other processing
       graphqlCachePlugin(),
@@ -49,18 +50,29 @@ export function createApolloServer(
         costMultiplierPerDepth: 0.5,
       }),
       {
-        requestDidStart(_requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>> {
+        requestDidStart(
+          _requestContext: GraphQLRequestContext<
+            GraphQLContext | Record<string, never>
+          >
+        ): Promise<
+          GraphQLRequestListener<GraphQLContext | Record<string, never>>
+        > {
           // Store requestId for error formatting (generate if not available)
           const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
           return Promise.resolve({
             didEncounterErrors(
-              errorContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+              errorContext: GraphQLRequestContext<
+                GraphQLContext | Record<string, never>
+              >
             ): void {
               // Format custom errors properly
               if (errorContext.errors) {
                 errorContext.errors.forEach((error) => {
-                  if ('originalError' in error && error.originalError instanceof AppError) {
+                  if (
+                    'originalError' in error &&
+                    error.originalError instanceof AppError
+                  ) {
                     // Create new error with proper extensions
                     Object.assign(error, {
                       extensions: {
@@ -73,7 +85,10 @@ export function createApolloServer(
                     });
                   } else {
                     // Add requestId and timestamp to all errors
-                    const extensions = error.extensions && typeof error.extensions === 'object' ? error.extensions as Record<string, unknown> : {};
+                    const extensions =
+                      error.extensions && typeof error.extensions === 'object'
+                        ? (error.extensions as Record<string, unknown>)
+                        : {};
                     Object.assign(error, {
                       extensions: {
                         ...extensions,
@@ -125,4 +140,3 @@ export function createApolloServer(
     },
   });
 }
-

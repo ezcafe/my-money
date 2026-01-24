@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import {Autocomplete, TextField, Chip} from '@mui/material';
+import { Autocomplete, TextField, Chip } from '@mui/material';
 
 /**
  * Option type for MultiSelect
@@ -82,23 +82,13 @@ export function MultiSelect({
       onChange={handleChange}
       disabled={disabled}
       renderInput={(params) => (
-        <TextField
-          {...params}
-          label={label}
-          required={required}
-          placeholder={placeholder}
-        />
+        <TextField {...params} label={label} required={required} placeholder={placeholder} />
       )}
       renderTags={(tagValue, getTagProps) =>
         tagValue.map((option, index) => (
-          <Chip
-            {...getTagProps({index})}
-            key={option.id}
-            label={option.name}
-          />
+          <Chip {...getTagProps({ index })} key={option.id} label={option.name} />
         ))
       }
     />
   );
 }
-

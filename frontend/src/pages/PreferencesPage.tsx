@@ -3,15 +3,37 @@
  * Allows user to change currency, toggle 000/decimal, manage categories, payees, schedule, and logout
  */
 
-import React, {useState, useEffect, useRef} from 'react';
-import {useNavigate} from 'react-router';
-import {Box, Typography, ToggleButtonGroup, ToggleButton, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, TextField, Button, Tooltip, CircularProgress, Stack, Select, MenuItem, FormControl, InputLabel, Popover, IconButton} from '@mui/material';
-import {useQuery, useMutation, useLazyQuery} from '@apollo/client/react';
-import {Card} from '../components/ui/Card';
-import {Dialog} from '../components/ui/Dialog';
-import {ColorSchemePicker} from '../components/ui/ColorSchemePicker';
-import {logout} from '../utils/oidc';
-import {CURRENCIES, type Currency} from '../utils/currencies';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router';
+import {
+  Box,
+  Typography,
+  ToggleButtonGroup,
+  ToggleButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Divider,
+  Autocomplete,
+  TextField,
+  Button,
+  Tooltip,
+  CircularProgress,
+  Stack,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Popover,
+  IconButton,
+} from '@mui/material';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import { Card } from '../components/ui/Card';
+import { Dialog } from '../components/ui/Dialog';
+import { ColorSchemePicker } from '../components/ui/ColorSchemePicker';
+import { logout } from '../utils/oidc';
+import { CURRENCIES, type Currency } from '../utils/currencies';
 import {
   GET_PREFERENCES,
   EXPORT_DATA,
@@ -25,15 +47,29 @@ import {
   GET_TRANSACTIONS,
   GET_REPORT_TRANSACTIONS,
 } from '../graphql/queries';
-import {UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA, ADD_EXAMPLE_DATA} from '../graphql/mutations';
-import {GET_WORKSPACES, GET_WORKSPACE_MEMBERS} from '../graphql/workspaceOperations';
-import {AccountBalance, Category, Person, Schedule, Upload, Download, Logout, RestartAlt, AttachMoney, HelpOutline, Settings, DataObject, Security} from '@mui/icons-material';
-import {useNotifications} from '../contexts/NotificationContext';
-import type {DateFormat} from '../contexts/DateFormatContext';
-import {DEFAULT_DATE_FORMAT} from '../contexts/DateFormatContext';
-import {PageContainer} from '../components/common/PageContainer';
-import {WorkspaceSelector} from '../components/WorkspaceSelector';
-import {MultiSelect} from '../components/ui/MultiSelect';
+import { UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA, ADD_EXAMPLE_DATA } from '../graphql/mutations';
+import { GET_WORKSPACES, GET_WORKSPACE_MEMBERS } from '../graphql/workspaceOperations';
+import {
+  AccountBalance,
+  Category,
+  Person,
+  Schedule,
+  Upload,
+  Download,
+  Logout,
+  RestartAlt,
+  AttachMoney,
+  HelpOutline,
+  Settings,
+  DataObject,
+  Security,
+} from '@mui/icons-material';
+import { useNotifications } from '../contexts/NotificationContext';
+import type { DateFormat } from '../contexts/DateFormatContext';
+import { DEFAULT_DATE_FORMAT } from '../contexts/DateFormatContext';
+import { PageContainer } from '../components/common/PageContainer';
+import { WorkspaceSelector } from '../components/WorkspaceSelector';
+import { MultiSelect } from '../components/ui/MultiSelect';
 
 /**
  * Export data type from GraphQL
@@ -130,7 +166,7 @@ interface ImportCSVResult {
  * Displays a help icon with tooltip on hover (desktop) and popover on click (mobile)
  * @param helpText - The help text to display
  */
-function HelpIcon({helpText}: {helpText: string}): React.JSX.Element {
+function HelpIcon({ helpText }: { helpText: string }): React.JSX.Element {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const open = Boolean(anchorEl);
 
@@ -197,16 +233,23 @@ function HelpIcon({helpText}: {helpText: string}): React.JSX.Element {
  */
 export function PreferencesPage(): React.JSX.Element {
   const navigate = useNavigate();
-  const {showSuccessNotification, showErrorNotification} = useNotifications();
-  const {data: preferencesData, loading: preferencesLoading} = useQuery<{
-    preferences?: {currency: string; useThousandSeparator: boolean; dateFormat: string | null};
+  const { showSuccessNotification, showErrorNotification } = useNotifications();
+  const { data: preferencesData, loading: preferencesLoading } = useQuery<{
+    preferences?: { currency: string; useThousandSeparator: boolean; dateFormat: string | null };
   }>(GET_PREFERENCES);
-  const [updatePreferences, {loading: updating}] = useMutation<{
-    updatePreferences: {id: string; currency: string; useThousandSeparator: boolean; colorScheme: string | null; colorSchemeValue: string | null; dateFormat: string | null};
+  const [updatePreferences, { loading: updating }] = useMutation<{
+    updatePreferences: {
+      id: string;
+      currency: string;
+      useThousandSeparator: boolean;
+      colorScheme: string | null;
+      colorSchemeValue: string | null;
+      dateFormat: string | null;
+    };
   }>(UPDATE_PREFERENCES, {
     refetchQueries: ['GetPreferences'],
     awaitRefetchQueries: true,
-    update: (cache, {data}) => {
+    update: (cache, { data }) => {
       if (data?.updatePreferences) {
         // Explicitly write to cache - this ensures the cache is updated before refetchQueries runs
         cache.writeQuery({
@@ -238,7 +281,7 @@ export function PreferencesPage(): React.JSX.Element {
   const [exportDataQuery] = useLazyQuery<ExportDataQueryResult>(EXPORT_DATA);
 
   // Workspace and member filtering for export
-  const {data: workspacesData} = useQuery<{
+  const { data: workspacesData } = useQuery<{
     workspaces: Array<{
       id: string;
       name: string;
@@ -247,7 +290,10 @@ export function PreferencesPage(): React.JSX.Element {
     fetchPolicy: 'cache-and-network',
   });
 
-  const workspaces = React.useMemo(() => workspacesData?.workspaces ?? [], [workspacesData?.workspaces]);
+  const workspaces = React.useMemo(
+    () => workspacesData?.workspaces ?? [],
+    [workspacesData?.workspaces]
+  );
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
 
@@ -261,7 +307,7 @@ export function PreferencesPage(): React.JSX.Element {
     }
   }, [workspaces, selectedWorkspaceId]);
 
-  const {data: membersData} = useQuery<{
+  const { data: membersData } = useQuery<{
     workspaceMembers: Array<{
       id: string;
       userId: string;
@@ -271,7 +317,7 @@ export function PreferencesPage(): React.JSX.Element {
       };
     }>;
   }>(GET_WORKSPACE_MEMBERS, {
-    variables: {workspaceId: selectedWorkspaceId},
+    variables: { workspaceId: selectedWorkspaceId },
     skip: !selectedWorkspaceId,
     fetchPolicy: 'cache-and-network',
   });
@@ -279,28 +325,28 @@ export function PreferencesPage(): React.JSX.Element {
   const members = membersData?.workspaceMembers ?? [];
   const [importCSVMutation] = useMutation<ImportCSVResult>(IMPORT_CSV, {
     refetchQueries: [
-      {query: GET_ACCOUNTS},
-      {query: GET_CATEGORIES},
-      {query: GET_PAYEES},
-      {query: GET_RECENT_TRANSACTIONS},
-      {query: GET_RECURRING_TRANSACTIONS},
-      {query: GET_BUDGETS},
-      {query: GET_BUDGET_NOTIFICATIONS},
-      {query: GET_PREFERENCES},
+      { query: GET_ACCOUNTS },
+      { query: GET_CATEGORIES },
+      { query: GET_PAYEES },
+      { query: GET_RECENT_TRANSACTIONS },
+      { query: GET_RECURRING_TRANSACTIONS },
+      { query: GET_BUDGETS },
+      { query: GET_BUDGET_NOTIFICATIONS },
+      { query: GET_PREFERENCES },
     ],
   });
-  const [resetDataMutation, {loading: resetting}] = useMutation(RESET_DATA, {
+  const [resetDataMutation, { loading: resetting }] = useMutation(RESET_DATA, {
     refetchQueries: [
-      {query: GET_ACCOUNTS},
-      {query: GET_CATEGORIES},
-      {query: GET_PAYEES},
-      {query: GET_RECENT_TRANSACTIONS},
-      {query: GET_RECURRING_TRANSACTIONS},
-      {query: GET_PREFERENCES},
-      {query: GET_BUDGETS},
-      {query: GET_BUDGET_NOTIFICATIONS},
-      {query: GET_TRANSACTIONS},
-      {query: GET_REPORT_TRANSACTIONS},
+      { query: GET_ACCOUNTS },
+      { query: GET_CATEGORIES },
+      { query: GET_PAYEES },
+      { query: GET_RECENT_TRANSACTIONS },
+      { query: GET_RECURRING_TRANSACTIONS },
+      { query: GET_PREFERENCES },
+      { query: GET_BUDGETS },
+      { query: GET_BUDGET_NOTIFICATIONS },
+      { query: GET_TRANSACTIONS },
+      { query: GET_REPORT_TRANSACTIONS },
     ],
     awaitRefetchQueries: true,
     update: (cache) => {
@@ -308,11 +354,11 @@ export function PreferencesPage(): React.JSX.Element {
       // This ensures the home page shows empty data immediately
       try {
         // Evict all recentTransactions queries from cache
-        cache.evict({fieldName: 'recentTransactions'});
+        cache.evict({ fieldName: 'recentTransactions' });
         // Also evict transactions queries
-        cache.evict({fieldName: 'transactions'});
+        cache.evict({ fieldName: 'transactions' });
         // Evict reportTransactions
-        cache.evict({fieldName: 'reportTransactions'});
+        cache.evict({ fieldName: 'reportTransactions' });
         // Garbage collect to remove orphaned references
         cache.gc();
       } catch (error) {
@@ -321,12 +367,8 @@ export function PreferencesPage(): React.JSX.Element {
       }
     },
   });
-  const [addExampleDataMutation, {loading: addingExampleData}] = useMutation(ADD_EXAMPLE_DATA, {
-    refetchQueries: [
-      {query: GET_ACCOUNTS},
-      {query: GET_CATEGORIES},
-      {query: GET_PAYEES},
-    ],
+  const [addExampleDataMutation, { loading: addingExampleData }] = useMutation(ADD_EXAMPLE_DATA, {
+    refetchQueries: [{ query: GET_ACCOUNTS }, { query: GET_CATEGORIES }, { query: GET_PAYEES }],
     awaitRefetchQueries: true,
   });
 
@@ -348,7 +390,13 @@ export function PreferencesPage(): React.JSX.Element {
       // Decode HTML entities (e.g., &#x2F; -> /)
       const format = rawFormat.replace(/&#x2F;/g, '/').replace(/&#x2D;/g, '-');
 
-      if (format === 'DD/MM/YYYY' || format === 'MM/DD/YYYY' || format === 'YYYY-MM-DD' || format === 'DD-MM-YYYY' || format === 'MM-DD-YYYY') {
+      if (
+        format === 'DD/MM/YYYY' ||
+        format === 'MM/DD/YYYY' ||
+        format === 'YYYY-MM-DD' ||
+        format === 'DD-MM-YYYY' ||
+        format === 'MM-DD-YYYY'
+      ) {
         setDateFormat(format as DateFormat);
       } else {
         setDateFormat(DEFAULT_DATE_FORMAT);
@@ -371,7 +419,7 @@ export function PreferencesPage(): React.JSX.Element {
    */
   const handleLogout = (): void => {
     void logout();
-    void navigate('/login', {replace: true});
+    void navigate('/login', { replace: true });
   };
 
   /**
@@ -545,7 +593,7 @@ export function PreferencesPage(): React.JSX.Element {
    * @param filename - Filename for download
    */
   const downloadCSV = (content: string, filename: string): void => {
-    const blob = new Blob([content], {type: 'text/csv;charset=utf-8;'});
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -564,7 +612,7 @@ export function PreferencesPage(): React.JSX.Element {
   const handleExport = async (): Promise<void> => {
     setExporting(true);
     try {
-      const {data} = await exportDataQuery({
+      const { data } = await exportDataQuery({
         variables: {
           memberIds: selectedMemberIds.length > 0 ? selectedMemberIds : undefined,
         },
@@ -580,13 +628,23 @@ export function PreferencesPage(): React.JSX.Element {
 
       // Export accounts
       if (exportData.accounts && exportData.accounts.length > 0) {
-        const accountsCSV = convertToCSV(exportData.accounts, ['id', 'name', 'initBalance', 'isDefault']);
+        const accountsCSV = convertToCSV(exportData.accounts, [
+          'id',
+          'name',
+          'initBalance',
+          'isDefault',
+        ]);
         downloadCSV(accountsCSV, 'my_money_accounts.csv');
       }
 
       // Export categories
       if (exportData.categories && exportData.categories.length > 0) {
-        const categoriesCSV = convertToCSV(exportData.categories, ['id', 'name', 'type', 'isDefault']);
+        const categoriesCSV = convertToCSV(exportData.categories, [
+          'id',
+          'name',
+          'type',
+          'isDefault',
+        ]);
         downloadCSV(categoriesCSV, 'my_money_categories.csv');
       }
 
@@ -627,7 +685,10 @@ export function PreferencesPage(): React.JSX.Element {
 
       // Export preferences
       if (exportData.preferences) {
-        const preferencesCSV = convertToCSV([exportData.preferences], ['id', 'currency', 'useThousandSeparator', 'colorScheme', 'colorSchemeValue']);
+        const preferencesCSV = convertToCSV(
+          [exportData.preferences],
+          ['id', 'currency', 'useThousandSeparator', 'colorScheme', 'colorSchemeValue']
+        );
         downloadCSV(preferencesCSV, 'my_money_preferences.csv');
       }
 
@@ -726,12 +787,14 @@ export function PreferencesPage(): React.JSX.Element {
       });
 
       if (result.data?.importCSV) {
-        const {success, created, updated, errors} = result.data.importCSV;
+        const { success, created, updated, errors } = result.data.importCSV;
         if (success) {
           showSuccessNotification(`Import successful! Created: ${created}, Updated: ${updated}`);
         } else {
           const errorMsg = errors.length > 0 ? ` Errors: ${errors.join(', ')}` : '';
-          showErrorNotification(`Import completed with issues. Created: ${created}, Updated: ${updated}.${errorMsg}`);
+          showErrorNotification(
+            `Import completed with issues. Created: ${created}, Updated: ${updated}.${errorMsg}`
+          );
         }
       }
     } catch (error) {
@@ -750,34 +813,39 @@ export function PreferencesPage(): React.JSX.Element {
   return (
     <PageContainer>
       {/* Management Section */}
-      <Card sx={{mb: 3}}>
-        <Box sx={{p: 3, pb: 2}}>
-          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+      <Card sx={{ mb: 3 }}>
+        <Box sx={{ p: 3, pb: 2 }}>
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+          >
             <DataObject fontSize="small" />
             Data Management
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Manage your accounts, categories, payees, and other data
           </Typography>
         </Box>
         <List disablePadding>
           <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/accounts');
-            }}>
-              <AccountBalance sx={{mr: 2, color: 'primary.main'}} />
-              <ListItemText
-                primary="Manage Accounts"
-                secondary="View and edit your accounts"
-              />
+            <ListItemButton
+              onClick={() => {
+                void navigate('/accounts');
+              }}
+            >
+              <AccountBalance sx={{ mr: 2, color: 'primary.main' }} />
+              <ListItemText primary="Manage Accounts" secondary="View and edit your accounts" />
             </ListItemButton>
           </ListItem>
           <Divider />
           <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/categories');
-            }}>
-              <Category sx={{mr: 2, color: 'primary.main'}} />
+            <ListItemButton
+              onClick={() => {
+                void navigate('/categories');
+              }}
+            >
+              <Category sx={{ mr: 2, color: 'primary.main' }} />
               <ListItemText
                 primary="Manage Categories"
                 secondary="Organize your income and expense categories"
@@ -786,10 +854,12 @@ export function PreferencesPage(): React.JSX.Element {
           </ListItem>
           <Divider />
           <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/payees');
-            }}>
-              <Person sx={{mr: 2, color: 'primary.main'}} />
+            <ListItemButton
+              onClick={() => {
+                void navigate('/payees');
+              }}
+            >
+              <Person sx={{ mr: 2, color: 'primary.main' }} />
               <ListItemText
                 primary="Manage Payees"
                 secondary="Manage people and organizations you transact with"
@@ -798,22 +868,23 @@ export function PreferencesPage(): React.JSX.Element {
           </ListItem>
           <Divider />
           <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/budgets');
-            }}>
-              <AttachMoney sx={{mr: 2, color: 'primary.main'}} />
-              <ListItemText
-                primary="Manage Budgets"
-                secondary="Set and track spending limits"
-              />
+            <ListItemButton
+              onClick={() => {
+                void navigate('/budgets');
+              }}
+            >
+              <AttachMoney sx={{ mr: 2, color: 'primary.main' }} />
+              <ListItemText primary="Manage Budgets" secondary="Set and track spending limits" />
             </ListItemButton>
           </ListItem>
           <Divider />
           <ListItem disablePadding>
-            <ListItemButton onClick={() => {
-              void navigate('/schedule');
-            }}>
-              <Schedule sx={{mr: 2, color: 'primary.main'}} />
+            <ListItemButton
+              onClick={() => {
+                void navigate('/schedule');
+              }}
+            >
+              <Schedule sx={{ mr: 2, color: 'primary.main' }} />
               <ListItemText
                 primary="Recurring Transactions"
                 secondary="Manage scheduled and recurring transactions"
@@ -824,34 +895,39 @@ export function PreferencesPage(): React.JSX.Element {
       </Card>
 
       {/* Import/Export Section */}
-      <Card sx={{mb: 3}}>
-        <Box sx={{p: 3, pb: 2}}>
-          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+      <Card sx={{ mb: 3 }}>
+        <Box sx={{ p: 3, pb: 2 }}>
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+          >
             <Download fontSize="small" />
             Import & Export
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Backup your data or import from CSV files
           </Typography>
         </Box>
         <List disablePadding>
           <ListItem disablePadding>
-            <ListItemButton
-              onClick={handleImportClick}
-              disabled={importing}
-            >
-              <Upload sx={{mr: 2, color: importing ? 'text.disabled' : 'primary.main'}} />
+            <ListItemButton onClick={handleImportClick} disabled={importing}>
+              <Upload sx={{ mr: 2, color: importing ? 'text.disabled' : 'primary.main' }} />
               <ListItemText
                 primary={importing ? 'Importing...' : 'Import Data'}
-                secondary={importing ? 'Please wait while we import your data' : 'Import accounts, transactions, and more from CSV files'}
+                secondary={
+                  importing
+                    ? 'Please wait while we import your data'
+                    : 'Import accounts, transactions, and more from CSV files'
+                }
               />
-              {importing ? <CircularProgress size={20} sx={{ml: 'auto'}} /> : null}
+              {importing ? <CircularProgress size={20} sx={{ ml: 'auto' }} /> : null}
             </ListItemButton>
             <input
               ref={fileInputRef}
               type="file"
               accept=".csv"
-              style={{display: 'none'}}
+              style={{ display: 'none' }}
               onChange={(e) => {
                 void handleFileChange(e);
               }}
@@ -865,171 +941,195 @@ export function PreferencesPage(): React.JSX.Element {
               }}
               disabled={exporting}
             >
-              <Download sx={{mr: 2, color: exporting ? 'text.disabled' : 'primary.main'}} />
+              <Download sx={{ mr: 2, color: exporting ? 'text.disabled' : 'primary.main' }} />
               <ListItemText
                 primary={exporting ? 'Exporting...' : 'Export Data'}
-                secondary={exporting ? 'Preparing your data for download' : 'Download all your data as CSV files for backup'}
+                secondary={
+                  exporting
+                    ? 'Preparing your data for download'
+                    : 'Download all your data as CSV files for backup'
+                }
               />
-              {exporting ? <CircularProgress size={20} sx={{ml: 'auto'}} /> : null}
+              {exporting ? <CircularProgress size={20} sx={{ ml: 'auto' }} /> : null}
             </ListItemButton>
           </ListItem>
         </List>
       </Card>
 
       {/* Display Settings Section */}
-      <Card sx={{mb: 3}}>
-        <Box sx={{p: 3, pb: 2}}>
-          <Typography variant="h6" component="h2" sx={{mb: 3, display: 'flex', alignItems: 'center', gap: 1}}>
-          <Settings fontSize="small" />
-          Display Settings
-        </Typography>
+      <Card sx={{ mb: 3 }}>
+        <Box sx={{ p: 3, pb: 2 }}>
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}
+          >
+            <Settings fontSize="small" />
+            Display Settings
+          </Typography>
 
-        <Stack spacing={3}>
-          {/* Number Format Setting */}
-          <Box>
-            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
-              <Typography variant="subtitle2" component="label">
-                Calculator Quick Button
-              </Typography>
-              <HelpIcon helpText="Choose which quick button appears on the calculator. The '000' button quickly adds '000' to your value (useful for entering thousands). The '.' button quickly adds a decimal point (useful for entering cents)." />
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
-              Choose which quick button appears on the calculator to help you enter values faster
-            </Typography>
-            <ToggleButtonGroup
-              value={useThousandSeparator ? '000' : '.'}
-              exclusive
-              onChange={(_, newValue: string | null) => {
-                handleUseThousandSeparatorChange(newValue);
-              }}
-              aria-label="calculator quick button"
-              fullWidth
-              disabled={preferencesLoading || updating}
-              size="large"
-            >
-              <ToggleButton value="000" aria-label="000 button">
-                <Box sx={{textAlign: 'center'}}>
-                  <Typography variant="body2" sx={{fontWeight: 'bold'}}>000</Typography>
-                  <Typography variant="caption" color="text.secondary">Quick button to add &apos;000&apos;</Typography>
-                </Box>
-              </ToggleButton>
-              <ToggleButton value="." aria-label="decimal point button">
-                <Box sx={{textAlign: 'center'}}>
-                  <Typography variant="body2" sx={{fontWeight: 'bold'}}>.</Typography>
-                  <Typography variant="caption" color="text.secondary">Quick button to add decimal point</Typography>
-                </Box>
-              </ToggleButton>
-            </ToggleButtonGroup>
-            {(preferencesLoading || updating) ? <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mt: 1}}>
-                <CircularProgress size={16} />
-                <Typography variant="caption" color="text.secondary">
-                  {updating ? 'Saving...' : 'Loading...'}
+          <Stack spacing={3}>
+            {/* Number Format Setting */}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Typography variant="subtitle2" component="label">
+                  Calculator Quick Button
                 </Typography>
-              </Box> : null}
-          </Box>
-
-          {/* Currency Setting */}
-          <Box>
-            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
-              <Typography variant="subtitle2" component="label">
-                Currency
+                <HelpIcon helpText="Choose which quick button appears on the calculator. The '000' button quickly adds '000' to your value (useful for entering thousands). The '.' button quickly adds a decimal point (useful for entering cents)." />
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                Choose which quick button appears on the calculator to help you enter values faster
               </Typography>
-              <HelpIcon helpText="Select your preferred currency. This will be used throughout the application for displaying amounts" />
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
-              Select your preferred currency for displaying amounts
-            </Typography>
-            <Autocomplete
-              options={CURRENCIES}
-              getOptionLabel={(option) => `${option.code} - ${option.name}`}
-              value={CURRENCIES.find((c) => c.code === currency) ?? null}
-              onChange={(_event, newValue: Currency | null) => {
-                if (newValue) {
-                  handleCurrencyChange(newValue.code);
-                }
-              }}
-              filterOptions={(options, {inputValue}) => {
-                const searchValue = inputValue.toLowerCase();
-                return options.filter(
-                  (option) =>
-                    option.code.toLowerCase().includes(searchValue) ||
-                    option.name.toLowerCase().includes(searchValue),
-                );
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Select Currency"
-                  placeholder="Search by code or name..."
-                  fullWidth
-                  helperText={updating ? 'Saving...' : undefined}
-                />
-              )}
-              disabled={preferencesLoading || updating}
-              fullWidth
-            />
-          </Box>
-
-          {/* Date Format Setting */}
-          <Box>
-            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
-              <Typography variant="subtitle2" component="label">
-                Date Format
-              </Typography>
-              <HelpIcon helpText="Select your preferred date format. This will be used throughout the application for displaying dates" />
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
-              Choose how dates are displayed throughout the application
-            </Typography>
-            <FormControl fullWidth disabled={preferencesLoading || updating}>
-              <InputLabel>Date Format</InputLabel>
-              <Select
-                value={dateFormat}
-                label="Date Format"
-                onChange={(e) => {
-                  handleDateFormatChange(e.target.value as DateFormat);
+              <ToggleButtonGroup
+                value={useThousandSeparator ? '000' : '.'}
+                exclusive
+                onChange={(_, newValue: string | null) => {
+                  handleUseThousandSeparatorChange(newValue);
                 }}
+                aria-label="calculator quick button"
+                fullWidth
+                disabled={preferencesLoading || updating}
+                size="large"
               >
-                <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
-                <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
-                <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
-                <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
-                <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
-              </Select>
-              {updating ? <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mt: 1}}>
+                <ToggleButton value="000" aria-label="000 button">
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      000
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Quick button to add &apos;000&apos;
+                    </Typography>
+                  </Box>
+                </ToggleButton>
+                <ToggleButton value="." aria-label="decimal point button">
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      .
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Quick button to add decimal point
+                    </Typography>
+                  </Box>
+                </ToggleButton>
+              </ToggleButtonGroup>
+              {preferencesLoading || updating ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                   <CircularProgress size={16} />
                   <Typography variant="caption" color="text.secondary">
-                    Saving...
+                    {updating ? 'Saving...' : 'Loading...'}
                   </Typography>
-                </Box> : null}
-            </FormControl>
-          </Box>
-
-          {/* Color Scheme Setting */}
-          <Box>
-            <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
-              <Typography variant="subtitle2" component="label">
-                Color Scheme
-              </Typography>
-              <HelpIcon helpText="Customize the app's color theme. Choose from preset themes or create a custom color scheme" />
+                </Box>
+              ) : null}
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{mb: 1.5}}>
-              Customize the app&apos;s appearance with different color themes
-            </Typography>
-            <ColorSchemePicker />
-          </Box>
-        </Stack>
+
+            {/* Currency Setting */}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Typography variant="subtitle2" component="label">
+                  Currency
+                </Typography>
+                <HelpIcon helpText="Select your preferred currency. This will be used throughout the application for displaying amounts" />
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                Select your preferred currency for displaying amounts
+              </Typography>
+              <Autocomplete
+                options={CURRENCIES}
+                getOptionLabel={(option) => `${option.code} - ${option.name}`}
+                value={CURRENCIES.find((c) => c.code === currency) ?? null}
+                onChange={(_event, newValue: Currency | null) => {
+                  if (newValue) {
+                    handleCurrencyChange(newValue.code);
+                  }
+                }}
+                filterOptions={(options, { inputValue }) => {
+                  const searchValue = inputValue.toLowerCase();
+                  return options.filter(
+                    (option) =>
+                      option.code.toLowerCase().includes(searchValue) ||
+                      option.name.toLowerCase().includes(searchValue)
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Currency"
+                    placeholder="Search by code or name..."
+                    fullWidth
+                    helperText={updating ? 'Saving...' : undefined}
+                  />
+                )}
+                disabled={preferencesLoading || updating}
+                fullWidth
+              />
+            </Box>
+
+            {/* Date Format Setting */}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Typography variant="subtitle2" component="label">
+                  Date Format
+                </Typography>
+                <HelpIcon helpText="Select your preferred date format. This will be used throughout the application for displaying dates" />
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                Choose how dates are displayed throughout the application
+              </Typography>
+              <FormControl fullWidth disabled={preferencesLoading || updating}>
+                <InputLabel>Date Format</InputLabel>
+                <Select
+                  value={dateFormat}
+                  label="Date Format"
+                  onChange={(e) => {
+                    handleDateFormatChange(e.target.value as DateFormat);
+                  }}
+                >
+                  <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
+                  <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
+                  <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
+                  <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
+                  <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
+                </Select>
+                {updating ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                    <CircularProgress size={16} />
+                    <Typography variant="caption" color="text.secondary">
+                      Saving...
+                    </Typography>
+                  </Box>
+                ) : null}
+              </FormControl>
+            </Box>
+
+            {/* Color Scheme Setting */}
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Typography variant="subtitle2" component="label">
+                  Color Scheme
+                </Typography>
+                <HelpIcon helpText="Customize the app's color theme. Choose from preset themes or create a custom color scheme" />
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                Customize the app&apos;s appearance with different color themes
+              </Typography>
+              <ColorSchemePicker />
+            </Box>
+          </Stack>
         </Box>
       </Card>
 
       {/* Account Actions Section */}
       <Card>
-        <Box sx={{p: 3, pb: 2}}>
-          <Typography variant="h6" component="h2" sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+        <Box sx={{ p: 3, pb: 2 }}>
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+          >
             <Security fontSize="small" />
             Account Actions
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{mt: 0.5}}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Manage your account and data
           </Typography>
         </Box>
@@ -1038,12 +1138,12 @@ export function PreferencesPage(): React.JSX.Element {
             <ListItemButton
               onClick={handleAddExampleData}
               disabled={addingExampleData}
-              sx={{color: 'primary.main'}}
+              sx={{ color: 'primary.main' }}
             >
               {addingExampleData ? (
-                <CircularProgress size={20} sx={{mr: 2}} />
+                <CircularProgress size={20} sx={{ mr: 2 }} />
               ) : (
-                <DataObject sx={{mr: 2}} />
+                <DataObject sx={{ mr: 2 }} />
               )}
               <ListItemText
                 primary={addingExampleData ? 'Adding Example Data...' : 'Add Example Data'}
@@ -1053,11 +1153,8 @@ export function PreferencesPage(): React.JSX.Element {
           </ListItem>
           <Divider />
           <ListItem disablePadding>
-            <ListItemButton
-              onClick={handleResetDataClick}
-              sx={{color: 'error.main'}}
-            >
-              <RestartAlt sx={{mr: 2}} />
+            <ListItemButton onClick={handleResetDataClick} sx={{ color: 'error.main' }}>
+              <RestartAlt sx={{ mr: 2 }} />
               <ListItemText
                 primary="Reset All Data"
                 secondary="Permanently delete all your data (default items will remain)"
@@ -1066,12 +1163,9 @@ export function PreferencesPage(): React.JSX.Element {
           </ListItem>
           <Divider />
           <ListItem disablePadding>
-            <ListItemButton onClick={handleLogout} sx={{color: 'error.main'}}>
-              <Logout sx={{mr: 2}} />
-              <ListItemText
-                primary="Logout"
-                secondary="Sign out of your account"
-              />
+            <ListItemButton onClick={handleLogout} sx={{ color: 'error.main' }}>
+              <Logout sx={{ mr: 2 }} />
+              <ListItemText primary="Logout" secondary="Sign out of your account" />
             </ListItemButton>
           </ListItem>
         </List>
@@ -1082,7 +1176,7 @@ export function PreferencesPage(): React.JSX.Element {
         open={resetDialogOpen}
         onClose={handleResetDialogClose}
         title={
-          <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <RestartAlt color="error" />
             <Typography variant="h6" component="span" color="error">
               Reset All Data
@@ -1090,7 +1184,7 @@ export function PreferencesPage(): React.JSX.Element {
           </Box>
         }
         actions={
-          <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end', width: '100%'}}>
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', width: '100%' }}>
             <Button
               onClick={handleResetDialogClose}
               disabled={resetting}
@@ -1103,40 +1197,65 @@ export function PreferencesPage(): React.JSX.Element {
               onClick={() => {
                 void handleResetData();
               }}
-              disabled={resetting || resetConfirmationText !== 'I understand this will delete all my data permanently'}
+              disabled={
+                resetting ||
+                resetConfirmationText !== 'I understand this will delete all my data permanently'
+              }
               variant="contained"
               color="error"
               size="large"
-              startIcon={resetting ? <CircularProgress size={16} color="inherit" /> : <RestartAlt />}
+              startIcon={
+                resetting ? <CircularProgress size={16} color="inherit" /> : <RestartAlt />
+              }
             >
               {resetting ? 'Resetting...' : 'Reset All Data'}
             </Button>
           </Box>
         }
       >
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 3, minWidth: {xs: 'auto', sm: 500}, maxWidth: 600}}>
-          <Box sx={{p: 2, bgcolor: 'error.light', borderRadius: 1}}>
-            <Typography variant="body1" sx={{fontWeight: 'bold', mb: 1}}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+            minWidth: { xs: 'auto', sm: 500 },
+            maxWidth: 600,
+          }}
+        >
+          <Box sx={{ p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+            <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
               ⚠️ Warning: This action cannot be undone
             </Typography>
             <Typography variant="body2">
               This will permanently delete all your data including:
             </Typography>
-            <Box component="ul" sx={{mt: 1, mb: 0, pl: 3}}>
-              <li><Typography variant="body2">All accounts (except default)</Typography></li>
-              <li><Typography variant="body2">All transactions</Typography></li>
-              <li><Typography variant="body2">All categories (except default)</Typography></li>
-              <li><Typography variant="body2">All payees (except default)</Typography></li>
-              <li><Typography variant="body2">All budgets</Typography></li>
-              <li><Typography variant="body2">All recurring transactions</Typography></li>
+            <Box component="ul" sx={{ mt: 1, mb: 0, pl: 3 }}>
+              <li>
+                <Typography variant="body2">All accounts (except default)</Typography>
+              </li>
+              <li>
+                <Typography variant="body2">All transactions</Typography>
+              </li>
+              <li>
+                <Typography variant="body2">All categories (except default)</Typography>
+              </li>
+              <li>
+                <Typography variant="body2">All payees (except default)</Typography>
+              </li>
+              <li>
+                <Typography variant="body2">All budgets</Typography>
+              </li>
+              <li>
+                <Typography variant="body2">All recurring transactions</Typography>
+              </li>
             </Box>
-            <Typography variant="body2" sx={{mt: 1, fontWeight: 'medium'}}>
+            <Typography variant="body2" sx={{ mt: 1, fontWeight: 'medium' }}>
               Only the default account, category, and payee will remain.
             </Typography>
           </Box>
 
           <Box>
-            <Typography variant="body1" sx={{mb: 1, fontWeight: 'medium'}}>
+            <Typography variant="body1" sx={{ mb: 1, fontWeight: 'medium' }}>
               To confirm this action, please type the following:
             </Typography>
             <Typography
@@ -1147,7 +1266,7 @@ export function PreferencesPage(): React.JSX.Element {
                 borderRadius: 1,
                 fontFamily: 'monospace',
                 fontWeight: 'bold',
-                mb: 2
+                mb: 2,
               }}
             >
               I understand this will delete all my data permanently
@@ -1161,9 +1280,13 @@ export function PreferencesPage(): React.JSX.Element {
               fullWidth
               placeholder="I understand this will delete all my data permanently"
               disabled={resetting}
-              error={resetConfirmationText !== '' && resetConfirmationText !== 'I understand this will delete all my data permanently'}
+              error={
+                resetConfirmationText !== '' &&
+                resetConfirmationText !== 'I understand this will delete all my data permanently'
+              }
               helperText={
-                resetConfirmationText !== '' && resetConfirmationText !== 'I understand this will delete all my data permanently'
+                resetConfirmationText !== '' &&
+                resetConfirmationText !== 'I understand this will delete all my data permanently'
                   ? 'Text does not match'
                   : 'Type the exact text above to enable the reset button'
               }
@@ -1185,7 +1308,7 @@ export function PreferencesPage(): React.JSX.Element {
         maxWidth="sm"
         fullWidth
         actions={
-          <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', width: '100%'}}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', width: '100%' }}>
             <Button
               variant="outlined"
               onClick={() => {
@@ -1208,9 +1331,10 @@ export function PreferencesPage(): React.JSX.Element {
           </Box>
         }
       >
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Typography variant="body2" color="text.secondary">
-            Select workspace and members to filter the exported data. Leave members unselected to export all data.
+            Select workspace and members to filter the exported data. Leave members unselected to
+            export all data.
           </Typography>
 
           {workspaces.length > 0 ? (
@@ -1241,4 +1365,3 @@ export function PreferencesPage(): React.JSX.Element {
     </PageContainer>
   );
 }
-

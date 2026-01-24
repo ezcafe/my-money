@@ -3,21 +3,25 @@
  * Handles filter UI including date presets, multi-select filters, and active filter chips
  */
 
-import React, {memo} from 'react';
-import {Box, Typography, IconButton, Popover, Collapse, Chip} from '@mui/material';
+import React, { memo } from 'react';
+import { Box, Typography, IconButton, Popover, Collapse, Chip } from '@mui/material';
 import Grid from '@mui/material/Grid2';
-import {Clear, CalendarToday, ExpandMore, ExpandLess} from '@mui/icons-material';
-import {DateCalendar} from '@mui/x-date-pickers/DateCalendar';
-import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
-import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs';
-import dayjs, {type Dayjs} from 'dayjs';
-import {Card} from '../ui/Card';
-import {Button} from '../ui/Button';
-import {TextField} from '../ui/TextField';
-import {MultiSelect, type MultiSelectOption} from '../ui/MultiSelect';
-import {WorkspaceSelector} from '../WorkspaceSelector';
-import type {UseReportFiltersReturn, DatePreset, ActiveFilterChip} from '../../hooks/useReportFilters';
-import {getDatePresets} from '../../hooks/useReportFilters';
+import { Clear, CalendarToday, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { type Dayjs } from 'dayjs';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
+import { MultiSelect, type MultiSelectOption } from '../ui/MultiSelect';
+import { WorkspaceSelector } from '../WorkspaceSelector';
+import type {
+  UseReportFiltersReturn,
+  DatePreset,
+  ActiveFilterChip,
+} from '../../hooks/useReportFilters';
+import { getDatePresets } from '../../hooks/useReportFilters';
 
 /**
  * ReportFilters component props
@@ -47,9 +51,9 @@ interface ReportFiltersProps {
   accountOptions: MultiSelectOption[];
   categoryOptions: MultiSelectOption[];
   payeeOptions: MultiSelectOption[];
-  workspaces: Array<{id: string; name: string}>;
+  workspaces: Array<{ id: string; name: string }>;
   selectedWorkspaceId: string;
-  members: Array<{id: string; userId: string; user: {id: string; email: string}}>;
+  members: Array<{ id: string; userId: string; user: { id: string; email: string } }>;
   onWorkspaceChange: (workspaceId: string) => void;
   // Validation and errors
   validationError: string | null;
@@ -94,7 +98,7 @@ const ReportFiltersComponent = ({
   return (
     <>
       {/* Filters Section */}
-      <Card sx={{p: 3, mb: 3}}>
+      <Card sx={{ p: 3, mb: 3 }}>
         <Box
           sx={{
             display: 'flex',
@@ -118,16 +122,16 @@ const ReportFiltersComponent = ({
           </IconButton>
         </Box>
         <Collapse in={filterPanelExpanded}>
-          <Box sx={{mt: 2}}>
+          <Box sx={{ mt: 2 }}>
             {validationError ? (
-              <Box sx={{mb: 2, color: 'error.main'}}>
+              <Box sx={{ mb: 2, color: 'error.main' }}>
                 <Typography variant="body2" color="error">
                   {validationError}
                 </Typography>
               </Box>
             ) : null}
             {error ? (
-              <Box sx={{mb: 2, color: 'error.main'}}>
+              <Box sx={{ mb: 2, color: 'error.main' }}>
                 <Typography variant="body2" color="error">
                   {error?.message ?? 'Error loading report data'}
                 </Typography>
@@ -135,18 +139,29 @@ const ReportFiltersComponent = ({
             ) : null}
 
             {/* Quick Date Presets */}
-            <Box sx={{mb: 3}}>
-              <Typography variant="subtitle2" sx={{mb: 1, color: 'text.secondary'}}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
                 Quick Date Ranges
               </Typography>
-              <Box sx={{display: 'flex', gap: 1, flexWrap: 'wrap'}}>
-                {(['today', 'thisWeek', 'thisMonth', 'thisYear', 'lastMonth', 'last30Days', 'last90Days', 'custom'] as DatePreset[]).map((preset) => (
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {(
+                  [
+                    'today',
+                    'thisWeek',
+                    'thisMonth',
+                    'thisYear',
+                    'lastMonth',
+                    'last30Days',
+                    'last90Days',
+                    'custom',
+                  ] as DatePreset[]
+                ).map((preset) => (
                   <Button
                     key={preset}
                     variant={datePreset === preset ? 'contained' : 'outlined'}
                     size="small"
                     onClick={() => handlePresetDateRange(preset)}
-                    sx={{textTransform: 'none'}}
+                    sx={{ textTransform: 'none' }}
                   >
                     {datePresets[preset].label}
                   </Button>
@@ -154,7 +169,7 @@ const ReportFiltersComponent = ({
               </Box>
             </Box>
 
-            <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {/* Workspace Selector */}
               {workspaces.length > 0 ? (
                 <WorkspaceSelector value={selectedWorkspaceId} onChange={onWorkspaceChange} />
@@ -176,24 +191,24 @@ const ReportFiltersComponent = ({
               {/* Date Range - Two Separate Buttons */}
               {showDatePickers ? (
                 <Grid container spacing={2}>
-                  <Grid size={{xs: 6}}>
+                  <Grid size={{ xs: 6 }}>
                     <Button
                       variant="outlined"
                       onClick={(e) => handleDatePickerOpen(e, 'start')}
                       startIcon={<CalendarToday />}
                       fullWidth
-                      sx={{justifyContent: 'flex-start', textTransform: 'none'}}
+                      sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
                       {startDateText}
                     </Button>
                   </Grid>
-                  <Grid size={{xs: 6}}>
+                  <Grid size={{ xs: 6 }}>
                     <Button
                       variant="outlined"
                       onClick={(e) => handleDatePickerOpen(e, 'end')}
                       startIcon={<CalendarToday />}
                       fullWidth
-                      sx={{justifyContent: 'flex-start', textTransform: 'none'}}
+                      sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
                       {endDateText}
                     </Button>
@@ -235,7 +250,7 @@ const ReportFiltersComponent = ({
                 variant="contained"
                 onClick={handleApplyFilters}
                 fullWidth
-                sx={{textTransform: 'none', mt: 1}}
+                sx={{ textTransform: 'none', mt: 1 }}
               >
                 Apply Filters
               </Button>
@@ -246,9 +261,9 @@ const ReportFiltersComponent = ({
 
       {/* Active Filters */}
       {activeFilters.length > 0 && (
-        <Card sx={{p: 3, mb: 3}}>
-          <Box sx={{display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap'}}>
-            <Typography variant="subtitle2" sx={{mr: 1, color: 'text.secondary'}}>
+        <Card sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography variant="subtitle2" sx={{ mr: 1, color: 'text.secondary' }}>
               Active Filters:
             </Typography>
             {activeFilters.map((filter, index) => (
@@ -257,7 +272,7 @@ const ReportFiltersComponent = ({
                 label={filter.label}
                 onDelete={filter.onDelete}
                 size="small"
-                sx={{textTransform: 'none'}}
+                sx={{ textTransform: 'none' }}
               />
             ))}
             <Button
@@ -265,7 +280,7 @@ const ReportFiltersComponent = ({
               size="small"
               onClick={handleClearFilters}
               startIcon={<Clear />}
-              sx={{textTransform: 'none', ml: 'auto'}}
+              sx={{ textTransform: 'none', ml: 'auto' }}
             >
               Clear All
             </Button>
@@ -285,7 +300,13 @@ const ReportFiltersComponent = ({
       >
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <DateCalendar
-            value={datePickerType === 'start' && filters.startDate ? dayjs(filters.startDate) : datePickerType === 'end' && filters.endDate ? dayjs(filters.endDate) : null}
+            value={
+              datePickerType === 'start' && filters.startDate
+                ? dayjs(filters.startDate)
+                : datePickerType === 'end' && filters.endDate
+                  ? dayjs(filters.endDate)
+                  : null
+            }
             onChange={(newValue) => {
               if (datePickerType === 'start') {
                 handleStartDateChange(newValue);

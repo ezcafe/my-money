@@ -4,7 +4,7 @@
  * TODO: Integrate with SendGrid/AWS SES/Nodemailer in production
  */
 
-import {logInfo} from '../utils/logger';
+import { logInfo } from '../utils/logger';
 
 /**
  * Send invitation email
@@ -18,7 +18,7 @@ export function sendInvitationEmail(
   email: string,
   invitationToken: string,
   workspaceName: string,
-  inviterEmail: string,
+  inviterEmail: string
 ): void {
   const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
   const invitationUrl = `${frontendUrl}/invite/accept?token=${invitationToken}`;
@@ -55,7 +55,7 @@ export function sendInvitationEmail(
 function _generateInvitationEmailHtml(
   invitationUrl: string,
   workspaceName: string,
-  inviterEmail: string,
+  inviterEmail: string
 ): string {
   return `
     <!DOCTYPE html>
@@ -88,7 +88,7 @@ function _generateInvitationEmailHtml(
 function _generateInvitationEmailText(
   invitationUrl: string,
   workspaceName: string,
-  inviterEmail: string,
+  inviterEmail: string
 ): string {
   return `
     You've been invited to join a workspace

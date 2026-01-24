@@ -3,13 +3,16 @@
  * Handles business logic for account operations
  */
 
-import type {PrismaClient} from '@prisma/client';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
-import {DEFAULTS} from '../utils/constants';
-import {getContainer} from '../utils/container';
-import type {AccountRepository} from '../repositories/AccountRepository';
+import type { PrismaClient } from '@prisma/client';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import { DEFAULTS } from '../utils/constants';
+import { getContainer } from '../utils/container';
+import type { AccountRepository } from '../repositories/AccountRepository';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Account Service Class
@@ -33,9 +36,14 @@ export class AccountService {
    * @param userId - User ID (for createdBy/lastEditedBy)
    * @param workspaceId - Workspace ID
    */
-  async ensureDefaultAccount(userId: string, workspaceId: string): Promise<void> {
+  async ensureDefaultAccount(
+    userId: string,
+    workspaceId: string
+  ): Promise<void> {
     // Ensure Cash account exists (default account)
-    const cashAccount = await this.accountRepository.findDefault(workspaceId, {id: true});
+    const cashAccount = await this.accountRepository.findDefault(workspaceId, {
+      id: true,
+    });
     if (!cashAccount) {
       await withPrismaErrorHandling(
         async () =>
@@ -49,7 +57,7 @@ export class AccountService {
             createdBy: userId,
             lastEditedBy: userId,
           }),
-        {resource: 'Account', operation: 'create'},
+        { resource: 'Account', operation: 'create' }
       );
     }
 
@@ -58,7 +66,7 @@ export class AccountService {
       workspaceId,
       DEFAULTS.CREDIT_CARD_ACCOUNT_NAME,
       'CreditCard',
-      {id: true},
+      { id: true }
     );
     if (!creditCardAccount) {
       await withPrismaErrorHandling(
@@ -73,7 +81,7 @@ export class AccountService {
             createdBy: userId,
             lastEditedBy: userId,
           }),
-        {resource: 'Account', operation: 'create'},
+        { resource: 'Account', operation: 'create' }
       );
     }
 
@@ -82,7 +90,7 @@ export class AccountService {
       workspaceId,
       DEFAULTS.BANK_ACCOUNT_NAME,
       'Bank',
-      {id: true},
+      { id: true }
     );
     if (!bankAccount) {
       await withPrismaErrorHandling(
@@ -97,7 +105,7 @@ export class AccountService {
             createdBy: userId,
             lastEditedBy: userId,
           }),
-        {resource: 'Account', operation: 'create'},
+        { resource: 'Account', operation: 'create' }
       );
     }
   }
@@ -110,4 +118,3 @@ export class AccountService {
     return this.accountRepository;
   }
 }
-

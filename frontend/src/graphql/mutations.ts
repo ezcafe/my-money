@@ -20,8 +20,15 @@
  * ```
  */
 
-import {gql} from '@apollo/client';
-import {ACCOUNT_FIELDS, CATEGORY_FIELDS, PAYEE_FIELDS, TRANSACTION_FIELDS, BUDGET_FIELDS, RECURRING_TRANSACTION_FIELDS} from './fragments';
+import { gql } from '@apollo/client';
+import {
+  ACCOUNT_FIELDS,
+  CATEGORY_FIELDS,
+  PAYEE_FIELDS,
+  TRANSACTION_FIELDS,
+  BUDGET_FIELDS,
+  RECURRING_TRANSACTION_FIELDS,
+} from './fragments';
 
 export const CREATE_TRANSACTION = gql`
   mutation CreateTransaction($input: CreateTransactionInput!) {
@@ -230,10 +237,3 @@ export const MARK_BUDGET_NOTIFICATION_READ = gql`
     markBudgetNotificationRead(id: $id)
   }
 `;
-
-
-
-
-
-
-

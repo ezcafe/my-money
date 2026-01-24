@@ -3,9 +3,9 @@
  * Provides consistent error handling for all resolvers
  */
 
-import type {GraphQLResolveInfo} from 'graphql';
-import type {GraphQLContext} from '../middleware/context';
-import {logError} from './logger';
+import type { GraphQLResolveInfo } from 'graphql';
+import type { GraphQLContext } from '../middleware/context';
+import { logError } from './logger';
 
 /**
  * Wrapper function for resolvers that provides consistent error handling
@@ -19,21 +19,22 @@ export function withErrorHandling<TArgs, TReturn>(
     parent: unknown,
     args: TArgs,
     context: GraphQLContext,
-    info: GraphQLResolveInfo,
+    info: GraphQLResolveInfo
   ) => Promise<TReturn> | TReturn,
-  resolverName: string,
+  resolverName: string
 ): (
   parent: unknown,
   args: TArgs,
   context: GraphQLContext,
-  info: GraphQLResolveInfo,
+  info: GraphQLResolveInfo
 ) => Promise<TReturn> {
   return async (parent, args, context, info) => {
     try {
       return await resolver(parent, args, context, info);
     } catch (error) {
       // Log error with correlation IDs and user context
-      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
       logError(
         `Error in resolver: ${resolverName}`,
         {
@@ -43,7 +44,7 @@ export function withErrorHandling<TArgs, TReturn>(
           operation: info.operation.operation,
           fieldName: info.fieldName,
         },
-        errorObj,
+        errorObj
       );
 
       // Re-throw the error (Apollo Server will handle formatting)
@@ -51,4 +52,3 @@ export function withErrorHandling<TArgs, TReturn>(
     }
   };
 }
-

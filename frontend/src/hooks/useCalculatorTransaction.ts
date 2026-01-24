@@ -3,14 +3,14 @@
  * Handles transaction creation, auto-selection, and default values
  */
 
-import {useState, useCallback, useEffect, useMemo} from 'react';
-import {useMutation} from '@apollo/client/react';
-import {CREATE_TRANSACTION} from '../graphql/mutations';
-import {GET_RECENT_TRANSACTIONS} from '../graphql/queries';
-import {useAccounts} from './useAccounts';
-import {useCategories} from './useCategories';
-import {usePayees} from './usePayees';
-import {useMostUsedTransactionDetails} from './useMostUsedTransactionDetails';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useMutation } from '@apollo/client/react';
+import { CREATE_TRANSACTION } from '../graphql/mutations';
+import { GET_RECENT_TRANSACTIONS } from '../graphql/queries';
+import { useAccounts } from './useAccounts';
+import { useCategories } from './useCategories';
+import { usePayees } from './usePayees';
+import { useMostUsedTransactionDetails } from './useMostUsedTransactionDetails';
 
 /**
  * Calculator transaction hook return type
@@ -35,11 +35,11 @@ export interface UseCalculatorTransactionReturn {
  */
 export function useCalculatorTransaction(
   currentAmount: number | null,
-  onTransactionCreated?: () => void,
+  onTransactionCreated?: () => void
 ): UseCalculatorTransactionReturn {
-  const {accounts} = useAccounts();
-  const {categories} = useCategories();
-  const {payees} = usePayees();
+  const { accounts } = useAccounts();
+  const { categories } = useCategories();
+  const { payees } = usePayees();
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
@@ -58,7 +58,7 @@ export function useCalculatorTransaction(
   // Get default category ID (Food & Groceries)
   const defaultCategoryId = useMemo(() => {
     const defaultCategory = categories.find(
-      (cat) => cat.name === 'Food & Groceries' && cat.categoryType === 'Expense',
+      (cat) => cat.name === 'Food & Groceries' && cat.categoryType === 'Expense'
     );
     return defaultCategory?.id ?? null;
   }, [categories]);
@@ -73,8 +73,11 @@ export function useCalculatorTransaction(
   }, [payees]);
 
   // Fetch most used transaction details for current amount
-  const {accountId: autoAccountId, payeeId: autoPayeeId, categoryId: autoCategoryId} =
-    useMostUsedTransactionDetails(currentAmount, 90);
+  const {
+    accountId: autoAccountId,
+    payeeId: autoPayeeId,
+    categoryId: autoCategoryId,
+  } = useMostUsedTransactionDetails(currentAmount, 90);
 
   // Initialize selected values with defaults on first load
   useEffect(() => {
@@ -121,8 +124,8 @@ export function useCalculatorTransaction(
     }
   }, [autoAccountId, autoCategoryId, autoPayeeId, currentAmount, accounts, categories, payees]);
 
-  const [createTransactionMutation, {loading: creating}] = useMutation(CREATE_TRANSACTION, {
-    refetchQueries: [{query: GET_RECENT_TRANSACTIONS}],
+  const [createTransactionMutation, { loading: creating }] = useMutation(CREATE_TRANSACTION, {
+    refetchQueries: [{ query: GET_RECENT_TRANSACTIONS }],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -164,7 +167,15 @@ export function useCalculatorTransaction(
         },
       });
     },
-    [selectedAccountId, selectedCategoryId, selectedPayeeId, defaultAccountId, defaultCategoryId, defaultPayeeId, createTransactionMutation],
+    [
+      selectedAccountId,
+      selectedCategoryId,
+      selectedPayeeId,
+      defaultAccountId,
+      defaultCategoryId,
+      defaultPayeeId,
+      createTransactionMutation,
+    ]
   );
 
   return {

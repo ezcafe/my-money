@@ -3,13 +3,13 @@
  * Custom integration to connect Apollo Server with Hono framework
  */
 
-import type {Context} from 'hono';
-import type {ApolloServer} from '@apollo/server';
-import type {GraphQLContext} from '../middleware/context';
-import {createContext} from '../middleware/context';
-import {checkRateLimit} from '../utils/postgresRateLimiter';
-import {ErrorCode} from '../utils/errorCodes';
-import {getCachedQueryResponse} from '../middleware/graphqlCachePlugin';
+import type { Context } from 'hono';
+import type { ApolloServer } from '@apollo/server';
+import type { GraphQLContext } from '../middleware/context';
+import { createContext } from '../middleware/context';
+import { checkRateLimit } from '../utils/postgresRateLimiter';
+import { ErrorCode } from '../utils/errorCodes';
+import { getCachedQueryResponse } from '../middleware/graphqlCachePlugin';
 
 /**
  * Create Apollo Server handler for Hono
@@ -17,15 +17,19 @@ import {getCachedQueryResponse} from '../middleware/graphqlCachePlugin';
  * @returns Hono handler function
  */
 export function createApolloHandler(
-  server: ApolloServer<GraphQLContext | Record<string, never>>,
+  server: ApolloServer<GraphQLContext | Record<string, never>>
 ) {
   return async (c: Context): Promise<Response> => {
     try {
       // Parse query first to check if it's an introspection query
-      let body: {query?: string; variables?: unknown; operationName?: string} | null = null;
+      let body: {
+        query?: string;
+        variables?: unknown;
+        operationName?: string;
+      } | null = null;
 
       // Check if body was already parsed by multipart handler
-      const preParsedBody = (c.req as {body?: unknown}).body;
+      const preParsedBody = (c.req as { body?: unknown }).body;
       if (preParsedBody && typeof preParsedBody === 'object') {
         body = preParsedBody;
       } else if (c.req.method === 'GET') {
@@ -33,11 +37,11 @@ export function createApolloHandler(
         const url = new URL(c.req.url);
         const query = url.searchParams.get('query');
         if (query) {
-          body = {query};
+          body = { query };
         }
       } else {
         // For POST requests, try to get body using Hono's methods
-        const requestBody = await c.req.json().catch(() => null) as unknown;
+        const requestBody = (await c.req.json().catch(() => null)) as unknown;
         if (requestBody && typeof requestBody === 'object') {
           body = requestBody;
         } else {
@@ -45,7 +49,11 @@ export function createApolloHandler(
           const textBody = await c.req.text().catch(() => null);
           if (textBody) {
             try {
-              body = JSON.parse(textBody) as {query?: string; variables?: unknown; operationName?: string} | null;
+              body = JSON.parse(textBody) as {
+                query?: string;
+                variables?: unknown;
+                operationName?: string;
+              } | null;
             } catch {
               // If all else fails, body is null
             }
@@ -55,20 +63,38 @@ export function createApolloHandler(
 
       // Handle batched requests from BatchHttpLink
       // BatchHttpLink sends an array of operations: [{query, variables, operationName}, ...]
-      let operations: Array<{query: string; variables?: unknown; operationName?: string}> = [];
+      let operations: Array<{
+        query: string;
+        variables?: unknown;
+        operationName?: string;
+      }> = [];
       if (Array.isArray(body)) {
-        operations = body.filter((op): op is {query: string; variables?: unknown; operationName?: string} => {
-          if (op === null || typeof op !== 'object') {
-            return false;
+        operations = body.filter(
+          (
+            op
+          ): op is {
+            query: string;
+            variables?: unknown;
+            operationName?: string;
+          } => {
+            if (op === null || typeof op !== 'object') {
+              return false;
+            }
+            const opObj = op as Record<string, unknown>;
+            return 'query' in opObj && typeof opObj.query === 'string';
           }
-          const opObj = op as Record<string, unknown>;
-          return 'query' in opObj && typeof opObj.query === 'string';
-        });
+        );
       } else if (body && typeof body === 'object' && 'query' in body) {
         const bodyObj = body as Record<string, unknown>;
         if (typeof bodyObj.query === 'string') {
           // Single operation
-          operations = [body as {query: string; variables?: unknown; operationName?: string}];
+          operations = [
+            body as {
+              query: string;
+              variables?: unknown;
+              operationName?: string;
+            },
+          ];
         }
       }
 
@@ -84,7 +110,7 @@ export function createApolloHandler(
               },
             ],
           },
-          400,
+          400
         );
       }
 
@@ -102,13 +128,14 @@ export function createApolloHandler(
               },
             ],
           },
-          400,
+          400
         );
       }
       // Check if query is an introspection query
       // Must check for __schema or __type as standalone identifiers (not __typename)
       // Use regex to match word boundaries to avoid matching __typename
-      const isIntrospection = /(^|\s)__schema(\s|\(|{)/.test(firstOperation.query) ||
+      const isIntrospection =
+        /(^|\s)__schema(\s|\(|{)/.test(firstOperation.query) ||
         /(^|\s)__type(\s|\(|{)/.test(firstOperation.query) ||
         firstOperation.query.includes('IntrospectionQuery');
 
@@ -134,14 +161,14 @@ export function createApolloHandler(
                 },
               })),
             },
-            401,
+            401
           );
         }
 
         // Apply granular rate limiting for authenticated requests
         if (graphQLContext?.userId) {
           // Import rate limit constants
-          const {RATE_LIMITS} = await import('../utils/constants');
+          const { RATE_LIMITS } = await import('../utils/constants');
 
           // Determine rate limit based on operation type
           let rateLimit: number;
@@ -168,7 +195,7 @@ export function createApolloHandler(
           const userRateLimitResult = await checkRateLimit(
             `user:${graphQLContext.userId}:${operationType}`,
             rateLimit,
-            RATE_LIMITS.WINDOW_MS,
+            RATE_LIMITS.WINDOW_MS
           );
 
           if (!userRateLimitResult.allowed) {
@@ -184,14 +211,20 @@ export function createApolloHandler(
                   },
                 ],
               },
-              429,
+              429
             );
           }
 
           // Add rate limit headers
           c.header('X-RateLimit-Limit', String(rateLimit));
-          c.header('X-RateLimit-Remaining', String(userRateLimitResult.remaining));
-          c.header('X-RateLimit-Reset', String(Math.ceil(userRateLimitResult.resetAt / 1000)));
+          c.header(
+            'X-RateLimit-Remaining',
+            String(userRateLimitResult.remaining)
+          );
+          c.header(
+            'X-RateLimit-Reset',
+            String(Math.ceil(userRateLimitResult.resetAt / 1000))
+          );
         }
       }
 
@@ -201,9 +234,10 @@ export function createApolloHandler(
           // Check if THIS specific operation is an introspection query
           // Must check for __schema or __type as standalone identifiers (not __typename)
           // Use regex to match word boundaries to avoid matching __typename
-          const operationIsIntrospection = /(^|\s)__schema(\s|\(|{)/.test(operation.query) ||
-                                           /(^|\s)__type(\s|\(|{)/.test(operation.query) ||
-                                           operation.query.includes('IntrospectionQuery');
+          const operationIsIntrospection =
+            /(^|\s)__schema(\s|\(|{)/.test(operation.query) ||
+            /(^|\s)__type(\s|\(|{)/.test(operation.query) ||
+            operation.query.includes('IntrospectionQuery');
 
           // Validate context for non-introspection queries
           if (!operationIsIntrospection) {
@@ -251,16 +285,19 @@ export function createApolloHandler(
           }
 
           // Check cache for query response (only for queries, not mutations)
-          if (!operation.query.trim().startsWith('mutation') && graphQLContext?.userId) {
+          if (
+            !operation.query.trim().startsWith('mutation') &&
+            graphQLContext?.userId
+          ) {
             const cachedResponse = await getCachedQueryResponse<unknown>(
               operation.query,
               operation.variables as Record<string, unknown> | undefined,
-              graphQLContext.userId,
+              graphQLContext.userId
             );
 
             if (cachedResponse) {
               // Return cached response
-              return {data: cachedResponse};
+              return { data: cachedResponse };
             }
           }
 
@@ -307,12 +344,14 @@ export function createApolloHandler(
             result = await server.executeOperation(
               {
                 query: operation.query,
-                variables: operation.variables as Record<string, unknown> | undefined,
+                variables: operation.variables as
+                  | Record<string, unknown>
+                  | undefined,
                 operationName: operation.operationName,
               },
               {
                 contextValue,
-              },
+              }
             );
           } catch {
             // If execution throws, return error response
@@ -330,14 +369,28 @@ export function createApolloHandler(
           }
 
           // Convert Apollo Server result
-          const response: {data?: unknown; errors?: unknown[]} = {};
+          const response: { data?: unknown; errors?: unknown[] } = {};
           if (result && typeof result === 'object' && result.body) {
-            const bodyResult = (result as {body?: {kind?: string; singleResult?: {data?: unknown; errors?: unknown[]}}}).body;
+            const bodyResult = (
+              result as {
+                body?: {
+                  kind?: string;
+                  singleResult?: { data?: unknown; errors?: unknown[] };
+                };
+              }
+            ).body;
             if (bodyResult?.kind === 'single' && bodyResult.singleResult) {
-              if ('data' in bodyResult.singleResult && bodyResult.singleResult.data !== undefined) {
+              if (
+                'data' in bodyResult.singleResult &&
+                bodyResult.singleResult.data !== undefined
+              ) {
                 response.data = bodyResult.singleResult.data;
               }
-              if ('errors' in bodyResult.singleResult && Array.isArray(bodyResult.singleResult.errors) && bodyResult.singleResult.errors.length > 0) {
+              if (
+                'errors' in bodyResult.singleResult &&
+                Array.isArray(bodyResult.singleResult.errors) &&
+                bodyResult.singleResult.errors.length > 0
+              ) {
                 response.errors = bodyResult.singleResult.errors;
               }
             }
@@ -352,7 +405,8 @@ export function createApolloHandler(
       }
       return c.json(results, 200);
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
       console.error('Apollo Server handler error:', errorObj);
       return c.json(
         {
@@ -365,7 +419,7 @@ export function createApolloHandler(
             },
           ],
         },
-        500,
+        500
       );
     }
   };

@@ -2,7 +2,7 @@
  * Custom error classes for the application
  */
 
-import {ErrorCode} from './errorCodes';
+import { ErrorCode } from './errorCodes';
 
 export class AppError extends Error {
   /**
@@ -23,9 +23,9 @@ export class AppError extends Error {
     options?: {
       context?: Record<string, unknown>;
       cause?: Error;
-    },
+    }
   ) {
-    super(message, {cause: options?.cause});
+    super(message, { cause: options?.cause });
     this.name = 'AppError';
     this.context = options?.context;
     this.cause = options?.cause;
@@ -74,36 +74,10 @@ export class ConflictError extends AppError {
       expectedVersion: number;
       currentData: Record<string, unknown>;
       incomingData: Record<string, unknown>;
-    },
+    }
   ) {
     super(message, ErrorCode.CONFLICT, 409);
     this.name = 'ConflictError';
     Object.setPrototypeOf(this, ConflictError.prototype);
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

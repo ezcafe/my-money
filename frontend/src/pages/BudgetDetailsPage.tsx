@@ -3,29 +3,35 @@
  * Shows budget details with paginated transactions
  */
 
-import React, {useState, memo, useCallback, useEffect, useRef, useMemo} from 'react';
-import {useParams, useNavigate, useLocation} from 'react-router';
-import {Box} from '@mui/material';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {useBudget} from '../hooks/useBudget';
-import type {TransactionOrderInput, TransactionOrderByField} from '../hooks/useTransactions';
-import {ITEMS_PER_PAGE} from '../constants';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {DELETE_TRANSACTION} from '../graphql/mutations';
-import {GET_PREFERENCES, GET_REPORT_TRANSACTIONS, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_BUDGET} from '../graphql/queries';
-import {useSearch} from '../contexts/SearchContext';
-import {useTitle} from '../contexts/TitleContext';
-import {TransactionList} from '../components/TransactionList';
-import {PageContainer} from '../components/common/PageContainer';
-import {VersionHistoryPanel} from '../components/VersionHistoryPanel';
-import {BudgetSummary} from '../components/budget/BudgetSummary';
+import React, { useState, memo, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router';
+import { Box } from '@mui/material';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { useBudget } from '../hooks/useBudget';
+import type { TransactionOrderInput, TransactionOrderByField } from '../hooks/useTransactions';
+import { ITEMS_PER_PAGE } from '../constants';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { DELETE_TRANSACTION } from '../graphql/mutations';
+import {
+  GET_PREFERENCES,
+  GET_REPORT_TRANSACTIONS,
+  GET_TRANSACTIONS,
+  GET_RECENT_TRANSACTIONS,
+  GET_BUDGET,
+} from '../graphql/queries';
+import { useSearch } from '../contexts/SearchContext';
+import { useTitle } from '../contexts/TitleContext';
+import { TransactionList } from '../components/TransactionList';
+import { PageContainer } from '../components/common/PageContainer';
+import { VersionHistoryPanel } from '../components/VersionHistoryPanel';
+import { BudgetSummary } from '../components/budget/BudgetSummary';
 
 /**
  * Budget Details Page Component
  */
 const BudgetDetailsPageComponent = (): React.JSX.Element => {
-  const {id} = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const prevLocationRef = useRef<string>(location.pathname);
@@ -37,19 +43,24 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Search state
-  const {searchQuery, clearSearch} = useSearch();
+  const { searchQuery, clearSearch } = useSearch();
   const isSearchMode = Boolean(searchQuery);
 
   // Title state
-  const {setTitle} = useTitle();
+  const { setTitle } = useTitle();
 
   // Get currency preference
-  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
+    GET_PREFERENCES
+  );
   const currency = preferencesData?.preferences?.currency ?? 'USD';
 
-
-  const {budget, loading: budgetLoading, error: budgetError, refetch: refetchBudget} =
-    useBudget(id);
+  const {
+    budget,
+    loading: budgetLoading,
+    error: budgetError,
+    refetch: refetchBudget,
+  } = useBudget(id);
 
   // Calculate current month start and end dates
   const currentMonthDates = useMemo(() => {
@@ -67,8 +78,8 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
     // Build orderBy object inside useMemo
     const orderBy: TransactionOrderInput =
       sortField && sortDirection
-        ? {field: sortField, direction: sortDirection}
-        : {field: 'date', direction: 'desc'};
+        ? { field: sortField, direction: sortDirection }
+        : { field: 'date', direction: 'desc' };
 
     const vars: {
       accountIds?: string[];
@@ -107,15 +118,20 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   }, [budget, sortField, sortDirection, skip, currentMonthDates, searchQuery]);
 
   // Fetch transactions using reportTransactions query
-  const {data: transactionsData, loading: transactionsLoading, error: transactionsError, refetch: refetchTransactions} = useQuery<{
+  const {
+    data: transactionsData,
+    loading: transactionsLoading,
+    error: transactionsError,
+    refetch: refetchTransactions,
+  } = useQuery<{
     reportTransactions?: {
       items: Array<{
         id: string;
         value: number;
         date: string;
-        account?: {id: string; name: string} | null;
-        category?: {id: string; name: string} | null;
-        payee?: {id: string; name: string} | null;
+        account?: { id: string; name: string } | null;
+        category?: { id: string; name: string } | null;
+        payee?: { id: string; name: string } | null;
         note?: string | null;
       }>;
       totalCount: number;
@@ -140,7 +156,8 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   // Set appbar title when budget is loaded
   useEffect(() => {
     if (budget) {
-      const budgetName = budget.account?.name ?? budget.category?.name ?? budget.payee?.name ?? 'Budget';
+      const budgetName =
+        budget.account?.name ?? budget.category?.name ?? budget.payee?.name ?? 'Budget';
       setTitle(budgetName);
     }
     // Cleanup: clear title when component unmounts
@@ -150,7 +167,11 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   }, [budget, setTitle]);
 
   const [deleteTransaction] = useMutation(DELETE_TRANSACTION, {
-    refetchQueries: [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}, {query: GET_BUDGET}],
+    refetchQueries: [
+      { query: GET_TRANSACTIONS },
+      { query: GET_RECENT_TRANSACTIONS },
+      { query: GET_BUDGET },
+    ],
     awaitRefetchQueries: true,
     onCompleted: () => {
       void refetchTransactions();
@@ -167,7 +188,7 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
       setSortDirection(direction);
       setPage(1); // Reset to first page when sorting changes
     },
-    [],
+    []
   );
 
   /**
@@ -177,10 +198,12 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
     (transactionId: string) => {
       if (id) {
         const returnTo = `/budgets/${id}`;
-        void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`);
+        void navigate(
+          `/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`
+        );
       }
     },
-    [id, navigate],
+    [id, navigate]
   );
 
   /**
@@ -189,16 +212,19 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   const handleDelete = useCallback(
     (transactionId: string) => {
       void deleteTransaction({
-        variables: {id: transactionId},
+        variables: { id: transactionId },
       });
     },
-    [deleteTransaction],
+    [deleteTransaction]
   );
 
   // Refetch data when returning from edit page
   useEffect(() => {
     // If we navigated back from a different path (e.g., from edit page), refetch data
-    if (prevLocationRef.current !== location.pathname && prevLocationRef.current.includes('/transactions/')) {
+    if (
+      prevLocationRef.current !== location.pathname &&
+      prevLocationRef.current.includes('/transactions/')
+    ) {
       void refetchTransactions();
       void refetchBudget();
     }
@@ -252,7 +278,7 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   // Show transaction error if any
   if (transactionsError) {
     return (
-      <Box sx={{p: 2}}>
+      <Box sx={{ p: 2 }}>
         <ErrorAlert
           title="Error Loading Transactions"
           message={transactionsError?.message ?? 'Error loading transactions'}
@@ -260,7 +286,6 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
       </Box>
     );
   }
-
 
   return (
     <PageContainer>
@@ -288,9 +313,7 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
       />
 
       {/* Version History Section */}
-      {id ? (
-        <VersionHistoryPanel entityType="Budget" entityId={id} />
-      ) : null}
+      {id ? <VersionHistoryPanel entityType="Budget" entityId={id} /> : null}
     </PageContainer>
   );
 };
@@ -298,4 +321,3 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
 BudgetDetailsPageComponent.displayName = 'BudgetDetailsPage';
 
 export const BudgetDetailsPage = memo(BudgetDetailsPageComponent);
-

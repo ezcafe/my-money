@@ -3,7 +3,7 @@
  * Provides utilities for cache invalidation and management
  */
 
-import type {InMemoryCache} from '@apollo/client';
+import type { InMemoryCache } from '@apollo/client';
 
 /**
  * Invalidate cache entries for a specific field
@@ -14,9 +14,9 @@ import type {InMemoryCache} from '@apollo/client';
 export function invalidateCacheField(
   cache: InMemoryCache,
   fieldName: string,
-  args?: Record<string, unknown>,
+  args?: Record<string, unknown>
 ): void {
-  cache.evict({fieldName, args});
+  cache.evict({ fieldName, args });
   cache.gc(); // Garbage collect evicted entries
 }
 
@@ -25,12 +25,9 @@ export function invalidateCacheField(
  * @param cache - Apollo cache instance
  * @param fieldNames - Array of field names to invalidate
  */
-export function invalidateCacheFields(
-  cache: InMemoryCache,
-  fieldNames: string[],
-): void {
+export function invalidateCacheFields(cache: InMemoryCache, fieldNames: string[]): void {
   for (const fieldName of fieldNames) {
-    cache.evict({fieldName});
+    cache.evict({ fieldName });
   }
   cache.gc();
 }
@@ -41,21 +38,17 @@ export function invalidateCacheFields(
  * @param typeName - Type name to invalidate
  * @param id - Optional ID to invalidate specific object
  */
-export function invalidateCacheType(
-  cache: InMemoryCache,
-  typeName: string,
-  id?: string,
-): void {
+export function invalidateCacheType(cache: InMemoryCache, typeName: string, id?: string): void {
   if (id) {
-    const cacheId = cache.identify({__typename: typeName, id});
+    const cacheId = cache.identify({ __typename: typeName, id });
     if (cacheId) {
-      cache.evict({id: cacheId});
+      cache.evict({ id: cacheId });
     }
   } else {
     // Evict all objects of this type
     cache.modify({
       fields: {
-        [typeName]: (_existing, {DELETE}) => DELETE,
+        [typeName]: (_existing, { DELETE }) => DELETE,
       },
     });
   }

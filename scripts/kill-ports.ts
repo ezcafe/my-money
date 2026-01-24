@@ -4,8 +4,8 @@
  * Usage: tsx scripts/kill-ports.ts [port1] [port2] ...
  */
 
-import {exec} from 'child_process';
-import {promisify} from 'util';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
@@ -16,7 +16,7 @@ const execAsync = promisify(exec);
 async function killPort(port: number): Promise<void> {
   try {
     // Find process using the port
-    const {stdout} = await execAsync(`lsof -ti :${port}`);
+    const { stdout } = await execAsync(`lsof -ti :${port}`);
     const pids = stdout.trim().split('\n').filter(Boolean);
 
     if (pids.length === 0) {
@@ -36,7 +36,7 @@ async function killPort(port: number): Promise<void> {
   } catch (error: unknown) {
     // lsof returns non-zero exit code when no process is found
     // This is expected, so we just log that the port is free
-    const execError = error as {code?: number; stderr?: string};
+    const execError = error as { code?: number; stderr?: string };
     if (execError.code === 1) {
       console.log(`✓ Port ${port} is free`);
     } else {
@@ -49,7 +49,10 @@ async function killPort(port: number): Promise<void> {
  * Main function
  */
 async function main(): Promise<void> {
-  const ports = process.argv.slice(2).map(Number).filter((n) => !isNaN(n) && n > 0);
+  const ports = process.argv
+    .slice(2)
+    .map(Number)
+    .filter((n) => !isNaN(n) && n > 0);
 
   if (ports.length === 0) {
     // Default ports if none specified
@@ -65,4 +68,3 @@ main().catch((error) => {
   console.error('Error:', error);
   process.exit(1);
 });
-

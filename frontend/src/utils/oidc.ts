@@ -85,10 +85,10 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
  * Generate PKCE verifier and challenge pair
  * @returns Object with verifier and challenge
  */
-async function generatePKCE(): Promise<{verifier: string; challenge: string}> {
+async function generatePKCE(): Promise<{ verifier: string; challenge: string }> {
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
-  return {verifier, challenge};
+  return { verifier, challenge };
 }
 
 /**
@@ -104,7 +104,7 @@ export async function initiateLogin(): Promise<void> {
 
   const config = await getOIDCConfig();
   const state = generateState();
-  const {verifier, challenge} = await generatePKCE();
+  const { verifier, challenge } = await generatePKCE();
 
   // Store state in sessionStorage for callback verification
   sessionStorage.setItem('oidc_state', state);
@@ -114,7 +114,8 @@ export async function initiateLogin(): Promise<void> {
 
   // Build authorization URL
   // Redirect URI points to backend callback endpoint which handles token exchange
-  const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+  const backendUrl =
+    process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
   const redirectUri = `${backendUrl}/auth/callback`;
   const params = new URLSearchParams({
     response_type: 'code',
@@ -161,7 +162,8 @@ export async function handleCallback(code: string, state: string): Promise<boole
 
   // Redirect to backend callback endpoint
   // Backend will exchange code for tokens and set httpOnly cookies
-  const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+  const backendUrl =
+    process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
   const redirectUrl = `${backendUrl}/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
   window.location.href = redirectUrl;
 
@@ -182,7 +184,8 @@ export async function isAuthenticated(): Promise<boolean> {
     // The backend GraphQL endpoint requires authentication, so we can use a simple query
     // However, to avoid unnecessary GraphQL overhead, we check if refresh token exists
     // If refresh token exists, user is authenticated (or was recently authenticated)
-    const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+    const backendUrl =
+      process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
     const checkUrl = `${backendUrl}/auth/refresh`;
 
     // Make a POST request to check authentication
@@ -214,7 +217,8 @@ export async function isAuthenticated(): Promise<boolean> {
 export async function logout(): Promise<void> {
   try {
     // Call backend logout endpoint to clear cookies
-    const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+    const backendUrl =
+      process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
     await fetch(`${backendUrl}/auth/logout`, {
       method: 'POST',
       credentials: 'include', // Include cookies
@@ -234,4 +238,3 @@ export async function logout(): Promise<void> {
   // Redirect to login page
   window.location.href = '/login';
 }
-

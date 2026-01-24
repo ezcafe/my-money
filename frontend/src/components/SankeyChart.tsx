@@ -4,10 +4,10 @@
  * Refactored with proper graph analysis, interactive tooltips, and improved visual design
  */
 
-import React, {useMemo, useState, useEffect, useRef, useCallback} from 'react';
-import {Box, Tooltip, Typography, useTheme} from '@mui/material';
-import type {Theme} from '@mui/material/styles';
-import {formatCurrencyPreserveDecimals} from '../utils/formatting';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { Box, Tooltip, Typography, useTheme } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
+import { formatCurrencyPreserveDecimals } from '../utils/formatting';
 
 /**
  * Sankey node data
@@ -70,7 +70,7 @@ interface SankeyChartProps {
 function analyzeGraphStructure(
   nodeLabels: string[],
   linkSources: number[],
-  linkTargets: number[],
+  linkTargets: number[]
 ): Map<number, number> {
   const columnMap = new Map<number, number>();
   const inDegree = new Map<number, number>();
@@ -109,10 +109,13 @@ function analyzeGraphStructure(
 
   // BFS to assign columns
   const visited = new Set<number>();
-  const queue: Array<{node: number; column: number}> = sourceNodes.map((node) => ({node, column: 0}));
+  const queue: Array<{ node: number; column: number }> = sourceNodes.map((node) => ({
+    node,
+    column: 0,
+  }));
 
   while (queue.length > 0) {
-    const {node, column} = queue.shift()!;
+    const { node, column } = queue.shift()!;
     if (visited.has(node)) {
       continue;
     }
@@ -127,7 +130,7 @@ function analyzeGraphStructure(
       if (!visited.has(target)) {
         const targetColumn = Math.max(columnMap.get(target) ?? 0, column + 1);
         columnMap.set(target, targetColumn);
-        queue.push({node: target, column: column + 1});
+        queue.push({ node: target, column: column + 1 });
       }
     }
   }
@@ -153,7 +156,7 @@ function calculateLayout(
   linkTargets: number[],
   linkValues: number[],
   width: number,
-  height: number,
+  height: number
 ): SankeyData {
   const nodePadding = 8;
   const minNodeHeight = 24;
@@ -179,7 +182,10 @@ function calculateLayout(
   }
 
   // Group nodes by column
-  const nodesByColumn: Map<number, Array<{index: number; value: number; label: string}>> = new Map();
+  const nodesByColumn: Map<
+    number,
+    Array<{ index: number; value: number; label: string }>
+  > = new Map();
 
   for (let i = 0; i < nodeLabels.length; i++) {
     const column = columnMap.get(i) ?? 0;
@@ -211,9 +217,11 @@ function calculateLayout(
     columnNodes.sort((a, b) => b.value - a.value);
 
     const totalValue = columnNodes.reduce((sum, n) => sum + n.value, 0);
-    const minTotalHeight = minNodeHeight * columnNodes.length + nodePadding * (columnNodes.length - 1);
+    const minTotalHeight =
+      minNodeHeight * columnNodes.length + nodePadding * (columnNodes.length - 1);
     const totalHeight = Math.max(totalValue, minTotalHeight);
-    const scale = totalHeight > 0 ? (height - nodePadding * (columnNodes.length + 1)) / totalHeight : 1;
+    const scale =
+      totalHeight > 0 ? (height - nodePadding * (columnNodes.length + 1)) / totalHeight : 1;
 
     let currentY = nodePadding;
 
@@ -236,11 +244,13 @@ function calculateLayout(
   }
 
   // Create links
-  const nodeMap = new Map(nodes.map((n) => {
-    const match = n.id.match(/node-(\d+)/);
-    const index = match ? parseInt(match[1] ?? '0', 10) : 0;
-    return [index, n];
-  }));
+  const nodeMap = new Map(
+    nodes.map((n) => {
+      const match = n.id.match(/node-(\d+)/);
+      const index = match ? parseInt(match[1] ?? '0', 10) : 0;
+      return [index, n];
+    })
+  );
   const links: SankeyLink[] = [];
 
   for (let i = 0; i < linkSources.length; i++) {
@@ -262,7 +272,7 @@ function calculateLayout(
     }
   }
 
-  return {nodes, links};
+  return { nodes, links };
 }
 
 /**
@@ -274,7 +284,7 @@ function generateLinkPath(
   sourceHeight: number,
   targetX: number,
   targetY: number,
-  targetHeight: number,
+  targetHeight: number
 ): string {
   const dx = targetX - sourceX;
   const curvature = 0.4;
@@ -327,7 +337,7 @@ function getLinkColor(
   sourceColumn: number,
   targetColumn: number,
   maxColumn: number,
-  theme: Theme,
+  theme: Theme
 ): string {
   // Income flow
   if (sourceColumn < maxColumn / 2 && targetColumn < maxColumn / 2) {
@@ -344,7 +354,12 @@ function getLinkColor(
 /**
  * Sankey Chart Component
  */
-export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}: SankeyChartProps): React.JSX.Element {
+export function SankeyChart({
+  data,
+  width = 800,
+  height = 600,
+  currency = 'USD',
+}: SankeyChartProps): React.JSX.Element {
   const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(width);
@@ -374,7 +389,7 @@ export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}:
       data.link.target.map((t) => t ?? 0),
       data.link.value.map((v) => v ?? 0),
       chartWidth,
-      height,
+      height
     );
   }, [data, chartWidth, height]);
 
@@ -410,8 +425,8 @@ export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}:
   }, [chartWidth]);
 
   return (
-    <Box ref={containerRef} sx={{width: '100%', height, position: 'relative'}}>
-      <svg width={chartWidth} height={height} style={{display: 'block'}}>
+    <Box ref={containerRef} sx={{ width: '100%', height, position: 'relative' }}>
+      <svg width={chartWidth} height={height} style={{ display: 'block' }}>
         <defs>
           <linearGradient id="linkGradientIncome" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor={theme.palette.success.main} stopOpacity={0.4} />
@@ -437,23 +452,30 @@ export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}:
             link.sourceNode.height,
             targetX,
             link.targetNode.y,
-            link.targetNode.height,
+            link.targetNode.height
           );
 
-          const linkColor = getLinkColor(link.sourceNode.column, link.targetNode.column, maxColumn, theme);
-          const isHovered = hoveredLink === idx || hoveredNode === link.source || hoveredNode === link.target;
-          const gradientId = link.sourceNode.column < maxColumn / 2 && link.targetNode.column < maxColumn / 2
-            ? 'linkGradientIncome'
-            : link.sourceNode.column > maxColumn / 2 || link.targetNode.column > maxColumn / 2
-              ? 'linkGradientExpense'
-              : 'linkGradientDefault';
+          const linkColor = getLinkColor(
+            link.sourceNode.column,
+            link.targetNode.column,
+            maxColumn,
+            theme
+          );
+          const isHovered =
+            hoveredLink === idx || hoveredNode === link.source || hoveredNode === link.target;
+          const gradientId =
+            link.sourceNode.column < maxColumn / 2 && link.targetNode.column < maxColumn / 2
+              ? 'linkGradientIncome'
+              : link.sourceNode.column > maxColumn / 2 || link.targetNode.column > maxColumn / 2
+                ? 'linkGradientExpense'
+                : 'linkGradientDefault';
 
           return (
             <Tooltip
               key={`link-${idx}`}
               title={
                 <Box>
-                  <Typography variant="body2" sx={{fontWeight: 600, mb: 0.5}}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                     {link.sourceNode.label} → {link.targetNode.label}
                   </Typography>
                   <Typography variant="body2">
@@ -469,7 +491,7 @@ export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}:
                 stroke={linkColor}
                 strokeWidth={isHovered ? 2 : 1}
                 opacity={isHovered ? 0.8 : 0.5}
-                style={{cursor: 'pointer'}}
+                style={{ cursor: 'pointer' }}
                 onMouseEnter={() => handleLinkMouseEnter(idx)}
                 onMouseLeave={handleLinkMouseLeave}
               />
@@ -490,7 +512,7 @@ export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}:
               key={node.id}
               title={
                 <Box>
-                  <Typography variant="body2" sx={{fontWeight: 600, mb: 0.5}}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                     {node.label}
                   </Typography>
                   <Typography variant="body2">
@@ -503,7 +525,7 @@ export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}:
               <g
                 onMouseEnter={() => handleNodeMouseEnter(node.id)}
                 onMouseLeave={handleNodeMouseLeave}
-                style={{cursor: 'pointer'}}
+                style={{ cursor: 'pointer' }}
               >
                 <rect
                   x={node.x}
@@ -515,7 +537,7 @@ export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}:
                   strokeWidth={isHovered ? 2 : 1}
                   rx={4}
                   opacity={isHovered ? 1 : 0.9}
-                  style={{transition: 'all 0.2s ease'}}
+                  style={{ transition: 'all 0.2s ease' }}
                 />
                 <text
                   x={labelX}
@@ -525,7 +547,7 @@ export function SankeyChart({data, width = 800, height = 600, currency = 'USD'}:
                   fontSize={12}
                   fill={theme.palette.text.primary}
                   fontWeight={isHovered ? 600 : 400}
-                  style={{pointerEvents: 'none', transition: 'font-weight 0.2s ease'}}
+                  style={{ pointerEvents: 'none', transition: 'font-weight 0.2s ease' }}
                 >
                   {truncatedLabel}
                 </text>

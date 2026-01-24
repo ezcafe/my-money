@@ -3,7 +3,7 @@
  * Custom scalars with built-in validation for GraphQL schema
  */
 
-import {GraphQLScalarType, Kind, GraphQLError} from 'graphql';
+import { GraphQLScalarType, Kind, GraphQLError } from 'graphql';
 
 /**
  * Positive Decimal scalar - validates that value is positive
@@ -105,21 +105,33 @@ export const UUID = new GraphQLScalarType({
   description: 'A valid UUID',
   serialize(value: unknown): string {
     const uuid = String(value);
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        uuid
+      )
+    ) {
       throw new GraphQLError('Value must be a valid UUID');
     }
     return uuid;
   },
   parseValue(value: unknown): string {
     const uuid = String(value);
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        uuid
+      )
+    ) {
       throw new GraphQLError('Value must be a valid UUID');
     }
     return uuid;
   },
   parseLiteral(ast): string {
     if (ast.kind === Kind.STRING) {
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ast.value)) {
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          ast.value
+        )
+      ) {
         throw new GraphQLError('Value must be a valid UUID');
       }
       return ast.value;

@@ -3,21 +3,26 @@
  * Shows last 30 transactions with category and payee information
  */
 
-import React, {memo, useMemo} from 'react';
-import {List, ListItemButton, ListItemText, Box, Typography} from '@mui/material';
-import {useQuery} from '@apollo/client/react';
-import {Card} from './ui/Card';
-import {formatCurrencyPreserveDecimals, groupTransactionsByDate, formatDateHeader, getDateKey} from '../utils/formatting';
-import {GET_PREFERENCES} from '../graphql/queries';
-import {useDateFormat} from '../hooks/useDateFormat';
+import React, { memo, useMemo } from 'react';
+import { List, ListItemButton, ListItemText, Box, Typography } from '@mui/material';
+import { useQuery } from '@apollo/client/react';
+import { Card } from './ui/Card';
+import {
+  formatCurrencyPreserveDecimals,
+  groupTransactionsByDate,
+  formatDateHeader,
+  getDateKey,
+} from '../utils/formatting';
+import { GET_PREFERENCES } from '../graphql/queries';
+import { useDateFormat } from '../hooks/useDateFormat';
 
 interface Transaction {
   id: string;
   value: number;
   date: Date;
-  account?: {id: string; name: string} | null;
-  category?: {id: string; name: string} | null;
-  payee?: {id: string; name: string} | null;
+  account?: { id: string; name: string } | null;
+  category?: { id: string; name: string } | null;
+  payee?: { id: string; name: string } | null;
   note?: string | null;
 }
 
@@ -34,12 +39,14 @@ const HistoryListComponent = ({
   transactions,
   onTransactionClick,
 }: HistoryListProps): React.JSX.Element => {
-  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
+    GET_PREFERENCES
+  );
   const currency = preferencesData?.preferences?.currency ?? 'USD';
-  const {dateFormat} = useDateFormat();
+  const { dateFormat } = useDateFormat();
 
   // Group transactions by date and preserve order
-  const {groupedTransactions, dateKeys} = useMemo(() => {
+  const { groupedTransactions, dateKeys } = useMemo(() => {
     const grouped = groupTransactionsByDate(transactions);
     // Preserve the order of dates based on first occurrence in transactions array
     const seenDates = new Set<string>();
@@ -54,7 +61,7 @@ const HistoryListComponent = ({
       }
     }
 
-    return {groupedTransactions: grouped, dateKeys: orderedKeys};
+    return { groupedTransactions: grouped, dateKeys: orderedKeys };
   }, [transactions]);
 
   return (
@@ -79,10 +86,7 @@ const HistoryListComponent = ({
                     alignItems: 'center',
                   }}
                 >
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
+                  <Typography variant="caption" color="text.secondary">
                     {dateHeader}
                   </Typography>
                   <Box
@@ -106,7 +110,7 @@ const HistoryListComponent = ({
                     <ListItemText
                       primary={transaction.category?.name ?? ''}
                       secondary={transaction.payee?.name ?? undefined}
-                      sx={{flex: '0 1 auto'}}
+                      sx={{ flex: '0 1 auto' }}
                     />
                     <Typography
                       variant="body1"
@@ -132,5 +136,3 @@ const HistoryListComponent = ({
 HistoryListComponent.displayName = 'HistoryList';
 
 export const HistoryList = memo(HistoryListComponent);
-
-

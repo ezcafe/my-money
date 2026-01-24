@@ -3,7 +3,7 @@
  * Dialog for editing transaction details
  */
 
-import React, {useState, useEffect, useMemo} from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   TextField,
@@ -14,20 +14,25 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {Dialog} from './ui/Dialog';
-import {Button} from './ui/Button';
-import {UPDATE_TRANSACTION} from '../graphql/mutations';
-import {GET_CATEGORIES, GET_PAYEES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS} from '../graphql/queries';
-import {useAccounts} from '../hooks/useAccounts';
-import type {Transaction} from '../hooks/useTransactions';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { Dialog } from './ui/Dialog';
+import { Button } from './ui/Button';
+import { UPDATE_TRANSACTION } from '../graphql/mutations';
+import {
+  GET_CATEGORIES,
+  GET_PAYEES,
+  GET_TRANSACTIONS,
+  GET_RECENT_TRANSACTIONS,
+} from '../graphql/queries';
+import { useAccounts } from '../hooks/useAccounts';
+import type { Transaction } from '../hooks/useTransactions';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
   GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
-import type {Account} from '../hooks/useAccounts';
-import type {Category} from '../hooks/useCategories';
+import type { Account } from '../hooks/useAccounts';
+import type { Category } from '../hooks/useCategories';
 
 /**
  * Transaction edit dialog props
@@ -48,15 +53,18 @@ export function TransactionEditDialog({
   onClose,
   onSuccess,
 }: TransactionEditDialogProps): React.JSX.Element {
-  const {accounts} = useAccounts();
-  const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string; categoryType: string}>}>(
-    GET_CATEGORIES,
-  );
-  const {data: payeesData} = useQuery<{payees?: Array<{id: string; name: string}>}>(
-    GET_PAYEES,
+  const { accounts } = useAccounts();
+  const { data: categoriesData } = useQuery<{
+    categories?: Array<{ id: string; name: string; categoryType: string }>;
+  }>(GET_CATEGORIES);
+  const { data: payeesData } = useQuery<{ payees?: Array<{ id: string; name: string }> }>(
+    GET_PAYEES
   );
 
-  const categories = useMemo(() => (categoriesData?.categories ?? []) as Category[], [categoriesData?.categories]);
+  const categories = useMemo(
+    () => (categoriesData?.categories ?? []) as Category[],
+    [categoriesData?.categories]
+  );
   const payees = payeesData?.payees ?? [];
 
   const [value, setValue] = useState<string>('');
@@ -81,8 +89,8 @@ export function TransactionEditDialog({
       setValue(String(transaction.value ?? ''));
       const dateValue =
         typeof transaction.date === 'string'
-          ? transaction.date.split('T')[0] ?? ''
-          : new Date(transaction.date).toISOString().split('T')[0] ?? '';
+          ? (transaction.date.split('T')[0] ?? '')
+          : (new Date(transaction.date).toISOString().split('T')[0] ?? '');
       setDate(dateValue);
       setAccountId(transaction.account?.id ?? '');
       setCategoryId(transaction.category?.id ?? '');
@@ -92,8 +100,8 @@ export function TransactionEditDialog({
     }
   }, [transaction]);
 
-  const [updateTransaction, {loading}] = useMutation(UPDATE_TRANSACTION, {
-    refetchQueries: [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}],
+  const [updateTransaction, { loading }] = useMutation(UPDATE_TRANSACTION, {
+    refetchQueries: [{ query: GET_TRANSACTIONS }, { query: GET_RECENT_TRANSACTIONS }],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -135,9 +143,10 @@ export function TransactionEditDialog({
       updateInput.value = numValue;
     }
     if (date) {
-      const transactionDate = typeof transaction.date === 'string'
-        ? transaction.date.split('T')[0]
-        : new Date(transaction.date).toISOString().split('T')[0];
+      const transactionDate =
+        typeof transaction.date === 'string'
+          ? transaction.date.split('T')[0]
+          : new Date(transaction.date).toISOString().split('T')[0];
       if (date !== transactionDate) {
         updateInput.date = new Date(date).toISOString();
       }
@@ -164,7 +173,7 @@ export function TransactionEditDialog({
   };
 
   const actions = (
-    <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end'}}>
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
       <Button onClick={onClose} disabled={loading}>
         Cancel
       </Button>
@@ -176,10 +185,12 @@ export function TransactionEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} title="Edit Transaction" actions={actions}>
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-        {error ? <Typography color="error" variant="body2">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {error ? (
+          <Typography color="error" variant="body2">
             {error}
-          </Typography> : null}
+          </Typography>
+        ) : null}
 
         <TextField
           label="Value"
@@ -188,7 +199,7 @@ export function TransactionEditDialog({
           onChange={(e) => setValue(e.target.value)}
           fullWidth
           required
-          inputProps={{step: '0.01'}}
+          inputProps={{ step: '0.01' }}
         />
 
         <TextField
@@ -198,7 +209,7 @@ export function TransactionEditDialog({
           onChange={(e) => setDate(e.target.value)}
           fullWidth
           required
-          InputLabelProps={{shrink: true}}
+          InputLabelProps={{ shrink: true }}
         />
 
         <Autocomplete<Account, false, false, false>
@@ -258,4 +269,3 @@ export function TransactionEditDialog({
     </Dialog>
   );
 }
-

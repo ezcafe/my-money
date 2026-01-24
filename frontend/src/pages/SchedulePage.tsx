@@ -4,20 +4,20 @@
  * Follows Material Design 3 patterns
  */
 
-import React, {useEffect} from 'react';
-import {useLocation} from 'react-router';
-import {Typography, List, ListItem, Chip, Stack, Divider} from '@mui/material';
-import {Schedule} from '@mui/icons-material';
-import {useQuery} from '@apollo/client/react';
-import {GET_RECURRING_TRANSACTIONS, GET_PREFERENCES} from '../graphql/queries';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {EmptyState} from '../components/common/EmptyState';
-import {Card} from '../components/ui/Card';
-import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
-import {getRecurringTypeOptions, type RecurringType} from '../utils/recurringTypes';
-import {useDateFormat} from '../hooks/useDateFormat';
-import {PageContainer} from '../components/common/PageContainer';
+import React, { useEffect } from 'react';
+import { useLocation } from 'react-router';
+import { Typography, List, ListItem, Chip, Stack, Divider } from '@mui/material';
+import { Schedule } from '@mui/icons-material';
+import { useQuery } from '@apollo/client/react';
+import { GET_RECURRING_TRANSACTIONS, GET_PREFERENCES } from '../graphql/queries';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { EmptyState } from '../components/common/EmptyState';
+import { Card } from '../components/ui/Card';
+import { formatCurrencyPreserveDecimals, formatDateShort } from '../utils/formatting';
+import { getRecurringTypeOptions, type RecurringType } from '../utils/recurringTypes';
+import { useDateFormat } from '../hooks/useDateFormat';
+import { PageContainer } from '../components/common/PageContainer';
 
 /**
  * Recurring transaction type from GraphQL
@@ -77,15 +77,17 @@ function getRecurringTypeFromCron(cronExpression: string): RecurringType | null 
  */
 export function SchedulePage(): React.JSX.Element {
   const location = useLocation();
-  const {data, loading, error, refetch} = useQuery<RecurringTransactionsData>(
+  const { data, loading, error, refetch } = useQuery<RecurringTransactionsData>(
     GET_RECURRING_TRANSACTIONS,
     {
       fetchPolicy: 'cache-and-network',
-    },
+    }
   );
-  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
+    GET_PREFERENCES
+  );
   const currency = preferencesData?.preferences?.currency ?? 'USD';
-  const {dateFormat} = useDateFormat();
+  const { dateFormat } = useDateFormat();
 
   // Refetch when returning from add page
   useEffect(() => {
@@ -99,12 +101,7 @@ export function SchedulePage(): React.JSX.Element {
   }
 
   if (error) {
-    return (
-      <ErrorAlert
-        title="Error Loading Recurring Transactions"
-        message={error.message}
-      />
-    );
+    return <ErrorAlert title="Error Loading Recurring Transactions" message={error.message} />;
   }
 
   const recurringTransactions = data?.recurringTransactions ?? [];
@@ -126,30 +123,44 @@ export function SchedulePage(): React.JSX.Element {
           {recurringTransactions.map((transaction, index) => {
             const recurringType = getRecurringTypeFromCron(transaction.cronExpression);
             const typeLabel = recurringType
-              ? getRecurringTypeOptions().find((opt) => opt.value === recurringType)?.label ?? 'Custom'
+              ? (getRecurringTypeOptions().find((opt) => opt.value === recurringType)?.label ??
+                'Custom')
               : 'Custom';
 
             return (
               <React.Fragment key={transaction.id}>
                 {index > 0 && <Divider />}
-                <ListItem sx={{py: 1.5, px: 2}}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{width: '100%'}}>
-                    <Stack spacing={0.5} sx={{flex: 1}}>
+                <ListItem sx={{ py: 1.5, px: 2 }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    sx={{ width: '100%' }}
+                  >
+                    <Stack spacing={0.5} sx={{ flex: 1 }}>
                       <Typography variant="body1" fontWeight={500}>
                         {formatCurrencyPreserveDecimals(transaction.value, currency)}
                       </Typography>
-                      {transaction.account ? <Typography variant="body2" color="text.secondary">
+                      {transaction.account ? (
+                        <Typography variant="body2" color="text.secondary">
                           Account: {transaction.account.name}
-                        </Typography> : null}
-                      {transaction.category ? <Typography variant="body2" color="text.secondary">
+                        </Typography>
+                      ) : null}
+                      {transaction.category ? (
+                        <Typography variant="body2" color="text.secondary">
                           Category: {transaction.category.name}
-                        </Typography> : null}
-                      {transaction.payee ? <Typography variant="body2" color="text.secondary">
+                        </Typography>
+                      ) : null}
+                      {transaction.payee ? (
+                        <Typography variant="body2" color="text.secondary">
                           Payee: {transaction.payee.name}
-                        </Typography> : null}
-                      {transaction.note ? <Typography variant="body2" color="text.secondary">
+                        </Typography>
+                      ) : null}
+                      {transaction.note ? (
+                        <Typography variant="body2" color="text.secondary">
                           Note: {transaction.note}
-                        </Typography> : null}
+                        </Typography>
+                      ) : null}
                     </Stack>
                     <Stack spacing={1} alignItems="flex-end">
                       <Chip label={typeLabel} size="small" color="primary" variant="outlined" />
@@ -167,5 +178,3 @@ export function SchedulePage(): React.JSX.Element {
     </PageContainer>
   );
 }
-
-

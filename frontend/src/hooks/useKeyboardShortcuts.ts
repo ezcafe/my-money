@@ -3,7 +3,7 @@
  * Provides keyboard shortcut functionality for common actions
  */
 
-import {useEffect, useCallback} from 'react';
+import { useEffect, useCallback } from 'react';
 
 /**
  * Keyboard shortcut configuration
@@ -38,7 +38,7 @@ function parseShortcut(shortcut: string): {
   const alt = parts.includes('alt');
   const meta = parts.includes('meta') || parts.includes('cmd');
 
-  return {key, ctrl, shift, alt, meta};
+  return { key, ctrl, shift, alt, meta };
 }
 
 /**
@@ -49,7 +49,8 @@ function parseShortcut(shortcut: string): {
  */
 function matchesShortcut(event: KeyboardEvent, shortcut: KeyboardShortcut): boolean {
   const parsed = parseShortcut(shortcut.key);
-  const keyMatches = event.key.toLowerCase() === parsed.key || event.code.toLowerCase() === parsed.key;
+  const keyMatches =
+    event.key.toLowerCase() === parsed.key || event.code.toLowerCase() === parsed.key;
 
   return (
     keyMatches &&
@@ -91,7 +92,7 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[], enabled = tr
         }
       }
     },
-    [shortcuts, enabled],
+    [shortcuts, enabled]
   );
 
   useEffect(() => {
@@ -106,4 +107,3 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[], enabled = tr
     };
   }, [handleKeyDown, enabled]);
 }
-

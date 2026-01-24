@@ -4,9 +4,9 @@
  */
 
 import React from 'react';
-import {FormControl, InputLabel, Select, MenuItem} from '@mui/material';
-import {useQuery} from '@apollo/client/react';
-import {GET_WORKSPACES} from '../graphql/workspaceOperations';
+import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { useQuery } from '@apollo/client/react';
+import { GET_WORKSPACES } from '../graphql/workspaceOperations';
 
 export interface WorkspaceSelectorProps {
   value?: string;
@@ -22,7 +22,7 @@ export function WorkspaceSelector({
   onChange,
   disabled = false,
 }: WorkspaceSelectorProps): React.JSX.Element {
-  const {data, loading} = useQuery<{
+  const { data, loading } = useQuery<{
     workspaces: Array<{
       id: string;
       name: string;

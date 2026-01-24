@@ -12,8 +12,8 @@ import {
   ForbiddenError,
   ConflictError,
 } from './errors';
-import {ErrorCode} from './errorCodes';
-import {logError} from './logger';
+import { ErrorCode } from './errorCodes';
+import { logError } from './logger';
 
 /**
  * Error response format
@@ -40,7 +40,10 @@ export class ErrorFactory {
    * @param context - Optional context data
    * @returns ValidationError instance
    */
-  static validation(message: string, _context?: Record<string, unknown>): ValidationError {
+  static validation(
+    message: string,
+    _context?: Record<string, unknown>
+  ): ValidationError {
     return new ValidationError(message);
   }
 
@@ -50,7 +53,10 @@ export class ErrorFactory {
    * @param context - Optional context data (e.g., {id: '123'})
    * @returns NotFoundError instance
    */
-  static notFound(resource: string, _context?: Record<string, unknown>): NotFoundError {
+  static notFound(
+    resource: string,
+    _context?: Record<string, unknown>
+  ): NotFoundError {
     // Note: NotFoundError doesn't accept context in constructor, so we create a new AppError-like error
     // For now, we'll just return the error without context since NotFoundError constructor doesn't support it
     return new NotFoundError(resource);
@@ -62,7 +68,10 @@ export class ErrorFactory {
    * @param context - Optional context data
    * @returns UnauthorizedError instance
    */
-  static unauthorized(message: string = 'Unauthorized', _context?: Record<string, unknown>): UnauthorizedError {
+  static unauthorized(
+    message: string = 'Unauthorized',
+    _context?: Record<string, unknown>
+  ): UnauthorizedError {
     // Note: UnauthorizedError doesn't accept context in constructor, so we create a new AppError-like error
     // For now, we'll just return the error without context since UnauthorizedError constructor doesn't support it
     return new UnauthorizedError(message);
@@ -74,7 +83,10 @@ export class ErrorFactory {
    * @param context - Optional context data
    * @returns ForbiddenError instance
    */
-  static forbidden(message: string = 'Forbidden', _context?: Record<string, unknown>): ForbiddenError {
+  static forbidden(
+    message: string = 'Forbidden',
+    _context?: Record<string, unknown>
+  ): ForbiddenError {
     // Note: ForbiddenError doesn't accept context in constructor, so we create a new AppError-like error
     // For now, we'll just return the error without context since ForbiddenError constructor doesn't support it
     return new ForbiddenError(message);
@@ -94,7 +106,7 @@ export class ErrorFactory {
       expectedVersion: number;
       currentData: Record<string, unknown>;
       incomingData: Record<string, unknown>;
-    },
+    }
   ): ConflictError {
     return new ConflictError(message, conflictData);
   }
@@ -109,14 +121,12 @@ export class ErrorFactory {
   static internal(
     message: string,
     cause?: Error,
-    context?: Record<string, unknown>,
+    context?: Record<string, unknown>
   ): AppError {
-    return new AppError(
-      message,
-      ErrorCode.INTERNAL_SERVER_ERROR,
-      500,
-      {context, cause},
-    );
+    return new AppError(message, ErrorCode.INTERNAL_SERVER_ERROR, 500, {
+      context,
+      cause,
+    });
   }
 
   /**
@@ -154,18 +164,25 @@ export class ErrorFactory {
 
     // Only log if we can safely access error properties
     try {
-      logError('Unknown error type', {
-        event: 'unknown_error',
-        errorName,
-        errorMessage,
-      }, error);
+      logError(
+        'Unknown error type',
+        {
+          event: 'unknown_error',
+          errorName,
+          errorMessage,
+        },
+        error
+      );
     } catch {
       // If logging fails, continue without logging
       // This prevents recursive errors when error objects have problematic getters
     }
 
     return {
-      message: process.env.NODE_ENV === 'production' ? 'Internal server error' : errorMessage,
+      message:
+        process.env.NODE_ENV === 'production'
+          ? 'Internal server error'
+          : errorMessage,
       code: ErrorCode.INTERNAL_SERVER_ERROR,
       statusCode: 500,
       requestId,
@@ -201,7 +218,11 @@ export class ErrorFactory {
  */
 function isRecoverableError(error: Error): boolean {
   // Network errors, timeouts, and rate limits are recoverable
-  if (error.message.includes('timeout') || error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT')) {
+  if (
+    error.message.includes('timeout') ||
+    error.message.includes('ECONNREFUSED') ||
+    error.message.includes('ETIMEDOUT')
+  ) {
     return true;
   }
 
@@ -211,7 +232,11 @@ function isRecoverableError(error: Error): boolean {
   }
 
   // Validation and authorization errors are not recoverable
-  if (error instanceof ValidationError || error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+  if (
+    error instanceof ValidationError ||
+    error instanceof UnauthorizedError ||
+    error instanceof ForbiddenError
+  ) {
     return false;
   }
 
@@ -231,7 +256,10 @@ function isRecoverableError(error: Error): boolean {
  */
 function getRetryAfter(error: Error): number | undefined {
   // Check if error indicates rate limiting
-  if (error.message.includes('rate limit') || error.message.includes('too many requests')) {
+  if (
+    error.message.includes('rate limit') ||
+    error.message.includes('too many requests')
+  ) {
     // Default retry after 60 seconds for rate limits
     return 60;
   }

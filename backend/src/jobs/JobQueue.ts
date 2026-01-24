@@ -6,24 +6,59 @@
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const bullmq = require('bullmq') as {
-  Queue: new (name: string, options: {connection: {host: string; port: number; password?: string}; defaultJobOptions?: unknown}) => {
-    add: (name: string, data: unknown) => Promise<{id: string | undefined}>;
-    getJob: (id: string) => Promise<{id: string | undefined; name: string; getState: () => Promise<string>; progress?: number; data?: unknown} | null>;
+  Queue: new (
+    name: string,
+    options: {
+      connection: { host: string; port: number; password?: string };
+      defaultJobOptions?: unknown;
+    }
+  ) => {
+    add: (name: string, data: unknown) => Promise<{ id: string | undefined }>;
+    getJob: (id: string) => Promise<{
+      id: string | undefined;
+      name: string;
+      getState: () => Promise<string>;
+      progress?: number;
+      data?: unknown;
+    } | null>;
     close: () => Promise<void>;
-    opts: {connection: {host: string; port: number; password?: string}};
+    opts: { connection: { host: string; port: number; password?: string } };
   };
-  Worker: new (name: string, processor: (job: {id: string | undefined; name: string; data: unknown}) => Promise<unknown>, options: {connection: {host: string; port: number; password?: string}; concurrency?: number}) => {
-    on: (event: string, handler: (job: {id: string | undefined; name: string}, err?: Error) => void) => void;
+  Worker: new (
+    name: string,
+    processor: (job: {
+      id: string | undefined;
+      name: string;
+      data: unknown;
+    }) => Promise<unknown>,
+    options: {
+      connection: { host: string; port: number; password?: string };
+      concurrency?: number;
+    }
+  ) => {
+    on: (
+      event: string,
+      handler: (
+        job: { id: string | undefined; name: string },
+        err?: Error
+      ) => void
+    ) => void;
     close: () => Promise<void>;
   };
-  QueueEvents: new (name: string, options: {connection: {host: string; port: number; password?: string}}) => {
-    on: (event: string, handler: (data: {jobId: string; failedReason?: string}) => void) => void;
+  QueueEvents: new (
+    name: string,
+    options: { connection: { host: string; port: number; password?: string } }
+  ) => {
+    on: (
+      event: string,
+      handler: (data: { jobId: string; failedReason?: string }) => void
+    ) => void;
     close: () => Promise<void>;
   };
 };
 
-const {Queue, Worker, QueueEvents} = bullmq;
-import {logInfo, logError} from '../utils/logger';
+const { Queue, Worker, QueueEvents } = bullmq;
+import { logInfo, logError } from '../utils/logger';
 
 /**
  * Job queue configuration
@@ -121,7 +156,7 @@ export class JobQueue {
           ? BulkImportJobData
           : T extends JobType.DATA_ARCHIVAL
             ? DataArchivalJobData
-            : never,
+            : never
   ): Promise<string> {
     const job = await this.queue.add(jobType, data);
     logInfo('Job added to queue', {
@@ -135,14 +170,16 @@ export class JobQueue {
   /**
    * Setup worker to process jobs
    */
-  setupWorker(processor: (job: {name: string; data: unknown}) => Promise<unknown>): void {
+  setupWorker(
+    processor: (job: { name: string; data: unknown }) => Promise<unknown>
+  ): void {
     if (this.worker) {
       void this.worker.close();
     }
 
     this.worker = new Worker(
       'my-money-jobs',
-      async (job: {id: string | undefined; name: string; data: unknown}) => {
+      async (job: { id: string | undefined; name: string; data: unknown }) => {
         logInfo('Processing job', {
           event: 'job_processing',
           jobId: job.id,
@@ -153,44 +190,64 @@ export class JobQueue {
       {
         connection: this.queue.opts.connection,
         concurrency: 5,
-      },
+      }
     );
 
-    this.worker.on('completed', (job: {id: string | undefined; name: string}) => {
-      logInfo('Job completed', {
-        event: 'job_completed',
-        jobId: job.id,
-        jobType: job.name,
-      });
-    });
+    this.worker.on(
+      'completed',
+      (job: { id: string | undefined; name: string }) => {
+        logInfo('Job completed', {
+          event: 'job_completed',
+          jobId: job.id,
+          jobType: job.name,
+        });
+      }
+    );
 
-    this.worker.on('failed', (job: {id: string | undefined; name: string} | undefined, err?: Error) => {
-      logError('Job failed', {
-        event: 'job_failed',
-        jobId: job?.id,
-        jobType: job?.name,
-      }, err);
-    });
+    this.worker.on(
+      'failed',
+      (
+        job: { id: string | undefined; name: string } | undefined,
+        err?: Error
+      ) => {
+        logError(
+          'Job failed',
+          {
+            event: 'job_failed',
+            jobId: job?.id,
+            jobType: job?.name,
+          },
+          err
+        );
+      }
+    );
   }
 
   /**
    * Setup event listeners
    */
   private setupEventListeners(): void {
-    this.queueEvents.on('completed', (data: {jobId: string}) => {
+    this.queueEvents.on('completed', (data: { jobId: string }) => {
       logInfo('Job completed via events', {
         event: 'job_completed_event',
         jobId: data.jobId,
       });
     });
 
-    this.queueEvents.on('failed', (data: {jobId: string; failedReason?: string}) => {
-      logError('Job failed via events', {
-        event: 'job_failed_event',
-        jobId: data.jobId,
-        failedReason: data.failedReason,
-      }, new Error(data.failedReason ?? 'Unknown error'));
-    });
+    this.queueEvents.on(
+      'failed',
+      (data: { jobId: string; failedReason?: string }) => {
+        logError(
+          'Job failed via events',
+          {
+            event: 'job_failed_event',
+            jobId: data.jobId,
+            failedReason: data.failedReason,
+          },
+          new Error(data.failedReason ?? 'Unknown error')
+        );
+      }
+    );
   }
 
   /**
@@ -237,7 +294,9 @@ export class JobQueue {
  */
 export function createJobQueue(): JobQueue | null {
   const redisHost = process.env.REDIS_HOST;
-  const redisPort = process.env.REDIS_PORT ? Number.parseInt(process.env.REDIS_PORT, 10) : 6379;
+  const redisPort = process.env.REDIS_PORT
+    ? Number.parseInt(process.env.REDIS_PORT, 10)
+    : 6379;
   const redisPassword = process.env.REDIS_PASSWORD;
 
   if (!redisHost) {

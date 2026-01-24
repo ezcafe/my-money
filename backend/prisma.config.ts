@@ -4,8 +4,8 @@
  * The datasource URL is now configured here for Prisma Migrate commands
  */
 
-import {readFileSync, existsSync} from 'fs';
-import {resolve} from 'path';
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
 
 /**
  * Load environment variables from .env file
@@ -82,11 +82,12 @@ function adjustDatabaseConnectionString(connectionString: string): string {
 
 // Adjust DATABASE_URL based on environment (Docker vs local)
 const databaseUrl = process.env.DATABASE_URL;
-const adjustedDatabaseUrl = databaseUrl ? adjustDatabaseConnectionString(databaseUrl) : undefined;
+const adjustedDatabaseUrl = databaseUrl
+  ? adjustDatabaseConnectionString(databaseUrl)
+  : undefined;
 
 export default {
   datasource: {
     url: adjustedDatabaseUrl ?? databaseUrl,
   },
 };
-

@@ -256,9 +256,11 @@ Transactions are the core of your financial tracking.
 ### Adding a Transaction
 
 **Method 1: Using the Calculator (Recommended)**
+
 - Use the calculator on the home page for quick entry (see [Calculator section](#calculator---quick-transaction-entry))
 
 **Method 2: Manual Entry**
+
 1. Navigate to **Transactions** or go to an account/category/payee details page
 2. Tap the **+** button
 3. Fill in:
@@ -447,17 +449,21 @@ Navigate to **Preferences** from the main menu (usually in the sidebar or user m
 ### Available Settings
 
 #### Currency
+
 - Select your preferred currency (USD, EUR, GBP, etc.)
 - All amounts will be displayed in your selected currency
 
 #### Number Format
+
 - **Thousand Separator**: Toggle to show/hide commas in large numbers (e.g., 1,000 vs 1000)
 - **Decimal Places**: Control how many decimal places are shown
 
 #### Date Format
+
 - Choose your preferred date format (MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD, etc.)
 
 #### Theme
+
 - **Automatic**: Theme changes based on time of day (dark at night, light during day)
 - **Light Theme**: Always use light theme
 - **Dark Theme**: Always use dark theme
@@ -465,18 +471,22 @@ Navigate to **Preferences** from the main menu (usually in the sidebar or user m
 #### Data Management
 
 **Export Data**
+
 - Export all your data (accounts, transactions, budgets, etc.) as a backup
 - Useful before making major changes or for migration
 
 **Import CSV**
+
 - Import data from CSV files
 - See [Importing Data](#importing-data) section for details
 
 **Reset Data** ⚠️
+
 - Delete all your data and start fresh
 - **Warning**: This action cannot be undone!
 
 **Add Example Data**
+
 - Populate your workspace with sample data for testing or learning
 
 ### Tips

@@ -4,8 +4,8 @@
  * Mobile-first responsive design with Material Design 3 patterns
  */
 
-import React, {memo} from 'react';
-import {Box, type SxProps, type Theme} from '@mui/material';
+import React, { memo } from 'react';
+import { Box, type SxProps, type Theme } from '@mui/material';
 
 export interface PageContainerProps {
   /** Child elements to render inside the container */
@@ -25,11 +25,11 @@ export interface PageContainerProps {
  *
  * Follows Material Design 3 spacing and responsive patterns
  */
-function PageContainerComponent({children, sx, maxWidth}: PageContainerProps): React.JSX.Element {
+function PageContainerComponent({ children, sx, maxWidth }: PageContainerProps): React.JSX.Element {
   return (
     <Box
       sx={{
-        width: {xs: '100%', sm: '100%'},
+        width: { xs: '100%', sm: '100%' },
         maxWidth: maxWidth
           ? undefined
           : {
@@ -37,7 +37,7 @@ function PageContainerComponent({children, sx, maxWidth}: PageContainerProps): R
               sm: '680px', // Tablet
               md: '800px', // Desktop
             },
-        mx: {xs: 0, sm: 'auto'},
+        mx: { xs: 0, sm: 'auto' },
         ...sx,
       }}
     >

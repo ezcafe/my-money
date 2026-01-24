@@ -3,11 +3,14 @@
  * Handles all database operations for transactions
  */
 
-import type {Prisma, PrismaClient, Transaction} from '@prisma/client';
-import {Prisma as PrismaNamespace} from '@prisma/client';
-import {BaseRepository} from './BaseRepository';
+import type { Prisma, PrismaClient, Transaction } from '@prisma/client';
+import { Prisma as PrismaNamespace } from '@prisma/client';
+import { BaseRepository } from './BaseRepository';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Transaction Repository
@@ -26,16 +29,16 @@ export class TransactionRepository extends BaseRepository {
     id: string,
     workspaceId: string,
     select?: Record<string, boolean>,
-    include?: Prisma.TransactionInclude,
+    include?: Prisma.TransactionInclude
   ): Promise<Transaction | null> {
     const queryOptions: {
-      where: {id: string; account: {workspaceId: string}};
+      where: { id: string; account: { workspaceId: string } };
       select?: Record<string, boolean>;
       include?: Prisma.TransactionInclude;
     } = {
       where: {
         id,
-        account: {workspaceId},
+        account: { workspaceId },
       },
     };
 
@@ -62,7 +65,7 @@ export class TransactionRepository extends BaseRepository {
       orderBy?: Prisma.TransactionOrderByWithRelationInput;
       select?: Record<string, boolean>;
       include?: Prisma.TransactionInclude;
-    },
+    }
   ): Promise<Transaction[]> {
     const queryOptions: Prisma.TransactionFindManyArgs = {
       where,
@@ -89,10 +92,10 @@ export class TransactionRepository extends BaseRepository {
       createdBy: string;
       lastEditedBy: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Transaction> {
     const client = tx ?? this.prisma;
-    return client.transaction.create({data});
+    return client.transaction.create({ data });
   }
 
   /**
@@ -112,10 +115,10 @@ export class TransactionRepository extends BaseRepository {
       createdBy: string;
       lastEditedBy: string;
     }>,
-    tx?: PrismaTransaction,
-  ): Promise<{count: number}> {
+    tx?: PrismaTransaction
+  ): Promise<{ count: number }> {
     const client = tx ?? this.prisma;
-    return client.transaction.createMany({data});
+    return client.transaction.createMany({ data });
   }
 
   /**
@@ -136,11 +139,11 @@ export class TransactionRepository extends BaseRepository {
       note?: string | null;
       lastEditedBy?: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Transaction> {
     const client = tx ?? this.prisma;
     return client.transaction.update({
-      where: {id},
+      where: { id },
       data,
     });
   }
@@ -154,7 +157,7 @@ export class TransactionRepository extends BaseRepository {
   async delete(id: string, tx?: PrismaTransaction): Promise<Transaction> {
     const client = tx ?? this.prisma;
     return client.transaction.delete({
-      where: {id},
+      where: { id },
     });
   }
 
@@ -164,7 +167,7 @@ export class TransactionRepository extends BaseRepository {
    * @returns Count of transactions
    */
   async count(where: Prisma.TransactionWhereInput): Promise<number> {
-    return this.prisma.transaction.count({where});
+    return this.prisma.transaction.count({ where });
   }
 
   /**
@@ -175,7 +178,7 @@ export class TransactionRepository extends BaseRepository {
    */
   async aggregate(
     where: Prisma.TransactionWhereInput,
-    aggregate: Prisma.TransactionAggregateArgs,
+    aggregate: Prisma.TransactionAggregateArgs
   ): Promise<Prisma.GetTransactionAggregateType<typeof aggregate>> {
     return this.prisma.transaction.aggregate({
       ...aggregate,
@@ -193,7 +196,7 @@ export class TransactionRepository extends BaseRepository {
   async groupBy(
     by: Prisma.TransactionScalarFieldEnum[],
     where: Prisma.TransactionWhereInput,
-    aggregate?: Omit<Prisma.TransactionGroupByArgs, 'by' | 'where'>,
+    aggregate?: Omit<Prisma.TransactionGroupByArgs, 'by' | 'where'>
   ): Promise<Array<Prisma.TransactionGroupByOutputType>> {
     const args: Prisma.TransactionGroupByArgs = {
       by,
@@ -206,7 +209,9 @@ export class TransactionRepository extends BaseRepository {
     // Type assertion needed: Prisma's groupBy has complex conditional types
     // that TypeScript cannot infer correctly when aggregate is optional
     // @ts-expect-error - Prisma's groupBy type inference is complex and doesn't handle optional aggregate correctly
-    return this.prisma.transaction.groupBy(args) as Promise<Array<Prisma.TransactionGroupByOutputType>>;
+    return this.prisma.transaction.groupBy(args) as Promise<
+      Array<Prisma.TransactionGroupByOutputType>
+    >;
   }
 
   /**
@@ -216,8 +221,8 @@ export class TransactionRepository extends BaseRepository {
    * @returns Object with totalIncome and totalExpense
    */
   async calculateIncomeExpenseTotals(
-    where: Prisma.TransactionWhereInput,
-  ): Promise<{totalIncome: number; totalExpense: number}> {
+    where: Prisma.TransactionWhereInput
+  ): Promise<{ totalIncome: number; totalExpense: number }> {
     // Use Prisma's SQL template for safe query construction
     // Build WHERE conditions using Prisma.sql
     const whereParts: PrismaNamespace.Sql[] = [];
@@ -226,24 +231,46 @@ export class TransactionRepository extends BaseRepository {
     // This method is used for aggregation, workspace filtering should be done via accountId
 
     if ('accountId' in where && where.accountId) {
-      if (typeof where.accountId === 'object' && 'in' in where.accountId && Array.isArray(where.accountId.in)) {
-        whereParts.push(PrismaNamespace.sql`t."accountId" = ANY(${where.accountId.in})`);
+      if (
+        typeof where.accountId === 'object' &&
+        'in' in where.accountId &&
+        Array.isArray(where.accountId.in)
+      ) {
+        whereParts.push(
+          PrismaNamespace.sql`t."accountId" = ANY(${where.accountId.in})`
+        );
       } else if (typeof where.accountId === 'string') {
-        whereParts.push(PrismaNamespace.sql`t."accountId" = ${where.accountId}`);
+        whereParts.push(
+          PrismaNamespace.sql`t."accountId" = ${where.accountId}`
+        );
       }
     }
 
     if ('categoryId' in where && where.categoryId) {
-      if (typeof where.categoryId === 'object' && 'in' in where.categoryId && Array.isArray(where.categoryId.in)) {
-        whereParts.push(PrismaNamespace.sql`t."categoryId" = ANY(${where.categoryId.in})`);
+      if (
+        typeof where.categoryId === 'object' &&
+        'in' in where.categoryId &&
+        Array.isArray(where.categoryId.in)
+      ) {
+        whereParts.push(
+          PrismaNamespace.sql`t."categoryId" = ANY(${where.categoryId.in})`
+        );
       } else if (typeof where.categoryId === 'string') {
-        whereParts.push(PrismaNamespace.sql`t."categoryId" = ${where.categoryId}`);
+        whereParts.push(
+          PrismaNamespace.sql`t."categoryId" = ${where.categoryId}`
+        );
       }
     }
 
     if ('payeeId' in where && where.payeeId) {
-      if (typeof where.payeeId === 'object' && 'in' in where.payeeId && Array.isArray(where.payeeId.in)) {
-        whereParts.push(PrismaNamespace.sql`t."payeeId" = ANY(${where.payeeId.in})`);
+      if (
+        typeof where.payeeId === 'object' &&
+        'in' in where.payeeId &&
+        Array.isArray(where.payeeId.in)
+      ) {
+        whereParts.push(
+          PrismaNamespace.sql`t."payeeId" = ANY(${where.payeeId.in})`
+        );
       } else if (typeof where.payeeId === 'string') {
         whereParts.push(PrismaNamespace.sql`t."payeeId" = ${where.payeeId}`);
       }
@@ -258,10 +285,18 @@ export class TransactionRepository extends BaseRepository {
       }
     }
 
-    if ('note' in where && where.note && typeof where.note === 'object' && 'contains' in where.note && where.note.contains) {
+    if (
+      'note' in where &&
+      where.note &&
+      typeof where.note === 'object' &&
+      'contains' in where.note &&
+      where.note.contains
+    ) {
       const noteContainsValue = where.note.contains;
       if (typeof noteContainsValue === 'string') {
-        whereParts.push(PrismaNamespace.sql`t."note" ILIKE ${`%${noteContainsValue}%`}`);
+        whereParts.push(
+          PrismaNamespace.sql`t."note" ILIKE ${`%${noteContainsValue}%`}`
+        );
       }
     }
 
@@ -288,11 +323,14 @@ export class TransactionRepository extends BaseRepository {
       ${whereClause}
     `;
 
-    const result = await this.prisma.$queryRaw<Array<{totalIncome: bigint; totalExpense: bigint}>>(query);
+    const result =
+      await this.prisma.$queryRaw<
+        Array<{ totalIncome: bigint; totalExpense: bigint }>
+      >(query);
 
     const row = result[0];
     if (!row) {
-      return {totalIncome: 0, totalExpense: 0};
+      return { totalIncome: 0, totalExpense: 0 };
     }
 
     return {

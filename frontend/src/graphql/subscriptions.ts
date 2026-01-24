@@ -3,8 +3,8 @@
  * Real-time subscriptions for entity updates
  */
 
-import {gql} from '@apollo/client';
-import {ACCOUNT_FIELDS, CATEGORY_FIELDS, PAYEE_FIELDS, TRANSACTION_FIELDS} from './fragments';
+import { gql } from '@apollo/client';
+import { ACCOUNT_FIELDS, CATEGORY_FIELDS, PAYEE_FIELDS, TRANSACTION_FIELDS } from './fragments';
 
 /**
  * Subscribe to account updates

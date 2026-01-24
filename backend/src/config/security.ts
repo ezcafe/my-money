@@ -3,27 +3,33 @@
  * Registers security middleware for Hono server
  */
 
-import type {Hono, Context, Next} from 'hono';
-import {cors} from 'hono/cors';
-import {compress} from 'hono/compress';
-import {randomBytes} from 'crypto';
-import {ErrorCode} from '../utils/errorCodes';
-import {checkRateLimit} from '../utils/postgresRateLimiter';
-import {RATE_LIMITS} from '../utils/constants';
+import type { Hono, Context, Next } from 'hono';
+import { cors } from 'hono/cors';
+import { compress } from 'hono/compress';
+import { randomBytes } from 'crypto';
+import { ErrorCode } from '../utils/errorCodes';
+import { checkRateLimit } from '../utils/postgresRateLimiter';
+import { RATE_LIMITS } from '../utils/constants';
 
 /**
  * Rate limit middleware
  * Uses PostgreSQL for distributed rate limiting across server instances
  * Supports both IP-based and user-based rate limiting
  */
-function rateLimiter(max: number, windowMs: number): (c: Context, next: Next) => Promise<Response | void> {
+function rateLimiter(
+  max: number,
+  windowMs: number
+): (c: Context, next: Next) => Promise<Response | void> {
   return async (c: Context, next: Next) => {
     // Try to get user ID from context (if authenticated)
     // This allows user-based rate limiting for authenticated requests
     const userId = c.get('userId') as string | undefined;
     const key = userId
       ? `user:${userId}`
-      : c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? c.req.header('cf-connecting-ip') ?? 'unknown';
+      : (c.req.header('x-forwarded-for') ??
+        c.req.header('x-real-ip') ??
+        c.req.header('cf-connecting-ip') ??
+        'unknown');
 
     try {
       const result = await checkRateLimit(key, max, windowMs);
@@ -36,7 +42,7 @@ function rateLimiter(max: number, windowMs: number): (c: Context, next: Next) =>
             error: 'Too many requests, please try again later',
             message: `Rate limit exceeded, retry in ${ttl} seconds`,
           },
-          429,
+          429
         );
       }
 
@@ -98,7 +104,7 @@ function securityHeaders() {
     if (process.env.NODE_ENV === 'production') {
       c.header(
         'Strict-Transport-Security',
-        'max-age=31536000; includeSubDomains; preload',
+        'max-age=31536000; includeSubDomains; preload'
       );
     }
 
@@ -148,17 +154,23 @@ function csrfProtection() {
 
     // Try to parse body to check if it's a mutation
     try {
-      const body = await c.req.json().catch(() => null) as {query?: string} | null;
+      const body = (await c.req.json().catch(() => null)) as {
+        query?: string;
+      } | null;
       if (body?.query?.includes('mutation')) {
         const origin = c.req.header('Origin');
         const referer = c.req.header('Referer');
         const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') ?? [];
 
         // In production, require Origin or Referer header for mutations
-        if (process.env.NODE_ENV === 'production' && allowedOrigins.length > 0) {
+        if (
+          process.env.NODE_ENV === 'production' &&
+          allowedOrigins.length > 0
+        ) {
           const isValidOrigin =
             (origin !== undefined && allowedOrigins.includes(origin)) ||
-            (referer !== undefined && allowedOrigins.some((allowed) => referer.startsWith(allowed)));
+            (referer !== undefined &&
+              allowedOrigins.some((allowed) => referer.startsWith(allowed)));
 
           if (!isValidOrigin) {
             return c.json(
@@ -173,7 +185,7 @@ function csrfProtection() {
                   },
                 ],
               },
-              403,
+              403
             );
           }
         }
@@ -250,11 +262,21 @@ export function registerSecurityPlugins(app: Hono): void {
         throw new Error(`Origin ${origin} not allowed by CORS policy`);
       },
       allowMethods: ['GET', 'POST', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID'],
+      allowHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'X-Request-ID',
+      ],
       credentials: true, // Required for cookies
-      exposeHeaders: ['Content-Type', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+      exposeHeaders: [
+        'Content-Type',
+        'X-RateLimit-Limit',
+        'X-RateLimit-Remaining',
+        'X-RateLimit-Reset',
+      ],
       maxAge, // Cache preflight requests
-    }),
+    })
   );
 
   // Security headers middleware

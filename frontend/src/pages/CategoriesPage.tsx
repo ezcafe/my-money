@@ -4,7 +4,7 @@
  * Features search, visual indicators, and improved UX
  */
 
-import React, {memo, useMemo, useEffect, useTransition} from 'react';
+import React, { memo, useMemo, useEffect, useTransition } from 'react';
 import {
   Box,
   List,
@@ -15,23 +15,23 @@ import {
   Chip,
   Stack,
 } from '@mui/material';
-import {TrendingUp, TrendingDown, Star, Category} from '@mui/icons-material';
-import {useNavigate, useLocation} from 'react-router';
-import {useCategories} from '../hooks/useCategories';
-import {useSearch} from '../contexts/SearchContext';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {EmptyState} from '../components/common/EmptyState';
-import {Card} from '../components/ui/Card';
-import {PageContainer} from '../components/common/PageContainer';
+import { TrendingUp, TrendingDown, Star, Category } from '@mui/icons-material';
+import { useNavigate, useLocation } from 'react-router';
+import { useCategories } from '../hooks/useCategories';
+import { useSearch } from '../contexts/SearchContext';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { EmptyState } from '../components/common/EmptyState';
+import { Card } from '../components/ui/Card';
+import { PageContainer } from '../components/common/PageContainer';
 
 /**
  * Categories Page Component
  */
 const CategoriesPageComponent = (): React.JSX.Element => {
   const location = useLocation();
-  const {categories, loading, error, refetch} = useCategories();
-  const {searchQuery} = useSearch();
+  const { categories, loading, error, refetch } = useCategories();
+  const { searchQuery } = useSearch();
   const navigate = useNavigate();
   const [_isPending, _startTransition] = useTransition();
 
@@ -60,8 +60,13 @@ const CategoriesPageComponent = (): React.JSX.Element => {
     const incomeCategories = filteredCategories.filter((cat) => cat.categoryType === 'Income');
     const expenseCategories = filteredCategories.filter((cat) => cat.categoryType === 'Expense');
     return [
-      {type: 'Income' as const, label: 'Income', categories: incomeCategories, icon: TrendingUp},
-      {type: 'Expense' as const, label: 'Expense', categories: expenseCategories, icon: TrendingDown},
+      { type: 'Income' as const, label: 'Income', categories: incomeCategories, icon: TrendingUp },
+      {
+        type: 'Expense' as const,
+        label: 'Expense',
+        categories: expenseCategories,
+        icon: TrendingDown,
+      },
     ];
   }, [filteredCategories]);
 
@@ -71,7 +76,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
   const totalCounts = useMemo(() => {
     const incomeCount = categories.filter((cat) => cat.categoryType === 'Income').length;
     const expenseCount = categories.filter((cat) => cat.categoryType === 'Expense').length;
-    return {income: incomeCount, expense: expenseCount};
+    return { income: incomeCount, expense: expenseCount };
   }, [categories]);
 
   if (loading) {
@@ -106,13 +111,13 @@ const CategoriesPageComponent = (): React.JSX.Element => {
   return (
     <PageContainer>
       {/* No Search Results */}
-      {hasNoSearchResults ? <EmptyState
-          title="No categories found"
-          description="Try adjusting your search query"
-        /> : null}
+      {hasNoSearchResults ? (
+        <EmptyState title="No categories found" description="Try adjusting your search query" />
+      ) : null}
 
       {/* Categories List */}
-      {hasSearchResults ? <Card>
+      {hasSearchResults ? (
+        <Card>
           <List disablePadding>
             {groupedCategories.map((group, groupIndex) => {
               if (group.categories.length === 0) {
@@ -137,22 +142,27 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                       gap: 1,
                     }}
                   >
-                    <IconComponent fontSize="small" color={group.type === 'Income' ? 'success' : 'error'} />
-                    <Typography variant="subtitle2" color="text.secondary" sx={{fontWeight: 600}}>
+                    <IconComponent
+                      fontSize="small"
+                      color={group.type === 'Income' ? 'success' : 'error'}
+                    />
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
                       {group.label}
                     </Typography>
-                    {searchQuery && filteredCount < totalCount ? <Chip
+                    {searchQuery && filteredCount < totalCount ? (
+                      <Chip
                         label={`${filteredCount} of ${totalCount}`}
                         size="small"
                         variant="outlined"
-                        sx={{ml: 'auto', height: 20, fontSize: '0.7rem'}}
-                      /> : null}
+                        sx={{ ml: 'auto', height: 20, fontSize: '0.7rem' }}
+                      />
+                    ) : null}
                     {!searchQuery && (
                       <Chip
                         label={totalCount}
                         size="small"
                         variant="outlined"
-                        sx={{ml: 'auto', height: 20, fontSize: '0.7rem'}}
+                        sx={{ ml: 'auto', height: 20, fontSize: '0.7rem' }}
                       />
                     )}
                   </Box>
@@ -178,7 +188,8 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                               <Typography variant="body1" fontWeight={500}>
                                 {category.name}
                               </Typography>
-                              {category.isDefault ? <Chip
+                              {category.isDefault ? (
+                                <Chip
                                   icon={<Star fontSize="inherit" />}
                                   label="Default"
                                   size="small"
@@ -191,7 +202,8 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                                       fontSize: '0.75rem',
                                     },
                                   }}
-                                /> : null}
+                                />
+                              ) : null}
                             </Stack>
                           }
                         />
@@ -202,7 +214,8 @@ const CategoriesPageComponent = (): React.JSX.Element => {
               );
             })}
           </List>
-        </Card> : null}
+        </Card>
+      ) : null}
     </PageContainer>
   );
 };
@@ -210,4 +223,3 @@ const CategoriesPageComponent = (): React.JSX.Element => {
 CategoriesPageComponent.displayName = 'CategoriesPage';
 
 export const CategoriesPage = memo(CategoriesPageComponent);
-

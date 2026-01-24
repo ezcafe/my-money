@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import {Card as MUICard, type CardProps as MUICardProps} from '@mui/material';
+import { Card as MUICard, type CardProps as MUICardProps } from '@mui/material';
 
 export interface CardProps extends MUICardProps {
   children: React.ReactNode;
@@ -15,7 +15,7 @@ export interface CardProps extends MUICardProps {
  * Allows easy framework switching in the future
  * Enhanced with smooth transitions and better visual feedback
  */
-export const Card: React.FC<CardProps> = ({children, sx, ...props}) => {
+export const Card: React.FC<CardProps> = ({ children, sx, ...props }) => {
   return (
     <MUICard
       {...props}
@@ -31,25 +31,3 @@ export const Card: React.FC<CardProps> = ({children, sx, ...props}) => {
     </MUICard>
   );
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

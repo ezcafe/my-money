@@ -4,13 +4,13 @@
  */
 
 import * as oidc from 'openid-client';
-import {createHash} from 'crypto';
-import {UnauthorizedError} from '../utils/errors';
-import {logError, logInfo, logWarn} from '../utils/logger';
-import {TOKEN_CACHE_TTL_MS} from '../utils/constants';
-import {config as appConfig} from '../config';
+import { createHash } from 'crypto';
+import { UnauthorizedError } from '../utils/errors';
+import { logError, logInfo, logWarn } from '../utils/logger';
+import { TOKEN_CACHE_TTL_MS } from '../utils/constants';
+import { config as appConfig } from '../config';
 import * as postgresCache from '../utils/postgresCache';
-import {tokenKey} from '../utils/cacheKeys';
+import { tokenKey } from '../utils/cacheKeys';
 
 // Type aliases for openid-client types
 type TokenSet = oidc.UserInfoResponse;
@@ -35,8 +35,11 @@ function hashToken(token: string): string {
  * @param maxRetries - Maximum number of retry attempts (default: 3)
  * @param retryDelayMs - Delay between retries in milliseconds (default: 2000)
  */
-export async function initializeOIDC(maxRetries: number = 3, retryDelayMs: number = 2000): Promise<void> {
-  const {discoveryUrl, clientId, clientSecret} = appConfig.oidc;
+export async function initializeOIDC(
+  maxRetries: number = 3,
+  retryDelayMs: number = 2000
+): Promise<void> {
+  const { discoveryUrl, clientId, clientSecret } = appConfig.oidc;
 
   if (!discoveryUrl || !clientId || !clientSecret) {
     const missingVars: string[] = [];
@@ -45,14 +48,19 @@ export async function initializeOIDC(maxRetries: number = 3, retryDelayMs: numbe
     if (!clientSecret) missingVars.push('OPENID_CLIENT_SECRET');
 
     const errorMessage = `OIDC configuration missing: ${missingVars.join(', ')}. Please update your .env file.`;
-    logError('OIDC configuration missing. Authentication is required.', {
-      event: 'oidc_config_missing',
-      missingVars: missingVars.join(', '),
-      message: 'Please update your .env file with the following variables:',
-      exampleUrl: 'https://your-oidc-provider/.well-known/openid-configuration',
-      exampleClientId: 'your-client-id',
-      exampleClientSecret: 'your-client-secret',
-    }, new Error(errorMessage));
+    logError(
+      'OIDC configuration missing. Authentication is required.',
+      {
+        event: 'oidc_config_missing',
+        missingVars: missingVars.join(', '),
+        message: 'Please update your .env file with the following variables:',
+        exampleUrl:
+          'https://your-oidc-provider/.well-known/openid-configuration',
+        exampleClientId: 'your-client-id',
+        exampleClientSecret: 'your-client-secret',
+      },
+      new Error(errorMessage)
+    );
 
     throw new Error(errorMessage);
   }
@@ -72,22 +80,34 @@ export async function initializeOIDC(maxRetries: number = 3, retryDelayMs: numbe
           clearTimeout(timeoutId);
 
           if (!discoveryResponse.ok) {
-            throw new Error(`Discovery endpoint returned ${discoveryResponse.status}: ${discoveryResponse.statusText}`);
+            throw new Error(
+              `Discovery endpoint returned ${discoveryResponse.status}: ${discoveryResponse.statusText}`
+            );
           }
 
-          const discoveryDoc = (await discoveryResponse.json()) as {token_endpoint?: string; issuer?: string};
+          const discoveryDoc = (await discoveryResponse.json()) as {
+            token_endpoint?: string;
+            issuer?: string;
+          };
           // Store token endpoint if found
           if (discoveryDoc.token_endpoint) {
             tokenEndpointUrl = discoveryDoc.token_endpoint;
           }
         } catch (fetchError) {
-          const fetchErrorObj = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
-          logError('Failed to fetch discovery document directly', {
-            event: 'oidc_discovery_fetch_failed',
-            attempt,
-            discoveryUrl,
-            error: fetchErrorObj.message,
-          }, fetchErrorObj);
+          const fetchErrorObj =
+            fetchError instanceof Error
+              ? fetchError
+              : new Error(String(fetchError));
+          logError(
+            'Failed to fetch discovery document directly',
+            {
+              event: 'oidc_discovery_fetch_failed',
+              attempt,
+              discoveryUrl,
+              error: fetchErrorObj.message,
+            },
+            fetchErrorObj
+          );
           // Continue to try openid-client discovery
         }
       }
@@ -103,8 +123,15 @@ export async function initializeOIDC(maxRetries: number = 3, retryDelayMs: numbe
 
       // Extract token_endpoint from Configuration object
       // The Configuration type may not expose token_endpoint directly, so we access it via the object
-      const configObj = oidcConfig as unknown as {token_endpoint?: string; metadata?: {token_endpoint?: string}};
-      tokenEndpointUrl = configObj.token_endpoint ?? configObj.metadata?.token_endpoint ?? tokenEndpointUrl ?? null;
+      const configObj = oidcConfig as unknown as {
+        token_endpoint?: string;
+        metadata?: { token_endpoint?: string };
+      };
+      tokenEndpointUrl =
+        configObj.token_endpoint ??
+        configObj.metadata?.token_endpoint ??
+        tokenEndpointUrl ??
+        null;
 
       // If still not found, fetch discovery document directly as fallback
       if (!tokenEndpointUrl) {
@@ -117,7 +144,9 @@ export async function initializeOIDC(maxRetries: number = 3, retryDelayMs: numbe
           clearTimeout(timeoutId);
 
           if (discoveryResponse.ok) {
-            const discoveryDoc = (await discoveryResponse.json()) as {token_endpoint?: string};
+            const discoveryDoc = (await discoveryResponse.json()) as {
+              token_endpoint?: string;
+            };
             tokenEndpointUrl = discoveryDoc.token_endpoint ?? null;
           }
         } catch {
@@ -135,28 +164,37 @@ export async function initializeOIDC(maxRetries: number = 3, retryDelayMs: numbe
       lastError = error instanceof Error ? error : new Error(String(error));
       const isLastAttempt = attempt === maxRetries;
 
-      logError(`Failed to initialize OIDC client (attempt ${attempt}/${maxRetries})`, {
-        event: 'oidc_init_failed',
-        attempt,
-        maxRetries,
-        discoveryUrl,
-        clientId,
-        isLastAttempt,
-        error: lastError.message,
-        errorType: lastError.constructor.name,
-      }, lastError);
+      logError(
+        `Failed to initialize OIDC client (attempt ${attempt}/${maxRetries})`,
+        {
+          event: 'oidc_init_failed',
+          attempt,
+          maxRetries,
+          discoveryUrl,
+          clientId,
+          isLastAttempt,
+          error: lastError.message,
+          errorType: lastError.constructor.name,
+        },
+        lastError
+      );
 
       if (isLastAttempt) {
         // Add diagnostic information
         const diagnosticInfo = {
           discoveryUrl,
           error: lastError.message,
-          suggestion: 'Check network connectivity, firewall settings, or OIDC provider availability',
+          suggestion:
+            'Check network connectivity, firewall settings, or OIDC provider availability',
         };
-        logError('OIDC initialization failed after all retries', {
-          event: 'oidc_init_final_failure',
-          ...diagnosticInfo,
-        }, lastError);
+        logError(
+          'OIDC initialization failed after all retries',
+          {
+            event: 'oidc_init_final_failure',
+            ...diagnosticInfo,
+          },
+          lastError
+        );
         throw lastError;
       }
 
@@ -178,7 +216,9 @@ export async function initializeOIDC(maxRetries: number = 3, retryDelayMs: numbe
  */
 export function getOIDCConfig(): oidc.Configuration {
   if (!oidcConfig) {
-    throw new Error('OIDC client not initialized. Call initializeOIDC() first.');
+    throw new Error(
+      'OIDC client not initialized. Call initializeOIDC() first.'
+    );
   }
   return oidcConfig;
 }
@@ -189,7 +229,9 @@ export function getOIDCConfig(): oidc.Configuration {
  */
 export function getTokenEndpoint(): string {
   if (!tokenEndpointUrl) {
-    throw new Error('Token endpoint not available. OIDC client may not be initialized.');
+    throw new Error(
+      'Token endpoint not available. OIDC client may not be initialized.'
+    );
   }
   return tokenEndpointUrl;
 }
@@ -217,7 +259,9 @@ function extractToken(authHeader: string | undefined): string | null {
  */
 export async function verifyToken(token: string): Promise<TokenSet> {
   if (!oidcConfig) {
-    throw new Error('OIDC client not initialized. Call initializeOIDC() first.');
+    throw new Error(
+      'OIDC client not initialized. Call initializeOIDC() first.'
+    );
   }
 
   if (!token || token.trim().length === 0) {
@@ -226,7 +270,11 @@ export async function verifyToken(token: string): Promise<TokenSet> {
 
   try {
     // The fetchUserInfo() function validates the token and returns user data
-    const userInfo = await oidc.fetchUserInfo(oidcConfig, token, oidc.skipSubjectCheck);
+    const userInfo = await oidc.fetchUserInfo(
+      oidcConfig,
+      token,
+      oidc.skipSubjectCheck
+    );
 
     // Additional validation: check if we got a valid subject
     if (!userInfo.sub) {
@@ -241,9 +289,13 @@ export async function verifyToken(token: string): Promise<TokenSet> {
     }
     // Log the error for debugging but don't expose details to client
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Token verification failed', {
-      event: 'token_verification_failed',
-    }, errorObj);
+    logError(
+      'Token verification failed',
+      {
+        event: 'token_verification_failed',
+      },
+      errorObj
+    );
     throw new UnauthorizedError('Invalid or expired token');
   }
 }
@@ -267,7 +319,7 @@ function getTokenExpiration(token: string): number | null {
       throw new Error('Invalid token format');
     }
     const decoded = Buffer.from(payload, 'base64url').toString('utf-8');
-    const parsed = JSON.parse(decoded) as {exp?: number};
+    const parsed = JSON.parse(decoded) as { exp?: number };
 
     return parsed.exp ?? null;
   } catch {
@@ -312,7 +364,7 @@ let tokenExpirationMetrics = {
  * @returns Current token expiration metrics
  */
 export function getTokenExpirationMetrics(): typeof tokenExpirationMetrics {
-  return {...tokenExpirationMetrics};
+  return { ...tokenExpirationMetrics };
 }
 
 /**
@@ -326,7 +378,9 @@ export function resetTokenExpirationMetrics(): void {
   };
 }
 
-export async function getUserFromToken(token: string): Promise<{sub: string; email?: string}> {
+export async function getUserFromToken(
+  token: string
+): Promise<{ sub: string; email?: string }> {
   tokenExpirationMetrics.totalChecks++;
 
   // Check if token is expired (early validation)
@@ -368,7 +422,9 @@ export async function getUserFromToken(token: string): Promise<{sub: string; ema
   const cacheKey = tokenKey(tokenHash);
 
   // Check cache first using hashed token
-  const cached = await postgresCache.get<{userInfo: {sub: string; email?: string}}>(cacheKey);
+  const cached = await postgresCache.get<{
+    userInfo: { sub: string; email?: string };
+  }>(cacheKey);
   if (cached) {
     return cached.userInfo;
   }
@@ -389,7 +445,7 @@ export async function getUserFromToken(token: string): Promise<{sub: string; ema
 
   // Cache the result using hashed token with appropriate TTL
   if (cacheTTL > 0) {
-    await postgresCache.set(cacheKey, {userInfo}, cacheTTL).catch(() => {
+    await postgresCache.set(cacheKey, { userInfo }, cacheTTL).catch(() => {
       // Ignore cache errors - don't break authentication if cache fails
     });
   }
@@ -401,8 +457,12 @@ export async function getUserFromToken(token: string): Promise<{sub: string; ema
  * Authentication middleware factory
  * Returns a function that extracts and validates the token from the request
  */
-export function createAuthMiddleware(): (req: {headers: {authorization?: string}}) => Promise<{sub: string; email?: string}> {
-  return async (req: {headers: {authorization?: string}}): Promise<{sub: string; email?: string}> => {
+export function createAuthMiddleware(): (req: {
+  headers: { authorization?: string };
+}) => Promise<{ sub: string; email?: string }> {
+  return async (req: {
+    headers: { authorization?: string };
+  }): Promise<{ sub: string; email?: string }> => {
     const token = extractToken(req.headers.authorization);
 
     if (!token) {
@@ -412,5 +472,3 @@ export function createAuthMiddleware(): (req: {headers: {authorization?: string}
     return getUserFromToken(token);
   };
 }
-
-

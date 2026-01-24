@@ -3,12 +3,12 @@
  * Initiates OIDC authentication flow
  */
 
-import React, {useState} from 'react';
-import {Box, Typography, CardContent, Stack, Card} from '@mui/material';
-import {AccountBalance} from '@mui/icons-material';
-import {Button} from '../components/ui/Button';
-import {initiateLogin} from '../utils/oidc';
-import {ErrorAlert} from '../components/common/ErrorAlert';
+import React, { useState } from 'react';
+import { Box, Typography, CardContent, Stack, Card } from '@mui/material';
+import { AccountBalance } from '@mui/icons-material';
+import { Button } from '../components/ui/Button';
+import { initiateLogin } from '../utils/oidc';
+import { ErrorAlert } from '../components/common/ErrorAlert';
 
 /**
  * Login Page Component
@@ -46,7 +46,7 @@ export function LoginPage(): React.JSX.Element {
         p: 2,
       }}
     >
-      <Card sx={{width: '100%', maxWidth: 420}}>
+      <Card sx={{ width: '100%', maxWidth: 420 }}>
         <CardContent>
           <Stack spacing={3} alignItems="center">
             <Box
@@ -60,7 +60,7 @@ export function LoginPage(): React.JSX.Element {
                 color: 'primary.contrastText',
               }}
             >
-              <AccountBalance sx={{fontSize: 48}} />
+              <AccountBalance sx={{ fontSize: 48 }} />
             </Box>
 
             <Typography variant="h4" component="h1" align="center" fontWeight={600}>
@@ -71,16 +71,18 @@ export function LoginPage(): React.JSX.Element {
               Sign in to manage your expenses
             </Typography>
 
-            {error ? <Box sx={{width: '100%'}}>
+            {error ? (
+              <Box sx={{ width: '100%' }}>
                 <ErrorAlert
                   message={error}
                   onClose={() => {
                     setError(null);
                   }}
                 />
-              </Box> : null}
+              </Box>
+            ) : null}
 
-            <Stack spacing={2} sx={{width: '100%', mt: 2}}>
+            <Stack spacing={2} sx={{ width: '100%', mt: 2 }}>
               <Button
                 onClick={() => {
                   void handleLogin();
@@ -99,4 +101,3 @@ export function LoginPage(): React.JSX.Element {
     </Box>
   );
 }
-

@@ -3,8 +3,8 @@
  * Provides reusable delete confirmation dialog logic
  */
 
-import React, {useState, useCallback} from 'react';
-import {DeleteConfirmDialog} from '../components/common/DeleteConfirmDialog';
+import React, { useState, useCallback } from 'react';
+import { DeleteConfirmDialog } from '../components/common/DeleteConfirmDialog';
 
 /**
  * Options for delete confirmation
@@ -43,8 +43,10 @@ interface UseDeleteConfirmationReturn {
  * @param options - Delete confirmation options
  * @returns Delete confirmation state and dialog component
  */
-export function useDeleteConfirmation(options: UseDeleteConfirmationOptions): UseDeleteConfirmationReturn {
-  const {title, message, deleting = false, onConfirm, confirmLabel, cancelLabel} = options;
+export function useDeleteConfirmation(
+  options: UseDeleteConfirmationOptions
+): UseDeleteConfirmationReturn {
+  const { title, message, deleting = false, onConfirm, confirmLabel, cancelLabel } = options;
   const [isOpen, setIsOpen] = useState(false);
 
   const openDialog = useCallback(() => {
@@ -78,4 +80,3 @@ export function useDeleteConfirmation(options: UseDeleteConfirmationOptions): Us
     DeleteDialog,
   };
 }
-

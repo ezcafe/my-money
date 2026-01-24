@@ -3,7 +3,7 @@
  * Reusable field selections for queries and mutations
  */
 
-import {gql} from '@apollo/client';
+import { gql } from '@apollo/client';
 
 /**
  * Account fields fragment

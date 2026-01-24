@@ -36,7 +36,9 @@ export class LastWriteWinsStrategy<T> implements ConflictResolutionStrategy<T> {
  * Merge Strategy
  * Merges local and server data
  */
-export class MergeStrategy<T extends Record<string, unknown>> implements ConflictResolutionStrategy<T> {
+export class MergeStrategy<
+  T extends Record<string, unknown>,
+> implements ConflictResolutionStrategy<T> {
   /**
    * Resolve conflict by merging local and server data
    * @param local - Local data
@@ -72,7 +74,9 @@ export class LocalWinsStrategy<T> implements ConflictResolutionStrategy<T> {
  * Timestamp-based Strategy
  * Uses the most recent timestamp to determine winner
  */
-export class TimestampStrategy<T extends {updatedAt?: string; createdAt?: string}> implements ConflictResolutionStrategy<T> {
+export class TimestampStrategy<
+  T extends { updatedAt?: string; createdAt?: string },
+> implements ConflictResolutionStrategy<T> {
   /**
    * Resolve conflict by comparing timestamps
    * @param local - Local data

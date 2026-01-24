@@ -3,10 +3,9 @@
  * Handles resetting all user data except default entities
  */
 
-
-import type {GraphQLContext} from '../middleware/context';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
-import {getUserDefaultWorkspace} from '../services/WorkspaceService';
+import type { GraphQLContext } from '../middleware/context';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import { getUserDefaultWorkspace } from '../services/WorkspaceService';
 
 export class ResetDataResolver {
   /**
@@ -19,8 +18,14 @@ export class ResetDataResolver {
    * @param context - GraphQL context with user and database access
    * @returns True if successful
    */
-  async resetData(_: unknown, __: unknown, context: GraphQLContext): Promise<boolean> {
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+  async resetData(
+    _: unknown,
+    __: unknown,
+    context: GraphQLContext
+  ): Promise<boolean> {
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     await withPrismaErrorHandling(
       async () =>
@@ -105,17 +110,16 @@ export class ResetDataResolver {
 
           if (defaultAccount) {
             await tx.account.update({
-              where: {id: defaultAccount.id},
+              where: { id: defaultAccount.id },
               data: {
                 balance: defaultAccount.initBalance,
               },
             });
           }
         }),
-      {resource: 'ResetData', operation: 'reset'},
+      { resource: 'ResetData', operation: 'reset' }
     );
 
     return true;
   }
 }
-

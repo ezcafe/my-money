@@ -30,10 +30,5 @@
   },
   "include": ["src/**/*", "../shared/src/**/*"],
   "exclude": ["node_modules", "dist", "__tests__", "**/*.test.ts", "**/*.test.tsx"],
-  "references": [
-    { "path": "../shared" }
-  ]
+  "references": [{ "path": "../shared" }]
 }
-
-
-

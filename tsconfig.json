@@ -36,12 +36,18 @@
     "composite": true,
     "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
-  "exclude": ["node_modules", "dist", "**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "**/*.config.mjs", "**/eslint.config.mjs"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.config.mjs",
+    "**/eslint.config.mjs"
+  ],
   "references": [
     { "path": "./shared" },
     { "path": "./backend" },
     { "path": "./frontend" }
   ]
 }
-
-

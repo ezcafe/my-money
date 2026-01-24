@@ -1,4 +1,4 @@
-import type {Config} from 'jest';
+import type { Config } from 'jest';
 
 const config: Config = {
   preset: 'ts-jest',
@@ -23,9 +23,7 @@ const config: Config = {
   testEnvironmentOptions: {
     customExportConditions: [''],
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(@mui|@emotion|@babel)/)',
-  ],
+  transformIgnorePatterns: ['node_modules/(?!(@mui|@emotion|@babel)/)'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
@@ -41,15 +39,16 @@ const config: Config = {
     },
   },
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: {
-        jsx: 'react-jsx',
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          jsx: 'react-jsx',
+        },
+        isolatedModules: true, // Faster compilation
       },
-      isolatedModules: true, // Faster compilation
-    }],
+    ],
   },
 };
 
 export default config;
-
-

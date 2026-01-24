@@ -3,18 +3,18 @@
  * Page for editing budget amount
  */
 
-import React, {useState, useEffect} from 'react';
-import {useParams, useNavigate, useSearchParams} from 'react-router';
-import {Box, Typography, Button} from '@mui/material';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {Card} from '../components/ui/Card';
-import {TextField} from '../components/ui/TextField';
-import {UPDATE_BUDGET} from '../graphql/mutations';
-import {GET_BUDGET} from '../graphql/queries';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {useTitle} from '../contexts/TitleContext';
-import {PageContainer} from '../components/common/PageContainer';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
+import { Box, Typography, Button } from '@mui/material';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { Card } from '../components/ui/Card';
+import { TextField } from '../components/ui/TextField';
+import { UPDATE_BUDGET } from '../graphql/mutations';
+import { GET_BUDGET } from '../graphql/queries';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { useTitle } from '../contexts/TitleContext';
+import { PageContainer } from '../components/common/PageContainer';
 
 /**
  * Budget data from GraphQL query
@@ -46,20 +46,21 @@ interface BudgetData {
  * Budget Edit Page Component
  */
 export function BudgetEditPage(): React.JSX.Element {
-  const {id} = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo') ?? '/budgets';
-  const {setTitle} = useTitle();
+  const { setTitle } = useTitle();
 
-  const {data: budgetData, loading: budgetLoading, error: budgetError} = useQuery<BudgetData>(
-    GET_BUDGET,
-    {
-      variables: {id},
-      skip: !id,
-      errorPolicy: 'all',
-    },
-  );
+  const {
+    data: budgetData,
+    loading: budgetLoading,
+    error: budgetError,
+  } = useQuery<BudgetData>(GET_BUDGET, {
+    variables: { id },
+    skip: !id,
+    errorPolicy: 'all',
+  });
 
   const budget = budgetData?.budget;
 
@@ -95,7 +96,7 @@ export function BudgetEditPage(): React.JSX.Element {
     return '/budgets';
   };
 
-  const [updateBudget, {loading: updating}] = useMutation(UPDATE_BUDGET, {
+  const [updateBudget, { loading: updating }] = useMutation(UPDATE_BUDGET, {
     refetchQueries: ['GetBudgets', 'GetBudget'],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
@@ -166,7 +167,8 @@ export function BudgetEditPage(): React.JSX.Element {
     );
   }
 
-  const budgetName = budget.account?.name ?? budget.category?.name ?? budget.payee?.name ?? 'Budget';
+  const budgetName =
+    budget.account?.name ?? budget.category?.name ?? budget.payee?.name ?? 'Budget';
 
   return (
     <PageContainer
@@ -184,7 +186,7 @@ export function BudgetEditPage(): React.JSX.Element {
           p: 3,
         }}
       >
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
           <Typography variant="h6" component="h2">
             Edit Budget
           </Typography>
@@ -193,9 +195,11 @@ export function BudgetEditPage(): React.JSX.Element {
             Budget for: {budgetName}
           </Typography>
 
-          {error ? <Typography color="error" variant="body2">
+          {error ? (
+            <Typography color="error" variant="body2">
               {error}
-            </Typography> : null}
+            </Typography>
+          ) : null}
 
           <TextField
             label="Budget Amount"
@@ -204,11 +208,11 @@ export function BudgetEditPage(): React.JSX.Element {
             onChange={(e) => setAmount(e.target.value)}
             fullWidth
             required
-            inputProps={{min: 0, step: 0.01}}
+            inputProps={{ min: 0, step: 0.01 }}
             helperText="Enter the monthly budget amount"
           />
 
-          <Box sx={{display: 'flex', gap: 2, mt: 'auto', pt: 2}}>
+          <Box sx={{ display: 'flex', gap: 2, mt: 'auto', pt: 2 }}>
             <Button
               variant="outlined"
               onClick={() => {
@@ -229,4 +233,3 @@ export function BudgetEditPage(): React.JSX.Element {
     </PageContainer>
   );
 }
-

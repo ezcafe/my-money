@@ -2,10 +2,10 @@
  * Input Validation Security Tests
  */
 
-import {describe, it, expect} from '@jest/globals';
-import {z} from 'zod';
-import {validate} from '../../src/utils/validation';
-import {ValidationError} from '../../src/utils/errors';
+import { describe, it, expect } from '@jest/globals';
+import { z } from 'zod';
+import { validate } from '../../src/utils/validation';
+import { ValidationError } from '../../src/utils/errors';
 
 describe('Input Validation', () => {
   describe('Transaction Input Validation', () => {
@@ -17,7 +17,7 @@ describe('Input Validation', () => {
 
     it('should accept valid transaction input', () => {
       const input = {
-        value: 100.50,
+        value: 100.5,
         accountId: '123e4567-e89b-12d3-a456-426614174000',
         note: 'Test transaction',
       };
@@ -26,7 +26,7 @@ describe('Input Validation', () => {
 
     it('should reject invalid UUID', () => {
       const input = {
-        value: 100.50,
+        value: 100.5,
         accountId: 'invalid-uuid',
       };
       expect(() => validate(TransactionSchema, input)).toThrow(ValidationError);
@@ -42,7 +42,7 @@ describe('Input Validation', () => {
 
     it('should reject notes exceeding max length', () => {
       const input = {
-        value: 100.50,
+        value: 100.5,
         accountId: '123e4567-e89b-12d3-a456-426614174000',
         note: 'a'.repeat(1001),
       };
@@ -57,4 +57,3 @@ describe('Input Validation', () => {
     });
   });
 });
-

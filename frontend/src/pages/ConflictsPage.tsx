@@ -3,33 +3,26 @@
  * Lists all unresolved conflicts for the current workspace
  */
 
-import React, {useState, useCallback} from 'react';
-import {
-  Box,
-  Typography,
-  Chip,
-  IconButton,
-  Card,
-  Alert,
-} from '@mui/material';
-import {Warning, Refresh, Close} from '@mui/icons-material';
-import {useQuery} from '@apollo/client/react';
-import {GET_ENTITY_CONFLICTS} from '../graphql/conflictOperations';
-import {GET_WORKSPACES} from '../graphql/workspaceOperations';
-import {formatDateTime, dateFormatToDateTimeFormat} from '../utils/formatting';
-import {useDateFormat} from '../hooks/useDateFormat';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {EmptyState} from '../components/common/EmptyState';
-import {ConflictResolutionDialog} from '../components/ConflictResolutionDialog';
-import {PageContainer} from '../components/common/PageContainer';
-import {WorkspaceSelector} from '../components/WorkspaceSelector';
+import React, { useState, useCallback } from 'react';
+import { Box, Typography, Chip, IconButton, Card, Alert } from '@mui/material';
+import { Warning, Refresh, Close } from '@mui/icons-material';
+import { useQuery } from '@apollo/client/react';
+import { GET_ENTITY_CONFLICTS } from '../graphql/conflictOperations';
+import { GET_WORKSPACES } from '../graphql/workspaceOperations';
+import { formatDateTime, dateFormatToDateTimeFormat } from '../utils/formatting';
+import { useDateFormat } from '../hooks/useDateFormat';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { EmptyState } from '../components/common/EmptyState';
+import { ConflictResolutionDialog } from '../components/ConflictResolutionDialog';
+import { PageContainer } from '../components/common/PageContainer';
+import { WorkspaceSelector } from '../components/WorkspaceSelector';
 
 /**
  * Conflicts Page Component
  */
 export function ConflictsPage(): React.JSX.Element {
-  const {dateFormat} = useDateFormat();
+  const { dateFormat } = useDateFormat();
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
   const [selectedConflict, setSelectedConflict] = useState<{
     id: string;
@@ -44,7 +37,7 @@ export function ConflictsPage(): React.JSX.Element {
   } | null>(null);
 
   // Get workspaces
-  const {data: workspacesData, loading: workspacesLoading} = useQuery<{
+  const { data: workspacesData, loading: workspacesLoading } = useQuery<{
     workspaces: Array<{
       id: string;
       name: string;
@@ -53,7 +46,10 @@ export function ConflictsPage(): React.JSX.Element {
     fetchPolicy: 'cache-and-network',
   });
 
-  const workspaces = React.useMemo(() => workspacesData?.workspaces ?? [], [workspacesData?.workspaces]);
+  const workspaces = React.useMemo(
+    () => workspacesData?.workspaces ?? [],
+    [workspacesData?.workspaces]
+  );
 
   // Auto-select first workspace if available
   React.useEffect(() => {
@@ -66,7 +62,7 @@ export function ConflictsPage(): React.JSX.Element {
   }, [workspaces, selectedWorkspaceId]);
 
   // Get conflicts for selected workspace
-  const {data, loading, error, refetch} = useQuery<{
+  const { data, loading, error, refetch } = useQuery<{
     entityConflicts: Array<{
       id: string;
       entityType: string;
@@ -105,7 +101,7 @@ export function ConflictsPage(): React.JSX.Element {
     }) => {
       setSelectedConflict(conflict);
     },
-    [],
+    []
   );
 
   /**
@@ -145,10 +141,10 @@ export function ConflictsPage(): React.JSX.Element {
 
   return (
     <PageContainer>
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {/* Workspace Selector */}
-        <Card sx={{p: 3}}>
-          <Box sx={{display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap'}}>
+        <Card sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Typography variant="h6" component="h2">
               Workspace
             </Typography>
@@ -171,22 +167,22 @@ export function ConflictsPage(): React.JSX.Element {
 
         {/* Conflicts List */}
         {!selectedWorkspaceId ? (
-          <Card sx={{p: 3}}>
+          <Card sx={{ p: 3 }}>
             <Alert severity="info">Please select a workspace to view conflicts.</Alert>
           </Card>
         ) : loading ? (
-          <Card sx={{p: 3}}>
+          <Card sx={{ p: 3 }}>
             <LoadingSpinner message="Loading conflicts..." />
           </Card>
         ) : error ? (
-          <Card sx={{p: 3}}>
+          <Card sx={{ p: 3 }}>
             <ErrorAlert
               title="Error Loading Conflicts"
               message={error?.message ?? 'Failed to load conflicts'}
             />
           </Card>
         ) : conflicts.length === 0 ? (
-          <Card sx={{p: 3}}>
+          <Card sx={{ p: 3 }}>
             <EmptyState
               icon={<Warning />}
               title="No Conflicts"
@@ -194,12 +190,16 @@ export function ConflictsPage(): React.JSX.Element {
             />
           </Card>
         ) : (
-          <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-            <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="h6" component="h2">
                 Unresolved Conflicts
               </Typography>
-              <Chip label={`${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}`} size="small" color="warning" />
+              <Chip
+                label={`${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}`}
+                size="small"
+                color="warning"
+              />
             </Box>
 
             {conflicts.map((conflict) => (
@@ -214,20 +214,26 @@ export function ConflictsPage(): React.JSX.Element {
                 }}
                 onClick={() => handleConflictClick(conflict)}
               >
-                <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                  <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
-                    <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                <Box
+                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                >
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Warning color="warning" />
                       <Typography variant="subtitle1" fontWeight="medium">
                         {conflict.entityType} Conflict
                       </Typography>
-                      <Chip label={`v${conflict.currentVersion} vs v${conflict.incomingVersion}`} size="small" />
+                      <Chip
+                        label={`v${conflict.currentVersion} vs v${conflict.incomingVersion}`}
+                        size="small"
+                      />
                     </Box>
                     <Typography variant="body2" color="text.secondary">
                       Entity ID: {conflict.entityId}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Detected: {formatDateTime(conflict.detectedAt, dateFormatToDateTimeFormat(dateFormat))}
+                      Detected:{' '}
+                      {formatDateTime(conflict.detectedAt, dateFormatToDateTimeFormat(dateFormat))}
                     </Typography>
                   </Box>
                   <IconButton

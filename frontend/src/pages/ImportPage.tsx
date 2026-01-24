@@ -3,22 +3,26 @@
  * PDF upload and bulk mapping UI
  */
 
-import React, {useState} from 'react';
-import {Box, Typography, Chip} from '@mui/material';
-import {Card} from '../components/ui/Card';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {UPLOAD_PDF, SAVE_IMPORTED_TRANSACTIONS, DELETE_UNMAPPED_IMPORTED_TRANSACTIONS} from '../graphql/mutations';
-import {GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS} from '../graphql/queries';
-import {GET_WORKSPACES} from '../graphql/workspaceOperations';
-import {MAX_RECENT_TRANSACTIONS} from '../constants';
-import {PageContainer} from '../components/common/PageContainer';
-import {ImportUpload} from '../components/import/ImportUpload';
-import {ImportMappingTable} from '../components/import/ImportMappingTable';
-import {ImportActions} from '../components/import/ImportActions';
-import {useImportMappings, type UnmappedTransaction} from '../hooks/useImportMappings';
-import {useAccounts} from '../hooks/useAccounts';
-import {useCategories} from '../hooks/useCategories';
-import {usePayees} from '../hooks/usePayees';
+import React, { useState } from 'react';
+import { Box, Typography, Chip } from '@mui/material';
+import { Card } from '../components/ui/Card';
+import { useMutation, useQuery } from '@apollo/client/react';
+import {
+  UPLOAD_PDF,
+  SAVE_IMPORTED_TRANSACTIONS,
+  DELETE_UNMAPPED_IMPORTED_TRANSACTIONS,
+} from '../graphql/mutations';
+import { GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS } from '../graphql/queries';
+import { GET_WORKSPACES } from '../graphql/workspaceOperations';
+import { MAX_RECENT_TRANSACTIONS } from '../constants';
+import { PageContainer } from '../components/common/PageContainer';
+import { ImportUpload } from '../components/import/ImportUpload';
+import { ImportMappingTable } from '../components/import/ImportMappingTable';
+import { ImportActions } from '../components/import/ImportActions';
+import { useImportMappings, type UnmappedTransaction } from '../hooks/useImportMappings';
+import { useAccounts } from '../hooks/useAccounts';
+import { useCategories } from '../hooks/useCategories';
+import { usePayees } from '../hooks/usePayees';
 
 /**
  * Import Page Component
@@ -42,12 +46,12 @@ export function ImportPage(): React.JSX.Element {
   } = useImportMappings(unmappedTransactions);
 
   // Get data hooks
-  const {accounts} = useAccounts();
-  const {categories} = useCategories();
-  const {payees} = usePayees();
+  const { accounts } = useAccounts();
+  const { categories } = useCategories();
+  const { payees } = usePayees();
 
   // Get workspaces
-  const {data: workspacesData} = useQuery<{
+  const { data: workspacesData } = useQuery<{
     workspaces: Array<{
       id: string;
       name: string;
@@ -59,7 +63,7 @@ export function ImportPage(): React.JSX.Element {
   const workspaces = workspacesData?.workspaces ?? [];
 
   // Upload PDF mutation
-  const [uploadPDFMutation, {loading: uploading}] = useMutation<{
+  const [uploadPDFMutation, { loading: uploading }] = useMutation<{
     uploadPDF: {
       success: boolean;
       importedCount: number;
@@ -68,22 +72,24 @@ export function ImportPage(): React.JSX.Element {
     };
   }>(UPLOAD_PDF, {
     refetchQueries: [
-      {query: GET_TRANSACTIONS},
+      { query: GET_TRANSACTIONS },
       {
         query: GET_RECENT_TRANSACTIONS,
         variables: {
           limit: MAX_RECENT_TRANSACTIONS,
-          orderBy: {field: 'date', direction: 'desc'},
+          orderBy: { field: 'date', direction: 'desc' },
         },
       },
     ],
     awaitRefetchQueries: true,
-    onCompleted: (data: {uploadPDF?: {savedCount: number; unmappedTransactions: UnmappedTransaction[]}}) => {
+    onCompleted: (data: {
+      uploadPDF?: { savedCount: number; unmappedTransactions: UnmappedTransaction[] };
+    }) => {
       if (data.uploadPDF) {
-        const {savedCount, unmappedTransactions: unmapped} = data.uploadPDF;
+        const { savedCount, unmappedTransactions: unmapped } = data.uploadPDF;
         setUnmappedTransactions(unmapped ?? []);
         setSuccessMessage(
-          `Upload successful! ${savedCount} transaction(s) were automatically saved. ${unmapped.length} transaction(s) need manual mapping.`,
+          `Upload successful! ${savedCount} transaction(s) were automatically saved. ${unmapped.length} transaction(s) need manual mapping.`
         );
         setFile(null);
       }
@@ -95,7 +101,7 @@ export function ImportPage(): React.JSX.Element {
   });
 
   // Save transactions mutation
-  const [saveTransactionsMutation, {loading: saving}] = useMutation<{
+  const [saveTransactionsMutation, { loading: saving }] = useMutation<{
     saveImportedTransactions: {
       success: boolean;
       savedCount: number;
@@ -103,19 +109,21 @@ export function ImportPage(): React.JSX.Element {
     };
   }>(SAVE_IMPORTED_TRANSACTIONS, {
     refetchQueries: [
-      {query: GET_TRANSACTIONS},
+      { query: GET_TRANSACTIONS },
       {
         query: GET_RECENT_TRANSACTIONS,
         variables: {
           limit: MAX_RECENT_TRANSACTIONS,
-          orderBy: {field: 'date', direction: 'desc'},
+          orderBy: { field: 'date', direction: 'desc' },
         },
       },
     ],
     awaitRefetchQueries: true,
-    onCompleted: (data: {saveImportedTransactions?: {savedCount: number; errors: string[]}}) => {
+    onCompleted: (data: {
+      saveImportedTransactions?: { savedCount: number; errors: string[] };
+    }) => {
       if (data.saveImportedTransactions) {
-        const {savedCount, errors} = data.saveImportedTransactions;
+        const { savedCount, errors } = data.saveImportedTransactions;
         if (errors.length > 0) {
           setError(`Some transactions failed to save: ${errors.join(', ')}`);
         } else {
@@ -131,7 +139,7 @@ export function ImportPage(): React.JSX.Element {
   });
 
   // Delete unmapped transactions mutation
-  const [deleteUnmappedMutation, {loading: deleting}] = useMutation<{
+  const [deleteUnmappedMutation, { loading: deleting }] = useMutation<{
     deleteUnmappedImportedTransactions: boolean;
   }>(DELETE_UNMAPPED_IMPORTED_TRANSACTIONS, {
     onCompleted: () => {
@@ -176,7 +184,7 @@ export function ImportPage(): React.JSX.Element {
 
     try {
       await uploadPDFMutation({
-        variables: {file, dateFormat},
+        variables: { file, dateFormat },
       });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Upload failed';
@@ -211,7 +219,7 @@ export function ImportPage(): React.JSX.Element {
 
     try {
       await saveTransactionsMutation({
-        variables: {mapping},
+        variables: { mapping },
       });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Save failed';
@@ -233,7 +241,7 @@ export function ImportPage(): React.JSX.Element {
   };
 
   return (
-    <PageContainer sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
+    <PageContainer sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* Upload Section */}
       <ImportUpload
         file={file}
@@ -252,8 +260,8 @@ export function ImportPage(): React.JSX.Element {
       {/* Mapping Section */}
       {unmappedTransactions.length > 0 && (
         <Card>
-          <Box sx={{p: 3}}>
-            <Box sx={{display: 'flex', alignItems: 'center', gap: 2, mb: 1, flexWrap: 'wrap'}}>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1, flexWrap: 'wrap' }}>
               <Typography variant="h6" component="h2">
                 Map Transactions
               </Typography>
@@ -267,9 +275,9 @@ export function ImportPage(): React.JSX.Element {
                 size="small"
               />
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
-              Some transactions need manual mapping. Please assign an account, category, and payee for each unique
-              transaction description.
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Some transactions need manual mapping. Please assign an account, category, and payee
+              for each unique transaction description.
             </Typography>
 
             {/* Mapping Table */}
@@ -288,7 +296,12 @@ export function ImportPage(): React.JSX.Element {
             />
 
             {/* Action Buttons */}
-            <ImportActions saving={saving} deleting={deleting} onSave={handleSave} onIgnore={handleIgnore} />
+            <ImportActions
+              saving={saving}
+              deleting={deleting}
+              onSave={handleSave}
+              onIgnore={handleIgnore}
+            />
           </Box>
         </Card>
       )}

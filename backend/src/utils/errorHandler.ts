@@ -3,9 +3,9 @@
  * Provides consistent error handling patterns across resolvers and services
  */
 
-import {AppError, NotFoundError, ValidationError} from './errors';
-import {logError} from './logger';
-import {withPrismaErrorHandling} from './prismaErrors';
+import { AppError, NotFoundError, ValidationError } from './errors';
+import { logError } from './logger';
+import { withPrismaErrorHandling } from './prismaErrors';
 
 /**
  * Context for error handling operations
@@ -29,7 +29,7 @@ export interface ErrorContext {
  */
 export async function handleOperation<T>(
   operation: () => Promise<T>,
-  context: ErrorContext = {},
+  context: ErrorContext = {}
 ): Promise<T> {
   try {
     return await operation();
@@ -43,9 +43,9 @@ export async function handleOperation<T>(
           error.code,
           error.statusCode,
           {
-            context: {...error.context, ...context},
+            context: { ...error.context, ...context },
             cause: error.cause,
-          },
+          }
         );
         logError(
           `Operation failed: ${context.operation ?? 'unknown'}`,
@@ -56,7 +56,7 @@ export async function handleOperation<T>(
             errorCode: error.code,
             ...context,
           },
-          errorWithContext,
+          errorWithContext
         );
         throw errorWithContext;
       }
@@ -70,22 +70,17 @@ export async function handleOperation<T>(
           errorCode: error.code,
           ...context,
         },
-        error,
+        error
       );
       throw error;
     }
 
     // For non-AppError exceptions, wrap in AppError with context
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    const appError = new AppError(
-      errorObj.message,
-      'INTERNAL_ERROR',
-      500,
-      {
-        context,
-        cause: errorObj,
-      },
-    );
+    const appError = new AppError(errorObj.message, 'INTERNAL_ERROR', 500, {
+      context,
+      cause: errorObj,
+    });
 
     logError(
       `Unexpected error in operation: ${context.operation ?? 'unknown'}`,
@@ -95,7 +90,7 @@ export async function handleOperation<T>(
         operation: context.operation,
         ...context,
       },
-      appError,
+      appError
     );
 
     throw appError;
@@ -111,11 +106,11 @@ export async function handleOperation<T>(
  */
 export async function handlePrismaOperation<T>(
   operation: () => Promise<T>,
-  context: ErrorContext = {},
+  context: ErrorContext = {}
 ): Promise<T> {
   return handleOperation(
     () => withPrismaErrorHandling(operation, context),
-    context,
+    context
   );
 }
 
@@ -130,7 +125,7 @@ export async function handlePrismaOperation<T>(
 export async function handleOperationOrNotFound<T>(
   operation: () => Promise<T | null>,
   resourceName: string,
-  context: ErrorContext = {},
+  context: ErrorContext = {}
 ): Promise<T> {
   const result = await handleOperation(operation, {
     ...context,
@@ -153,18 +148,16 @@ export async function handleOperationOrNotFound<T>(
  */
 export function handleValidation<T>(
   validateFn: () => T,
-  context: ErrorContext = {},
+  context: ErrorContext = {}
 ): T {
   try {
     return validateFn();
   } catch (error) {
     if (error instanceof ValidationError) {
       // Add context to validation error
-      const errorWithContext = new ValidationError(
-        error.message,
-      );
-      (errorWithContext as {context?: ErrorContext}).context = {
-        ...(error as {context?: ErrorContext}).context,
+      const errorWithContext = new ValidationError(error.message);
+      (errorWithContext as { context?: ErrorContext }).context = {
+        ...(error as { context?: ErrorContext }).context,
         ...context,
       };
       throw errorWithContext;

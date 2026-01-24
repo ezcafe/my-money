@@ -3,11 +3,14 @@
  * Detects and caches workspace assignments for imported transactions
  */
 
-import type {PrismaClient} from '@prisma/client';
-import {prisma} from '../utils/prisma';
-import {getUserDefaultWorkspace} from './WorkspaceService';
+import type { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
+import { getUserDefaultWorkspace } from './WorkspaceService';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 export interface ImportedTransactionData {
   id: string;
@@ -38,17 +41,17 @@ export class WorkspaceDetectionService {
   async detectWorkspaceForTransaction(
     importedTransaction: ImportedTransactionData,
     userId: string,
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<string> {
     const client = tx ?? prisma;
 
     // If transaction is matched, use the transaction's workspace (via Account)
     if (importedTransaction.transactionId) {
       const transaction = await client.transaction.findUnique({
-        where: {id: importedTransaction.transactionId},
+        where: { id: importedTransaction.transactionId },
         include: {
           account: {
-            select: {workspaceId: true},
+            select: { workspaceId: true },
           },
         },
       });
@@ -61,8 +64,8 @@ export class WorkspaceDetectionService {
     // If account is suggested, check if it belongs to a workspace
     if (importedTransaction.accountId) {
       const account = await client.account.findUnique({
-        where: {id: importedTransaction.accountId},
-        select: {workspaceId: true},
+        where: { id: importedTransaction.accountId },
+        select: { workspaceId: true },
       });
 
       if (account?.workspaceId) {
@@ -73,8 +76,8 @@ export class WorkspaceDetectionService {
     // If category is suggested, check if it belongs to a workspace
     if (importedTransaction.categoryId) {
       const category = await client.category.findUnique({
-        where: {id: importedTransaction.categoryId},
-        select: {workspaceId: true},
+        where: { id: importedTransaction.categoryId },
+        select: { workspaceId: true },
       });
 
       if (category?.workspaceId) {
@@ -85,8 +88,8 @@ export class WorkspaceDetectionService {
     // If payee is suggested, check if it belongs to a workspace
     if (importedTransaction.payeeId) {
       const payee = await client.payee.findUnique({
-        where: {id: importedTransaction.payeeId},
-        select: {workspaceId: true},
+        where: { id: importedTransaction.payeeId },
+        select: { workspaceId: true },
       });
 
       if (payee?.workspaceId) {
@@ -109,7 +112,7 @@ export class WorkspaceDetectionService {
     importedTransactionId: string,
     workspaceId: string,
     userId: string,
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<void> {
     const client = tx ?? prisma;
 
@@ -121,23 +124,23 @@ export class WorkspaceDetectionService {
           userId,
         },
       },
-      select: {id: true},
+      select: { id: true },
     });
 
     if (!member) {
       // User doesn't have access, use default workspace instead
       const defaultWorkspaceId = await getUserDefaultWorkspace(userId);
       await client.importedTransaction.update({
-        where: {id: importedTransactionId},
-        data: {detectedWorkspaceId: defaultWorkspaceId},
+        where: { id: importedTransactionId },
+        data: { detectedWorkspaceId: defaultWorkspaceId },
       });
       return;
     }
 
     // Cache the detected workspace
     await client.importedTransaction.update({
-      where: {id: importedTransactionId},
-      data: {detectedWorkspaceId: workspaceId},
+      where: { id: importedTransactionId },
+      data: { detectedWorkspaceId: workspaceId },
     });
   }
 
@@ -146,10 +149,12 @@ export class WorkspaceDetectionService {
    * @param importedTransactionId - Imported transaction ID
    * @returns Cached workspace ID or null
    */
-  async getCachedWorkspace(importedTransactionId: string): Promise<string | null> {
+  async getCachedWorkspace(
+    importedTransactionId: string
+  ): Promise<string | null> {
     const importedTransaction = await prisma.importedTransaction.findUnique({
-      where: {id: importedTransactionId},
-      select: {detectedWorkspaceId: true},
+      where: { id: importedTransactionId },
+      select: { detectedWorkspaceId: true },
     });
 
     return importedTransaction?.detectedWorkspaceId ?? null;
@@ -160,12 +165,15 @@ export class WorkspaceDetectionService {
    * @param importedTransactionId - Imported transaction ID
    * @param tx - Optional transaction client
    */
-  async clearWorkspaceCache(importedTransactionId: string, tx?: PrismaTransaction): Promise<void> {
+  async clearWorkspaceCache(
+    importedTransactionId: string,
+    tx?: PrismaTransaction
+  ): Promise<void> {
     const client = tx ?? prisma;
 
     await client.importedTransaction.update({
-      where: {id: importedTransactionId},
-      data: {detectedWorkspaceId: null},
+      where: { id: importedTransactionId },
+      data: { detectedWorkspaceId: null },
     });
   }
 }

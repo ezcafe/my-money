@@ -7,10 +7,10 @@ import type {
   GraphQLRequestContext,
   GraphQLRequestListener,
 } from '@apollo/server';
-import {GraphQLError, Kind} from 'graphql';
-import type {GraphQLContext} from './context';
-import {inputSchemas} from '../utils/validation';
-import {ErrorCode} from '../utils/errorCodes';
+import { GraphQLError, Kind } from 'graphql';
+import type { GraphQLContext } from './context';
+import { inputSchemas } from '../utils/validation';
+import { ErrorCode } from '../utils/errorCodes';
 
 /**
  * Maximum allowed array size
@@ -25,7 +25,9 @@ const MAX_STRING_LENGTH = 10000;
 /**
  * Check if operation is a mutation
  */
-function isMutation(operation: {operation: string} | null | undefined): boolean {
+function isMutation(
+  operation: { operation: string } | null | undefined
+): boolean {
   return operation?.operation === 'mutation';
 }
 
@@ -37,13 +39,16 @@ function isMutation(operation: {operation: string} | null | undefined): boolean 
 function validateInputSize(inputValue: unknown): void {
   if (Array.isArray(inputValue)) {
     if (inputValue.length > MAX_ARRAY_SIZE) {
-      throw new GraphQLError(`Array size exceeds maximum of ${MAX_ARRAY_SIZE}`, {
-        extensions: {
-          code: ErrorCode.INPUT_SIZE_EXCEEDED,
-          maxSize: MAX_ARRAY_SIZE,
-          actualSize: inputValue.length,
-        },
-      });
+      throw new GraphQLError(
+        `Array size exceeds maximum of ${MAX_ARRAY_SIZE}`,
+        {
+          extensions: {
+            code: ErrorCode.INPUT_SIZE_EXCEEDED,
+            maxSize: MAX_ARRAY_SIZE,
+            actualSize: inputValue.length,
+          },
+        }
+      );
     }
     // Recursively validate array elements
     for (const element of inputValue) {
@@ -51,13 +56,16 @@ function validateInputSize(inputValue: unknown): void {
     }
   } else if (typeof inputValue === 'string') {
     if (inputValue.length > MAX_STRING_LENGTH) {
-      throw new GraphQLError(`String length exceeds maximum of ${MAX_STRING_LENGTH}`, {
-        extensions: {
-          code: ErrorCode.INPUT_SIZE_EXCEEDED,
-          maxLength: MAX_STRING_LENGTH,
-          actualLength: inputValue.length,
-        },
-      });
+      throw new GraphQLError(
+        `String length exceeds maximum of ${MAX_STRING_LENGTH}`,
+        {
+          extensions: {
+            code: ErrorCode.INPUT_SIZE_EXCEEDED,
+            maxLength: MAX_STRING_LENGTH,
+            actualLength: inputValue.length,
+          },
+        }
+      );
     }
   } else if (inputValue !== null && typeof inputValue === 'object') {
     // Recursively validate object properties
@@ -106,16 +114,22 @@ const mutationInputSchemaMap: Record<string, keyof typeof inputSchemas> = {
  */
 export function validationPlugin(): {
   requestDidStart(
-    _requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+    _requestContext: GraphQLRequestContext<
+      GraphQLContext | Record<string, never>
+    >
   ): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>>;
 } {
   return {
     requestDidStart(
-      _requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+      _requestContext: GraphQLRequestContext<
+        GraphQLContext | Record<string, never>
+      >
     ): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>> {
       return Promise.resolve({
         didResolveOperation(
-          requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+          requestContext: GraphQLRequestContext<
+            GraphQLContext | Record<string, never>
+          >
         ): Promise<void> {
           // Only validate mutations
           if (!isMutation(requestContext.operation)) {
@@ -162,58 +176,75 @@ export function validationPlugin(): {
           }
 
           // Helper function to extract value from GraphQL value node
-          const extractValue = (valueNode: {kind: string; [key: string]: unknown}): unknown => {
+          const extractValue = (valueNode: {
+            kind: string;
+            [key: string]: unknown;
+          }): unknown => {
             if (valueNode.kind === (Kind.VARIABLE as string)) {
-              const variableNode = valueNode as unknown as {name: {value: string}};
+              const variableNode = valueNode as unknown as {
+                name: { value: string };
+              };
               const variableName = variableNode.name.value;
               return variables[variableName];
             } else if (valueNode.kind === (Kind.INT as string)) {
-              const intNode = valueNode as unknown as {value: string};
+              const intNode = valueNode as unknown as { value: string };
               return parseInt(intNode.value, 10);
             } else if (valueNode.kind === (Kind.FLOAT as string)) {
-              const floatNode = valueNode as unknown as {value: string};
+              const floatNode = valueNode as unknown as { value: string };
               return parseFloat(floatNode.value);
             } else if (valueNode.kind === (Kind.STRING as string)) {
-              const stringNode = valueNode as unknown as {value: string};
+              const stringNode = valueNode as unknown as { value: string };
               return stringNode.value;
             } else if (valueNode.kind === (Kind.BOOLEAN as string)) {
-              const boolNode = valueNode as unknown as {value: boolean};
+              const boolNode = valueNode as unknown as { value: boolean };
               return boolNode.value;
             } else if (valueNode.kind === (Kind.NULL as string)) {
               return null;
             } else if (valueNode.kind === (Kind.OBJECT as string)) {
               // Inline object value - convert to plain object
               const obj: Record<string, unknown> = {};
-              const objectNode = valueNode as unknown as {fields: Array<{name: {value: string}; value: unknown}>};
+              const objectNode = valueNode as unknown as {
+                fields: Array<{ name: { value: string }; value: unknown }>;
+              };
               const fields = objectNode.fields;
               for (const field of fields) {
                 const fieldName = field.name.value;
-                obj[fieldName] = extractValue(field.value as {kind: string; [key: string]: unknown});
+                obj[fieldName] = extractValue(
+                  field.value as { kind: string; [key: string]: unknown }
+                );
               }
               return obj;
             } else if (valueNode.kind === (Kind.LIST as string)) {
               // Handle list values
-              const listNode = valueNode as unknown as {values: unknown[]};
+              const listNode = valueNode as unknown as { values: unknown[] };
               const values = listNode.values;
-              return values.map((val) => extractValue(val as {kind: string; [key: string]: unknown}));
+              return values.map((val) =>
+                extractValue(val as { kind: string; [key: string]: unknown })
+              );
             }
             return undefined;
           };
 
           // Try to find input argument first (for mutations with input object)
-          const inputArgument = fieldSelection.arguments?.find((arg) => arg.name.value === 'input');
+          const inputArgument = fieldSelection.arguments?.find(
+            (arg) => arg.name.value === 'input'
+          );
           let inputValue: unknown;
 
           if (inputArgument) {
             // Mutation has input argument - extract it
-            inputValue = extractValue(inputArgument.value as {kind: string; [key: string]: unknown});
+            inputValue = extractValue(
+              inputArgument.value as { kind: string; [key: string]: unknown }
+            );
           } else {
             // Mutation doesn't have input argument - collect all arguments as an object
             const args: Record<string, unknown> = {};
             if (fieldSelection.arguments) {
               for (const arg of fieldSelection.arguments) {
                 const argName = arg.name.value;
-                const argValue = extractValue(arg.value as {kind: string; [key: string]: unknown});
+                const argValue = extractValue(
+                  arg.value as { kind: string; [key: string]: unknown }
+                );
                 if (argValue !== undefined) {
                   args[argName] = argValue;
                 }
@@ -239,11 +270,19 @@ export function validationPlugin(): {
           } catch (error: unknown) {
             if (error && typeof error === 'object' && 'issues' in error) {
               // Zod validation error
-              const zodError = error as {issues: Array<{path: Array<string | number>; message: string}>};
-              const errors = zodError.issues.map((issue) => {
-                const path = issue.path.length > 0 ? issue.path.join('.') : 'input';
-                return `${path}: ${issue.message}`;
-              }).join(', ');
+              const zodError = error as {
+                issues: Array<{
+                  path: Array<string | number>;
+                  message: string;
+                }>;
+              };
+              const errors = zodError.issues
+                .map((issue) => {
+                  const path =
+                    issue.path.length > 0 ? issue.path.join('.') : 'input';
+                  return `${path}: ${issue.message}`;
+                })
+                .join(', ');
 
               throw new GraphQLError(`Validation error: ${errors}`, {
                 extensions: {

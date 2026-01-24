@@ -11,7 +11,7 @@
  */
 export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
-  wait: number,
+  wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -33,7 +33,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
  */
 export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
-  limit: number,
+  limit: number
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean = false;
 
@@ -57,9 +57,9 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
  */
 export function rateLimitMutation<T extends (...args: unknown[]) => unknown>(
   mutationFn: T,
-  options: {debounceMs?: number; throttleMs?: number} = {},
+  options: { debounceMs?: number; throttleMs?: number } = {}
 ): T {
-  const {debounceMs, throttleMs} = options;
+  const { debounceMs, throttleMs } = options;
 
   if (debounceMs !== undefined) {
     return debounce(mutationFn, debounceMs) as T;
@@ -72,4 +72,3 @@ export function rateLimitMutation<T extends (...args: unknown[]) => unknown>(
   // Default: throttle to 500ms
   return throttle(mutationFn, 500) as T;
 }
-

@@ -26,14 +26,18 @@ export const CACHE_TAGS = {
   BUDGETS: (workspaceId: string) => `budgets:${workspaceId}`,
 
   // Query tags
-  TRANSACTION_QUERIES: (workspaceId: string) => `transaction_queries:${workspaceId}`,
+  TRANSACTION_QUERIES: (workspaceId: string) =>
+    `transaction_queries:${workspaceId}`,
   REPORTS: (workspaceId: string) => `reports:${workspaceId}`,
 } as const;
 
 /**
  * Invalidate cache for an account and related data
  */
-export async function invalidateAccountCache(accountId: string, workspaceId: string): Promise<void> {
+export async function invalidateAccountCache(
+  accountId: string,
+  workspaceId: string
+): Promise<void> {
   await postgresCache.invalidateByTags([
     CACHE_TAGS.ACCOUNT(accountId),
     CACHE_TAGS.ACCOUNTS(workspaceId),
@@ -46,7 +50,10 @@ export async function invalidateAccountCache(accountId: string, workspaceId: str
 /**
  * Invalidate cache for a category and related data
  */
-export async function invalidateCategoryCache(categoryId: string, workspaceId: string): Promise<void> {
+export async function invalidateCategoryCache(
+  categoryId: string,
+  workspaceId: string
+): Promise<void> {
   await postgresCache.invalidateByTags([
     CACHE_TAGS.CATEGORY(categoryId),
     CACHE_TAGS.CATEGORIES(workspaceId),
@@ -60,7 +67,10 @@ export async function invalidateCategoryCache(categoryId: string, workspaceId: s
 /**
  * Invalidate cache for a payee and related data
  */
-export async function invalidatePayeeCache(payeeId: string, workspaceId: string): Promise<void> {
+export async function invalidatePayeeCache(
+  payeeId: string,
+  workspaceId: string
+): Promise<void> {
   await postgresCache.invalidateByTags([
     CACHE_TAGS.PAYEE(payeeId),
     CACHE_TAGS.PAYEES(workspaceId),
@@ -74,7 +84,10 @@ export async function invalidatePayeeCache(payeeId: string, workspaceId: string)
 /**
  * Invalidate cache for a transaction and related data
  */
-export async function invalidateTransactionCache(transactionId: string, workspaceId: string): Promise<void> {
+export async function invalidateTransactionCache(
+  transactionId: string,
+  workspaceId: string
+): Promise<void> {
   await postgresCache.invalidateByTags([
     CACHE_TAGS.TRANSACTION(transactionId),
     CACHE_TAGS.TRANSACTIONS(workspaceId),
@@ -86,7 +99,10 @@ export async function invalidateTransactionCache(transactionId: string, workspac
 /**
  * Invalidate cache for a budget and related data
  */
-export async function invalidateBudgetCache(budgetId: string, workspaceId: string): Promise<void> {
+export async function invalidateBudgetCache(
+  budgetId: string,
+  workspaceId: string
+): Promise<void> {
   await postgresCache.invalidateByTags([
     CACHE_TAGS.BUDGET(budgetId),
     CACHE_TAGS.BUDGETS(workspaceId),

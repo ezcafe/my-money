@@ -3,7 +3,7 @@
  * Handles PDF file upload with drag and drop, validation, and date format selection
  */
 
-import React, {useState, useCallback, memo} from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import {
   Box,
   Typography,
@@ -16,11 +16,16 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import {Upload as UploadIcon, Description as DescriptionIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon} from '@mui/icons-material';
-import {Card} from '../ui/Card';
-import {Button} from '../ui/Button';
-import {validateFileType, validateFileSize} from '../../utils/validation';
-import {ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES} from '../../constants';
+import {
+  Upload as UploadIcon,
+  Description as DescriptionIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+} from '@mui/icons-material';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { validateFileType, validateFileSize } from '../../utils/validation';
+import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE_BYTES } from '../../constants';
 
 /**
  * ImportUpload component props
@@ -74,13 +79,13 @@ const ImportUploadComponent = ({
 
       onFileSelect(selectedFile);
     },
-    [onFileSelect],
+    [onFileSelect]
   );
 
   /**
    * Handle file input change
    */
-  const handleFileChange = (e: {target: {files?: FileList | null} | null}): void => {
+  const handleFileChange = (e: { target: { files?: FileList | null } | null }): void => {
     if (e.target?.files?.[0]) {
       processFile(e.target.files[0]);
     }
@@ -118,7 +123,7 @@ const ImportUploadComponent = ({
         processFile(droppedFile);
       }
     },
-    [processFile],
+    [processFile]
   );
 
   /**
@@ -132,37 +137,42 @@ const ImportUploadComponent = ({
 
   return (
     <Card>
-      <Box sx={{p: 3}}>
+      <Box sx={{ p: 3 }}>
         <Typography variant="h6" component="h2" gutterBottom>
           Upload Credit Card Statement
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{mb: 3}}>
-          Upload a PDF statement from your credit card provider. The system will automatically extract and categorize transactions.
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Upload a PDF statement from your credit card provider. The system will automatically
+          extract and categorize transactions.
         </Typography>
 
         {error ? (
-          <Alert severity="error" sx={{mb: 3}} onClose={onErrorDismiss}>
+          <Alert severity="error" sx={{ mb: 3 }} onClose={onErrorDismiss}>
             {error}
           </Alert>
         ) : null}
         {successMessage ? (
-          <Alert severity="success" sx={{mb: 3}} onClose={onSuccessDismiss}>
+          <Alert severity="success" sx={{ mb: 3 }} onClose={onSuccessDismiss}>
             {successMessage}
           </Alert>
         ) : null}
 
         {/* Date Format Selection */}
-        <Box sx={{mb: 3}}>
+        <Box sx={{ mb: 3 }}>
           <FormControl fullWidth>
             <InputLabel>Date Format in PDF</InputLabel>
-            <Select value={dateFormat} label="Date Format in PDF" onChange={(e): void => onDateFormatChange(e.target.value)}>
+            <Select
+              value={dateFormat}
+              label="Date Format in PDF"
+              onChange={(e): void => onDateFormatChange(e.target.value)}
+            >
               <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
               <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
               <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
               <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
               <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
             </Select>
-            <Typography variant="caption" color="text.secondary" sx={{mt: 1, display: 'block'}}>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
               Select the date format used in your PDF statement
             </Typography>
           </FormControl>
@@ -191,12 +201,12 @@ const ImportUploadComponent = ({
             type="file"
             accept=".pdf"
             onChange={handleFileChange}
-            style={{display: 'none'}}
+            style={{ display: 'none' }}
             id="pdf-upload-input"
           />
           {file ? (
             <Box>
-              <CheckCircleIcon color="success" sx={{fontSize: 48, mb: 1}} />
+              <CheckCircleIcon color="success" sx={{ fontSize: 48, mb: 1 }} />
               <Typography
                 variant="h6"
                 gutterBottom
@@ -214,7 +224,7 @@ const ImportUploadComponent = ({
               >
                 {file.name}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {formatFileSize(file.size)}
               </Typography>
               <Button
@@ -230,7 +240,7 @@ const ImportUploadComponent = ({
             </Box>
           ) : (
             <Box>
-              <UploadIcon sx={{fontSize: 48, color: 'text.secondary', mb: 2}} />
+              <UploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" gutterBottom>
                 {!isMobile && isDragging
                   ? 'Drop PDF file here'
@@ -238,13 +248,13 @@ const ImportUploadComponent = ({
                     ? 'Drag and drop PDF file here'
                     : 'Select PDF File'}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {!isMobile ? 'or click to browse' : 'Tap to browse files'}
               </Typography>
               <Button variant="outlined" startIcon={<UploadIcon />} component="span">
                 Select PDF File
               </Button>
-              <Typography variant="caption" color="text.secondary" sx={{mt: 2, display: 'block'}}>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
                 Maximum file size: {MAX_FILE_SIZE_BYTES / 1024 / 1024}MB
               </Typography>
             </Box>
@@ -254,7 +264,7 @@ const ImportUploadComponent = ({
         {/* Upload Button */}
         {file ? (
           <Box>
-            {uploading ? <LinearProgress sx={{mb: 2}} /> : null}
+            {uploading ? <LinearProgress sx={{ mb: 2 }} /> : null}
             <Button
               variant="contained"
               fullWidth

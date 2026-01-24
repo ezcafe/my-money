@@ -3,8 +3,8 @@
  * Provides budget data with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
-import {GET_BUDGET} from '../graphql/queries';
+import { useQuery } from '@apollo/client/react';
+import { GET_BUDGET } from '../graphql/queries';
 
 /**
  * Budget type from GraphQL query
@@ -56,8 +56,8 @@ interface GetBudgetData {
 }
 
 export function useBudget(id: string | undefined): UseBudgetResult {
-  const {data, loading, error, refetch} = useQuery<GetBudgetData>(GET_BUDGET, {
-    variables: {id},
+  const { data, loading, error, refetch } = useQuery<GetBudgetData>(GET_BUDGET, {
+    variables: { id },
     skip: !id,
     errorPolicy: 'all',
   });
@@ -82,4 +82,3 @@ export function useBudget(id: string | undefined): UseBudgetResult {
     },
   };
 }
-

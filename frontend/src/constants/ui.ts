@@ -49,11 +49,11 @@ export const VIEWPORT_CONFIG = {
  * Use these for consistent breakpoint values across the app
  */
 export const RESPONSIVE_BREAKPOINTS = {
-  xs: 0,      // Mobile
-  sm: 600,    // Tablet
-  md: 960,    // Desktop
-  lg: 1280,   // Large Desktop
-  xl: 1920,   // Extra Large Desktop
+  xs: 0, // Mobile
+  sm: 600, // Tablet
+  md: 960, // Desktop
+  lg: 1280, // Large Desktop
+  xl: 1920, // Extra Large Desktop
 } as const;
 
 /**

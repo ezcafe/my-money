@@ -3,9 +3,9 @@
  * Handles field-level resolvers for Transaction type
  */
 
-import type {GraphQLContext} from '../../middleware/context';
-import type {Transaction} from '@prisma/client';
-import {getContainer} from '../../utils/container';
+import type { GraphQLContext } from '../../middleware/context';
+import type { Transaction } from '@prisma/client';
+import { getContainer } from '../../utils/container';
 
 /**
  * Transaction Field Resolver
@@ -15,7 +15,11 @@ export class TransactionFieldResolver {
   /**
    * Field resolver for versions
    */
-  async versions(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async versions(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     const versionService = getContainer().getVersionService(context.prisma);
     return versionService.getEntityVersions('Transaction', parent.id);
   }
@@ -23,14 +27,22 @@ export class TransactionFieldResolver {
   /**
    * Field resolver for createdBy
    */
-  async createdBy(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async createdBy(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     return context.userLoader.load(parent.createdBy);
   }
 
   /**
    * Field resolver for lastEditedBy
    */
-  async lastEditedBy(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async lastEditedBy(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     return context.userLoader.load(parent.lastEditedBy);
   }
 
@@ -38,7 +50,11 @@ export class TransactionFieldResolver {
    * Field resolver for account
    * Uses DataLoader for efficient batching
    */
-  async account(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async account(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     return context.accountLoader.load(parent.accountId);
   }
 
@@ -46,7 +62,11 @@ export class TransactionFieldResolver {
    * Field resolver for category
    * Uses DataLoader for efficient batching
    */
-  async category(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async category(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     if (!parent.categoryId) {
       return null;
     }
@@ -57,7 +77,11 @@ export class TransactionFieldResolver {
    * Field resolver for payee
    * Uses DataLoader for efficient batching
    */
-  async payee(parent: Transaction, _: unknown, context: GraphQLContext): Promise<unknown> {
+  async payee(
+    parent: Transaction,
+    _: unknown,
+    context: GraphQLContext
+  ): Promise<unknown> {
     if (!parent.payeeId) {
       return null;
     }

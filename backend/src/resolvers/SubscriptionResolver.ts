@@ -3,9 +3,16 @@
  * Handles GraphQL subscriptions for real-time updates
  */
 
-import {withFilter} from 'graphql-subscriptions';
-import type {GraphQLContext} from '../middleware/context';
-import type {Account, Category, Payee, Transaction, Budget, EntityConflict} from '@prisma/client';
+import { withFilter } from 'graphql-subscriptions';
+import type { GraphQLContext } from '../middleware/context';
+import type {
+  Account,
+  Category,
+  Payee,
+  Transaction,
+  Budget,
+  EntityConflict,
+} from '@prisma/client';
 import {
   accountEventEmitter,
   categoryEventEmitter,
@@ -13,22 +20,25 @@ import {
   transactionEventEmitter,
   budgetEventEmitter,
 } from '../events';
-import {PubSub} from 'graphql-subscriptions';
-import {trackSubscriptionStart} from '../utils/subscriptionMetrics';
-import {canCreateSubscription, incrementSubscriptionCount} from '../utils/subscriptionRateLimiter';
-import {logWarn} from '../utils/logger';
+import { PubSub } from 'graphql-subscriptions';
+import { trackSubscriptionStart } from '../utils/subscriptionMetrics';
+import {
+  canCreateSubscription,
+  incrementSubscriptionCount,
+} from '../utils/subscriptionRateLimiter';
+import { logWarn } from '../utils/logger';
 
 /**
  * PubSub instance for managing subscriptions
  * Note: Using untyped PubSub to avoid asyncIterator type issues
  */
 const pubsub = new PubSub() as PubSub<{
-  ACCOUNT_UPDATED: {accountUpdated: Account};
-  CATEGORY_UPDATED: {categoryUpdated: Category};
-  PAYEE_UPDATED: {payeeUpdated: Payee};
-  TRANSACTION_UPDATED: {transactionUpdated: Transaction};
-  BUDGET_UPDATED: {budgetUpdated: Budget};
-  ENTITY_CONFLICT_DETECTED: {entityConflictDetected: EntityConflict};
+  ACCOUNT_UPDATED: { accountUpdated: Account };
+  CATEGORY_UPDATED: { categoryUpdated: Category };
+  PAYEE_UPDATED: { payeeUpdated: Payee };
+  TRANSACTION_UPDATED: { transactionUpdated: Transaction };
+  BUDGET_UPDATED: { budgetUpdated: Budget };
+  ENTITY_CONFLICT_DETECTED: { entityConflictDetected: EntityConflict };
 }> & {
   asyncIterator<T extends string>(triggers: T | T[]): AsyncIterator<unknown>;
 };
@@ -40,67 +50,91 @@ const pubsub = new PubSub() as PubSub<{
 function initializeEventListeners(): void {
   // Account events
   accountEventEmitter.on('account.created', (account: Account) => {
-    void pubsub.publish('ACCOUNT_UPDATED', {accountUpdated: account});
+    void pubsub.publish('ACCOUNT_UPDATED', { accountUpdated: account });
   });
 
-  accountEventEmitter.on('account.updated', (_oldAccount: Account, newAccount: Account) => {
-    void pubsub.publish('ACCOUNT_UPDATED', {accountUpdated: newAccount});
-  });
+  accountEventEmitter.on(
+    'account.updated',
+    (_oldAccount: Account, newAccount: Account) => {
+      void pubsub.publish('ACCOUNT_UPDATED', { accountUpdated: newAccount });
+    }
+  );
 
   accountEventEmitter.on('account.deleted', (account: Account) => {
-    void pubsub.publish('ACCOUNT_UPDATED', {accountUpdated: account});
+    void pubsub.publish('ACCOUNT_UPDATED', { accountUpdated: account });
   });
 
   // Category events
   categoryEventEmitter.on('category.created', (category: Category) => {
-    void pubsub.publish('CATEGORY_UPDATED', {categoryUpdated: category});
+    void pubsub.publish('CATEGORY_UPDATED', { categoryUpdated: category });
   });
 
-  categoryEventEmitter.on('category.updated', (_oldCategory: Category, newCategory: Category) => {
-    void pubsub.publish('CATEGORY_UPDATED', {categoryUpdated: newCategory});
-  });
+  categoryEventEmitter.on(
+    'category.updated',
+    (_oldCategory: Category, newCategory: Category) => {
+      void pubsub.publish('CATEGORY_UPDATED', { categoryUpdated: newCategory });
+    }
+  );
 
   categoryEventEmitter.on('category.deleted', (category: Category) => {
-    void pubsub.publish('CATEGORY_UPDATED', {categoryUpdated: category});
+    void pubsub.publish('CATEGORY_UPDATED', { categoryUpdated: category });
   });
 
   // Payee events
   payeeEventEmitter.on('payee.created', (payee: Payee) => {
-    void pubsub.publish('PAYEE_UPDATED', {payeeUpdated: payee});
+    void pubsub.publish('PAYEE_UPDATED', { payeeUpdated: payee });
   });
 
   payeeEventEmitter.on('payee.updated', (_oldPayee: Payee, newPayee: Payee) => {
-    void pubsub.publish('PAYEE_UPDATED', {payeeUpdated: newPayee});
+    void pubsub.publish('PAYEE_UPDATED', { payeeUpdated: newPayee });
   });
 
   payeeEventEmitter.on('payee.deleted', (payee: Payee) => {
-    void pubsub.publish('PAYEE_UPDATED', {payeeUpdated: payee});
+    void pubsub.publish('PAYEE_UPDATED', { payeeUpdated: payee });
   });
 
   // Transaction events
-  transactionEventEmitter.on('transaction.created', (transaction: Transaction) => {
-    void pubsub.publish('TRANSACTION_UPDATED', {transactionUpdated: transaction});
-  });
+  transactionEventEmitter.on(
+    'transaction.created',
+    (transaction: Transaction) => {
+      void pubsub.publish('TRANSACTION_UPDATED', {
+        transactionUpdated: transaction,
+      });
+    }
+  );
 
-  transactionEventEmitter.on('transaction.updated', (_oldTransaction: Transaction, newTransaction: Transaction) => {
-    void pubsub.publish('TRANSACTION_UPDATED', {transactionUpdated: newTransaction});
-  });
+  transactionEventEmitter.on(
+    'transaction.updated',
+    (_oldTransaction: Transaction, newTransaction: Transaction) => {
+      void pubsub.publish('TRANSACTION_UPDATED', {
+        transactionUpdated: newTransaction,
+      });
+    }
+  );
 
-  transactionEventEmitter.on('transaction.deleted', (transaction: Transaction) => {
-    void pubsub.publish('TRANSACTION_UPDATED', {transactionUpdated: transaction});
-  });
+  transactionEventEmitter.on(
+    'transaction.deleted',
+    (transaction: Transaction) => {
+      void pubsub.publish('TRANSACTION_UPDATED', {
+        transactionUpdated: transaction,
+      });
+    }
+  );
 
   // Budget events
   budgetEventEmitter.on('budget.created', (budget: Budget) => {
-    void pubsub.publish('BUDGET_UPDATED', {budgetUpdated: budget});
+    void pubsub.publish('BUDGET_UPDATED', { budgetUpdated: budget });
   });
 
-  budgetEventEmitter.on('budget.updated', (_oldBudget: Budget, newBudget: Budget) => {
-    void pubsub.publish('BUDGET_UPDATED', {budgetUpdated: newBudget});
-  });
+  budgetEventEmitter.on(
+    'budget.updated',
+    (_oldBudget: Budget, newBudget: Budget) => {
+      void pubsub.publish('BUDGET_UPDATED', { budgetUpdated: newBudget });
+    }
+  );
 
   budgetEventEmitter.on('budget.deleted', (budget: Budget) => {
-    void pubsub.publish('BUDGET_UPDATED', {budgetUpdated: budget});
+    void pubsub.publish('BUDGET_UPDATED', { budgetUpdated: budget });
   });
 }
 
@@ -113,16 +147,32 @@ initializeEventListeners();
  * Uses type assertion to match FilterFn signature which doesn't allow undefined
  */
 function createFilter<T extends Record<string, unknown>>(
-  filterFn: (payload: T, variables: {workspaceId: string}, context: GraphQLContext) => boolean,
-): (payload: T, variables: {workspaceId: string}, context: GraphQLContext) => boolean {
-  const wrapped = (payload: T | undefined, variables: {workspaceId: string}, context: GraphQLContext): boolean => {
+  filterFn: (
+    payload: T,
+    variables: { workspaceId: string },
+    context: GraphQLContext
+  ) => boolean
+): (
+  payload: T,
+  variables: { workspaceId: string },
+  context: GraphQLContext
+) => boolean {
+  const wrapped = (
+    payload: T | undefined,
+    variables: { workspaceId: string },
+    context: GraphQLContext
+  ): boolean => {
     if (!payload) {
       return false;
     }
     return filterFn(payload, variables, context);
   };
   // Type assertion to match FilterFn signature (which doesn't allow undefined in payload)
-  return wrapped as unknown as (payload: T, variables: {workspaceId: string}, context: GraphQLContext) => boolean;
+  return wrapped as unknown as (
+    payload: T,
+    variables: { workspaceId: string },
+    context: GraphQLContext
+  ) => boolean;
 }
 
 /**
@@ -143,37 +193,44 @@ export class SubscriptionResolver {
         return pubsub.asyncIterator('ACCOUNT_UPDATED');
       },
       // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
-      createFilter<{accountUpdated: Account}>((payload, variables, context) => {
-        // Rate limiting check
-        if (!canCreateSubscription(context.userId)) {
-          logWarn('Subscription rate limit exceeded', {
-            event: 'subscription_rate_limit_exceeded',
-            userId: context.userId,
-            type: 'ACCOUNT_UPDATED',
-          });
-          return false;
+      createFilter<{ accountUpdated: Account }>(
+        (payload, variables, context) => {
+          // Rate limiting check
+          if (!canCreateSubscription(context.userId)) {
+            logWarn('Subscription rate limit exceeded', {
+              event: 'subscription_rate_limit_exceeded',
+              userId: context.userId,
+              type: 'ACCOUNT_UPDATED',
+            });
+            return false;
+          }
+
+          // Verify user has access to the workspace
+          if (!context.userWorkspaces.includes(variables.workspaceId)) {
+            return false;
+          }
+
+          // Filter by workspaceId
+          const matches =
+            payload.accountUpdated.workspaceId === variables.workspaceId;
+
+          if (matches) {
+            // Track subscription start
+            const subscriptionId = `${context.userId}-account-${Date.now()}`;
+            trackSubscriptionStart(
+              subscriptionId,
+              'ACCOUNT_UPDATED',
+              context.userId
+            );
+            incrementSubscriptionCount(context.userId);
+
+            // Track subscription end when it closes (handled by cleanup)
+            // Note: In a real implementation, you'd track this when the subscription closes
+          }
+
+          return matches;
         }
-
-        // Verify user has access to the workspace
-        if (!context.userWorkspaces.includes(variables.workspaceId)) {
-          return false;
-        }
-
-        // Filter by workspaceId
-        const matches = payload.accountUpdated.workspaceId === variables.workspaceId;
-
-        if (matches) {
-          // Track subscription start
-          const subscriptionId = `${context.userId}-account-${Date.now()}`;
-          trackSubscriptionStart(subscriptionId, 'ACCOUNT_UPDATED', context.userId);
-          incrementSubscriptionCount(context.userId);
-
-          // Track subscription end when it closes (handled by cleanup)
-          // Note: In a real implementation, you'd track this when the subscription closes
-        }
-
-        return matches;
-      }),
+      )
     ),
   };
 
@@ -185,15 +242,17 @@ export class SubscriptionResolver {
     subscribe: withFilter(
       () => pubsub.asyncIterator('CATEGORY_UPDATED'),
       // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
-      createFilter<{categoryUpdated: Category}>((payload, variables, context) => {
-        // Verify user has access to the workspace
-        if (!context.userWorkspaces.includes(variables.workspaceId)) {
-          return false;
-        }
+      createFilter<{ categoryUpdated: Category }>(
+        (payload, variables, context) => {
+          // Verify user has access to the workspace
+          if (!context.userWorkspaces.includes(variables.workspaceId)) {
+            return false;
+          }
 
-        // Filter by workspaceId
-        return payload.categoryUpdated.workspaceId === variables.workspaceId;
-      }),
+          // Filter by workspaceId
+          return payload.categoryUpdated.workspaceId === variables.workspaceId;
+        }
+      )
     ),
   };
 
@@ -205,7 +264,7 @@ export class SubscriptionResolver {
     subscribe: withFilter(
       () => pubsub.asyncIterator('PAYEE_UPDATED'),
       // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
-      createFilter<{payeeUpdated: Payee}>((payload, variables, context) => {
+      createFilter<{ payeeUpdated: Payee }>((payload, variables, context) => {
         // Verify user has access to the workspace
         if (!context.userWorkspaces.includes(variables.workspaceId)) {
           return false;
@@ -213,7 +272,7 @@ export class SubscriptionResolver {
 
         // Filter by workspaceId
         return payload.payeeUpdated.workspaceId === variables.workspaceId;
-      }),
+      })
     ),
   };
 
@@ -225,18 +284,20 @@ export class SubscriptionResolver {
     subscribe: withFilter(
       () => pubsub.asyncIterator('TRANSACTION_UPDATED'),
       // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
-      createFilter<{transactionUpdated: Transaction}>((_payload, variables, context) => {
-        // Verify user has access to the workspace
-        if (!context.userWorkspaces.includes(variables.workspaceId)) {
-          return false;
-        }
+      createFilter<{ transactionUpdated: Transaction }>(
+        (_payload, variables, context) => {
+          // Verify user has access to the workspace
+          if (!context.userWorkspaces.includes(variables.workspaceId)) {
+            return false;
+          }
 
-        // Get account to check workspaceId
-        // Note: We'll need to fetch the account to get workspaceId
-        // For now, we'll use a simpler approach by checking if the transaction's account belongs to the workspace
-        // This requires a database lookup, so we'll optimize this later if needed
-        return true; // Will be filtered by the event emitter based on workspaceId
-      }),
+          // Get account to check workspaceId
+          // Note: We'll need to fetch the account to get workspaceId
+          // For now, we'll use a simpler approach by checking if the transaction's account belongs to the workspace
+          // This requires a database lookup, so we'll optimize this later if needed
+          return true; // Will be filtered by the event emitter based on workspaceId
+        }
+      )
     ),
   };
 
@@ -248,7 +309,7 @@ export class SubscriptionResolver {
     subscribe: withFilter(
       () => pubsub.asyncIterator('BUDGET_UPDATED'),
       // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
-      createFilter<{budgetUpdated: Budget}>((payload, variables, context) => {
+      createFilter<{ budgetUpdated: Budget }>((payload, variables, context) => {
         // Verify user has access to the workspace
         if (!context.userWorkspaces.includes(variables.workspaceId)) {
           return false;
@@ -256,7 +317,7 @@ export class SubscriptionResolver {
 
         // Filter by workspaceId
         return payload.budgetUpdated.workspaceId === variables.workspaceId;
-      }),
+      })
     ),
   };
 
@@ -268,15 +329,19 @@ export class SubscriptionResolver {
     subscribe: withFilter(
       () => pubsub.asyncIterator('ENTITY_CONFLICT_DETECTED'),
       // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
-      createFilter<{entityConflictDetected: EntityConflict}>((payload, variables, context) => {
-        // Verify user has access to the workspace
-        if (!context.userWorkspaces.includes(variables.workspaceId)) {
-          return false;
-        }
+      createFilter<{ entityConflictDetected: EntityConflict }>(
+        (payload, variables, context) => {
+          // Verify user has access to the workspace
+          if (!context.userWorkspaces.includes(variables.workspaceId)) {
+            return false;
+          }
 
-        // Filter by workspaceId
-        return payload.entityConflictDetected.workspaceId === variables.workspaceId;
-      }),
+          // Filter by workspaceId
+          return (
+            payload.entityConflictDetected.workspaceId === variables.workspaceId
+          );
+        }
+      )
     ),
   };
 }
@@ -286,7 +351,7 @@ export class SubscriptionResolver {
  * @param account - Updated account
  */
 export function publishAccountUpdate(account: Account): void {
-  void pubsub.publish('ACCOUNT_UPDATED', {accountUpdated: account});
+  void pubsub.publish('ACCOUNT_UPDATED', { accountUpdated: account });
 }
 
 /**
@@ -294,7 +359,7 @@ export function publishAccountUpdate(account: Account): void {
  * @param category - Updated category
  */
 export function publishCategoryUpdate(category: Category): void {
-  void pubsub.publish('CATEGORY_UPDATED', {categoryUpdated: category});
+  void pubsub.publish('CATEGORY_UPDATED', { categoryUpdated: category });
 }
 
 /**
@@ -302,7 +367,7 @@ export function publishCategoryUpdate(category: Category): void {
  * @param payee - Updated payee
  */
 export function publishPayeeUpdate(payee: Payee): void {
-  void pubsub.publish('PAYEE_UPDATED', {payeeUpdated: payee});
+  void pubsub.publish('PAYEE_UPDATED', { payeeUpdated: payee });
 }
 
 /**
@@ -310,7 +375,9 @@ export function publishPayeeUpdate(payee: Payee): void {
  * @param transaction - Updated transaction
  */
 export function publishTransactionUpdate(transaction: Transaction): void {
-  void pubsub.publish('TRANSACTION_UPDATED', {transactionUpdated: transaction});
+  void pubsub.publish('TRANSACTION_UPDATED', {
+    transactionUpdated: transaction,
+  });
 }
 
 /**
@@ -318,7 +385,7 @@ export function publishTransactionUpdate(transaction: Transaction): void {
  * @param budget - Updated budget
  */
 export function publishBudgetUpdate(budget: Budget): void {
-  void pubsub.publish('BUDGET_UPDATED', {budgetUpdated: budget});
+  void pubsub.publish('BUDGET_UPDATED', { budgetUpdated: budget });
 }
 
 /**
@@ -326,5 +393,7 @@ export function publishBudgetUpdate(budget: Budget): void {
  * @param conflict - Detected conflict
  */
 export function publishConflictDetected(conflict: EntityConflict): void {
-  void pubsub.publish('ENTITY_CONFLICT_DETECTED', {entityConflictDetected: conflict});
+  void pubsub.publish('ENTITY_CONFLICT_DETECTED', {
+    entityConflictDetected: conflict,
+  });
 }

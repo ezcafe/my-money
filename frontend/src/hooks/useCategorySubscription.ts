@@ -3,10 +3,10 @@
  * Provides real-time category updates via GraphQL subscriptions
  */
 
-import {useSubscription} from '@apollo/client/react';
-import {CATEGORY_UPDATED_SUBSCRIPTION} from '../graphql/subscriptions';
-import {client} from '../graphql/client';
-import type {Category} from './useCategories';
+import { useSubscription } from '@apollo/client/react';
+import { CATEGORY_UPDATED_SUBSCRIPTION } from '../graphql/subscriptions';
+import { client } from '../graphql/client';
+import type { Category } from './useCategories';
 
 /**
  * Hook return type
@@ -27,22 +27,25 @@ interface CategoryUpdatedData {
 }
 
 export function useCategorySubscription(workspaceId: string): UseCategorySubscriptionResult {
-  const {data, loading, error} = useSubscription<CategoryUpdatedData>(CATEGORY_UPDATED_SUBSCRIPTION, {
-    variables: {workspaceId},
-    onData: ({data: subscriptionData}) => {
-      if (subscriptionData?.data?.categoryUpdated) {
-        // Update Apollo cache with new category data
-        const category = subscriptionData.data.categoryUpdated;
-        client.cache.writeQuery({
-          query: CATEGORY_UPDATED_SUBSCRIPTION,
-          variables: {workspaceId},
-          data: {categoryUpdated: category},
-        });
-      }
-    },
-    errorPolicy: 'all',
-    shouldResubscribe: true,
-  });
+  const { data, loading, error } = useSubscription<CategoryUpdatedData>(
+    CATEGORY_UPDATED_SUBSCRIPTION,
+    {
+      variables: { workspaceId },
+      onData: ({ data: subscriptionData }) => {
+        if (subscriptionData?.data?.categoryUpdated) {
+          // Update Apollo cache with new category data
+          const category = subscriptionData.data.categoryUpdated;
+          client.cache.writeQuery({
+            query: CATEGORY_UPDATED_SUBSCRIPTION,
+            variables: { workspaceId },
+            data: { categoryUpdated: category },
+          });
+        }
+      },
+      errorPolicy: 'all',
+      shouldResubscribe: true,
+    }
+  );
 
   let errorResult: Error | undefined;
   if (error) {

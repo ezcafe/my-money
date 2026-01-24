@@ -3,8 +3,8 @@
  * Page for adding new budgets
  */
 
-import React, {useState, useEffect, useMemo} from 'react';
-import {useNavigate, useSearchParams} from 'react-router';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   Box,
   TextField,
@@ -13,20 +13,20 @@ import {
   ToggleButton,
   Autocomplete,
 } from '@mui/material';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {Card} from '../components/ui/Card';
-import {Button} from '../components/ui/Button';
-import {CREATE_BUDGET} from '../graphql/mutations';
-import {GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
-import {useTitle} from '../contexts/TitleContext';
-import {PageContainer} from '../components/common/PageContainer';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { CREATE_BUDGET } from '../graphql/mutations';
+import { GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES } from '../graphql/queries';
+import { useTitle } from '../contexts/TitleContext';
+import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
   GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
-import type {Account} from '../hooks/useAccounts';
-import type {Category} from '../hooks/useCategories';
+import type { Account } from '../hooks/useAccounts';
+import type { Category } from '../hooks/useCategories';
 
 /**
  * Budget Add Page Component
@@ -35,16 +35,27 @@ export function BudgetAddPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo') ?? '/budgets';
-  const {setTitle} = useTitle();
+  const { setTitle } = useTitle();
 
-  const {data: accountsData} = useQuery<{accounts: Array<{id: string; name: string; accountType: string}>}>(GET_ACCOUNTS);
-  const {data: categoriesData} = useQuery<{categories: Array<{id: string; name: string; categoryType: string}>}>(
-    GET_CATEGORIES,
+  const { data: accountsData } = useQuery<{
+    accounts: Array<{ id: string; name: string; accountType: string }>;
+  }>(GET_ACCOUNTS);
+  const { data: categoriesData } = useQuery<{
+    categories: Array<{ id: string; name: string; categoryType: string }>;
+  }>(GET_CATEGORIES);
+  const { data: payeesData } = useQuery<{ payees: Array<{ id: string; name: string }> }>(
+    GET_PAYEES
   );
-  const {data: payeesData} = useQuery<{payees: Array<{id: string; name: string}>}>(GET_PAYEES);
 
-  const accounts = useMemo(() => (accountsData?.accounts ?? []) as Account[], [accountsData?.accounts]);
-  const categories = useMemo(() => ((categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense')) as Category[], [categoriesData?.categories]);
+  const accounts = useMemo(
+    () => (accountsData?.accounts ?? []) as Account[],
+    [accountsData?.accounts]
+  );
+  const categories = useMemo(
+    () =>
+      (categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense') as Category[],
+    [categoriesData?.categories]
+  );
   const payees = useMemo(() => payeesData?.payees ?? [], [payeesData?.payees]);
 
   const [budgetType, setBudgetType] = useState<'account' | 'category' | 'payee'>('account');
@@ -86,8 +97,8 @@ export function BudgetAddPage(): React.JSX.Element {
     return '/budgets';
   };
 
-  const [createBudget, {loading: creating}] = useMutation(CREATE_BUDGET, {
-    refetchQueries: [{query: GET_BUDGETS}],
+  const [createBudget, { loading: creating }] = useMutation(CREATE_BUDGET, {
+    refetchQueries: [{ query: GET_BUDGETS }],
     awaitRefetchQueries: true,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -97,7 +108,7 @@ export function BudgetAddPage(): React.JSX.Element {
       setError(null);
       // Navigate back to return URL, replacing the add page in history
       const validReturnUrl = getValidReturnUrl(returnTo);
-      void navigate(validReturnUrl, {replace: true});
+      void navigate(validReturnUrl, { replace: true });
     },
   });
 
@@ -170,10 +181,12 @@ export function BudgetAddPage(): React.JSX.Element {
           p: 3,
         }}
       >
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
-          {error ? <Typography color="error" variant="body2">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+          {error ? (
+            <Typography color="error" variant="body2">
               {error}
-            </Typography> : null}
+            </Typography>
+          ) : null}
 
           <Typography variant="body2" color="text.secondary">
             Select the type of budget you want to create
@@ -233,7 +246,7 @@ export function BudgetAddPage(): React.JSX.Element {
           )}
 
           {budgetType === 'payee' && (
-            <Autocomplete<{id: string; name: string}, false, false, false>
+            <Autocomplete<{ id: string; name: string }, false, false, false>
               options={payees}
               getOptionLabel={(option) => option.name}
               value={selectedPayee}
@@ -252,11 +265,11 @@ export function BudgetAddPage(): React.JSX.Element {
             onChange={(e) => setAmount(e.target.value)}
             fullWidth
             required
-            inputProps={{step: '0.01', min: '0.01'}}
+            inputProps={{ step: '0.01', min: '0.01' }}
             helperText="Enter the monthly budget amount"
           />
 
-          <Box sx={{display: 'flex', gap: 2, mt: 'auto', pt: 2}}>
+          <Box sx={{ display: 'flex', gap: 2, mt: 'auto', pt: 2 }}>
             <Button
               variant="outlined"
               onClick={() => {
@@ -277,4 +290,3 @@ export function BudgetAddPage(): React.JSX.Element {
     </PageContainer>
   );
 }
-

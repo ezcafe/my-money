@@ -3,9 +3,9 @@
  * Provides date format preference throughout the application
  */
 
-import React, {createContext, useContext, useMemo} from 'react';
-import {useQuery} from '@apollo/client/react';
-import {GET_PREFERENCES} from '../graphql/queries';
+import React, { createContext, useContext, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
+import { GET_PREFERENCES } from '../graphql/queries';
 
 /**
  * Available date format options
@@ -27,9 +27,9 @@ const DateFormatContext = createContext<DateFormatContextType | undefined>(undef
 /**
  * Date Format Provider Component
  */
-export function DateFormatProvider({children}: {children: React.ReactNode}): React.JSX.Element {
-  const {data, loading} = useQuery<{
-    preferences?: {dateFormat: string | null};
+export function DateFormatProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
+  const { data, loading } = useQuery<{
+    preferences?: { dateFormat: string | null };
   }>(GET_PREFERENCES, {
     fetchPolicy: 'cache-and-network',
   });
@@ -43,14 +43,20 @@ export function DateFormatProvider({children}: {children: React.ReactNode}): Rea
     // Decode HTML entities (e.g., &#x2F; -> /)
     const format = rawFormat.replace(/&#x2F;/g, '/').replace(/&#x2D;/g, '-');
 
-    if (format === 'DD/MM/YYYY' || format === 'MM/DD/YYYY' || format === 'YYYY-MM-DD' || format === 'DD-MM-YYYY' || format === 'MM-DD-YYYY') {
+    if (
+      format === 'DD/MM/YYYY' ||
+      format === 'MM/DD/YYYY' ||
+      format === 'YYYY-MM-DD' ||
+      format === 'DD-MM-YYYY' ||
+      format === 'MM-DD-YYYY'
+    ) {
       return format as DateFormat;
     }
     return DEFAULT_DATE_FORMAT;
   }, [data?.preferences?.dateFormat]);
 
   return (
-    <DateFormatContext.Provider value={{dateFormat, loading}}>
+    <DateFormatContext.Provider value={{ dateFormat, loading }}>
       {children}
     </DateFormatContext.Provider>
   );

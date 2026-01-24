@@ -3,13 +3,21 @@
  * Manages budget notifications globally
  */
 
-import React, {createContext, useContext, useState, useEffect, useCallback, useRef, useMemo} from 'react';
-import {useQuery, useMutation} from '@apollo/client/react';
-import {Snackbar, Alert} from '@mui/material';
-import {GET_BUDGET_NOTIFICATIONS} from '../graphql/queries';
-import {MARK_BUDGET_NOTIFICATION_READ as MARK_READ_MUTATION} from '../graphql/mutations';
-import {NOTIFICATION_POLL_INTERVAL_MS, NOTIFICATION_AUTO_DISMISS_MS} from '../constants';
-import {getUserFriendlyErrorMessage} from '../utils/errorNotification';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { Snackbar, Alert } from '@mui/material';
+import { GET_BUDGET_NOTIFICATIONS } from '../graphql/queries';
+import { MARK_BUDGET_NOTIFICATION_READ as MARK_READ_MUTATION } from '../graphql/mutations';
+import { NOTIFICATION_POLL_INTERVAL_MS, NOTIFICATION_AUTO_DISMISS_MS } from '../constants';
+import { getUserFriendlyErrorMessage } from '../utils/errorNotification';
 
 interface BudgetNotification {
   id: string;
@@ -23,9 +31,9 @@ interface BudgetNotification {
     amount: string;
     currentSpent: string;
     percentageUsed: number;
-    account?: {id: string; name: string};
-    category?: {id: string; name: string};
-    payee?: {id: string; name: string};
+    account?: { id: string; name: string };
+    category?: { id: string; name: string };
+    payee?: { id: string; name: string };
   };
 }
 
@@ -42,7 +50,11 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 /**
  * Notification Provider Component
  */
-export function NotificationProvider({children}: {children: React.ReactNode}): React.JSX.Element {
+export function NotificationProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
   const [currentNotification, setCurrentNotification] = useState<BudgetNotification | null>(null);
   const [open, setOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -64,10 +76,13 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
     };
   }, []);
 
-  const {data, refetch} = useQuery<{budgetNotifications: BudgetNotification[]}>(GET_BUDGET_NOTIFICATIONS, {
-    pollInterval: isVisible ? NOTIFICATION_POLL_INTERVAL_MS : 0,
-    fetchPolicy: 'network-only',
-  });
+  const { data, refetch } = useQuery<{ budgetNotifications: BudgetNotification[] }>(
+    GET_BUDGET_NOTIFICATIONS,
+    {
+      pollInterval: isVisible ? NOTIFICATION_POLL_INTERVAL_MS : 0,
+      fetchPolicy: 'network-only',
+    }
+  );
 
   const [markAsReadMutation] = useMutation(MARK_READ_MUTATION, {
     refetchQueries: ['GetBudgetNotifications'],
@@ -104,36 +119,42 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
     setOpen(true);
   }, []);
 
-  const markAsRead = useCallback(async (id: string): Promise<void> => {
-    try {
-      await markAsReadMutation({
-        variables: {id},
-      });
-      setOpen(false);
-      setCurrentNotification(null);
-      processedNotificationIds.current.delete(id);
-      void refetch();
-    } catch (error) {
-      // Log error for debugging
-      console.error('Failed to mark notification as read:', error);
-      // Show user-friendly error message
-      const userMessage = getUserFriendlyErrorMessage(error);
-      setErrorMessage(userMessage);
-      setErrorOpen(true);
-      // Still close the notification to prevent UI blocking
-      setOpen(false);
-      setCurrentNotification(null);
-    }
-  }, [markAsReadMutation, refetch]);
+  const markAsRead = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await markAsReadMutation({
+          variables: { id },
+        });
+        setOpen(false);
+        setCurrentNotification(null);
+        processedNotificationIds.current.delete(id);
+        void refetch();
+      } catch (error) {
+        // Log error for debugging
+        console.error('Failed to mark notification as read:', error);
+        // Show user-friendly error message
+        const userMessage = getUserFriendlyErrorMessage(error);
+        setErrorMessage(userMessage);
+        setErrorOpen(true);
+        // Still close the notification to prevent UI blocking
+        setOpen(false);
+        setCurrentNotification(null);
+      }
+    },
+    [markAsReadMutation, refetch]
+  );
 
-  const handleClose = useCallback((_event?: React.SyntheticEvent | Event, reason?: string): void => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    if (currentNotification) {
-      void markAsRead(currentNotification.id);
-    }
-  }, [currentNotification, markAsRead]);
+  const handleClose = useCallback(
+    (_event?: React.SyntheticEvent | Event, reason?: string): void => {
+      if (reason === 'clickaway') {
+        return;
+      }
+      if (currentNotification) {
+        void markAsRead(currentNotification.id);
+      }
+    },
+    [currentNotification, markAsRead]
+  );
 
   // Auto-dismiss after configured timeout
   useEffect(() => {
@@ -148,13 +169,16 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
     return undefined;
   }, [open, currentNotification, markAsRead]);
 
-  const handleErrorClose = useCallback((_event?: React.SyntheticEvent | Event, reason?: string): void => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setErrorOpen(false);
-    setErrorMessage(null);
-  }, []);
+  const handleErrorClose = useCallback(
+    (_event?: React.SyntheticEvent | Event, reason?: string): void => {
+      if (reason === 'clickaway') {
+        return;
+      }
+      setErrorOpen(false);
+      setErrorMessage(null);
+    },
+    []
+  );
 
   const showSuccessNotification = useCallback((message: string): void => {
     setSuccessMessage(message);
@@ -166,18 +190,21 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
     setErrorOpen(true);
   }, []);
 
-  const handleSuccessClose = useCallback((_event?: React.SyntheticEvent | Event, reason?: string): void => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSuccessOpen(false);
-    setSuccessMessage(null);
-  }, []);
+  const handleSuccessClose = useCallback(
+    (_event?: React.SyntheticEvent | Event, reason?: string): void => {
+      if (reason === 'clickaway') {
+        return;
+      }
+      setSuccessOpen(false);
+      setSuccessMessage(null);
+    },
+    []
+  );
 
   // Listen to error events from errorNotification utility
   useEffect(() => {
     const handleError = (event: Event): void => {
-      const customEvent = event as CustomEvent<{message: string; details?: unknown}>;
+      const customEvent = event as CustomEvent<{ message: string; details?: unknown }>;
       if (customEvent.detail?.message) {
         setErrorMessage(customEvent.detail.message);
         setErrorOpen(true);
@@ -191,15 +218,23 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
   }, []);
 
   return (
-    <NotificationContext.Provider value={{notifications, showNotification, markAsRead, showSuccessNotification, showErrorNotification}}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        showNotification,
+        markAsRead,
+        showSuccessNotification,
+        showErrorNotification,
+      }}
+    >
       {children}
       <Snackbar
         open={open}
         autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
         onClose={handleClose}
-        anchorOrigin={{vertical: 'top', horizontal: 'center'}}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert onClose={handleClose} severity="warning" sx={{width: '100%'}}>
+        <Alert onClose={handleClose} severity="warning" sx={{ width: '100%' }}>
           {currentNotification?.message}
         </Alert>
       </Snackbar>
@@ -207,18 +242,18 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
         open={errorOpen}
         autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
         onClose={handleErrorClose}
-        anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         sx={{
           // Ensure notifications don't overlap
           zIndex: (theme) => theme.zIndex.snackbar,
         }}
       >
-        <Alert 
-          onClose={handleErrorClose} 
-          severity="error" 
+        <Alert
+          onClose={handleErrorClose}
+          severity="error"
           sx={{
             width: '100%',
-            maxWidth: {xs: '90vw', sm: '400px'},
+            maxWidth: { xs: '90vw', sm: '400px' },
             // Add elevation for better visibility
             boxShadow: 3,
           }}
@@ -230,18 +265,18 @@ export function NotificationProvider({children}: {children: React.ReactNode}): R
         open={successOpen}
         autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
         onClose={handleSuccessClose}
-        anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         sx={{
           // Ensure notifications don't overlap
           zIndex: (theme) => theme.zIndex.snackbar,
         }}
       >
-        <Alert 
-          onClose={handleSuccessClose} 
-          severity="success" 
+        <Alert
+          onClose={handleSuccessClose}
+          severity="success"
           sx={{
             width: '100%',
-            maxWidth: {xs: '90vw', sm: '400px'},
+            maxWidth: { xs: '90vw', sm: '400px' },
             // Add elevation for better visibility
             boxShadow: 3,
           }}
@@ -263,5 +298,3 @@ export function useNotifications(): NotificationContextType {
   }
   return context;
 }
-
-

@@ -24,7 +24,7 @@ const GRAPHQL_MUTATION_CACHE_TTL_MS = 0; // Don't cache mutations
 function isDevelopmentMode(): boolean {
   // Check if origin is localhost or 127.0.0.1 (development server)
   if (typeof self !== 'undefined' && 'location' in self) {
-    const origin = (self as {location?: {origin?: string}}).location?.origin ?? '';
+    const origin = (self as { location?: { origin?: string } }).location?.origin ?? '';
     return origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes(':3000');
   }
   // Fallback: check if NODE_ENV is development (if available via build-time replacement)
@@ -33,41 +33,50 @@ function isDevelopmentMode(): boolean {
 }
 
 // Assets to cache on install
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-];
+const STATIC_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 // Install event - cache static assets
 self.addEventListener('install', (event: Event): void => {
-  if ('waitUntil' in event && typeof (event as {waitUntil: (promise: Promise<unknown>) => void}).waitUntil === 'function') {
-    (event as {waitUntil: (promise: Promise<unknown>) => void}).waitUntil(
+  if (
+    'waitUntil' in event &&
+    typeof (event as { waitUntil: (promise: Promise<unknown>) => void }).waitUntil === 'function'
+  ) {
+    (event as { waitUntil: (promise: Promise<unknown>) => void }).waitUntil(
       caches.open(STATIC_CACHE).then((cache: Cache) => {
         return cache.addAll(STATIC_ASSETS);
-      }),
+      })
     );
   }
-  if ('skipWaiting' in self && typeof (self as {skipWaiting?: () => Promise<void>}).skipWaiting === 'function') {
-    void (self as {skipWaiting: () => Promise<void>}).skipWaiting();
+  if (
+    'skipWaiting' in self &&
+    typeof (self as { skipWaiting?: () => Promise<void> }).skipWaiting === 'function'
+  ) {
+    void (self as { skipWaiting: () => Promise<void> }).skipWaiting();
   }
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event: Event): void => {
-  if ('waitUntil' in event && typeof (event as {waitUntil: (promise: Promise<unknown>) => void}).waitUntil === 'function') {
-    (event as {waitUntil: (promise: Promise<unknown>) => void}).waitUntil(
+  if (
+    'waitUntil' in event &&
+    typeof (event as { waitUntil: (promise: Promise<unknown>) => void }).waitUntil === 'function'
+  ) {
+    (event as { waitUntil: (promise: Promise<unknown>) => void }).waitUntil(
       caches.keys().then((cacheNames: string[]) => {
         return Promise.all(
           cacheNames
             .filter((name: string) => name !== STATIC_CACHE && name !== API_CACHE)
-            .map((name: string) => caches.delete(name)),
+            .map((name: string) => caches.delete(name))
         );
-      }),
+      })
     );
   }
-  if ('clients' in self && self.clients && typeof (self.clients as {claim?: () => Promise<void>}).claim === 'function') {
-    void (self.clients as {claim: () => Promise<void>}).claim();
+  if (
+    'clients' in self &&
+    self.clients &&
+    typeof (self.clients as { claim?: () => Promise<void> }).claim === 'function'
+  ) {
+    void (self.clients as { claim: () => Promise<void> }).claim();
   }
 });
 
@@ -76,7 +85,10 @@ self.addEventListener('fetch', (event: Event): void => {
   if (!('request' in event) || !('respondWith' in event)) {
     return;
   }
-  const fetchEvent = event as {request: Request; respondWith: (response: Promise<Response>) => void};
+  const fetchEvent = event as {
+    request: Request;
+    respondWith: (response: Promise<Response>) => void;
+  };
   const request = fetchEvent.request;
   const url = new URL(request.url);
 
@@ -97,7 +109,7 @@ self.addEventListener('fetch', (event: Event): void => {
         .catch(() => {
           // Network error - queue for retry
           return queueMutationForRetry(request.clone());
-        }),
+        })
     );
     return;
   }
@@ -130,12 +142,15 @@ self.addEventListener('fetch', (event: Event): void => {
             const now = Date.now();
 
             // Determine TTL based on request type (query vs mutation)
-            const requestBody = await request.clone().text().catch(() => '');
+            const requestBody = await request
+              .clone()
+              .text()
+              .catch(() => '');
             const isMutation = requestBody.includes('mutation');
             const ttl = isMutation ? GRAPHQL_MUTATION_CACHE_TTL_MS : GRAPHQL_QUERY_CACHE_TTL_MS;
 
             // If cache is still valid and not a mutation, return cached response
-            if (!isMutation && (now - cacheTime) < ttl) {
+            if (!isMutation && now - cacheTime < ttl) {
               return cachedResponse;
             }
           }
@@ -147,7 +162,10 @@ self.addEventListener('fetch', (event: Event): void => {
             // Only cache successful responses
             if (response.status === 200) {
               // Check if it's a mutation - don't cache mutations
-              const requestBody = await request.clone().text().catch(() => '');
+              const requestBody = await request
+                .clone()
+                .text()
+                .catch(() => '');
               const isMutation = requestBody.includes('mutation');
 
               if (!isMutation) {
@@ -176,17 +194,22 @@ self.addEventListener('fetch', (event: Event): void => {
             if (cachedResponse) {
               return cachedResponse;
             }
-            return new Response(JSON.stringify({
-              errors: [{
-                message: 'Network error and no cached response available',
-                extensions: {code: 'NETWORK_ERROR'},
-              }],
-            }), {
-              status: 503,
-              headers: {'Content-Type': 'application/json'},
-            });
+            return new Response(
+              JSON.stringify({
+                errors: [
+                  {
+                    message: 'Network error and no cached response available',
+                    extensions: { code: 'NETWORK_ERROR' },
+                  },
+                ],
+              }),
+              {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' },
+              }
+            );
           });
-      }),
+      })
     );
     return;
   }
@@ -202,7 +225,7 @@ self.addEventListener('fetch', (event: Event): void => {
           const now = Date.now();
 
           // If cache is still valid, return cached response
-          if ((now - cacheTime) < STATIC_CACHE_TTL_MS) {
+          if (now - cacheTime < STATIC_CACHE_TTL_MS) {
             return response;
           }
         } else {
@@ -233,7 +256,7 @@ self.addEventListener('fetch', (event: Event): void => {
         }
         return fetchResponse;
       });
-    }),
+    })
   );
 });
 
@@ -266,7 +289,12 @@ async function invalidateRelatedCaches(cache: Cache, mutationBody: string): Prom
         const cachedResponse = await cache.match(key);
         if (cachedResponse) {
           // Invalidate transactions-related queries on transaction mutations
-          if (mutationName.includes('transaction') || mutationName.includes('create') || mutationName.includes('update') || mutationName.includes('delete')) {
+          if (
+            mutationName.includes('transaction') ||
+            mutationName.includes('create') ||
+            mutationName.includes('update') ||
+            mutationName.includes('delete')
+          ) {
             keysToDelete.push(key);
           }
           // Invalidate account-related queries on account mutations
@@ -303,7 +331,7 @@ async function evictCacheIfNeeded(cache: Cache, cacheName: string): Promise<void
   try {
     const keys = await cache.keys();
     let totalSize = 0;
-    const entries: Array<{key: Request; size: number; timestamp: number}> = [];
+    const entries: Array<{ key: Request; size: number; timestamp: number }> = [];
     const now = Date.now();
     const isApiCache = cacheName === API_CACHE;
     const ttl = isApiCache ? GRAPHQL_QUERY_CACHE_TTL_MS : STATIC_CACHE_TTL_MS;
@@ -320,14 +348,14 @@ async function evictCacheIfNeeded(cache: Cache, cacheName: string): Promise<void
         const cacheDate = response.headers.get('sw-cache-date');
         const timestamp = cacheDate
           ? new Date(cacheDate).getTime()
-          : (response.headers.get('date')
+          : response.headers.get('date')
             ? new Date(response.headers.get('date') ?? '').getTime()
-            : now);
+            : now;
 
-        entries.push({key, size, timestamp});
+        entries.push({ key, size, timestamp });
 
         // Evict expired entries immediately
-        if ((now - timestamp) > ttl) {
+        if (now - timestamp > ttl) {
           await cache.delete(key);
           totalSize -= size;
         }
@@ -361,13 +389,13 @@ async function evictCacheIfNeeded(cache: Cache, cacheName: string): Promise<void
  * @param response - Failed response (optional)
  * @returns Error response
  */
-async function queueMutationForRetry(
-  request: Request,
-  response?: Response,
-): Promise<Response> {
+async function queueMutationForRetry(request: Request, response?: Response): Promise<Response> {
   try {
     const requestBody = await request.clone().text();
-    const requestData = JSON.parse(requestBody) as {query?: string; variables?: Record<string, unknown>};
+    const requestData = JSON.parse(requestBody) as {
+      query?: string;
+      variables?: Record<string, unknown>;
+    };
 
     // Store in IndexedDB for background sync
     const db = await openOfflineQueueDB();
@@ -386,13 +414,16 @@ async function queueMutationForRetry(
     await new Promise<void>((resolve, reject) => {
       const request = store.add(mutationEntry);
       request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed'));
+      request.onerror = () =>
+        reject(
+          request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed')
+        );
     });
 
     // Trigger background sync if available
     const swSelf = self as typeof self & {
       registration?: ServiceWorkerRegistration & {
-        sync?: {register: (tag: string) => Promise<void>};
+        sync?: { register: (tag: string) => Promise<void> };
       };
     };
     if ('serviceWorker' in swSelf && swSelf.registration && 'sync' in swSelf.registration) {
@@ -408,15 +439,20 @@ async function queueMutationForRetry(
   }
 
   // Return error response
-  return new Response(JSON.stringify({
-    errors: [{
-      message: 'Network error. Mutation queued for retry when connection is restored.',
-      extensions: {code: 'NETWORK_ERROR', queued: true},
-    }],
-  }), {
-    status: 503,
-    headers: {'Content-Type': 'application/json'},
-  });
+  return new Response(
+    JSON.stringify({
+      errors: [
+        {
+          message: 'Network error. Mutation queued for retry when connection is restored.',
+          extensions: { code: 'NETWORK_ERROR', queued: true },
+        },
+      ],
+    }),
+    {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
 }
 
 /**
@@ -427,7 +463,10 @@ async function openOfflineQueueDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('my-money-offline-queue', 2); // Match version in offlineQueue.ts
 
-    request.onerror = () => reject(request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed'));
+    request.onerror = () =>
+      reject(
+        request.error ? new Error(String(request.error)) : new Error('IndexedDB operation failed')
+      );
     request.onsuccess = () => {
       const db = request.result;
       // Check if object store exists after opening
@@ -435,18 +474,31 @@ async function openOfflineQueueDB(): Promise<IDBDatabase> {
         db.close();
         // Delete and recreate if object store is missing
         const deleteRequest = indexedDB.deleteDatabase('my-money-offline-queue');
-        deleteRequest.onerror = () => reject(deleteRequest.error ? new Error(String(deleteRequest.error)) : new Error('IndexedDB delete failed'));
+        deleteRequest.onerror = () =>
+          reject(
+            deleteRequest.error
+              ? new Error(String(deleteRequest.error))
+              : new Error('IndexedDB delete failed')
+          );
         deleteRequest.onsuccess = () => {
           // Reopen with proper structure - this will trigger onupgradeneeded
           const recreateRequest = indexedDB.open('my-money-offline-queue', 2);
-          recreateRequest.onerror = () => reject(recreateRequest.error ? new Error(String(recreateRequest.error)) : new Error('IndexedDB recreation failed'));
+          recreateRequest.onerror = () =>
+            reject(
+              recreateRequest.error
+                ? new Error(String(recreateRequest.error))
+                : new Error('IndexedDB recreation failed')
+            );
           recreateRequest.onsuccess = () => resolve(recreateRequest.result);
           recreateRequest.onupgradeneeded = (event) => {
             const recreateDb = (event.target as IDBOpenDBRequest).result;
             if (!recreateDb.objectStoreNames.contains('mutations')) {
-              const store = recreateDb.createObjectStore('mutations', {keyPath: 'id', autoIncrement: false});
-              store.createIndex('timestamp', 'timestamp', {unique: false});
-              store.createIndex('retryCount', 'retryCount', {unique: false});
+              const store = recreateDb.createObjectStore('mutations', {
+                keyPath: 'id',
+                autoIncrement: false,
+              });
+              store.createIndex('timestamp', 'timestamp', { unique: false });
+              store.createIndex('retryCount', 'retryCount', { unique: false });
             }
           };
         };
@@ -458,9 +510,9 @@ async function openOfflineQueueDB(): Promise<IDBDatabase> {
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains('mutations')) {
-        const store = db.createObjectStore('mutations', {keyPath: 'id', autoIncrement: false});
-        store.createIndex('timestamp', 'timestamp', {unique: false});
-        store.createIndex('retryCount', 'retryCount', {unique: false});
+        const store = db.createObjectStore('mutations', { keyPath: 'id', autoIncrement: false });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+        store.createIndex('retryCount', 'retryCount', { unique: false });
       }
     };
   });
@@ -468,10 +520,13 @@ async function openOfflineQueueDB(): Promise<IDBDatabase> {
 
 // Background sync event handler
 self.addEventListener('sync', (event: Event): void => {
-  if ('tag' in event && (event as {tag: string}).tag === 'sync-mutations') {
-    if ('waitUntil' in event && typeof (event as {waitUntil: (promise: Promise<unknown>) => void}).waitUntil === 'function') {
-      (event as {waitUntil: (promise: Promise<unknown>) => void}).waitUntil(
-        retryQueuedMutations(),
+  if ('tag' in event && (event as { tag: string }).tag === 'sync-mutations') {
+    if (
+      'waitUntil' in event &&
+      typeof (event as { waitUntil: (promise: Promise<unknown>) => void }).waitUntil === 'function'
+    ) {
+      (event as { waitUntil: (promise: Promise<unknown>) => void }).waitUntil(
+        retryQueuedMutations()
       );
     }
   }
@@ -487,9 +542,21 @@ async function retryQueuedMutations(): Promise<void> {
     const store = transaction.objectStore('mutations');
     const getAllRequest = store.getAll();
 
-    const mutations = await new Promise<Array<{id: string; mutation: string; variables: Record<string, unknown>; retryCount: number}>>((resolve, reject) => {
+    const mutations = await new Promise<
+      Array<{
+        id: string;
+        mutation: string;
+        variables: Record<string, unknown>;
+        retryCount: number;
+      }>
+    >((resolve, reject) => {
       getAllRequest.onsuccess = () => resolve(getAllRequest.result);
-      getAllRequest.onerror = () => reject(getAllRequest.error ? new Error(String(getAllRequest.error)) : new Error('IndexedDB operation failed'));
+      getAllRequest.onerror = () =>
+        reject(
+          getAllRequest.error
+            ? new Error(String(getAllRequest.error))
+            : new Error('IndexedDB operation failed')
+        );
     });
 
     // Retry each mutation
@@ -497,7 +564,7 @@ async function retryQueuedMutations(): Promise<void> {
       try {
         const response = await fetch('/graphql', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             query: mutation.mutation,
             variables: mutation.variables,
@@ -511,7 +578,12 @@ async function retryQueuedMutations(): Promise<void> {
           await new Promise<void>((resolve, reject) => {
             const deleteRequest = deleteStore.delete(mutation.id);
             deleteRequest.onsuccess = () => resolve();
-            deleteRequest.onerror = () => reject(deleteRequest.error ? new Error(String(deleteRequest.error)) : new Error('IndexedDB operation failed'));
+            deleteRequest.onerror = () =>
+              reject(
+                deleteRequest.error
+                  ? new Error(String(deleteRequest.error))
+                  : new Error('IndexedDB operation failed')
+              );
           });
         } else {
           // Failed - increment retry count
@@ -521,17 +593,36 @@ async function retryQueuedMutations(): Promise<void> {
 
           await new Promise<void>((resolve, reject) => {
             getRequest.onsuccess = () => {
-              const entry = getRequest.result as {retryCount?: number; id: string; mutation: string; variables: Record<string, unknown>; timestamp: number; error: string} | undefined;
+              const entry = getRequest.result as
+                | {
+                    retryCount?: number;
+                    id: string;
+                    mutation: string;
+                    variables: Record<string, unknown>;
+                    timestamp: number;
+                    error: string;
+                  }
+                | undefined;
               if (entry) {
                 entry.retryCount = (entry.retryCount ?? 0) + 1;
                 const updateRequest = updateStore.put(entry);
                 updateRequest.onsuccess = () => resolve();
-                updateRequest.onerror = () => reject(updateRequest.error ? new Error(String(updateRequest.error)) : new Error('IndexedDB operation failed'));
+                updateRequest.onerror = () =>
+                  reject(
+                    updateRequest.error
+                      ? new Error(String(updateRequest.error))
+                      : new Error('IndexedDB operation failed')
+                  );
               } else {
                 resolve();
               }
             };
-            getRequest.onerror = () => reject(getRequest.error ? new Error(String(getRequest.error)) : new Error('IndexedDB operation failed'));
+            getRequest.onerror = () =>
+              reject(
+                getRequest.error
+                  ? new Error(String(getRequest.error))
+                  : new Error('IndexedDB operation failed')
+              );
           });
         }
       } catch {
@@ -542,17 +633,36 @@ async function retryQueuedMutations(): Promise<void> {
 
         await new Promise<void>((resolve, reject) => {
           getRequest.onsuccess = () => {
-            const entry = getRequest.result as {retryCount?: number; id: string; mutation: string; variables: Record<string, unknown>; timestamp: number; error: string} | undefined;
+            const entry = getRequest.result as
+              | {
+                  retryCount?: number;
+                  id: string;
+                  mutation: string;
+                  variables: Record<string, unknown>;
+                  timestamp: number;
+                  error: string;
+                }
+              | undefined;
             if (entry) {
               entry.retryCount = (entry.retryCount ?? 0) + 1;
               const updateRequest = updateStore.put(entry);
               updateRequest.onsuccess = () => resolve();
-              updateRequest.onerror = () => reject(updateRequest.error ? new Error(String(updateRequest.error)) : new Error('IndexedDB operation failed'));
+              updateRequest.onerror = () =>
+                reject(
+                  updateRequest.error
+                    ? new Error(String(updateRequest.error))
+                    : new Error('IndexedDB operation failed')
+                );
             } else {
               resolve();
             }
           };
-          getRequest.onerror = () => reject(getRequest.error ? new Error(String(getRequest.error)) : new Error('IndexedDB operation failed'));
+          getRequest.onerror = () =>
+            reject(
+              getRequest.error
+                ? new Error(String(getRequest.error))
+                : new Error('IndexedDB operation failed')
+            );
         });
       }
     }
@@ -560,5 +670,3 @@ async function retryQueuedMutations(): Promise<void> {
     console.warn('Failed to retry queued mutations:', error);
   }
 }
-
-

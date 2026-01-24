@@ -3,7 +3,7 @@
  * Handles keyboard shortcuts for calculator operations
  */
 
-import {useEffect, useRef} from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Calculator keyboard handlers interface

@@ -3,9 +3,9 @@
  * Compiles TypeScript service worker to JavaScript
  */
 
-import {build} from 'esbuild';
-import {fileURLToPath} from 'url';
-import {dirname, resolve} from 'path';
+import { build } from 'esbuild';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,4 +28,3 @@ await build({
 });
 
 console.log(`Service worker built successfully (${isProduction ? 'production' : 'development'})`);
-

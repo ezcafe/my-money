@@ -6,12 +6,12 @@
 
 import React from 'react';
 import Box from '@mui/material/Box';
-import type {BoxProps} from '@mui/material/Box';
+import type { BoxProps } from '@mui/material/Box';
 
 /**
  * Timeline Container
  */
-export function Timeline({children, ...props}: BoxProps): React.JSX.Element {
+export function Timeline({ children, ...props }: BoxProps): React.JSX.Element {
   return (
     <Box
       sx={{
@@ -38,7 +38,7 @@ export function Timeline({children, ...props}: BoxProps): React.JSX.Element {
 /**
  * Timeline Item
  */
-export function TimelineItem({children, ...props}: BoxProps): React.JSX.Element {
+export function TimelineItem({ children, ...props }: BoxProps): React.JSX.Element {
   return (
     <Box
       sx={{
@@ -61,7 +61,7 @@ export function TimelineItem({children, ...props}: BoxProps): React.JSX.Element 
 /**
  * Timeline Separator
  */
-export function TimelineSeparator({children, ...props}: BoxProps): React.JSX.Element {
+export function TimelineSeparator({ children, ...props }: BoxProps): React.JSX.Element {
   return (
     <Box
       sx={{
@@ -81,7 +81,7 @@ export function TimelineSeparator({children, ...props}: BoxProps): React.JSX.Ele
 /**
  * Timeline Connector
  */
-export function TimelineConnector({...props}: BoxProps): React.JSX.Element {
+export function TimelineConnector({ ...props }: BoxProps): React.JSX.Element {
   return (
     <Box
       sx={{
@@ -99,7 +99,7 @@ export function TimelineConnector({...props}: BoxProps): React.JSX.Element {
 /**
  * Timeline Content
  */
-export function TimelineContent({children, ...props}: BoxProps): React.JSX.Element {
+export function TimelineContent({ children, ...props }: BoxProps): React.JSX.Element {
   return (
     <Box
       sx={{

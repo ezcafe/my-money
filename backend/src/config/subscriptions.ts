@@ -3,17 +3,20 @@
  * Sets up WebSocket server for GraphQL subscriptions using graphql-ws
  */
 
-import {useServer} from 'graphql-ws/use/ws';
-import {WebSocketServer} from 'ws';
-import type {Server} from 'http';
-import type {GraphQLSchema} from 'graphql';
-import {execute, subscribe} from 'graphql';
-import {prisma} from '../utils/prisma';
-import {getUserFromToken} from '../middleware/auth';
-import {getUserWorkspaces} from '../services/WorkspaceService';
-import type {GraphQLContext} from '../middleware/context';
-import {canCreateSubscription, incrementSubscriptionCount} from '../utils/subscriptionRateLimiter';
-import {logInfo, logWarn} from '../utils/logger';
+import { useServer } from 'graphql-ws/use/ws';
+import { WebSocketServer } from 'ws';
+import type { Server } from 'http';
+import type { GraphQLSchema } from 'graphql';
+import { execute, subscribe } from 'graphql';
+import { prisma } from '../utils/prisma';
+import { getUserFromToken } from '../middleware/auth';
+import { getUserWorkspaces } from '../services/WorkspaceService';
+import type { GraphQLContext } from '../middleware/context';
+import {
+  canCreateSubscription,
+  incrementSubscriptionCount,
+} from '../utils/subscriptionRateLimiter';
+import { logInfo, logWarn } from '../utils/logger';
 
 /**
  * Create WebSocket server for GraphQL subscriptions
@@ -23,7 +26,7 @@ import {logInfo, logWarn} from '../utils/logger';
  */
 export function createSubscriptionServer(
   schema: GraphQLSchema,
-  httpServer: unknown,
+  httpServer: unknown
 ): WebSocketServer {
   const wsServer = new WebSocketServer({
     server: httpServer as Server,
@@ -38,7 +41,11 @@ export function createSubscriptionServer(
       context: async (_ctx, _msg, args) => {
         // Get token from connection parameters
         // args is SubscribePayload which has extra property connectionParams
-        const connectionParams = (args as {connectionParams?: {token?: string; workspaceId?: string}}).connectionParams;
+        const connectionParams = (
+          args as {
+            connectionParams?: { token?: string; workspaceId?: string };
+          }
+        ).connectionParams;
         const token = connectionParams?.token;
 
         if (!token) {
@@ -46,16 +53,18 @@ export function createSubscriptionServer(
         }
 
         // Validate token and get user info
-        let userInfo: {sub: string; email?: string};
+        let userInfo: { sub: string; email?: string };
         try {
           userInfo = await getUserFromToken(token);
         } catch (error) {
-          throw new Error(`Token validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw new Error(
+            `Token validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
         }
 
         // Find or create user
         const user = await prisma.user.upsert({
-          where: {oidcSubject: userInfo.sub},
+          where: { oidcSubject: userInfo.sub },
           update: {
             email: userInfo.email ?? undefined,
           },
@@ -83,12 +92,12 @@ export function createSubscriptionServer(
       onConnect: async (ctx) => {
         // Check rate limit before allowing connection
         // Note: ctx.connectionParams contains the token and workspaceId
-        const token = (ctx.connectionParams as {token?: string})?.token;
+        const token = (ctx.connectionParams as { token?: string })?.token;
         if (token) {
           try {
             const userInfo = await getUserFromToken(token);
             const user = await prisma.user.findUnique({
-              where: {oidcSubject: userInfo.sub},
+              where: { oidcSubject: userInfo.sub },
             });
 
             if (user && !canCreateSubscription(user.id)) {
@@ -127,7 +136,7 @@ export function createSubscriptionServer(
         });
       },
     },
-    wsServer,
+    wsServer
   );
 
   return wsServer;

@@ -10,4 +10,3 @@ export {
   sanitizeUserInput,
   sanitizeFormInput,
 } from '@my-money/shared';
-

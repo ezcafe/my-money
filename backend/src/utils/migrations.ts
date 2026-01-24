@@ -4,12 +4,12 @@
  * This replaces migrations since all schema changes have been merged into the main schema
  */
 
-import {execSync, spawn} from 'child_process';
-import {join} from 'path';
-import {fileURLToPath} from 'url';
-import {dirname} from 'path';
-import {logError, logInfo, logWarn} from './logger';
-import {adjustDatabaseConnectionString} from '../config';
+import { execSync, spawn } from 'child_process';
+import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { logError, logInfo, logWarn } from './logger';
+import { adjustDatabaseConnectionString } from '../config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,7 +17,8 @@ const __dirname = dirname(__filename);
 // Configuration from environment variables (same as entrypoint script)
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES ?? '5', 10);
 const RETRY_DELAY = parseInt(process.env.RETRY_DELAY ?? '5', 10) * 1000; // Convert to milliseconds
-const MIGRATION_TIMEOUT = parseInt(process.env.MIGRATION_TIMEOUT ?? '60', 10) * 1000; // Convert to milliseconds
+const MIGRATION_TIMEOUT =
+  parseInt(process.env.MIGRATION_TIMEOUT ?? '60', 10) * 1000; // Convert to milliseconds
 
 /**
  * Wait for a specified duration
@@ -35,14 +36,14 @@ function sleep(ms: number): Promise<void> {
 async function checkDatabaseAccessibility(): Promise<boolean> {
   try {
     // Import Prisma client and config dynamically to check connectivity
-    const {Client} = await import('pg');
-    const {config} = await import('../config');
+    const { Client } = await import('pg');
+    const { config } = await import('../config');
 
     // config.database.url already has adjusted hostname via getter
     const connectionString = config.database.url;
 
     // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
-    const client = new Client({connectionString});
+    const client = new Client({ connectionString });
     try {
       await client.connect();
       await client.query('SELECT 1');
@@ -62,7 +63,7 @@ async function checkDatabaseAccessibility(): Promise<boolean> {
  */
 async function waitForDatabase(
   maxRetries: number = MAX_RETRIES,
-  retryDelayMs: number = RETRY_DELAY,
+  retryDelayMs: number = RETRY_DELAY
 ): Promise<void> {
   logInfo('Waiting for database to be ready', {
     event: 'migration_waiting_for_database',
@@ -99,11 +100,15 @@ async function waitForDatabase(
     }
   }
 
-  logWarn('Could not verify database connectivity, but proceeding with migration attempt', {
-    event: 'migration_database_unverified',
-    maxRetries,
-    message: 'This is normal if database is starting up. Migration will retry on failure.',
-  });
+  logWarn(
+    'Could not verify database connectivity, but proceeding with migration attempt',
+    {
+      event: 'migration_database_unverified',
+      maxRetries,
+      message:
+        'This is normal if database is starting up. Migration will retry on failure.',
+    }
+  );
 }
 
 /**
@@ -113,7 +118,10 @@ async function waitForDatabase(
  */
 function onlyCacheAndRateLimitTables(tableNames: string[]): boolean {
   const allowedTables = new Set(['cache', 'rate_limit']);
-  return tableNames.length > 0 && tableNames.every((table) => allowedTables.has(table));
+  return (
+    tableNames.length > 0 &&
+    tableNames.every((table) => allowedTables.has(table))
+  );
 }
 
 /**
@@ -124,7 +132,9 @@ function onlyCacheAndRateLimitTables(tableNames: string[]): boolean {
 function extractDroppedTableNames(output: string): string[] {
   const tableNames: string[] = [];
   // Match pattern: "You are about to drop the `table_name` table"
-  const dataLossMatches = output.matchAll(/You are about to drop the `([^`]+)` table/gi);
+  const dataLossMatches = output.matchAll(
+    /You are about to drop the `([^`]+)` table/gi
+  );
 
   for (const match of dataLossMatches) {
     if (match[1]) {
@@ -144,20 +154,26 @@ function extractDroppedTableNames(output: string): string[] {
  */
 async function runDbPushWithConditionalAccept(
   backendPath: string,
-  timeoutMs: number,
+  timeoutMs: number
 ): Promise<void> {
   // Adjust DATABASE_URL for the current environment before passing to Prisma CLI
   const databaseUrl = process.env.DATABASE_URL;
-  const adjustedDatabaseUrl = databaseUrl ? adjustDatabaseConnectionString(databaseUrl) : undefined;
+  const adjustedDatabaseUrl = databaseUrl
+    ? adjustDatabaseConnectionString(databaseUrl)
+    : undefined;
 
   const env = {
     ...process.env,
-    ...(adjustedDatabaseUrl && {DATABASE_URL: adjustedDatabaseUrl}),
+    ...(adjustedDatabaseUrl && { DATABASE_URL: adjustedDatabaseUrl }),
     PRISMA_SCHEMA_PATH: join(backendPath, 'prisma/schema.prisma'),
   };
 
   // First, run with output capture to check for data loss warnings
-  const {stdout, stderr, exitCode} = await new Promise<{stdout: string; stderr: string; exitCode: number}>((resolve, reject) => {
+  const { stdout, stderr, exitCode } = await new Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+  }>((resolve, reject) => {
     const child = spawn('npx', ['prisma', 'db', 'push'], {
       cwd: backendPath,
       env,
@@ -187,7 +203,7 @@ async function runDbPushWithConditionalAccept(
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-      resolve({stdout: stdoutData, stderr: stderrData, exitCode: code ?? 1});
+      resolve({ stdout: stdoutData, stderr: stderrData, exitCode: code ?? 1 });
     });
 
     child.on('error', (err) => {
@@ -208,9 +224,10 @@ async function runDbPushWithConditionalAccept(
   }
 
   // Command failed - check if it's due to data loss warning
-  if (allOutput.includes('There might be data loss') ||
-      allOutput.includes('Use the --accept-data-loss flag')) {
-
+  if (
+    allOutput.includes('There might be data loss') ||
+    allOutput.includes('Use the --accept-data-loss flag')
+  ) {
     // Extract table names from the warning
     const droppedTables = extractDroppedTableNames(allOutput);
 
@@ -237,7 +254,9 @@ async function runDbPushWithConditionalAccept(
         event: 'data_loss_requires_manual_confirmation',
         tables: droppedTables.join(', '),
       });
-      throw new Error(`Migration requires manual confirmation for data loss on tables: ${droppedTables.join(', ')}. Use --accept-data-loss flag if you want to proceed.`);
+      throw new Error(
+        `Migration requires manual confirmation for data loss on tables: ${droppedTables.join(', ')}. Use --accept-data-loss flag if you want to proceed.`
+      );
     }
   }
 
@@ -257,7 +276,7 @@ async function runDbPushWithConditionalAccept(
 export async function runMigrations(
   maxRetries: number = MAX_RETRIES,
   retryDelayMs: number = RETRY_DELAY,
-  timeoutMs: number = MIGRATION_TIMEOUT,
+  timeoutMs: number = MIGRATION_TIMEOUT
 ): Promise<void> {
   const isProduction = process.env.NODE_ENV === 'production';
   const backendPath = join(__dirname, '../..');
@@ -278,7 +297,9 @@ export async function runMigrations(
       try {
         // Adjust DATABASE_URL for the current environment before passing to Prisma CLI
         const databaseUrl = process.env.DATABASE_URL;
-        const adjustedDatabaseUrl = databaseUrl ? adjustDatabaseConnectionString(databaseUrl) : undefined;
+        const adjustedDatabaseUrl = databaseUrl
+          ? adjustDatabaseConnectionString(databaseUrl)
+          : undefined;
 
         // Use prisma migrate deploy in production
         // This applies pending migrations safely
@@ -288,7 +309,7 @@ export async function runMigrations(
           timeout: timeoutMs,
           env: {
             ...process.env,
-            ...(adjustedDatabaseUrl && {DATABASE_URL: adjustedDatabaseUrl}),
+            ...(adjustedDatabaseUrl && { DATABASE_URL: adjustedDatabaseUrl }),
             PRISMA_SCHEMA_PATH: join(backendPath, 'prisma/schema.prisma'),
           },
         });
@@ -299,9 +320,16 @@ export async function runMigrations(
         });
         return;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const exitCode = (error && typeof error === 'object' && 'status' in error ? (error.status as number | string) : 1);
-        const exitCodeNumber = typeof exitCode === 'string' ? Number.parseInt(exitCode, 10) : exitCode;
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const exitCode =
+          error && typeof error === 'object' && 'status' in error
+            ? (error.status as number | string)
+            : 1;
+        const exitCodeNumber =
+          typeof exitCode === 'string'
+            ? Number.parseInt(exitCode, 10)
+            : exitCode;
 
         logWarn('Migration deploy attempt failed', {
           event: 'migration_deploy_attempt_failed',
@@ -319,12 +347,18 @@ export async function runMigrations(
           });
           await sleep(retryDelayMs);
         } else {
-          logError('Migration deploy failed after all retries', {
-            event: 'migration_deploy_failed',
-            attempts: maxRetries,
-            exitCode: exitCodeNumber,
-          }, error instanceof Error ? error : new Error(errorMessage));
-          throw new Error(`Migration deploy failed after ${maxRetries} attempts: ${errorMessage}`);
+          logError(
+            'Migration deploy failed after all retries',
+            {
+              event: 'migration_deploy_failed',
+              attempts: maxRetries,
+              exitCode: exitCodeNumber,
+            },
+            error instanceof Error ? error : new Error(errorMessage)
+          );
+          throw new Error(
+            `Migration deploy failed after ${maxRetries} attempts: ${errorMessage}`
+          );
         }
       }
     }
@@ -354,9 +388,16 @@ export async function runMigrations(
         });
         return;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const exitCode = (error && typeof error === 'object' && 'status' in error ? (error.status as number | string) : 1);
-        const exitCodeNumber = typeof exitCode === 'string' ? Number.parseInt(exitCode, 10) : exitCode;
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const exitCode =
+          error && typeof error === 'object' && 'status' in error
+            ? (error.status as number | string)
+            : 1;
+        const exitCodeNumber =
+          typeof exitCode === 'string'
+            ? Number.parseInt(exitCode, 10)
+            : exitCode;
 
         logWarn('Schema sync attempt failed', {
           event: 'schema_sync_attempt_failed',
@@ -374,12 +415,18 @@ export async function runMigrations(
           });
           await sleep(retryDelayMs);
         } else {
-          logError('Schema sync failed after all retries', {
-            event: 'schema_sync_failed',
-            attempts: maxRetries,
-            exitCode: exitCodeNumber,
-          }, error instanceof Error ? error : new Error(errorMessage));
-          throw new Error(`Schema sync failed after ${maxRetries} attempts: ${errorMessage}`);
+          logError(
+            'Schema sync failed after all retries',
+            {
+              event: 'schema_sync_failed',
+              attempts: maxRetries,
+              exitCode: exitCodeNumber,
+            },
+            error instanceof Error ? error : new Error(errorMessage)
+          );
+          throw new Error(
+            `Schema sync failed after ${maxRetries} attempts: ${errorMessage}`
+          );
         }
       }
     }
@@ -399,9 +446,13 @@ export async function runMigrationsWithRetry(): Promise<void> {
     await runMigrations();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logError('Fatal error during schema sync process', {
-      event: 'schema_sync_fatal_error',
-    }, error instanceof Error ? error : new Error(errorMessage));
+    logError(
+      'Fatal error during schema sync process',
+      {
+        event: 'schema_sync_fatal_error',
+      },
+      error instanceof Error ? error : new Error(errorMessage)
+    );
     throw error;
   }
 }

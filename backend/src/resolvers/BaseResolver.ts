@@ -3,16 +3,19 @@
  * Provides common functionality for all resolvers
  */
 
-import type {ZodSchema} from 'zod';
-import {NotFoundError} from '../utils/errors';
-import type {PrismaClient} from '@prisma/client';
-import {validate} from '../utils/validation';
-import {sanitizeUserInput} from '../utils/sanitization';
-import type {GraphQLContext} from '../middleware/context';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
-import {getContainer} from '../utils/container';
+import type { ZodSchema } from 'zod';
+import { NotFoundError } from '../utils/errors';
+import type { PrismaClient } from '@prisma/client';
+import { validate } from '../utils/validation';
+import { sanitizeUserInput } from '../utils/sanitization';
+import type { GraphQLContext } from '../middleware/context';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import { getContainer } from '../utils/container';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Base Resolver Class
@@ -32,10 +35,16 @@ export abstract class BaseResolver {
    */
   protected async verifyEntityOwnership<T>(
     prisma: PrismaTransaction | PrismaClient,
-    model: 'account' | 'category' | 'payee' | 'transaction' | 'recurringTransaction' | 'budget',
+    model:
+      | 'account'
+      | 'category'
+      | 'payee'
+      | 'transaction'
+      | 'recurringTransaction'
+      | 'budget',
     id: string,
     userId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<T | null> {
     const container = getContainer();
     switch (model) {
@@ -81,12 +90,24 @@ export abstract class BaseResolver {
    */
   protected async requireEntityOwnership<T>(
     prisma: PrismaTransaction | PrismaClient,
-    model: 'account' | 'category' | 'payee' | 'transaction' | 'recurringTransaction' | 'budget',
+    model:
+      | 'account'
+      | 'category'
+      | 'payee'
+      | 'transaction'
+      | 'recurringTransaction'
+      | 'budget',
     id: string,
     userId: string,
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<T> {
-    const entity = await this.verifyEntityOwnership<T>(prisma, model, id, userId, select);
+    const entity = await this.verifyEntityOwnership<T>(
+      prisma,
+      model,
+      id,
+      userId,
+      select
+    );
     if (!entity) {
       throw new NotFoundError(model.charAt(0).toUpperCase() + model.slice(1));
     }
@@ -114,11 +135,11 @@ export abstract class BaseResolver {
    */
   protected validateAndSanitizeInput<T extends Record<string, unknown>>(
     schema: ZodSchema<T>,
-    input: unknown,
+    input: unknown
   ): T {
     const validated = validate(schema, input);
     // Sanitize string fields in the validated input
-    const sanitized = {...validated};
+    const sanitized = { ...validated };
     for (const [key, value] of Object.entries(sanitized)) {
       if (typeof value === 'string') {
         (sanitized as Record<string, unknown>)[key] = sanitizeUserInput(value);
@@ -141,19 +162,19 @@ export abstract class BaseResolver {
     model: 'category' | 'payee',
     name: string,
     userId: string,
-    excludeId?: string,
+    excludeId?: string
   ): Promise<boolean> {
     const where: {
       name: string;
       userId: string;
-      id?: {not: string};
+      id?: { not: string };
     } = {
       name,
       userId,
     };
 
     if (excludeId) {
-      where.id = {not: excludeId};
+      where.id = { not: excludeId };
     }
 
     const existing = await withPrismaErrorHandling(
@@ -161,15 +182,18 @@ export abstract class BaseResolver {
         if (model === 'category') {
           return context.prisma.category.findFirst({
             where,
-            select: {id: true},
+            select: { id: true },
           });
         }
         return context.prisma.payee.findFirst({
           where,
-          select: {id: true},
+          select: { id: true },
         });
       },
-      {resource: model.charAt(0).toUpperCase() + model.slice(1), operation: 'read'},
+      {
+        resource: model.charAt(0).toUpperCase() + model.slice(1),
+        operation: 'read',
+      }
     );
 
     return existing !== null;
@@ -181,10 +205,13 @@ export abstract class BaseResolver {
    * @param context - GraphQL context
    * @param workspaceId - Workspace ID
    */
-  protected async ensureDefaultCategories(context: GraphQLContext, workspaceId: string): Promise<void> {
+  protected async ensureDefaultCategories(
+    context: GraphQLContext,
+    workspaceId: string
+  ): Promise<void> {
     const defaultCategories = [
-      {name: 'Food & Groceries', categoryType: 'Expense' as const},
-      {name: 'Salary', categoryType: 'Income' as const},
+      { name: 'Food & Groceries', categoryType: 'Expense' as const },
+      { name: 'Salary', categoryType: 'Income' as const },
     ];
 
     for (const categoryData of defaultCategories) {
@@ -196,9 +223,9 @@ export abstract class BaseResolver {
               isDefault: true,
               workspaceId,
             },
-            select: {id: true},
+            select: { id: true },
           }),
-        {resource: 'Category', operation: 'read'},
+        { resource: 'Category', operation: 'read' }
       );
 
       if (!existing) {
@@ -214,7 +241,7 @@ export abstract class BaseResolver {
                 lastEditedBy: context.userId,
               },
             }),
-          {resource: 'Category', operation: 'create'},
+          { resource: 'Category', operation: 'create' }
         );
       }
     }
@@ -226,7 +253,10 @@ export abstract class BaseResolver {
    * @param context - GraphQL context
    * @param workspaceId - Workspace ID
    */
-  protected async ensureDefaultPayees(context: GraphQLContext, workspaceId: string): Promise<void> {
+  protected async ensureDefaultPayees(
+    context: GraphQLContext,
+    workspaceId: string
+  ): Promise<void> {
     const defaultPayeeNames = ['Neccesities'];
 
     for (const name of defaultPayeeNames) {
@@ -238,9 +268,9 @@ export abstract class BaseResolver {
               isDefault: true,
               workspaceId,
             },
-            select: {id: true},
+            select: { id: true },
           }),
-        {resource: 'Payee', operation: 'read'},
+        { resource: 'Payee', operation: 'read' }
       );
 
       if (!existing) {
@@ -255,10 +285,9 @@ export abstract class BaseResolver {
                 lastEditedBy: context.userId,
               },
             }),
-          {resource: 'Payee', operation: 'create'},
+          { resource: 'Payee', operation: 'create' }
         );
       }
     }
   }
 }
-

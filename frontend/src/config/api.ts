@@ -3,7 +3,7 @@
  * Provides a single source of truth for API-related configuration
  */
 
-import {GRAPHQL_REQUEST_TIMEOUT_MS} from '../constants';
+import { GRAPHQL_REQUEST_TIMEOUT_MS } from '../constants';
 
 /**
  * API configuration constants
@@ -31,4 +31,3 @@ export const API_CONFIG = {
    */
   requestTimeoutMs: GRAPHQL_REQUEST_TIMEOUT_MS,
 } as const;
-

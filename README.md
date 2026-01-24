@@ -5,6 +5,7 @@ A full-stack expense management application with passkey authentication, calcula
 ## Features
 
 ### Core Features
+
 - **Passkey Authentication**: Secure login using Pocket ID (OIDC) with passkeys
 - **Modern Calculator UI**: Calculator with history list, number pad, and operations
 - **Transaction Management**: Create, edit, and manage transactions with account balance tracking
@@ -15,6 +16,7 @@ A full-stack expense management application with passkey authentication, calcula
 - **Theme System**: Automatic dark/light theme based on time (Catppuccin dark / GitHub light)
 
 ### Collaboration & Workspaces
+
 - **Multi-User Workspaces**: Create and manage workspaces for team collaboration
 - **Role-Based Access Control**: Owner, Admin, and Member roles with appropriate permissions
 - **Workspace Invitations**: Invite users via email with role assignment
@@ -23,12 +25,14 @@ A full-stack expense management application with passkey authentication, calcula
 - **Version History**: Track entity changes with full version history
 
 ### Budget Management
+
 - **Budget Tracking**: Set budgets for accounts, categories, or payees
 - **Budget Notifications**: Get notified when budgets approach or exceed limits
 - **Automatic Budget Reset**: Scheduled budget resets with configurable periods
 - **Budget Analytics**: Track spending against budgets with visual indicators
 
 ### Import & Export
+
 - **PDF Import**: Upload credit card statements and auto-match transactions
 - **CSV Import**: Import accounts, categories, payees, and transactions from CSV files
 - **Auto-Matching**: Intelligent transaction matching with import match rules
@@ -36,12 +40,14 @@ A full-stack expense management application with passkey authentication, calcula
 - **Import Match Rules**: Create rules to automatically match imported transactions
 
 ### Automation
+
 - **Recurring Transactions**: Schedule recurring transactions with cron expressions
 - **Automatic Balance Reconciliation**: Scheduled balance checks and corrections
 - **Data Archival**: Automatic archival of old transactions
 - **Scheduled Backups**: Automated database backups
 
 ### Advanced Features
+
 - **Batch Operations**: Bulk create/update accounts, categories, payees, and transactions
 - **Smart Suggestions**: AI-powered suggestions for account, category, and payee based on transaction amount
 - **Transaction Search**: Full-text search across transaction notes
@@ -52,6 +58,7 @@ A full-stack expense management application with passkey authentication, calcula
 ## Technology Stack
 
 ### Frontend
+
 - **Framework**: React 19 + TypeScript 5.9.3
 - **Build Tool**: Webpack 5
 - **GraphQL Client**: Apollo Client 4 with subscriptions support
@@ -63,6 +70,7 @@ A full-stack expense management application with passkey authentication, calcula
 - **PWA**: Service Worker with offline support
 
 ### Backend
+
 - **HTTP Framework**: Hono 4 (lightweight, fast web framework)
 - **GraphQL Server**: Apollo Server 4 integrated with Hono
 - **Runtime**: Node.js 25.2.1 with ESM modules
@@ -76,6 +84,7 @@ A full-stack expense management application with passkey authentication, calcula
 - **Security**: Helmet, CORS, rate limiting, CSRF protection
 
 ### Infrastructure
+
 - **Package Manager**: npm workspaces (monorepo)
 - **Containerization**: Docker Compose
 - **Testing**: Jest + React Testing Library (TDD methodology)
@@ -144,6 +153,7 @@ npm run docker:up
 ```
 
 This will start:
+
 - PostgreSQL database on port 5432
 - Backend GraphQL server on port 4000
 - Frontend web app on port 3000
@@ -151,6 +161,7 @@ This will start:
 ### 4. Set up database schema
 
 The application uses a hybrid approach:
+
 - **Automatic schema sync** (via `prisma db push`) runs on startup when `RUN_MIGRATIONS=true` or in production
 - **Manual migrations** are used for data migrations and production deployments
 
@@ -225,6 +236,7 @@ docker-compose -f docker/docker-compose.yml --env-file .env up -d postgres
 #### Verify PostgreSQL is Running
 
 **Connect to the database:**
+
 ```bash
 # Using docker exec (include --env-file to avoid warnings)
 docker-compose -f docker/docker-compose.yml --env-file .env exec postgres psql -U postgres -d mymoney
@@ -243,11 +255,13 @@ docker-compose -f docker/docker-compose.yml --env-file .env stop postgres
 ```
 
 **To stop and remove the container (data is preserved in volume):**
+
 ```bash
 docker-compose -f docker/docker-compose.yml --env-file .env down postgres
 ```
 
 **To remove container and data volume (⚠️ deletes all data):**
+
 ```bash
 docker-compose -f docker/docker-compose.yml --env-file .env down -v postgres
 ```
@@ -259,6 +273,7 @@ docker-compose -f docker/docker-compose.yml --env-file .env down -v postgres
 If you prefer to install PostgreSQL locally instead of using Docker:
 
 **macOS (using Homebrew):**
+
 ```bash
 brew install postgresql@18
 brew services start postgresql@18
@@ -266,6 +281,7 @@ createdb -U postgres mymoney
 ```
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 sudo apt update
 sudo apt install postgresql-18 postgresql-contrib-18
@@ -275,6 +291,7 @@ createdb -U postgres mymoney
 
 **Windows:**
 Download from [PostgreSQL official website](https://www.postgresql.org/download/windows/) or use Chocolatey:
+
 ```bash
 choco install postgresql18
 createdb -U postgres mymoney
@@ -289,6 +306,7 @@ Create `.env` files in root, `frontend/`, and `backend/` directories with approp
 ### 4. Set up database schema
 
 The application uses a hybrid approach:
+
 - **Automatic schema sync** (via `prisma db push`) runs on startup when `RUN_MIGRATIONS=true` or in production
 - **Manual migrations** are used for data migrations and production deployments
 
@@ -492,6 +510,7 @@ Additional documentation is available in the `docs/` directory:
 ## API Documentation
 
 GraphQL API is available at `/graphql` endpoint. The API supports:
+
 - **Queries**: Read data (accounts, transactions, budgets, workspaces, etc.)
 - **Mutations**: Modify data (create, update, delete operations)
 - **Subscriptions**: Real-time updates via WebSocket
@@ -593,14 +612,17 @@ npm run docker:up
 ### Migration Issues
 
 **Migration drift errors:**
+
 - Common causes: Database created with `db push` but migrations exist, or empty migration directories
 - Solution: Use `prisma migrate reset` to reset database, or manually resolve drift
 
 **P3015 Error (Missing migration file):**
+
 - Check for empty migration directories: `ls -la backend/prisma/migrations/`
 - Remove empty directories and re-run migration
 
 **Migration fails because tables don't exist:**
+
 - Ensure base schema is applied before data migrations
 - Run migrations in order: `npm run prisma:migrate`
 
@@ -642,5 +664,3 @@ npm run docker:up
 ## License
 
 [Add your license here]
-
-

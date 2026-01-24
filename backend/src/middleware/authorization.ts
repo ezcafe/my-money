@@ -4,10 +4,13 @@
  * Uses workspace-based access control
  */
 
-import type {GraphQLContext} from './context';
-import {NotFoundError, ForbiddenError} from '../utils/errors';
-import {checkWorkspaceAccess, checkWorkspacePermission} from '../services/WorkspaceService';
-import type {WorkspaceRole} from '@prisma/client';
+import type { GraphQLContext } from './context';
+import { NotFoundError, ForbiddenError } from '../utils/errors';
+import {
+  checkWorkspaceAccess,
+  checkWorkspacePermission,
+} from '../services/WorkspaceService';
+import type { WorkspaceRole } from '@prisma/client';
 
 /**
  * Require workspace access - throws error if user doesn't have access
@@ -19,12 +22,15 @@ import type {WorkspaceRole} from '@prisma/client';
 export async function requireWorkspaceAccess(
   workspaceId: string,
   userId: string,
-  _context: GraphQLContext,
+  _context: GraphQLContext
 ): Promise<void> {
   try {
     await checkWorkspaceAccess(workspaceId, userId);
   } catch (error) {
-    if (error instanceof Error && error.message.includes('does not have access')) {
+    if (
+      error instanceof Error &&
+      error.message.includes('does not have access')
+    ) {
       throw new NotFoundError('Workspace');
     }
     throw error;
@@ -43,7 +49,7 @@ export async function requireWorkspacePermission(
   workspaceId: string,
   userId: string,
   requiredRole: WorkspaceRole,
-  _context: GraphQLContext,
+  _context: GraphQLContext
 ): Promise<void> {
   try {
     await checkWorkspacePermission(workspaceId, userId, requiredRole);
@@ -66,7 +72,7 @@ export async function requireWorkspacePermission(
 export async function requireEntityAccess(
   workspaceId: string,
   userId: string,
-  context: GraphQLContext,
+  context: GraphQLContext
 ): Promise<void> {
   await requireWorkspaceAccess(workspaceId, userId, context);
 }

@@ -4,8 +4,8 @@
  * Reduces code duplication and ensures consistent error handling
  */
 
-import {useQuery} from '@apollo/client/react';
-import type {DocumentNode} from 'graphql';
+import { useQuery } from '@apollo/client/react';
+import type { DocumentNode } from 'graphql';
 
 /**
  * Hook return type
@@ -39,11 +39,11 @@ interface UseEntityOptions<T, TData> {
  * @returns Entity data with loading and error states
  */
 export function useEntity<T, TData = Record<string, T | undefined>>(
-  options: UseEntityOptions<T, TData>,
+  options: UseEntityOptions<T, TData>
 ): UseEntityResult<T> {
-  const {query, variables, skip = false, errorPolicy = 'all', extractEntity} = options;
+  const { query, variables, skip = false, errorPolicy = 'all', extractEntity } = options;
 
-  const {data, loading, error, refetch} = useQuery<TData>(query, {
+  const { data, loading, error, refetch } = useQuery<TData>(query, {
     variables,
     skip,
     errorPolicy,
@@ -71,4 +71,3 @@ export function useEntity<T, TData = Record<string, T | undefined>>(
     },
   };
 }
-

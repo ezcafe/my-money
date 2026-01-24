@@ -3,8 +3,8 @@
  * Page for editing transaction details
  */
 
-import React, {useState, useEffect, useMemo} from 'react';
-import {useParams, useNavigate, useSearchParams} from 'react-router';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
 import {
   Box,
   TextField,
@@ -16,23 +16,30 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {Card} from '../components/ui/Card';
-import {UPDATE_TRANSACTION} from '../graphql/mutations';
-import {GET_TRANSACTION, GET_CATEGORIES, GET_PAYEES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_ACCOUNT} from '../graphql/queries';
-import {useAccounts} from '../hooks/useAccounts';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {useTitle} from '../contexts/TitleContext';
-import type {Transaction} from '../hooks/useTransactions';
-import {PageContainer} from '../components/common/PageContainer';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { Card } from '../components/ui/Card';
+import { UPDATE_TRANSACTION } from '../graphql/mutations';
+import {
+  GET_TRANSACTION,
+  GET_CATEGORIES,
+  GET_PAYEES,
+  GET_TRANSACTIONS,
+  GET_RECENT_TRANSACTIONS,
+  GET_ACCOUNT,
+} from '../graphql/queries';
+import { useAccounts } from '../hooks/useAccounts';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { useTitle } from '../contexts/TitleContext';
+import type { Transaction } from '../hooks/useTransactions';
+import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
   GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
-import type {Account} from '../hooks/useAccounts';
-import type {Category} from '../hooks/useCategories';
+import type { Account } from '../hooks/useAccounts';
+import type { Category } from '../hooks/useCategories';
 
 /**
  * Transaction data from GraphQL query
@@ -45,29 +52,33 @@ interface TransactionData {
  * Transaction Edit Page Component
  */
 export function TransactionEditPage(): React.JSX.Element {
-  const {id} = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo') ?? '/';
-  const {setTitle} = useTitle();
+  const { setTitle } = useTitle();
 
-  const {accounts} = useAccounts();
-  const {data: categoriesData} = useQuery<{categories?: Array<{id: string; name: string; categoryType: string}>}>(
-    GET_CATEGORIES,
+  const { accounts } = useAccounts();
+  const { data: categoriesData } = useQuery<{
+    categories?: Array<{ id: string; name: string; categoryType: string }>;
+  }>(GET_CATEGORIES);
+  const { data: payeesData } = useQuery<{ payees?: Array<{ id: string; name: string }> }>(
+    GET_PAYEES
   );
-  const {data: payeesData} = useQuery<{payees?: Array<{id: string; name: string}>}>(
-    GET_PAYEES,
-  );
-  const {data: transactionData, loading: transactionLoading, error: transactionError} = useQuery<TransactionData>(
-    GET_TRANSACTION,
-    {
-      variables: {id},
-      skip: !id,
-      errorPolicy: 'all',
-    },
-  );
+  const {
+    data: transactionData,
+    loading: transactionLoading,
+    error: transactionError,
+  } = useQuery<TransactionData>(GET_TRANSACTION, {
+    variables: { id },
+    skip: !id,
+    errorPolicy: 'all',
+  });
 
-  const categories = useMemo(() => (categoriesData?.categories ?? []) as Category[], [categoriesData?.categories]);
+  const categories = useMemo(
+    () => (categoriesData?.categories ?? []) as Category[],
+    [categoriesData?.categories]
+  );
   const payees = payeesData?.payees ?? [];
   const transaction = transactionData?.transaction;
 
@@ -102,8 +113,8 @@ export function TransactionEditPage(): React.JSX.Element {
       setValue(String(transaction.value ?? ''));
       const dateValue =
         typeof transaction.date === 'string'
-          ? transaction.date.split('T')[0] ?? ''
-          : new Date(transaction.date).toISOString().split('T')[0] ?? '';
+          ? (transaction.date.split('T')[0] ?? '')
+          : (new Date(transaction.date).toISOString().split('T')[0] ?? '');
       setDate(dateValue);
       setAccountId(transaction.account?.id ?? '');
       setCategoryId(transaction.category?.id ?? '');
@@ -125,15 +136,16 @@ export function TransactionEditPage(): React.JSX.Element {
     return '/';
   };
 
-  const [updateTransaction, {loading}] = useMutation(UPDATE_TRANSACTION, {
+  const [updateTransaction, { loading }] = useMutation(UPDATE_TRANSACTION, {
     refetchQueries: () => {
-      const queries: Array<{query: typeof GET_TRANSACTIONS} | {query: typeof GET_RECENT_TRANSACTIONS} | {query: typeof GET_ACCOUNT; variables: {id: string}}> = [
-        {query: GET_TRANSACTIONS},
-        {query: GET_RECENT_TRANSACTIONS},
-      ];
+      const queries: Array<
+        | { query: typeof GET_TRANSACTIONS }
+        | { query: typeof GET_RECENT_TRANSACTIONS }
+        | { query: typeof GET_ACCOUNT; variables: { id: string } }
+      > = [{ query: GET_TRANSACTIONS }, { query: GET_RECENT_TRANSACTIONS }];
       // Only refetch GET_ACCOUNT if we have an accountId from the transaction
       if (transaction?.account?.id) {
-        queries.push({query: GET_ACCOUNT, variables: {id: transaction.account.id}});
+        queries.push({ query: GET_ACCOUNT, variables: { id: transaction.account.id } });
       }
       return queries;
     },
@@ -208,7 +220,6 @@ export function TransactionEditPage(): React.JSX.Element {
     });
   };
 
-
   // Show loading state
   if (transactionLoading) {
     return <LoadingSpinner message="Loading transaction..." />;
@@ -251,10 +262,12 @@ export function TransactionEditPage(): React.JSX.Element {
           p: 3,
         }}
       >
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
-          {error ? <Typography color="error" variant="body2">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+          {error ? (
+            <Typography color="error" variant="body2">
               {error}
-            </Typography> : null}
+            </Typography>
+          ) : null}
 
           <TextField
             label="Value"
@@ -263,7 +276,7 @@ export function TransactionEditPage(): React.JSX.Element {
             onChange={(e) => setValue(e.target.value)}
             fullWidth
             required
-            inputProps={{step: '0.01'}}
+            inputProps={{ step: '0.01' }}
           />
 
           <TextField
@@ -273,7 +286,7 @@ export function TransactionEditPage(): React.JSX.Element {
             onChange={(e) => setDate(e.target.value)}
             fullWidth
             required
-            InputLabelProps={{shrink: true}}
+            InputLabelProps={{ shrink: true }}
           />
 
           <Autocomplete<Account, false, false, false>
@@ -330,7 +343,7 @@ export function TransactionEditPage(): React.JSX.Element {
             rows={3}
           />
 
-          <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto'}}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto' }}>
             <Button
               onClick={() => {
                 const validReturnUrl = getValidReturnUrl(returnTo);
@@ -349,4 +362,3 @@ export function TransactionEditPage(): React.JSX.Element {
     </PageContainer>
   );
 }
-

@@ -3,10 +3,15 @@
  * Handles all workspace-related GraphQL operations
  */
 
-import type {GraphQLContext} from '../middleware/context';
-import type {WorkspaceRole, Workspace, WorkspaceMember, WorkspaceInvitation} from '@prisma/client';
-import {NotFoundError, ForbiddenError} from '../utils/errors';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
+import type { GraphQLContext } from '../middleware/context';
+import type {
+  WorkspaceRole,
+  Workspace,
+  WorkspaceMember,
+  WorkspaceInvitation,
+} from '@prisma/client';
+import { NotFoundError, ForbiddenError } from '../utils/errors';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
 import {
   getUserWorkspaces,
   getWorkspaceMembers,
@@ -20,14 +25,18 @@ import {
   cancelInvitation,
   getWorkspaceInvitations,
 } from '../services/InvitationService';
-import {sendInvitationEmail} from '../services/EmailService';
-import {sanitizeUserInput} from '../utils/sanitization';
+import { sendInvitationEmail } from '../services/EmailService';
+import { sanitizeUserInput } from '../utils/sanitization';
 
 export class WorkspaceResolver {
   /**
    * Get all workspaces the current user belongs to
    */
-  async workspaces(_: unknown, __: unknown, context: GraphQLContext): Promise<Workspace[]> {
+  async workspaces(
+    _: unknown,
+    __: unknown,
+    context: GraphQLContext
+  ): Promise<Workspace[]> {
     const workspaceIds = await getUserWorkspaces(context.userId);
 
     const workspaces = await withPrismaErrorHandling(
@@ -50,7 +59,7 @@ export class WorkspaceResolver {
             createdAt: 'desc',
           },
         }),
-      {resource: 'Workspace', operation: 'read'},
+      { resource: 'Workspace', operation: 'read' }
     );
 
     return workspaces;
@@ -59,14 +68,18 @@ export class WorkspaceResolver {
   /**
    * Get workspace by ID
    */
-  async workspace(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<Workspace> {
+  async workspace(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<Workspace> {
     // Verify user has access
     await checkWorkspaceAccess(id, context.userId);
 
     const workspace = await withPrismaErrorHandling(
       async () =>
         await context.prisma.workspace.findUnique({
-          where: {id},
+          where: { id },
           include: {
             _count: {
               select: {
@@ -76,7 +89,7 @@ export class WorkspaceResolver {
             },
           },
         }),
-      {resource: 'Workspace', operation: 'read'},
+      { resource: 'Workspace', operation: 'read' }
     );
 
     if (!workspace) {
@@ -89,28 +102,44 @@ export class WorkspaceResolver {
   /**
    * Get workspace members
    */
-  async workspaceMembers(_: unknown, {workspaceId}: {workspaceId: string}, context: GraphQLContext): Promise<WorkspaceMember[]> {
+  async workspaceMembers(
+    _: unknown,
+    { workspaceId }: { workspaceId: string },
+    context: GraphQLContext
+  ): Promise<WorkspaceMember[]> {
     return getWorkspaceMembers(workspaceId, context.userId);
   }
 
   /**
    * Get workspace invitations
    */
-  async workspaceInvitations(_: unknown, {workspaceId}: {workspaceId: string}, context: GraphQLContext): Promise<WorkspaceInvitation[]> {
+  async workspaceInvitations(
+    _: unknown,
+    { workspaceId }: { workspaceId: string },
+    context: GraphQLContext
+  ): Promise<WorkspaceInvitation[]> {
     return getWorkspaceInvitations(workspaceId, context.userId);
   }
 
   /**
    * Get invitation by token (public, no auth required for viewing invitation details)
    */
-  async invitationByToken(_: unknown, {token}: {token: string}, _context: GraphQLContext): Promise<WorkspaceInvitation | null> {
+  async invitationByToken(
+    _: unknown,
+    { token }: { token: string },
+    _context: GraphQLContext
+  ): Promise<WorkspaceInvitation | null> {
     return getInvitationByToken(token);
   }
 
   /**
    * Create a new workspace
    */
-  async createWorkspace(_: unknown, {name}: {name: string}, context: GraphQLContext): Promise<Workspace> {
+  async createWorkspace(
+    _: unknown,
+    { name }: { name: string },
+    context: GraphQLContext
+  ): Promise<Workspace> {
     const sanitizedName = sanitizeUserInput(name);
 
     if (!sanitizedName || sanitizedName.trim().length === 0) {
@@ -138,7 +167,7 @@ export class WorkspaceResolver {
             },
           },
         }),
-      {resource: 'Workspace', operation: 'create'},
+      { resource: 'Workspace', operation: 'create' }
     );
 
     return workspace;
@@ -147,11 +176,15 @@ export class WorkspaceResolver {
   /**
    * Update workspace
    */
-  async updateWorkspace(_: unknown, {id, name}: {id: string; name?: string}, context: GraphQLContext): Promise<Workspace> {
+  async updateWorkspace(
+    _: unknown,
+    { id, name }: { id: string; name?: string },
+    context: GraphQLContext
+  ): Promise<Workspace> {
     // Verify user has admin/owner permission
     await checkWorkspacePermission(id, context.userId, 'Admin');
 
-    const updateData: {name?: string} = {};
+    const updateData: { name?: string } = {};
     if (name !== undefined) {
       const sanitizedName = sanitizeUserInput(name);
       if (!sanitizedName || sanitizedName.trim().length === 0) {
@@ -163,7 +196,7 @@ export class WorkspaceResolver {
     const workspace = await withPrismaErrorHandling(
       async () =>
         await context.prisma.workspace.update({
-          where: {id},
+          where: { id },
           data: updateData,
           include: {
             _count: {
@@ -174,7 +207,7 @@ export class WorkspaceResolver {
             },
           },
         }),
-      {resource: 'Workspace', operation: 'update'},
+      { resource: 'Workspace', operation: 'update' }
     );
 
     return workspace;
@@ -183,13 +216,17 @@ export class WorkspaceResolver {
   /**
    * Delete workspace (Owner only)
    */
-  async deleteWorkspace(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
+  async deleteWorkspace(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<boolean> {
     // Verify user is owner
     await checkWorkspacePermission(id, context.userId, 'Owner');
 
     await withPrismaErrorHandling(
-      async () => await context.prisma.workspace.delete({where: {id}}),
-      {resource: 'Workspace', operation: 'delete'},
+      async () => await context.prisma.workspace.delete({ where: { id } }),
+      { resource: 'Workspace', operation: 'delete' }
     );
 
     return true;
@@ -209,7 +246,7 @@ export class WorkspaceResolver {
       email: string;
       role?: WorkspaceRole;
     },
-    context: GraphQLContext,
+    context: GraphQLContext
   ): Promise<WorkspaceInvitation> {
     const sanitizedEmail = sanitizeUserInput(email);
     if (!sanitizedEmail?.includes('@')) {
@@ -222,13 +259,13 @@ export class WorkspaceResolver {
       sanitizedEmail,
       role ?? 'Member',
       context.userId,
-      7, // 7 days expiration
+      7 // 7 days expiration
     );
 
     // Get workspace name for email
     const workspace = await context.prisma.workspace.findUnique({
-      where: {id: workspaceId},
-      select: {name: true},
+      where: { id: workspaceId },
+      select: { name: true },
     });
 
     if (!workspace) {
@@ -237,7 +274,12 @@ export class WorkspaceResolver {
 
     // Send invitation email (fire and forget)
     try {
-      sendInvitationEmail(sanitizedEmail, invitation.token, workspace.name, context.userEmail ?? '');
+      sendInvitationEmail(
+        sanitizedEmail,
+        invitation.token,
+        workspace.name,
+        context.userEmail ?? ''
+      );
     } catch (error) {
       // Log error but don't fail the mutation
       console.error('Failed to send invitation email:', error);
@@ -249,7 +291,11 @@ export class WorkspaceResolver {
   /**
    * Accept workspace invitation
    */
-  async acceptWorkspaceInvitation(_: unknown, {token}: {token: string}, context: GraphQLContext): Promise<WorkspaceMember> {
+  async acceptWorkspaceInvitation(
+    _: unknown,
+    { token }: { token: string },
+    context: GraphQLContext
+  ): Promise<WorkspaceMember> {
     const member = await acceptInvitation(token, context.userId);
     return member;
   }
@@ -257,7 +303,11 @@ export class WorkspaceResolver {
   /**
    * Cancel workspace invitation
    */
-  async cancelWorkspaceInvitation(_: unknown, {invitationId}: {invitationId: string}, context: GraphQLContext): Promise<boolean> {
+  async cancelWorkspaceInvitation(
+    _: unknown,
+    { invitationId }: { invitationId: string },
+    context: GraphQLContext
+  ): Promise<boolean> {
     return cancelInvitation(invitationId, context.userId);
   }
 
@@ -275,7 +325,7 @@ export class WorkspaceResolver {
       memberId: string;
       role: WorkspaceRole;
     },
-    context: GraphQLContext,
+    context: GraphQLContext
   ): Promise<WorkspaceMember> {
     // Verify user has admin/owner permission
     await checkWorkspacePermission(workspaceId, context.userId, 'Admin');
@@ -304,12 +354,18 @@ export class WorkspaceResolver {
       });
 
       if (ownerCount <= 1) {
-        throw new ForbiddenError('Cannot remove the only owner of the workspace');
+        throw new ForbiddenError(
+          'Cannot remove the only owner of the workspace'
+        );
       }
     }
 
     // Prevent changing own role if owner
-    if (member.userId === context.userId && member.role === 'Owner' && role !== 'Owner') {
+    if (
+      member.userId === context.userId &&
+      member.role === 'Owner' &&
+      role !== 'Owner'
+    ) {
       throw new ForbiddenError('Cannot change your own role from Owner');
     }
 
@@ -322,7 +378,7 @@ export class WorkspaceResolver {
               userId: memberId,
             },
           },
-          data: {role},
+          data: { role },
           include: {
             user: {
               select: {
@@ -338,7 +394,7 @@ export class WorkspaceResolver {
             },
           },
         }),
-      {resource: 'WorkspaceMember', operation: 'update'},
+      { resource: 'WorkspaceMember', operation: 'update' }
     );
 
     return updatedMember;
@@ -356,7 +412,7 @@ export class WorkspaceResolver {
       workspaceId: string;
       memberId: string;
     },
-    context: GraphQLContext,
+    context: GraphQLContext
   ): Promise<boolean> {
     // Verify user has admin/owner permission
     await checkWorkspacePermission(workspaceId, context.userId, 'Admin');
@@ -385,13 +441,17 @@ export class WorkspaceResolver {
       });
 
       if (ownerCount <= 1) {
-        throw new ForbiddenError('Cannot remove the only owner of the workspace');
+        throw new ForbiddenError(
+          'Cannot remove the only owner of the workspace'
+        );
       }
     }
 
     // Prevent removing self if owner
     if (member.userId === context.userId && member.role === 'Owner') {
-      throw new ForbiddenError('Cannot remove yourself as owner. Transfer ownership first.');
+      throw new ForbiddenError(
+        'Cannot remove yourself as owner. Transfer ownership first.'
+      );
     }
 
     await withPrismaErrorHandling(
@@ -404,7 +464,7 @@ export class WorkspaceResolver {
             },
           },
         }),
-      {resource: 'WorkspaceMember', operation: 'delete'},
+      { resource: 'WorkspaceMember', operation: 'delete' }
     );
 
     return true;

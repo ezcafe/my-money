@@ -4,12 +4,16 @@
  * Cache key includes: query string, variables, and userId
  */
 
-import type {ApolloServerPlugin, GraphQLRequestContext, GraphQLRequestListener} from '@apollo/server';
-import type {GraphQLContext} from '../middleware/context';
-import {createHash} from 'crypto';
+import type {
+  ApolloServerPlugin,
+  GraphQLRequestContext,
+  GraphQLRequestListener,
+} from '@apollo/server';
+import type { GraphQLContext } from '../middleware/context';
+import { createHash } from 'crypto';
 import * as postgresCache from '../utils/postgresCache';
-import {logInfo, logError} from '../utils/logger';
-import {CACHE_TAGS} from '../utils/cacheTags';
+import { logInfo, logError } from '../utils/logger';
+import { CACHE_TAGS } from '../utils/cacheTags';
 
 /**
  * Default cache TTL for queries (5 minutes)
@@ -44,7 +48,7 @@ function generateCacheKey(
   query: string,
   variables: Record<string, unknown> | undefined,
   userId?: string,
-  workspaceId?: string,
+  workspaceId?: string
 ): string {
   const queryHash = createHash('sha256').update(query).digest('hex');
   const variablesHash = variables
@@ -102,7 +106,10 @@ function getCacheTTL(query: string): number {
     const operationName = operationMatch[1];
     // Check if we have a specific TTL for this operation
     for (const [key, ttl] of Object.entries(QUERY_CACHE_TTL)) {
-      if (operationName.toLowerCase().includes(key.toLowerCase()) && typeof ttl === 'number') {
+      if (
+        operationName.toLowerCase().includes(key.toLowerCase()) &&
+        typeof ttl === 'number'
+      ) {
         return ttl;
       }
     }
@@ -147,7 +154,11 @@ function shouldCache(query: string): boolean {
   }
 
   // Don't cache introspection queries
-  if (query.includes('__schema') || query.includes('__type') || query.includes('IntrospectionQuery')) {
+  if (
+    query.includes('__schema') ||
+    query.includes('__type') ||
+    query.includes('IntrospectionQuery')
+  ) {
     return false;
   }
 
@@ -158,23 +169,34 @@ function shouldCache(query: string): boolean {
  * GraphQL Response Caching Plugin
  * Caches query responses to reduce database load
  */
-export function graphqlCachePlugin(): ApolloServerPlugin<GraphQLContext | Record<string, never>> {
+export function graphqlCachePlugin(): ApolloServerPlugin<
+  GraphQLContext | Record<string, never>
+> {
   return {
     requestDidStart(
-      requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+      requestContext: GraphQLRequestContext<
+        GraphQLContext | Record<string, never>
+      >
     ): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>> {
-      const {request, contextValue} = requestContext;
+      const { request, contextValue } = requestContext;
       const query = request.query ?? '';
-      const variables = request.variables as Record<string, unknown> | undefined;
+      const variables = request.variables as
+        | Record<string, unknown>
+        | undefined;
 
       // Only cache queries
       if (!shouldCache(query)) {
-        return Promise.resolve({} as GraphQLRequestListener<GraphQLContext | Record<string, never>>);
+        return Promise.resolve(
+          {} as GraphQLRequestListener<GraphQLContext | Record<string, never>>
+        );
       }
 
-      const context = contextValue && typeof contextValue === 'object' && 'userId' in contextValue
-        ? (contextValue as GraphQLContext)
-        : undefined;
+      const context =
+        contextValue &&
+        typeof contextValue === 'object' &&
+        'userId' in contextValue
+          ? (contextValue as GraphQLContext)
+          : undefined;
 
       const userId = context?.userId;
       const workspaceId = context?.currentWorkspaceId;
@@ -184,22 +206,33 @@ export function graphqlCachePlugin(): ApolloServerPlugin<GraphQLContext | Record
 
       // Check cache asynchronously and store result for use in willSendResponse
       let cachedResponse: unknown = null;
-      void postgresCache.get<unknown>(cacheKey).then((response) => {
-        cachedResponse = response;
-      }).catch(() => {
-        cachedResponse = null;
-      });
+      void postgresCache
+        .get<unknown>(cacheKey)
+        .then((response) => {
+          cachedResponse = response;
+        })
+        .catch(() => {
+          cachedResponse = null;
+        });
 
       return Promise.resolve({
         async willSendResponse(
-          responseContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+          responseContext: GraphQLRequestContext<
+            GraphQLContext | Record<string, never>
+          >
         ): Promise<void> {
           try {
             // Check if we have a cached response
             if (cachedResponse !== null) {
               // Cache hit - use cached response
-              if (responseContext.response.body && typeof responseContext.response.body === 'object') {
-                const body = responseContext.response.body as {kind?: string; singleResult?: {data?: unknown}};
+              if (
+                responseContext.response.body &&
+                typeof responseContext.response.body === 'object'
+              ) {
+                const body = responseContext.response.body as {
+                  kind?: string;
+                  singleResult?: { data?: unknown };
+                };
                 if (body.kind === 'single' && body.singleResult) {
                   body.singleResult.data = cachedResponse;
                   logInfo('GraphQL cache hit', {
@@ -213,18 +246,36 @@ export function graphqlCachePlugin(): ApolloServerPlugin<GraphQLContext | Record
             }
 
             // Cache miss - cache the response
-            if (responseContext.response.body && typeof responseContext.response.body === 'object') {
-              const body = responseContext.response.body as {kind?: string; singleResult?: {data?: unknown; errors?: unknown[]}};
+            if (
+              responseContext.response.body &&
+              typeof responseContext.response.body === 'object'
+            ) {
+              const body = responseContext.response.body as {
+                kind?: string;
+                singleResult?: { data?: unknown; errors?: unknown[] };
+              };
               if (body.kind === 'single' && body.singleResult) {
                 // Only cache if there's data and no errors
-                if (body.singleResult.data && (!body.singleResult.errors || body.singleResult.errors.length === 0)) {
-                  await postgresCache.set(cacheKey, body.singleResult.data, cacheTTL, cacheTags).catch((error) => {
-                    // Log but don't fail the request if caching fails
-                    logError('Failed to cache GraphQL response', {
-                      event: 'graphql_cache_set_failed',
-                      cacheKey,
-                    }, error instanceof Error ? error : new Error(String(error)));
-                  });
+                if (
+                  body.singleResult.data &&
+                  (!body.singleResult.errors ||
+                    body.singleResult.errors.length === 0)
+                ) {
+                  await postgresCache
+                    .set(cacheKey, body.singleResult.data, cacheTTL, cacheTags)
+                    .catch((error) => {
+                      // Log but don't fail the request if caching fails
+                      logError(
+                        'Failed to cache GraphQL response',
+                        {
+                          event: 'graphql_cache_set_failed',
+                          cacheKey,
+                        },
+                        error instanceof Error
+                          ? error
+                          : new Error(String(error))
+                      );
+                    });
                   logInfo('GraphQL cache miss - response cached', {
                     event: 'graphql_cache_miss',
                     cacheKey,
@@ -235,9 +286,13 @@ export function graphqlCachePlugin(): ApolloServerPlugin<GraphQLContext | Record
             }
           } catch (error) {
             // Log but don't fail the request if caching fails
-            logError('Error in GraphQL cache plugin', {
-              event: 'graphql_cache_plugin_error',
-            }, error instanceof Error ? error : new Error(String(error)));
+            logError(
+              'Error in GraphQL cache plugin',
+              {
+                event: 'graphql_cache_plugin_error',
+              },
+              error instanceof Error ? error : new Error(String(error))
+            );
           }
         },
       } as GraphQLRequestListener<GraphQLContext | Record<string, never>>);
@@ -257,7 +312,7 @@ export async function getCachedQueryResponse<T>(
   query: string,
   variables: Record<string, unknown> | undefined,
   userId?: string,
-  workspaceId?: string,
+  workspaceId?: string
 ): Promise<T | null> {
   if (!shouldCache(query)) {
     return null;

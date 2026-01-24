@@ -3,8 +3,8 @@
  * Provides top 5 most used values with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
-import {GET_TOP_USED_VALUES} from '../graphql/queries';
+import { useQuery } from '@apollo/client/react';
+import { GET_TOP_USED_VALUES } from '../graphql/queries';
 
 /**
  * Top used value type from GraphQL query
@@ -35,8 +35,8 @@ interface GetTopUsedValuesData {
  * @returns Top used values with loading and error states
  */
 export function useTopUsedValues(days: number = 90): UseTopUsedValuesResult {
-  const {data, loading, error, refetch} = useQuery<GetTopUsedValuesData>(GET_TOP_USED_VALUES, {
-    variables: {days},
+  const { data, loading, error, refetch } = useQuery<GetTopUsedValuesData>(GET_TOP_USED_VALUES, {
+    variables: { days },
     errorPolicy: 'all',
   });
 
@@ -60,4 +60,3 @@ export function useTopUsedValues(days: number = 90): UseTopUsedValuesResult {
     },
   };
 }
-

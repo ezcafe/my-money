@@ -3,14 +3,14 @@
  * Dialog for creating/editing categories
  */
 
-import React, {useState, useEffect} from 'react';
-import {Box, Typography, ToggleButtonGroup, ToggleButton} from '@mui/material';
-import {useMutation} from '@apollo/client/react';
-import {Dialog} from './ui/Dialog';
-import {Button} from './ui/Button';
-import {TextField} from './ui/TextField';
-import {CREATE_CATEGORY, UPDATE_CATEGORY} from '../graphql/mutations';
-import type {Category} from '../hooks/useCategories';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { useMutation } from '@apollo/client/react';
+import { Dialog } from './ui/Dialog';
+import { Button } from './ui/Button';
+import { TextField } from './ui/TextField';
+import { CREATE_CATEGORY, UPDATE_CATEGORY } from '../graphql/mutations';
+import type { Category } from '../hooks/useCategories';
 
 /**
  * Category edit dialog props
@@ -35,7 +35,7 @@ export function CategoryEditDialog({
   const [categoryType, setCategoryType] = useState<'Income' | 'Expense'>('Expense');
   const [error, setError] = useState<string | null>(null);
 
-  const [createCategory, {loading: creating}] = useMutation(CREATE_CATEGORY, {
+  const [createCategory, { loading: creating }] = useMutation(CREATE_CATEGORY, {
     refetchQueries: ['GetCategories'],
     awaitRefetchQueries: true,
     onCompleted: () => {
@@ -47,7 +47,7 @@ export function CategoryEditDialog({
     },
   });
 
-  const [updateCategory, {loading: updating}] = useMutation(UPDATE_CATEGORY, {
+  const [updateCategory, { loading: updating }] = useMutation(UPDATE_CATEGORY, {
     refetchQueries: ['GetCategories', 'GetCategory'],
     awaitRefetchQueries: true,
     onCompleted: () => {
@@ -104,7 +104,7 @@ export function CategoryEditDialog({
   };
 
   const actions = (
-    <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end'}}>
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
       <Button onClick={onClose} disabled={loading} variant="outlined">
         Cancel
       </Button>
@@ -121,10 +121,12 @@ export function CategoryEditDialog({
       title={category ? 'Edit Category' : 'Create Category'}
       actions={actions}
     >
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-        {error ? <Typography color="error" variant="body2">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {error ? (
+          <Typography color="error" variant="body2">
             {error}
-          </Typography> : null}
+          </Typography>
+        ) : null}
 
         <TextField
           label="Name"
@@ -134,7 +136,7 @@ export function CategoryEditDialog({
           required
         />
 
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <Typography variant="body2" color="text.secondary">
             Category Type
           </Typography>
@@ -161,4 +163,3 @@ export function CategoryEditDialog({
     </Dialog>
   );
 }
-

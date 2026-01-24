@@ -3,8 +3,8 @@
  * Provides centralized input sanitization for GraphQL resolvers
  */
 
-import type {GraphQLResolveInfo} from 'graphql';
-import {sanitizeUserInput, sanitizeObject} from '@my-money/shared';
+import type { GraphQLResolveInfo } from 'graphql';
+import { sanitizeUserInput, sanitizeObject } from '@my-money/shared';
 
 /**
  * Sanitize GraphQL input arguments
@@ -16,7 +16,12 @@ export function sanitizeInput<T>(args: T): T {
   if (typeof args === 'string') {
     return sanitizeUserInput(args) as T;
   }
-  if (args && typeof args === 'object' && !Array.isArray(args) && !(args instanceof Date)) {
+  if (
+    args &&
+    typeof args === 'object' &&
+    !Array.isArray(args) &&
+    !(args instanceof Date)
+  ) {
     return sanitizeObject(args as Record<string, unknown>) as T;
   }
   return args;
@@ -33,17 +38,16 @@ export function withInputSanitization<TArgs, TContext, TReturn>(
     parent: unknown,
     args: TArgs,
     context: TContext,
-    info: GraphQLResolveInfo,
-  ) => Promise<TReturn> | TReturn,
+    info: GraphQLResolveInfo
+  ) => Promise<TReturn> | TReturn
 ): (
   parent: unknown,
   args: TArgs,
   context: TContext,
-  info: GraphQLResolveInfo,
+  info: GraphQLResolveInfo
 ) => Promise<TReturn> | TReturn {
   return async (parent, args, context, info) => {
     const sanitizedArgs = sanitizeInput(args);
     return resolver(parent, sanitizedArgs, context, info);
   };
 }
-

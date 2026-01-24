@@ -3,17 +3,25 @@
  * Apollo Client v4 - Following migration guide: https://www.apollographql.com/docs/react/migrating/apollo-client-4-migration
  */
 
-import {ApolloClient, InMemoryCache, from, type ApolloLink, type FetchResult, Observable, split} from '@apollo/client';
-import {BatchHttpLink} from '@apollo/client/link/batch-http';
-import {onError} from '@apollo/client/link/error';
-import {ApolloLink as ApolloLinkClass} from '@apollo/client';
-import {GraphQLWsLink} from '@apollo/client/link/subscriptions';
-import {createClient} from 'graphql-ws';
-import {getMainDefinition} from '@apollo/client/utilities';
-import {uploadLink} from './uploadLink';
-import {APOLLO_CACHE_MAX_SIZE} from '../constants';
-import {handleGraphQLErrors, handleNetworkError, recordSuccess} from './errorHandling';
-import {API_CONFIG} from '../config/api';
+import {
+  ApolloClient,
+  InMemoryCache,
+  from,
+  type ApolloLink,
+  type FetchResult,
+  Observable,
+  split,
+} from '@apollo/client';
+import { BatchHttpLink } from '@apollo/client/link/batch-http';
+import { onError } from '@apollo/client/link/error';
+import { ApolloLink as ApolloLinkClass } from '@apollo/client';
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
+import { createClient } from 'graphql-ws';
+import { getMainDefinition } from '@apollo/client/utilities';
+import { uploadLink } from './uploadLink';
+import { APOLLO_CACHE_MAX_SIZE } from '../constants';
+import { handleGraphQLErrors, handleNetworkError, recordSuccess } from './errorHandling';
+import { API_CONFIG } from '../config/api';
 
 /**
  * Custom fetch function with timeout support
@@ -22,7 +30,10 @@ import {API_CONFIG} from '../config/api';
  * @param options - Fetch options
  * @returns Promise<Response>
  */
-async function fetchWithTimeout(input: RequestInfo | URL, options: RequestInit = {}): Promise<Response> {
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  options: RequestInit = {}
+): Promise<Response> {
   const timeout = API_CONFIG.requestTimeoutMs;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -44,7 +55,6 @@ async function fetchWithTimeout(input: RequestInfo | URL, options: RequestInit =
     throw error;
   }
 }
-
 
 // Note: Using process.env for Webpack compatibility
 // For ESM 2025, would need DefinePlugin configuration in webpack.config.ts
@@ -92,12 +102,12 @@ const wsLink = new GraphQLWsLink(
       const delay = Math.min(1000 * Math.pow(2, retries), 30000);
       await new Promise((resolve) => setTimeout(resolve, delay));
     },
-  }),
+  })
 );
 
 // Split link: subscriptions over WebSocket, queries/mutations over HTTP
 const splitLink = split(
-  ({query}) => {
+  ({ query }) => {
     const definition = getMainDefinition(query);
     // Use type assertions to avoid enum comparison errors
     if ((definition.kind as string) !== 'OperationDefinition') {
@@ -112,12 +122,20 @@ const splitLink = split(
     return false;
   },
   wsLink,
-  httpLink,
+  httpLink
 );
 
 // Error link with enhanced error handling and token refresh
 const errorLink = onError((options) => {
-  const {graphQLErrors, networkError} = options as {graphQLErrors?: Array<{message: string; locations?: unknown; path?: unknown; extensions?: unknown}>; networkError?: Error & {statusCode?: number}};
+  const { graphQLErrors, networkError } = options as {
+    graphQLErrors?: Array<{
+      message: string;
+      locations?: unknown;
+      path?: unknown;
+      extensions?: unknown;
+    }>;
+    networkError?: Error & { statusCode?: number };
+  };
 
   // Handle GraphQL errors
   if (graphQLErrors) {
@@ -189,7 +207,11 @@ const cache = new InMemoryCache({
       fields: {
         transactions: {
           // Merge paginated results with time-based cache invalidation
-          read(existing: {items: unknown[]; totalCount: number; hasMore: boolean; _cacheTime?: number} | undefined): {items: unknown[]; totalCount: number; hasMore: boolean} | undefined {
+          read(
+            existing:
+              | { items: unknown[]; totalCount: number; hasMore: boolean; _cacheTime?: number }
+              | undefined
+          ): { items: unknown[]; totalCount: number; hasMore: boolean } | undefined {
             if (!existing) {
               return undefined;
             }
@@ -206,9 +228,14 @@ const cache = new InMemoryCache({
             };
           },
           merge(
-            existing: {items: unknown[]; totalCount: number; hasMore: boolean; _cacheTime?: number} = {items: [], totalCount: 0, hasMore: false},
-            incoming: {items?: unknown[]; totalCount?: number; hasMore?: boolean},
-          ): {items: unknown[]; totalCount: number; hasMore: boolean; _cacheTime: number} {
+            existing: {
+              items: unknown[];
+              totalCount: number;
+              hasMore: boolean;
+              _cacheTime?: number;
+            } = { items: [], totalCount: 0, hasMore: false },
+            incoming: { items?: unknown[]; totalCount?: number; hasMore?: boolean }
+          ): { items: unknown[]; totalCount: number; hasMore: boolean; _cacheTime: number } {
             return {
               items: [...(existing.items ?? []), ...(incoming.items ?? [])],
               totalCount: incoming.totalCount ?? existing.totalCount,
@@ -223,7 +250,9 @@ const cache = new InMemoryCache({
         },
         recentTransactions: {
           // Limit cache size for recent transactions with time-based invalidation
-          read(existing: {items: unknown[]; _cacheTime?: number} | undefined): unknown[] | undefined {
+          read(
+            existing: { items: unknown[]; _cacheTime?: number } | undefined
+          ): unknown[] | undefined {
             if (!existing) {
               return undefined;
             }
@@ -235,12 +264,16 @@ const cache = new InMemoryCache({
             }
             return existing.items;
           },
-          merge(_existing: {items: unknown[]; _cacheTime?: number} = {items: []}, incoming: unknown[]): {items: unknown[]; _cacheTime: number} {
+          merge(
+            _existing: { items: unknown[]; _cacheTime?: number } = { items: [] },
+            incoming: unknown[]
+          ): { items: unknown[]; _cacheTime: number } {
             // recentTransactions is NOT paginated - it always returns the complete set of recent transactions
             // Therefore, we should REPLACE existing items, not concatenate them
-            const limited = incoming.length > APOLLO_CACHE_MAX_SIZE
-              ? incoming.slice(-APOLLO_CACHE_MAX_SIZE)
-              : incoming;
+            const limited =
+              incoming.length > APOLLO_CACHE_MAX_SIZE
+                ? incoming.slice(-APOLLO_CACHE_MAX_SIZE)
+                : incoming;
             return {
               items: limited,
               _cacheTime: Date.now(),
@@ -281,13 +314,16 @@ let cacheGcIntervalId: ReturnType<typeof setInterval> | null = null;
 
 if (typeof window !== 'undefined') {
   // Run garbage collection every 5 minutes to clean up evicted entries
-  cacheGcIntervalId = setInterval(() => {
-    try {
-      cache.gc();
-    } catch (error) {
-      console.warn('Cache garbage collection failed:', error);
-    }
-  }, 5 * 60 * 1000);
+  cacheGcIntervalId = setInterval(
+    () => {
+      try {
+        cache.gc();
+      } catch (error) {
+        console.warn('Cache garbage collection failed:', error);
+      }
+    },
+    5 * 60 * 1000
+  );
 
   // Clean up interval on page unload
   window.addEventListener('beforeunload', () => {
@@ -299,7 +335,13 @@ if (typeof window !== 'undefined') {
 }
 
 export const client = new ApolloClient({
-  link: from([loggingLink, errorLink, uploadLink, successTrackingLink, splitLink] as unknown as ApolloLink[]),
+  link: from([
+    loggingLink,
+    errorLink,
+    uploadLink,
+    successTrackingLink,
+    splitLink,
+  ] as unknown as ApolloLink[]),
   cache,
   defaultOptions: {
     // Use cache-and-network for watchQuery to get immediate cache results
@@ -324,5 +366,3 @@ export const client = new ApolloClient({
   // Query deduplication is enabled by default in Apollo Client v4
   // This prevents duplicate requests for identical queries
 });
-
-

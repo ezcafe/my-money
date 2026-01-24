@@ -4,18 +4,24 @@
  * Note: Requires a test database connection
  */
 
-import {describe, it, expect, beforeEach, afterEach} from '@jest/globals';
-import {Hono} from 'hono';
-import {checkRateLimit, clearExpired} from '../../src/utils/postgresRateLimiter';
-import type {Context, Next} from 'hono';
-import {ErrorCode} from '../../src/utils/errorCodes';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { Hono } from 'hono';
+import {
+  checkRateLimit,
+  clearExpired,
+} from '../../src/utils/postgresRateLimiter';
+import type { Context, Next } from 'hono';
+import { ErrorCode } from '../../src/utils/errorCodes';
 
 /**
  * Rate limit middleware using PostgreSQL rate limiter
  */
 function rateLimiter(max: number, windowMs: number) {
   return async (c: Context, next: Next): Promise<Response | void> => {
-    const key = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'test-client';
+    const key =
+      c.req.header('x-forwarded-for') ??
+      c.req.header('x-real-ip') ??
+      'test-client';
 
     try {
       const result = await checkRateLimit(key, max, windowMs);
@@ -28,7 +34,7 @@ function rateLimiter(max: number, windowMs: number) {
             error: 'Too many requests, please try again later',
             message: `Rate limit exceeded, retry in ${ttl} seconds`,
           },
-          429,
+          429
         );
       }
 
@@ -51,7 +57,7 @@ describe('Rate Limiting', () => {
     app.use(rateLimiter(5, 60 * 1000)); // 5 requests per minute for testing
 
     app.get('/test', async (c) => {
-      return c.json({message: 'ok'});
+      return c.json({ message: 'ok' });
     });
   });
 
@@ -70,7 +76,7 @@ describe('Rate Limiting', () => {
       });
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body).toEqual({message: 'ok'});
+      expect(body).toEqual({ message: 'ok' });
     }
   }, 10000); // Increase timeout for database operations
 

@@ -4,23 +4,36 @@
  */
 
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-import type {GraphQLContext} from '../middleware/context';
-import {NotFoundError, ValidationError} from '../utils/errors';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
-import {parsePDF} from '../services/PDFParser';
-import {promisify} from 'util';
-import {pipeline} from 'stream';
-import {createWriteStream} from 'fs';
-import {join} from 'path';
-import {tmpdir} from 'os';
-import {randomUUID} from 'crypto';
-import type {PrismaClient, CategoryType, Account, Category, Payee} from '@prisma/client';
-import {incrementAccountBalance} from '../services/AccountBalanceService';
-import {updateBudgetForTransaction} from '../services/BudgetService';
-import {TRANSACTION_BATCH_SIZE, MAX_PDF_FILE_SIZE, MAX_CSV_FILE_SIZE} from '../utils/constants';
-import {WorkspaceDetectionService} from '../services/WorkspaceDetectionService';
-import {getUserDefaultWorkspace, checkWorkspaceAccess} from '../services/WorkspaceService';
-import {z} from 'zod';
+import type { GraphQLContext } from '../middleware/context';
+import { NotFoundError, ValidationError } from '../utils/errors';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import { parsePDF } from '../services/PDFParser';
+import { promisify } from 'util';
+import { pipeline } from 'stream';
+import { createWriteStream } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { randomUUID } from 'crypto';
+import type {
+  PrismaClient,
+  CategoryType,
+  Account,
+  Category,
+  Payee,
+} from '@prisma/client';
+import { incrementAccountBalance } from '../services/AccountBalanceService';
+import { updateBudgetForTransaction } from '../services/BudgetService';
+import {
+  TRANSACTION_BATCH_SIZE,
+  MAX_PDF_FILE_SIZE,
+  MAX_CSV_FILE_SIZE,
+} from '../utils/constants';
+import { WorkspaceDetectionService } from '../services/WorkspaceDetectionService';
+import {
+  getUserDefaultWorkspace,
+  checkWorkspaceAccess,
+} from '../services/WorkspaceService';
+import { z } from 'zod';
 
 const streamPipeline = promisify(pipeline);
 
@@ -28,31 +41,43 @@ const streamPipeline = promisify(pipeline);
 const MAX_FILE_SIZE = MAX_PDF_FILE_SIZE;
 const ALLOWED_MIME_TYPES = ['application/pdf'] as const;
 const ALLOWED_EXTENSIONS = ['.pdf'] as const;
-const ALLOWED_CSV_MIME_TYPES = ['text/csv', 'application/csv', 'text/plain'] as const;
+const ALLOWED_CSV_MIME_TYPES = [
+  'text/csv',
+  'application/csv',
+  'text/plain',
+] as const;
 const ALLOWED_CSV_EXTENSIONS = ['.csv'] as const;
 
 /**
  * Zod schema for PDF file upload validation
  */
-const PDFFileSchema = z.object({
-  filename: z.string().min(1).max(255).refine(
-    (name) => {
-      const ext = name.toLowerCase().substring(name.lastIndexOf('.'));
-      return ALLOWED_EXTENSIONS.includes(ext as typeof ALLOWED_EXTENSIONS[number]);
+const PDFFileSchema = z
+  .object({
+    filename: z
+      .string()
+      .min(1)
+      .max(255)
+      .refine(
+        (name) => {
+          const ext = name.toLowerCase().substring(name.lastIndexOf('.'));
+          return ALLOWED_EXTENSIONS.includes(
+            ext as (typeof ALLOWED_EXTENSIONS)[number]
+          );
+        },
+        { message: 'Invalid file extension. Only .pdf files are allowed.' }
+      ),
+    mimetype: z.enum(ALLOWED_MIME_TYPES).optional(),
+    encoding: z.string().optional(),
+    createReadStream: z.function().returns(z.any()),
+  })
+  .refine(
+    (data) => {
+      // Validate filename is not empty after sanitization
+      const sanitized = sanitizeFilename(data.filename);
+      return sanitized.length > 0;
     },
-    {message: 'Invalid file extension. Only .pdf files are allowed.'},
-  ),
-  mimetype: z.enum(ALLOWED_MIME_TYPES).optional(),
-  encoding: z.string().optional(),
-  createReadStream: z.function().returns(z.any()),
-}).refine(
-  (data) => {
-    // Validate filename is not empty after sanitization
-    const sanitized = sanitizeFilename(data.filename);
-    return sanitized.length > 0;
-  },
-  {message: 'Invalid filename.'},
-);
+    { message: 'Invalid filename.' }
+  );
 
 /**
  * Zod schema for CSV file upload validation
@@ -109,7 +134,9 @@ export function validateFileExtension(filename: string): boolean {
     return false;
   }
   const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
-  return ALLOWED_EXTENSIONS.includes(ext as typeof ALLOWED_EXTENSIONS[number]);
+  return ALLOWED_EXTENSIONS.includes(
+    ext as (typeof ALLOWED_EXTENSIONS)[number]
+  );
 }
 
 /**
@@ -119,7 +146,10 @@ export function validateFileExtension(filename: string): boolean {
  * @param expectedType - Expected file type ('pdf' or 'csv')
  * @returns True if magic number matches expected type
  */
-export function validateFileMagicNumber(buffer: Buffer, expectedType: 'pdf' | 'csv'): boolean {
+export function validateFileMagicNumber(
+  buffer: Buffer,
+  expectedType: 'pdf' | 'csv'
+): boolean {
   if (!buffer || buffer.length < 4) {
     return false;
   }
@@ -147,19 +177,19 @@ export function validateFileMagicNumber(buffer: Buffer, expectedType: 'pdf' | 'c
     const thirdByte = magicBytes[2] ?? 0;
 
     // Check for BOMs
-    if (firstByte === 0xEF && secondByte === 0xBB && thirdByte === 0xBF) {
+    if (firstByte === 0xef && secondByte === 0xbb && thirdByte === 0xbf) {
       return true; // UTF-8 BOM
     }
-    if (firstByte === 0xFF && secondByte === 0xFE) {
+    if (firstByte === 0xff && secondByte === 0xfe) {
       return true; // UTF-16 LE BOM
     }
-    if (firstByte === 0xFE && secondByte === 0xFF) {
+    if (firstByte === 0xfe && secondByte === 0xff) {
       return true; // UTF-16 BE BOM
     }
 
     // Check for printable ASCII (common for CSV files)
     // ASCII printable range: 0x20 (space) to 0x7E (~)
-    if (firstByte >= 0x20 && firstByte <= 0x7E) {
+    if (firstByte >= 0x20 && firstByte <= 0x7e) {
       // Check if it looks like text (not binary)
       // CSV typically starts with letters, numbers, or quotes
       return true;
@@ -239,7 +269,10 @@ function normalizeDescription(description: string): string {
  * @param workspaceId - Workspace ID
  * @returns Default account
  */
-async function getDefaultAccount(context: GraphQLContext, workspaceId: string): Promise<Account> {
+async function getDefaultAccount(
+  context: GraphQLContext,
+  workspaceId: string
+): Promise<Account> {
   return await withPrismaErrorHandling(
     async () => {
       let account = await context.prisma.account.findFirst({
@@ -265,7 +298,7 @@ async function getDefaultAccount(context: GraphQLContext, workspaceId: string): 
 
       return account;
     },
-    {resource: 'Account', operation: 'read'},
+    { resource: 'Account', operation: 'read' }
   );
 }
 
@@ -275,7 +308,10 @@ async function getDefaultAccount(context: GraphQLContext, workspaceId: string): 
  * @param workspaceId - Workspace ID
  * @returns Default category (Food & Groceries)
  */
-async function getDefaultCategory(context: GraphQLContext, workspaceId: string): Promise<Category> {
+async function getDefaultCategory(
+  context: GraphQLContext,
+  workspaceId: string
+): Promise<Category> {
   return await withPrismaErrorHandling(
     async () => {
       let category = await context.prisma.category.findFirst({
@@ -300,7 +336,7 @@ async function getDefaultCategory(context: GraphQLContext, workspaceId: string):
 
       return category;
     },
-    {resource: 'Category', operation: 'read'},
+    { resource: 'Category', operation: 'read' }
   );
 }
 
@@ -310,7 +346,10 @@ async function getDefaultCategory(context: GraphQLContext, workspaceId: string):
  * @param workspaceId - Workspace ID
  * @returns Default payee (Neccesities)
  */
-async function getDefaultPayee(context: GraphQLContext, workspaceId: string): Promise<Payee> {
+async function getDefaultPayee(
+  context: GraphQLContext,
+  workspaceId: string
+): Promise<Payee> {
   return await withPrismaErrorHandling(
     async () => {
       let payee = await context.prisma.payee.findFirst({
@@ -333,7 +372,7 @@ async function getDefaultPayee(context: GraphQLContext, workspaceId: string): Pr
 
       return payee;
     },
-    {resource: 'Payee', operation: 'read'},
+    { resource: 'Payee', operation: 'read' }
   );
 }
 
@@ -343,7 +382,10 @@ async function getDefaultPayee(context: GraphQLContext, workspaceId: string): Pr
  * @param rules - ImportMatchRules to search
  * @returns Account ID if matched, null otherwise
  */
-function matchAccount(cardNumber: string | null, rules: Array<{pattern: string; accountId: string | null}>): string | null {
+function matchAccount(
+  cardNumber: string | null,
+  rules: Array<{ pattern: string; accountId: string | null }>
+): string | null {
   if (!cardNumber) return null;
 
   for (const rule of rules) {
@@ -361,7 +403,10 @@ function matchAccount(cardNumber: string | null, rules: Array<{pattern: string; 
  * @param rules - ImportMatchRules to search
  * @returns Category ID if matched, null otherwise
  */
-function matchCategory(description: string, rules: Array<{pattern: string; categoryId: string | null}>): string | null {
+function matchCategory(
+  description: string,
+  rules: Array<{ pattern: string; categoryId: string | null }>
+): string | null {
   const normalizedDescription = normalizeDescription(description);
   for (const rule of rules) {
     if (rule.categoryId) {
@@ -381,7 +426,10 @@ function matchCategory(description: string, rules: Array<{pattern: string; categ
  * @param rules - ImportMatchRules to search
  * @returns Payee ID if matched, null otherwise
  */
-function matchPayee(description: string, rules: Array<{pattern: string; payeeId: string | null}>): string | null {
+function matchPayee(
+  description: string,
+  rules: Array<{ pattern: string; payeeId: string | null }>
+): string | null {
   const normalizedDescription = normalizeDescription(description);
   for (const rule of rules) {
     if (rule.payeeId) {
@@ -404,9 +452,14 @@ function matchPayee(description: string, rules: Array<{pattern: string; payeeId:
  * @returns ImportedTransaction record (existing or newly created)
  */
 async function findOrCreateImportedTransaction(
-  parsed: {date: string; description: string; debit?: number | null; credit?: number | null},
+  parsed: {
+    date: string;
+    description: string;
+    debit?: number | null;
+    credit?: number | null;
+  },
   context: GraphQLContext,
-  workspaceId: string,
+  workspaceId: string
 ): Promise<{
   id: string;
   rawDate: string;
@@ -436,7 +489,9 @@ async function findOrCreateImportedTransaction(
 
       // Check if any candidate has matching normalized description
       for (const candidate of candidates) {
-        const candidateNormalized = normalizeDescription(candidate.rawDescription);
+        const candidateNormalized = normalizeDescription(
+          candidate.rawDescription
+        );
         if (candidateNormalized === normalizedDescription) {
           return {
             ...candidate,
@@ -464,7 +519,7 @@ async function findOrCreateImportedTransaction(
         rawCredit: imported.rawCredit ? Number(imported.rawCredit) : null,
       };
     },
-    {resource: 'ImportedTransaction', operation: 'create'},
+    { resource: 'ImportedTransaction', operation: 'create' }
   );
 }
 
@@ -485,35 +540,52 @@ export async function uploadPDF(
     }>;
     dateFormat?: string;
   },
-  context: GraphQLContext,
+  context: GraphQLContext
 ): Promise<{
   success: boolean;
   importedCount: number;
   savedCount: number;
-    unmappedTransactions: Array<{
-      id: string;
-      rawDate: string;
-      rawDescription: string;
-      rawDebit: number | null;
-      rawCredit: number | null;
-      suggestedAccountId: string | null;
-      suggestedCategoryId: string | null;
-      suggestedPayeeId: string | null;
-      cardNumber: string | null;
-      detectedWorkspaceId: string | null;
-    }>;
-}> {  // Handle file parameter - it might be a Promise or already resolved
+  unmappedTransactions: Array<{
+    id: string;
+    rawDate: string;
+    rawDescription: string;
+    rawDebit: number | null;
+    rawCredit: number | null;
+    suggestedAccountId: string | null;
+    suggestedCategoryId: string | null;
+    suggestedPayeeId: string | null;
+    cardNumber: string | null;
+    detectedWorkspaceId: string | null;
+  }>;
+}> {
+  // Handle file parameter - it might be a Promise or already resolved
   let fileData = file instanceof Promise ? await file : file;
 
   // If fileData is empty (Promise resolved to empty object due to serialization),
   // try to retrieve from request context
-  if (fileData && typeof fileData === 'object' && Object.keys(fileData).length === 0) {
+  if (
+    fileData &&
+    typeof fileData === 'object' &&
+    Object.keys(fileData).length === 0
+  ) {
     // Try to get file from request context (stored in multipart handler)
     // Note: This is a fallback if Promise gets serialized
     const request = context.request;
     if (request) {
       // Try to get from request.req.uploadFiles (stored directly on request object)
-      const uploadFiles = (request.req as {uploadFiles?: Record<string, {filename: string; mimetype?: string; encoding?: string; createReadStream: () => NodeJS.ReadableStream}>}).uploadFiles;
+      const uploadFiles = (
+        request.req as {
+          uploadFiles?: Record<
+            string,
+            {
+              filename: string;
+              mimetype?: string;
+              encoding?: string;
+              createReadStream: () => NodeJS.ReadableStream;
+            }
+          >;
+        }
+      ).uploadFiles;
       if (uploadFiles) {
         // Get the first file (typically there's only one)
         const fileKey = Object.keys(uploadFiles)[0];
@@ -526,30 +598,42 @@ export async function uploadPDF(
 
   // Check if fileData has the expected structure
   if (!fileData || typeof fileData !== 'object') {
-    throw new ValidationError('Invalid file upload. File data is missing or invalid.');
+    throw new ValidationError(
+      'Invalid file upload. File data is missing or invalid.'
+    );
   }
 
   // Extract file properties - handle both standard and alternative property names
-  const filename = (fileData as {filename?: string; name?: string}).filename ?? (fileData as {filename?: string; name?: string}).name;
-  const mimetype = (fileData as {mimetype?: string; type?: string}).mimetype ?? (fileData as {mimetype?: string; type?: string}).type;
-  const createReadStream = (fileData as {createReadStream?: () => NodeJS.ReadableStream}).createReadStream;
+  const filename =
+    (fileData as { filename?: string; name?: string }).filename ??
+    (fileData as { filename?: string; name?: string }).name;
+  const mimetype =
+    (fileData as { mimetype?: string; type?: string }).mimetype ??
+    (fileData as { mimetype?: string; type?: string }).type;
+  const createReadStream = (
+    fileData as { createReadStream?: () => NodeJS.ReadableStream }
+  ).createReadStream;
 
   // Validate file structure with Zod
   const validationResult = PDFFileSchema.safeParse({
     filename: filename ?? '',
-    mimetype: mimetype as typeof ALLOWED_MIME_TYPES[number] | undefined,
-    encoding: (fileData as {encoding?: string}).encoding,
+    mimetype: mimetype as (typeof ALLOWED_MIME_TYPES)[number] | undefined,
+    encoding: (fileData as { encoding?: string }).encoding,
     createReadStream,
   });
 
   if (!validationResult.success) {
-    const errors = validationResult.error.errors.map((e) => e.message).join(', ');
+    const errors = validationResult.error.errors
+      .map((e) => e.message)
+      .join(', ');
     throw new ValidationError(`Invalid file upload: ${errors}`);
   }
 
   // Additional validation for createReadStream
   if (!createReadStream || typeof createReadStream !== 'function') {
-    throw new ValidationError('Invalid file upload. File stream is missing. Please ensure the file is uploaded correctly.');
+    throw new ValidationError(
+      'Invalid file upload. File stream is missing. Please ensure the file is uploaded correctly.'
+    );
   }
 
   const fileStream = createReadStream;
@@ -567,11 +651,16 @@ export async function uploadPDF(
     readStream.on('data', (chunk: Buffer) => {
       totalSize += chunk.length;
       if (totalSize > MAX_FILE_SIZE) {
-        if ('destroy' in readStream && typeof readStream.destroy === 'function') {
+        if (
+          'destroy' in readStream &&
+          typeof readStream.destroy === 'function'
+        ) {
           readStream.destroy();
         }
         writeStream.destroy();
-        throw new ValidationError(`File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+        throw new ValidationError(
+          `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`
+        );
       }
     });
 
@@ -579,7 +668,7 @@ export async function uploadPDF(
       await streamPipeline(readStream, writeStream);
     } catch (error) {
       // Clean up on error during stream
-      const {unlinkSync} = await import('fs');
+      const { unlinkSync } = await import('fs');
       try {
         unlinkSync(tempPath);
       } catch {
@@ -593,41 +682,51 @@ export async function uploadPDF(
     // This is a limitation of the library, not our implementation
     // For production, consider monitoring memory usage and potentially
     // using alternative PDF parsing libraries that support streaming
-    const {readFileSync} = await import('fs');
+    const { readFileSync } = await import('fs');
     const buffer: Buffer = readFileSync(tempPath) as Buffer;
 
     // Validate file content using magic numbers (more secure than extension/MIME type)
     if (!validateFileMagicNumber(buffer, 'pdf')) {
-      const {unlinkSync} = await import('fs');
+      const { unlinkSync } = await import('fs');
       try {
         unlinkSync(tempPath);
       } catch {
         // Ignore cleanup errors
       }
-      throw new ValidationError('Invalid file content. File does not appear to be a valid PDF file.');
+      throw new ValidationError(
+        'Invalid file content. File does not appear to be a valid PDF file.'
+      );
     }
 
     // Parse PDF with date format (default to DD/MM/YYYY)
     const parsedData = await parsePDF(buffer, dateFormat ?? 'DD/MM/YYYY');
-    const {cardNumber, transactions} = parsedData;
+    const { cardNumber, transactions } = parsedData;
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Get defaults and match rules
-    const [defaultAccount, _defaultCategory, _defaultPayee, matchRules, creditCardAccount] = await Promise.all([
+    const [
+      defaultAccount,
+      _defaultCategory,
+      _defaultPayee,
+      matchRules,
+      creditCardAccount,
+    ] = await Promise.all([
       getDefaultAccount(context, workspaceId),
       getDefaultCategory(context, workspaceId),
       getDefaultPayee(context, workspaceId),
       withPrismaErrorHandling(
         async () =>
           await context.prisma.importMatchRule.findMany({
-            where: {userId: context.userId},
+            where: { userId: context.userId },
           }),
-        {resource: 'ImportMatchRule', operation: 'read'},
+        { resource: 'ImportMatchRule', operation: 'read' }
       ),
       // Find first CreditCard account for fallback
       context.prisma.account.findFirst({
@@ -662,120 +761,136 @@ export async function uploadPDF(
 
       const batchResults = await Promise.all(
         batch.map(async (parsed) => {
-      // Calculate value (use absolute value)
-      const value = Math.abs(parsed.debit ?? parsed.credit ?? 0);
-      if (value === 0) return false; // Skip transactions with no value
+          // Calculate value (use absolute value)
+          const value = Math.abs(parsed.debit ?? parsed.credit ?? 0);
+          if (value === 0) return false; // Skip transactions with no value
 
-      // Match account from card number
-      const matchedAccountId = matchAccount(cardNumber, matchRules);
-      // If no Card Number Mapping match, use first CreditCard account, otherwise default account
-      const accountId = matchedAccountId ?? creditCardAccount?.id ?? defaultAccount.id;
+          // Match account from card number
+          const matchedAccountId = matchAccount(cardNumber, matchRules);
+          // If no Card Number Mapping match, use first CreditCard account, otherwise default account
+          const accountId =
+            matchedAccountId ?? creditCardAccount?.id ?? defaultAccount.id;
 
-      // Match category and payee from description
-      const matchedCategoryId = matchCategory(parsed.description, matchRules);
-      const matchedPayeeId = matchPayee(parsed.description, matchRules);
+          // Match category and payee from description
+          const matchedCategoryId = matchCategory(
+            parsed.description,
+            matchRules
+          );
+          const matchedPayeeId = matchPayee(parsed.description, matchRules);
 
-      // Check if all mappings are found (account, category, payee)
-      // We consider it fully mapped if account is matched (not default) and category/payee are matched
-      const isFullyMapped = matchedAccountId !== null && matchedCategoryId !== null && matchedPayeeId !== null;
+          // Check if all mappings are found (account, category, payee)
+          // We consider it fully mapped if account is matched (not default) and category/payee are matched
+          const isFullyMapped =
+            matchedAccountId !== null &&
+            matchedCategoryId !== null &&
+            matchedPayeeId !== null;
 
-      if (isFullyMapped) {
-        // Save transaction immediately
-        try {
-          // Parse date
-          const date = parseDate(parsed.date);
+          if (isFullyMapped) {
+            // Save transaction immediately
+            try {
+              // Parse date
+              const date = parseDate(parsed.date);
 
-          // Get category to determine balance delta
-          const category = await context.prisma.category.findUnique({
-            where: {id: matchedCategoryId},
-            select: {categoryType: true},
-          });
+              // Get category to determine balance delta
+              const category = await context.prisma.category.findUnique({
+                where: { id: matchedCategoryId },
+                select: { categoryType: true },
+              });
 
-          // Calculate balance delta based on category type
-          const balanceDelta = category?.categoryType === 'Income' ? value : -value;
+              // Calculate balance delta based on category type
+              const balanceDelta =
+                category?.categoryType === 'Income' ? value : -value;
 
-          // Create transaction and update balance atomically
-          await context.prisma.$transaction(async (tx) => {
-            const newTransaction = await tx.transaction.create({
-              data: {
-                value,
-                date,
-                accountId,
-                categoryId: matchedCategoryId,
-                payeeId: matchedPayeeId,
-                note: parsed.description,
-                createdBy: context.userId,
-                lastEditedBy: context.userId,
-              },
-            });
+              // Create transaction and update balance atomically
+              await context.prisma.$transaction(async (tx) => {
+                const newTransaction = await tx.transaction.create({
+                  data: {
+                    value,
+                    date,
+                    accountId,
+                    categoryId: matchedCategoryId,
+                    payeeId: matchedPayeeId,
+                    note: parsed.description,
+                    createdBy: context.userId,
+                    lastEditedBy: context.userId,
+                  },
+                });
 
-            await incrementAccountBalance(accountId, balanceDelta, tx);
+                await incrementAccountBalance(accountId, balanceDelta, tx);
 
-            // Get account to find workspaceId for budget updates
-            const account = await tx.account.findUnique({
-              where: {id: accountId},
-              select: {workspaceId: true},
-            });
+                // Get account to find workspaceId for budget updates
+                const account = await tx.account.findUnique({
+                  where: { id: accountId },
+                  select: { workspaceId: true },
+                });
 
-            // Update budgets for this transaction
-            if (account) {
-              await updateBudgetForTransaction(
-                {
-                  id: newTransaction.id,
-                  accountId: newTransaction.accountId,
-                  categoryId: newTransaction.categoryId,
-                  payeeId: newTransaction.payeeId,
-                  userId: context.userId,
-                  workspaceId: account.workspaceId,
-                  value: Number(newTransaction.value),
-                  date: newTransaction.date,
-                  categoryType: category?.categoryType ?? null,
-                },
-                'create',
-                undefined,
-                tx,
+                // Update budgets for this transaction
+                if (account) {
+                  await updateBudgetForTransaction(
+                    {
+                      id: newTransaction.id,
+                      accountId: newTransaction.accountId,
+                      categoryId: newTransaction.categoryId,
+                      payeeId: newTransaction.payeeId,
+                      userId: context.userId,
+                      workspaceId: account.workspaceId,
+                      value: Number(newTransaction.value),
+                      date: newTransaction.date,
+                      categoryType: category?.categoryType ?? null,
+                    },
+                    'create',
+                    undefined,
+                    tx
+                  );
+                }
+              });
+
+              return true; // Successfully saved
+            } catch {
+              // If save fails, add to unmapped list
+              const imported = await findOrCreateImportedTransaction(
+                parsed,
+                context,
+                workspaceId
               );
+
+              unmappedTransactions.push({
+                id: imported.id,
+                rawDate: parsed.date,
+                rawDescription: parsed.description,
+                rawDebit: parsed.debit ?? null,
+                rawCredit: parsed.credit ?? null,
+                suggestedAccountId: accountId,
+                suggestedCategoryId: matchedCategoryId,
+                suggestedPayeeId: matchedPayeeId,
+                cardNumber,
+                detectedWorkspaceId: null, // Will be set after detection
+              });
+              return false; // Not saved
             }
-          });
+          } else {
+            // Add to unmapped list - use findOrCreate to prevent duplicates
+            const imported = await findOrCreateImportedTransaction(
+              parsed,
+              context,
+              workspaceId
+            );
 
-          return true; // Successfully saved
-        } catch {
-          // If save fails, add to unmapped list
-          const imported = await findOrCreateImportedTransaction(parsed, context, workspaceId);
-
-          unmappedTransactions.push({
-            id: imported.id,
-            rawDate: parsed.date,
-            rawDescription: parsed.description,
-            rawDebit: parsed.debit ?? null,
-            rawCredit: parsed.credit ?? null,
-            suggestedAccountId: accountId,
-            suggestedCategoryId: matchedCategoryId,
-            suggestedPayeeId: matchedPayeeId,
-            cardNumber,
-            detectedWorkspaceId: null, // Will be set after detection
-          });
-          return false; // Not saved
-        }
-      } else {
-        // Add to unmapped list - use findOrCreate to prevent duplicates
-        const imported = await findOrCreateImportedTransaction(parsed, context, workspaceId);
-
-        unmappedTransactions.push({
-          id: imported.id,
-          rawDate: parsed.date,
-          rawDescription: parsed.description,
-          rawDebit: parsed.debit ?? null,
-          rawCredit: parsed.credit ?? null,
-          suggestedAccountId: accountId,
-          suggestedCategoryId: matchedCategoryId,
-          suggestedPayeeId: matchedPayeeId,
-          cardNumber,
-          detectedWorkspaceId: null, // Will be set after detection
-        });
-        return false; // Not saved (unmapped)
-      }
-        }),
+            unmappedTransactions.push({
+              id: imported.id,
+              rawDate: parsed.date,
+              rawDescription: parsed.description,
+              rawDebit: parsed.debit ?? null,
+              rawCredit: parsed.credit ?? null,
+              suggestedAccountId: accountId,
+              suggestedCategoryId: matchedCategoryId,
+              suggestedPayeeId: matchedPayeeId,
+              cardNumber,
+              detectedWorkspaceId: null, // Will be set after detection
+            });
+            return false; // Not saved (unmapped)
+          }
+        })
       );
 
       // Count successful saves from this batch
@@ -785,18 +900,21 @@ export async function uploadPDF(
     // Deduplicate unmapped transactions by raw description, date, and amount
     // This prevents showing truly duplicate transactions while preserving unique identifiers
     // Use composite key: rawDescription + date + debit + credit
-    const deduplicationKeyMap = new Map<string, {
-      id: string;
-      rawDate: string;
-      rawDescription: string;
-      rawDebit: number | null;
-      rawCredit: number | null;
-      suggestedAccountId: string | null;
-      suggestedCategoryId: string | null;
-      suggestedPayeeId: string | null;
-      cardNumber: string | null;
-      detectedWorkspaceId: string | null;
-    }>();
+    const deduplicationKeyMap = new Map<
+      string,
+      {
+        id: string;
+        rawDate: string;
+        rawDescription: string;
+        rawDebit: number | null;
+        rawCredit: number | null;
+        suggestedAccountId: string | null;
+        suggestedCategoryId: string | null;
+        suggestedPayeeId: string | null;
+        cardNumber: string | null;
+        detectedWorkspaceId: string | null;
+      }
+    >();
 
     for (const unmapped of unmappedTransactions) {
       // Create composite key: rawDescription + date + debit + credit
@@ -823,21 +941,22 @@ export async function uploadPDF(
     await Promise.all(
       deduplicatedUnmapped.map(async (unmapped) => {
         try {
-          const detectedWorkspaceId = await workspaceDetectionService.detectWorkspaceForTransaction(
-            {
-              id: unmapped.id,
-              accountId: unmapped.suggestedAccountId ?? null,
-              categoryId: unmapped.suggestedCategoryId ?? null,
-              payeeId: unmapped.suggestedPayeeId ?? null,
-              workspaceId: defaultWorkspaceId,
-            },
-            context.userId,
-          );
+          const detectedWorkspaceId =
+            await workspaceDetectionService.detectWorkspaceForTransaction(
+              {
+                id: unmapped.id,
+                accountId: unmapped.suggestedAccountId ?? null,
+                categoryId: unmapped.suggestedCategoryId ?? null,
+                payeeId: unmapped.suggestedPayeeId ?? null,
+                workspaceId: defaultWorkspaceId,
+              },
+              context.userId
+            );
 
           await workspaceDetectionService.cacheDetectedWorkspace(
             unmapped.id,
             detectedWorkspaceId,
-            context.userId,
+            context.userId
           );
 
           // Add detectedWorkspaceId to unmapped transaction
@@ -846,7 +965,7 @@ export async function uploadPDF(
           // If detection fails, use default workspace
           unmapped.detectedWorkspaceId = defaultWorkspaceId;
         }
-      }),
+      })
     );
 
     return {
@@ -857,7 +976,7 @@ export async function uploadPDF(
     };
   } finally {
     // Clean up temp file - always execute, even if error occurs
-    const {unlinkSync} = await import('fs');
+    const { unlinkSync } = await import('fs');
     try {
       unlinkSync(tempPath);
     } catch {
@@ -971,14 +1090,16 @@ export async function saveImportedTransactions(
       }>;
     };
   },
-  context: GraphQLContext,
+  context: GraphQLContext
 ): Promise<{
   success: boolean;
   savedCount: number;
   errors: string[];
 }> {
   // Get workspace ID from context (default to user's default workspace)
-  const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+  const workspaceId =
+    context.currentWorkspaceId ??
+    (await getUserDefaultWorkspace(context.userId));
 
   // Verify workspace access
   await checkWorkspaceAccess(workspaceId, context.userId);
@@ -988,21 +1109,23 @@ export async function saveImportedTransactions(
 
   // Process in a batch transaction
   // Check if constraint exists and drop it if present (migration should have removed it, but ensure it's gone)
-  const constraintCheck = await context.prisma.$queryRaw<Array<{conname: string}>>`
+  const constraintCheck = await context.prisma.$queryRaw<
+    Array<{ conname: string }>
+  >`
     SELECT conname FROM pg_constraint WHERE conname = 'Account_balance_check'
   `;
   const constraintExists = constraintCheck.length > 0;
-  
+
   if (constraintExists) {
     try {
       await context.prisma.$executeRaw`
         ALTER TABLE "Account" DROP CONSTRAINT IF EXISTS "Account_balance_check"
       `;
-    } catch (error) {
+    } catch {
       // Ignore errors - constraint might not exist or might be in use
     }
   }
-  
+
   await context.prisma.$transaction(async (tx) => {
     // 1. Create ImportMatchRules for card number if provided
     if (mapping.cardNumber && mapping.cardAccountId) {
@@ -1039,7 +1162,10 @@ export async function saveImportedTransactions(
     }
 
     // 2. Create ImportMatchRules for each description mapping
-    const descriptionPatterns = new Map<string, {accountId: string; categoryId?: string | null; payeeId?: string | null}>();
+    const descriptionPatterns = new Map<
+      string,
+      { accountId: string; categoryId?: string | null; payeeId?: string | null }
+    >();
     for (const descMapping of mapping.descriptionMappings) {
       // Validate account
       const account = await tx.account.findFirst({
@@ -1050,7 +1176,9 @@ export async function saveImportedTransactions(
       });
 
       if (!account) {
-        errors.push(`Account not found for description: ${descMapping.description}`);
+        errors.push(
+          `Account not found for description: ${descMapping.description}`
+        );
         continue;
       }
 
@@ -1064,7 +1192,9 @@ export async function saveImportedTransactions(
         });
 
         if (!category) {
-          errors.push(`Category not found for description: ${descMapping.description}`);
+          errors.push(
+            `Category not found for description: ${descMapping.description}`
+          );
           continue;
         }
       }
@@ -1079,13 +1209,17 @@ export async function saveImportedTransactions(
         });
 
         if (!payee) {
-          errors.push(`Payee not found for description: ${descMapping.description}`);
+          errors.push(
+            `Payee not found for description: ${descMapping.description}`
+          );
           continue;
         }
       }
 
       // Normalize description for matching
-      const normalizedDescription = normalizeDescription(descMapping.description);
+      const normalizedDescription = normalizeDescription(
+        descMapping.description
+      );
 
       // Store pattern for matching (use normalized description as key)
       descriptionPatterns.set(normalizedDescription, {
@@ -1134,12 +1268,13 @@ export async function saveImportedTransactions(
         categoryIds.add(descMapping.categoryId);
       }
     }
-    const categories = categoryIds.size > 0
-      ? await tx.category.findMany({
-          where: {id: {in: Array.from(categoryIds)}},
-          select: {id: true, categoryType: true},
-        })
-      : [];
+    const categories =
+      categoryIds.size > 0
+        ? await tx.category.findMany({
+            where: { id: { in: Array.from(categoryIds) } },
+            select: { id: true, categoryType: true },
+          })
+        : [];
     const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
     // Process transactions - collect for potential batch create
@@ -1161,7 +1296,9 @@ export async function saveImportedTransactions(
 
     for (const imported of allUnmapped) {
       // Normalize description before matching
-      const normalizedDescription = normalizeDescription(imported.rawDescription);
+      const normalizedDescription = normalizeDescription(
+        imported.rawDescription
+      );
       const descMapping = descriptionPatterns.get(normalizedDescription);
       if (!descMapping) {
         continue; // Skip if no mapping for this description
@@ -1177,17 +1314,21 @@ export async function saveImportedTransactions(
             id: descMapping.accountId,
             workspaceId,
           },
-          select: {id: true},
+          select: { id: true },
         });
 
         if (!account) {
           // Account doesn't belong to detected workspace, skip this transaction
-          errors.push(`Transaction ${imported.id}: Account does not belong to detected workspace`);
+          errors.push(
+            `Transaction ${imported.id}: Account does not belong to detected workspace`
+          );
           continue;
         }
 
         // Calculate value
-        const value = Math.abs(Number(imported.rawDebit ?? imported.rawCredit ?? 0));
+        const value = Math.abs(
+          Number(imported.rawDebit ?? imported.rawCredit ?? 0)
+        );
         if (value === 0) {
           continue; // Skip zero-value transactions
         }
@@ -1196,10 +1337,13 @@ export async function saveImportedTransactions(
         const date = parseDate(imported.rawDate);
 
         // Get category to determine balance delta
-        const category = descMapping.categoryId ? categoryMap.get(descMapping.categoryId) ?? null : null;
+        const category = descMapping.categoryId
+          ? (categoryMap.get(descMapping.categoryId) ?? null)
+          : null;
 
         // Calculate balance delta based on category type
-        const balanceDelta = category?.categoryType === 'Income' ? value : -value;
+        const balanceDelta =
+          category?.categoryType === 'Income' ? value : -value;
 
         transactionsToCreate.push({
           value,
@@ -1214,7 +1358,8 @@ export async function saveImportedTransactions(
           balanceDelta,
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         errors.push(`Transaction ${imported.id}: ${errorMessage}`);
       }
     }
@@ -1229,7 +1374,7 @@ export async function saveImportedTransactions(
       try {
         // Create savepoint
         await tx.$executeRawUnsafe(`SAVEPOINT ${savepointId}`);
-        
+
         // Create transaction
         const transaction = await tx.transaction.create({
           data: {
@@ -1245,7 +1390,11 @@ export async function saveImportedTransactions(
         });
 
         // Update account balance
-        await incrementAccountBalance(txData.accountId, txData.balanceDelta, tx);
+        await incrementAccountBalance(
+          txData.accountId,
+          txData.balanceDelta,
+          tx
+        );
 
         // Update budgets for this transaction
         await updateBudgetForTransaction(
@@ -1262,12 +1411,12 @@ export async function saveImportedTransactions(
           },
           'create',
           undefined,
-          tx,
+          tx
         );
 
         // Mark ImportedTransaction as matched
         await tx.importedTransaction.update({
-          where: {id: txData.importedId},
+          where: { id: txData.importedId },
           data: {
             matched: true,
             transactionId: transaction.id,
@@ -1276,7 +1425,7 @@ export async function saveImportedTransactions(
 
         // Release savepoint on success
         await tx.$executeRawUnsafe(`RELEASE SAVEPOINT ${savepointId}`);
-        
+
         savedCount++;
       } catch (error) {
         // Rollback to savepoint on error to allow other transactions to continue
@@ -1285,7 +1434,8 @@ export async function saveImportedTransactions(
         } catch {
           // If rollback fails, the transaction is already aborted
         }
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         errors.push(`Transaction ${txData.importedId}: ${errorMessage}`);
       }
     }
@@ -1304,7 +1454,7 @@ export async function saveImportedTransactions(
 export async function deleteUnmappedImportedTransactions(
   _: unknown,
   __: unknown,
-  context: GraphQLContext,
+  context: GraphQLContext
 ): Promise<boolean> {
   await withPrismaErrorHandling(
     async () => {
@@ -1315,7 +1465,7 @@ export async function deleteUnmappedImportedTransactions(
         },
       });
     },
-    {resource: 'ImportedTransaction', operation: 'delete'},
+    { resource: 'ImportedTransaction', operation: 'delete' }
   );
 
   return true;
@@ -1326,8 +1476,8 @@ export async function deleteUnmappedImportedTransactions(
  */
 export async function matchImportedTransaction(
   _: unknown,
-  {importedId, transactionId}: {importedId: string; transactionId: string},
-  context: GraphQLContext,
+  { importedId, transactionId }: { importedId: string; transactionId: string },
+  context: GraphQLContext
 ): Promise<{
   id: string;
   rawDate: string;
@@ -1355,7 +1505,9 @@ export async function matchImportedTransaction(
       }
 
       // Get workspace ID from context (default to user's default workspace)
-      const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+      const workspaceId =
+        context.currentWorkspaceId ??
+        (await getUserDefaultWorkspace(context.userId));
 
       // Verify workspace access
       await checkWorkspaceAccess(workspaceId, context.userId);
@@ -1376,7 +1528,7 @@ export async function matchImportedTransaction(
 
       // Update imported transaction
       const updated = await context.prisma.importedTransaction.update({
-        where: {id: importedId},
+        where: { id: importedId },
         data: {
           matched: true,
           transactionId,
@@ -1389,7 +1541,7 @@ export async function matchImportedTransaction(
         rawCredit: updated.rawCredit ? Number(updated.rawCredit) : null,
       };
     },
-    {resource: 'ImportedTransaction', operation: 'update'},
+    { resource: 'ImportedTransaction', operation: 'update' }
   );
 }
 
@@ -1434,7 +1586,9 @@ function parseCSVLine(line: string): string[] {
  */
 function validateCSVFileExtension(filename: string): boolean {
   const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
-  return ALLOWED_CSV_EXTENSIONS.includes(ext as typeof ALLOWED_CSV_EXTENSIONS[number]);
+  return ALLOWED_CSV_EXTENSIONS.includes(
+    ext as (typeof ALLOWED_CSV_EXTENSIONS)[number]
+  );
 }
 
 /**
@@ -1456,7 +1610,7 @@ export async function importCSV(
     }>;
     entityType: string;
   },
-  context: GraphQLContext,
+  context: GraphQLContext
 ): Promise<{
   success: boolean;
   created: number;
@@ -1467,10 +1621,26 @@ export async function importCSV(
 
   // If fileData is empty (Promise resolved to empty object due to serialization),
   // try to retrieve from request context
-  if (fileData && typeof fileData === 'object' && Object.keys(fileData).length === 0) {
+  if (
+    fileData &&
+    typeof fileData === 'object' &&
+    Object.keys(fileData).length === 0
+  ) {
     // Try to get file from request context (stored in multipart handler)
     // Note: This is a fallback if Promise gets serialized
-    const request = context.request as {uploadFiles?: Record<string, {filename: string; mimetype?: string; encoding?: string; createReadStream: () => NodeJS.ReadableStream}>} | undefined;
+    const request = context.request as
+      | {
+          uploadFiles?: Record<
+            string,
+            {
+              filename: string;
+              mimetype?: string;
+              encoding?: string;
+              createReadStream: () => NodeJS.ReadableStream;
+            }
+          >;
+        }
+      | undefined;
     if (request?.uploadFiles) {
       // Get the first file (typically there's only one)
       const fileKey = Object.keys(request.uploadFiles)[0];
@@ -1482,15 +1652,29 @@ export async function importCSV(
 
   // Check if fileData has the expected structure
   if (!fileData || typeof fileData !== 'object') {
-    throw new ValidationError('Invalid file upload. File data is missing or invalid.');
+    throw new ValidationError(
+      'Invalid file upload. File data is missing or invalid.'
+    );
   }
 
   // Extract file properties - handle both standard and alternative property names
-  const filename = ('filename' in fileData && typeof fileData.filename === 'string' ? fileData.filename : (fileData as {name?: string}).name) ?? '';
-  const mimetype = ('mimetype' in fileData && typeof fileData.mimetype === 'string' ? fileData.mimetype : (fileData as {type?: string}).type) ?? undefined;
-  const createUploadStream: () => NodeJS.ReadableStream = ('createReadStream' in fileData && typeof fileData.createReadStream === 'function' ? fileData.createReadStream : (): NodeJS.ReadableStream => {
-    throw new ValidationError('File stream is not available. The file may have been corrupted during upload.');
-  });
+  const filename =
+    ('filename' in fileData && typeof fileData.filename === 'string'
+      ? fileData.filename
+      : (fileData as { name?: string }).name) ?? '';
+  const mimetype =
+    ('mimetype' in fileData && typeof fileData.mimetype === 'string'
+      ? fileData.mimetype
+      : (fileData as { type?: string }).type) ?? undefined;
+  const createUploadStream: () => NodeJS.ReadableStream =
+    'createReadStream' in fileData &&
+    typeof fileData.createReadStream === 'function'
+      ? fileData.createReadStream
+      : (): NodeJS.ReadableStream => {
+          throw new ValidationError(
+            'File stream is not available. The file may have been corrupted during upload.'
+          );
+        };
 
   // Validate entity type
   const validEntityTypes = [
@@ -1504,20 +1688,31 @@ export async function importCSV(
     'importMatchRules',
   ];
   if (!validEntityTypes.includes(entityType)) {
-    throw new ValidationError(`Invalid entity type. Must be one of: ${validEntityTypes.join(', ')}`);
+    throw new ValidationError(
+      `Invalid entity type. Must be one of: ${validEntityTypes.join(', ')}`
+    );
   }
 
   // Validate MIME type (allow CSV and plain text)
-  if (mimetype && !ALLOWED_CSV_MIME_TYPES.includes(mimetype as typeof ALLOWED_CSV_MIME_TYPES[number])) {
+  if (
+    mimetype &&
+    !ALLOWED_CSV_MIME_TYPES.includes(
+      mimetype as (typeof ALLOWED_CSV_MIME_TYPES)[number]
+    )
+  ) {
     // Some browsers may send different MIME types, so we'll be lenient
     if (!mimetype.includes('csv') && !mimetype.includes('text')) {
-      throw new ValidationError(`Invalid file type. Only CSV files are allowed. Received: ${mimetype}`);
+      throw new ValidationError(
+        `Invalid file type. Only CSV files are allowed. Received: ${mimetype}`
+      );
     }
   }
 
   // Validate file extension
   if (!validateCSVFileExtension(filename)) {
-    throw new ValidationError(`Invalid file extension. Only .csv files are allowed.`);
+    throw new ValidationError(
+      `Invalid file extension. Only .csv files are allowed.`
+    );
   }
 
   // Sanitize filename
@@ -1534,11 +1729,16 @@ export async function importCSV(
     readStream.on('data', (chunk: Buffer) => {
       totalSize += chunk.length;
       if (totalSize > MAX_CSV_FILE_SIZE) {
-        if ('destroy' in readStream && typeof readStream.destroy === 'function') {
+        if (
+          'destroy' in readStream &&
+          typeof readStream.destroy === 'function'
+        ) {
           readStream.destroy();
         }
         writeStream.destroy();
-        throw new ValidationError(`File size exceeds maximum allowed size of ${MAX_CSV_FILE_SIZE / 1024 / 1024}MB`);
+        throw new ValidationError(
+          `File size exceeds maximum allowed size of ${MAX_CSV_FILE_SIZE / 1024 / 1024}MB`
+        );
       }
     });
 
@@ -1546,7 +1746,7 @@ export async function importCSV(
       await streamPipeline(readStream, writeStream);
     } catch (error) {
       // Clean up on error during stream
-      const {unlinkSync} = await import('fs');
+      const { unlinkSync } = await import('fs');
       try {
         unlinkSync(tempPath);
       } catch {
@@ -1556,25 +1756,29 @@ export async function importCSV(
     }
 
     // Validate file content using magic numbers (read first few bytes)
-    const {readFileSync: readFileSyncCSV} = await import('fs');
+    const { readFileSync: readFileSyncCSV } = await import('fs');
     const fileBuffer = readFileSyncCSV(tempPath);
-    const firstBytes = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    const firstBytes = Buffer.isBuffer(fileBuffer)
+      ? fileBuffer
+      : Buffer.from(fileBuffer);
     if (!validateFileMagicNumber(firstBytes, 'csv')) {
-      const {unlinkSync} = await import('fs');
+      const { unlinkSync } = await import('fs');
       try {
         unlinkSync(tempPath);
       } catch {
         // Ignore cleanup errors
       }
-      throw new ValidationError('Invalid file content. File does not appear to be a valid CSV/text file.');
+      throw new ValidationError(
+        'Invalid file content. File does not appear to be a valid CSV/text file.'
+      );
     }
 
     // Stream CSV parsing line-by-line to avoid loading entire file into memory
     // This is more memory-efficient for large CSV files
-    const {createReadStream} = await import('fs');
-    const {createInterface} = await import('readline');
+    const { createReadStream } = await import('fs');
+    const { createInterface } = await import('readline');
 
-    const fileStream = createReadStream(tempPath, {encoding: 'utf-8'});
+    const fileStream = createReadStream(tempPath, { encoding: 'utf-8' });
     const rl = createInterface({
       input: fileStream,
       crlfDelay: Infinity, // Handle Windows line endings
@@ -1606,7 +1810,9 @@ export async function importCSV(
     }
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -1624,101 +1830,123 @@ export async function importCSV(
           continue;
         }
         try {
-            let wasUpdated = false;
-            if (entityType === 'accounts') {
-              if (row.id) {
-                const existing = await tx.account.findFirst({where: {id: row.id, workspaceId}});
-                wasUpdated = existing !== null;
-              }
-              await importAccount(row, tx, workspaceId, context.userId);
-              if (wasUpdated) {
-                updated++;
-              } else {
-                created++;
-              }
-            } else if (entityType === 'categories') {
-              if (row.id) {
-                const existing = await tx.category.findFirst({where: {id: row.id, workspaceId}});
-                wasUpdated = existing !== null;
-              }
-              await importCategory(row, tx, workspaceId, context.userId);
-              if (wasUpdated) {
-                updated++;
-              } else {
-                created++;
-              }
-            } else if (entityType === 'payees') {
-              if (row.id) {
-                const existing = await tx.payee.findFirst({where: {id: row.id, workspaceId}});
-                wasUpdated = existing !== null;
-              }
-              await importPayee(row, tx, workspaceId, context.userId);
-              if (wasUpdated) {
-                updated++;
-              } else {
-                created++;
-              }
-            } else if (entityType === 'transactions') {
-              if (row.id) {
-                const existing = await tx.transaction.findFirst({where: {id: row.id, account: {workspaceId}}});
-                wasUpdated = existing !== null;
-              }
-              await importTransaction(row, tx, workspaceId, context.userId);
-              if (wasUpdated) {
-                updated++;
-              } else {
-                created++;
-              }
-            } else if (entityType === 'recurringTransactions') {
-              if (row.id) {
-                const existing = await tx.recurringTransaction.findFirst({where: {id: row.id, account: {workspaceId}}});
-                wasUpdated = existing !== null;
-              }
-              await importRecurringTransaction(row, tx, workspaceId, context.userId);
-              if (wasUpdated) {
-                updated++;
-              } else {
-                created++;
-              }
-            } else if (entityType === 'preferences') {
-              // Preferences are always upserted (one per user)
-              const existing = await tx.userPreferences.findUnique({where: {userId: context.userId}});
+          let wasUpdated = false;
+          if (entityType === 'accounts') {
+            if (row.id) {
+              const existing = await tx.account.findFirst({
+                where: { id: row.id, workspaceId },
+              });
               wasUpdated = existing !== null;
-              await importPreferences(row, tx, context.userId);
-              if (wasUpdated) {
-                updated++;
-              } else {
-                created++;
-              }
-            } else if (entityType === 'budgets') {
-              if (row.id) {
-                const existing = await tx.budget.findFirst({where: {id: row.id, workspaceId}});
-                wasUpdated = existing !== null;
-              }
-              await importBudget(row, tx, workspaceId, context.userId);
-              if (wasUpdated) {
-                updated++;
-              } else {
-                created++;
-              }
-            } else if (entityType === 'importMatchRules') {
-              if (row.id) {
-                const existing = await tx.importMatchRule.findFirst({where: {id: row.id, userId: context.userId}});
-                wasUpdated = existing !== null;
-              }
-              await importImportMatchRule(row, tx, context.userId, workspaceId);
-              if (wasUpdated) {
-                updated++;
-              } else {
-                created++;
-              }
             }
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            errors.push(`Row ${i + 1}: ${errorMessage}`);
+            await importAccount(row, tx, workspaceId, context.userId);
+            if (wasUpdated) {
+              updated++;
+            } else {
+              created++;
+            }
+          } else if (entityType === 'categories') {
+            if (row.id) {
+              const existing = await tx.category.findFirst({
+                where: { id: row.id, workspaceId },
+              });
+              wasUpdated = existing !== null;
+            }
+            await importCategory(row, tx, workspaceId, context.userId);
+            if (wasUpdated) {
+              updated++;
+            } else {
+              created++;
+            }
+          } else if (entityType === 'payees') {
+            if (row.id) {
+              const existing = await tx.payee.findFirst({
+                where: { id: row.id, workspaceId },
+              });
+              wasUpdated = existing !== null;
+            }
+            await importPayee(row, tx, workspaceId, context.userId);
+            if (wasUpdated) {
+              updated++;
+            } else {
+              created++;
+            }
+          } else if (entityType === 'transactions') {
+            if (row.id) {
+              const existing = await tx.transaction.findFirst({
+                where: { id: row.id, account: { workspaceId } },
+              });
+              wasUpdated = existing !== null;
+            }
+            await importTransaction(row, tx, workspaceId, context.userId);
+            if (wasUpdated) {
+              updated++;
+            } else {
+              created++;
+            }
+          } else if (entityType === 'recurringTransactions') {
+            if (row.id) {
+              const existing = await tx.recurringTransaction.findFirst({
+                where: { id: row.id, account: { workspaceId } },
+              });
+              wasUpdated = existing !== null;
+            }
+            await importRecurringTransaction(
+              row,
+              tx,
+              workspaceId,
+              context.userId
+            );
+            if (wasUpdated) {
+              updated++;
+            } else {
+              created++;
+            }
+          } else if (entityType === 'preferences') {
+            // Preferences are always upserted (one per user)
+            const existing = await tx.userPreferences.findUnique({
+              where: { userId: context.userId },
+            });
+            wasUpdated = existing !== null;
+            await importPreferences(row, tx, context.userId);
+            if (wasUpdated) {
+              updated++;
+            } else {
+              created++;
+            }
+          } else if (entityType === 'budgets') {
+            if (row.id) {
+              const existing = await tx.budget.findFirst({
+                where: { id: row.id, workspaceId },
+              });
+              wasUpdated = existing !== null;
+            }
+            await importBudget(row, tx, workspaceId, context.userId);
+            if (wasUpdated) {
+              updated++;
+            } else {
+              created++;
+            }
+          } else if (entityType === 'importMatchRules') {
+            if (row.id) {
+              const existing = await tx.importMatchRule.findFirst({
+                where: { id: row.id, userId: context.userId },
+              });
+              wasUpdated = existing !== null;
+            }
+            await importImportMatchRule(row, tx, context.userId, workspaceId);
+            if (wasUpdated) {
+              updated++;
+            } else {
+              created++;
+            }
           }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          errors.push(`Row ${i + 1}: ${errorMessage}`);
         }
-      });
+      }
+    });
 
     return {
       success: errors.length === 0,
@@ -1728,7 +1956,7 @@ export async function importCSV(
     };
   } finally {
     // Clean up temp file - always execute, even if error occurs
-    const {unlinkSync} = await import('fs');
+    const { unlinkSync } = await import('fs');
     try {
       unlinkSync(tempPath);
     } catch {
@@ -1742,9 +1970,12 @@ export async function importCSV(
  */
 async function importAccount(
   row: Record<string, string>,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  tx: Omit<
+    PrismaClient,
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+  >,
   workspaceId: string,
-  userId: string,
+  userId: string
 ): Promise<void> {
   if (!row.name) {
     throw new ValidationError('Account name is required');
@@ -1755,7 +1986,13 @@ async function importAccount(
     initBalance: row.initBalance ? parseFloat(row.initBalance) : 0,
     balance: row.initBalance ? parseFloat(row.initBalance) : 0,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
-    accountType: (row.accountType as 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans') ?? 'Cash',
+    accountType:
+      (row.accountType as
+        | 'Cash'
+        | 'CreditCard'
+        | 'Bank'
+        | 'Saving'
+        | 'Loans') ?? 'Cash',
     workspaceId,
     createdBy: userId,
     lastEditedBy: userId,
@@ -1764,11 +2001,11 @@ async function importAccount(
   if (row.id) {
     // Check if account exists and belongs to workspace
     const existing = await tx.account.findFirst({
-      where: {id: row.id, workspaceId},
+      where: { id: row.id, workspaceId },
     });
     if (existing) {
       await tx.account.update({
-        where: {id: row.id},
+        where: { id: row.id },
         data: {
           name: data.name,
           initBalance: data.initBalance,
@@ -1783,7 +2020,7 @@ async function importAccount(
 
   // Create new account
   await tx.account.create({
-    data: row.id ? {...data, id: row.id} : data,
+    data: row.id ? { ...data, id: row.id } : data,
   });
 }
 
@@ -1792,9 +2029,12 @@ async function importAccount(
  */
 async function importCategory(
   row: Record<string, string>,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  tx: Omit<
+    PrismaClient,
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+  >,
   workspaceId: string,
-  userId: string,
+  userId: string
 ): Promise<void> {
   if (!row.name) {
     throw new ValidationError('Category name is required');
@@ -1802,7 +2042,11 @@ async function importCategory(
 
   const data = {
     name: row.name,
-    categoryType: ((row.type === 'INCOME' || row.type === 'Income') ? 'Income' : (row.type === 'EXPENSE' || row.type === 'Expense') ? 'Expense' : 'Expense') as CategoryType,
+    categoryType: (row.type === 'INCOME' || row.type === 'Income'
+      ? 'Income'
+      : row.type === 'EXPENSE' || row.type === 'Expense'
+        ? 'Expense'
+        : 'Expense') as CategoryType,
     isDefault: row.isDefault === 'true' || row.isDefault === '1',
     workspaceId,
     createdBy: userId,
@@ -1811,11 +2055,11 @@ async function importCategory(
 
   if (row.id) {
     const existing = await tx.category.findFirst({
-      where: {id: row.id, workspaceId},
+      where: { id: row.id, workspaceId },
     });
     if (existing) {
       await tx.category.update({
-        where: {id: row.id},
+        where: { id: row.id },
         data: {
           name: data.name,
           categoryType: data.categoryType,
@@ -1828,7 +2072,7 @@ async function importCategory(
   }
 
   await tx.category.create({
-    data: row.id ? {...data, id: row.id} : data,
+    data: row.id ? { ...data, id: row.id } : data,
   });
 }
 
@@ -1837,9 +2081,12 @@ async function importCategory(
  */
 async function importPayee(
   row: Record<string, string>,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  tx: Omit<
+    PrismaClient,
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+  >,
   workspaceId: string,
-  userId: string,
+  userId: string
 ): Promise<void> {
   if (!row.name) {
     throw new ValidationError('Payee name is required');
@@ -1855,11 +2102,11 @@ async function importPayee(
 
   if (row.id) {
     const existing = await tx.payee.findFirst({
-      where: {id: row.id, workspaceId},
+      where: { id: row.id, workspaceId },
     });
     if (existing) {
       await tx.payee.update({
-        where: {id: row.id},
+        where: { id: row.id },
         data: {
           name: data.name,
           isDefault: data.isDefault,
@@ -1871,7 +2118,7 @@ async function importPayee(
   }
 
   await tx.payee.create({
-    data: row.id ? {...data, id: row.id} : data,
+    data: row.id ? { ...data, id: row.id } : data,
   });
 }
 
@@ -1880,17 +2127,22 @@ async function importPayee(
  */
 async function importTransaction(
   row: Record<string, string>,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  tx: Omit<
+    PrismaClient,
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+  >,
   workspaceId: string,
-  userId: string,
+  userId: string
 ): Promise<void> {
   if (!row.value || !row.accountId || !row.date) {
-    throw new ValidationError('Transaction value, accountId, and date are required');
+    throw new ValidationError(
+      'Transaction value, accountId, and date are required'
+    );
   }
 
   // Validate account exists and belongs to workspace
   const account = await tx.account.findFirst({
-    where: {id: row.accountId, workspaceId},
+    where: { id: row.accountId, workspaceId },
   });
   if (!account) {
     throw new ValidationError(`Account with ID ${row.accountId} not found`);
@@ -1900,7 +2152,7 @@ async function importTransaction(
   let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, workspaceId},
+      where: { id: categoryId, workspaceId },
     });
     if (!category) {
       // Category not found - set to null instead of failing the import
@@ -1913,7 +2165,7 @@ async function importTransaction(
   let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, workspaceId},
+      where: { id: payeeId, workspaceId },
     });
     if (!payee) {
       // Payee not found - set to null instead of failing the import
@@ -1935,11 +2187,11 @@ async function importTransaction(
 
   if (row.id) {
     const existing = await tx.transaction.findFirst({
-      where: {id: row.id, account: {workspaceId}},
+      where: { id: row.id, account: { workspaceId } },
     });
     if (existing) {
       await tx.transaction.update({
-        where: {id: row.id},
+        where: { id: row.id },
         data: {
           value: data.value,
           date: data.date,
@@ -1955,7 +2207,7 @@ async function importTransaction(
   }
 
   await tx.transaction.create({
-    data: row.id ? {...data, id: row.id} : data,
+    data: row.id ? { ...data, id: row.id } : data,
   });
 }
 
@@ -1964,17 +2216,22 @@ async function importTransaction(
  */
 async function importRecurringTransaction(
   row: Record<string, string>,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  tx: Omit<
+    PrismaClient,
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+  >,
   workspaceId: string,
-  _userId: string,
+  _userId: string
 ): Promise<void> {
   if (!row.cronExpression || !row.value || !row.accountId || !row.nextRunDate) {
-    throw new ValidationError('Recurring transaction cronExpression, value, accountId, and nextRunDate are required');
+    throw new ValidationError(
+      'Recurring transaction cronExpression, value, accountId, and nextRunDate are required'
+    );
   }
 
   // Validate account exists and belongs to workspace
   const account = await tx.account.findFirst({
-    where: {id: row.accountId, workspaceId},
+    where: { id: row.accountId, workspaceId },
   });
   if (!account) {
     throw new ValidationError(`Account with ID ${row.accountId} not found`);
@@ -1983,7 +2240,7 @@ async function importRecurringTransaction(
   // Validate category if provided
   if (row.categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: row.categoryId, workspaceId},
+      where: { id: row.categoryId, workspaceId },
     });
     if (!category) {
       throw new ValidationError(`Category with ID ${row.categoryId} not found`);
@@ -1993,7 +2250,7 @@ async function importRecurringTransaction(
   // Validate payee if provided
   if (row.payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: row.payeeId, workspaceId},
+      where: { id: row.payeeId, workspaceId },
     });
     if (!payee) {
       throw new ValidationError(`Payee with ID ${row.payeeId} not found`);
@@ -2012,11 +2269,11 @@ async function importRecurringTransaction(
 
   if (row.id) {
     const existing = await tx.recurringTransaction.findFirst({
-      where: {id: row.id, account: {workspaceId}},
+      where: { id: row.id, account: { workspaceId } },
     });
     if (existing) {
       await tx.recurringTransaction.update({
-        where: {id: row.id},
+        where: { id: row.id },
         data,
       });
       return;
@@ -2024,7 +2281,7 @@ async function importRecurringTransaction(
   }
 
   await tx.recurringTransaction.create({
-    data: row.id ? {...data, id: row.id} : data,
+    data: row.id ? { ...data, id: row.id } : data,
   });
 }
 
@@ -2033,12 +2290,16 @@ async function importRecurringTransaction(
  */
 async function importPreferences(
   row: Record<string, string>,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
-  userId: string,
+  tx: Omit<
+    PrismaClient,
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+  >,
+  userId: string
 ): Promise<void> {
   const data = {
     currency: row.currency ?? 'USD',
-    useThousandSeparator: row.useThousandSeparator === 'true' || row.useThousandSeparator === '1',
+    useThousandSeparator:
+      row.useThousandSeparator === 'true' || row.useThousandSeparator === '1',
     colorScheme: row.colorScheme ?? null,
     colorSchemeValue: row.colorSchemeValue ?? null,
     userId,
@@ -2046,7 +2307,7 @@ async function importPreferences(
 
   // Preferences are unique per user, so we upsert
   await tx.userPreferences.upsert({
-    where: {userId},
+    where: { userId },
     update: data,
     create: data,
   });
@@ -2057,9 +2318,12 @@ async function importPreferences(
  */
 async function importBudget(
   row: Record<string, string>,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  tx: Omit<
+    PrismaClient,
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+  >,
   workspaceId: string,
-  userId: string,
+  userId: string
 ): Promise<void> {
   if (!row.amount) {
     throw new ValidationError('Budget amount is required');
@@ -2069,7 +2333,7 @@ async function importBudget(
   let accountId: string | null = row.accountId ?? null;
   if (accountId) {
     const account = await tx.account.findFirst({
-      where: {id: accountId, workspaceId},
+      where: { id: accountId, workspaceId },
     });
     if (!account) {
       accountId = null;
@@ -2080,7 +2344,7 @@ async function importBudget(
   let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, workspaceId},
+      where: { id: categoryId, workspaceId },
     });
     if (!category) {
       categoryId = null;
@@ -2091,7 +2355,7 @@ async function importBudget(
   let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, workspaceId},
+      where: { id: payeeId, workspaceId },
     });
     if (!payee) {
       payeeId = null;
@@ -2112,11 +2376,11 @@ async function importBudget(
 
   if (row.id) {
     const existing = await tx.budget.findFirst({
-      where: {id: row.id, workspaceId},
+      where: { id: row.id, workspaceId },
     });
     if (existing) {
       await tx.budget.update({
-        where: {id: row.id},
+        where: { id: row.id },
         data: {
           amount: data.amount,
           currentSpent: data.currentSpent,
@@ -2132,7 +2396,7 @@ async function importBudget(
   }
 
   await tx.budget.create({
-    data: row.id ? {...data, id: row.id} : data,
+    data: row.id ? { ...data, id: row.id } : data,
   });
 }
 
@@ -2143,9 +2407,12 @@ async function importBudget(
  */
 async function importImportMatchRule(
   row: Record<string, string>,
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  tx: Omit<
+    PrismaClient,
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+  >,
   userId: string,
-  workspaceId: string,
+  workspaceId: string
 ): Promise<void> {
   if (!row.pattern) {
     throw new ValidationError('Import match rule pattern is required');
@@ -2155,7 +2422,7 @@ async function importImportMatchRule(
   let accountId: string | null = row.accountId ?? null;
   if (accountId) {
     const account = await tx.account.findFirst({
-      where: {id: accountId, workspaceId},
+      where: { id: accountId, workspaceId },
     });
     if (!account) {
       accountId = null;
@@ -2166,7 +2433,7 @@ async function importImportMatchRule(
   let categoryId: string | null = row.categoryId ?? null;
   if (categoryId) {
     const category = await tx.category.findFirst({
-      where: {id: categoryId, workspaceId},
+      where: { id: categoryId, workspaceId },
     });
     if (!category) {
       categoryId = null;
@@ -2177,7 +2444,7 @@ async function importImportMatchRule(
   let payeeId: string | null = row.payeeId ?? null;
   if (payeeId) {
     const payee = await tx.payee.findFirst({
-      where: {id: payeeId, workspaceId},
+      where: { id: payeeId, workspaceId },
     });
     if (!payee) {
       payeeId = null;
@@ -2194,11 +2461,11 @@ async function importImportMatchRule(
 
   if (row.id) {
     const existing = await tx.importMatchRule.findFirst({
-      where: {id: row.id, userId},
+      where: { id: row.id, userId },
     });
     if (existing) {
       await tx.importMatchRule.update({
-        where: {id: row.id},
+        where: { id: row.id },
         data,
       });
       return;
@@ -2206,7 +2473,6 @@ async function importImportMatchRule(
   }
 
   await tx.importMatchRule.create({
-    data: row.id ? {...data, id: row.id} : data,
+    data: row.id ? { ...data, id: row.id } : data,
   });
 }
-

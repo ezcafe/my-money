@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import {Menu, MenuItem, ListItemIcon, ListItemText} from '@mui/material';
-import {Assessment, Upload, Settings} from '@mui/icons-material';
+import { Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Assessment, Upload, Settings } from '@mui/icons-material';
 
 interface MenuItemConfig {
   path: string;
@@ -20,9 +20,9 @@ interface CalculatorControlsProps {
 }
 
 const menuItems: MenuItemConfig[] = [
-  {path: '/report', label: 'Report', icon: <Assessment />},
-  {path: '/import', label: 'Import Statement', icon: <Upload />},
-  {path: '/preferences', label: 'Preferences', icon: <Settings />},
+  { path: '/report', label: 'Report', icon: <Assessment /> },
+  { path: '/import', label: 'Import Statement', icon: <Upload /> },
+  { path: '/preferences', label: 'Preferences', icon: <Settings /> },
 ];
 
 /**
@@ -34,22 +34,18 @@ export function CalculatorControls({
   onMenuNavigation,
 }: CalculatorControlsProps): React.JSX.Element {
   return (
-    <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={onMenuClose}
-      >
-        {menuItems.map((item) => (
-          <MenuItem
-            key={item.path}
-            onClick={() => {
-              onMenuNavigation(item.path);
-            }}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText>{item.label}</ListItemText>
-          </MenuItem>
-        ))}
+    <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={onMenuClose}>
+      {menuItems.map((item) => (
+        <MenuItem
+          key={item.path}
+          onClick={() => {
+            onMenuNavigation(item.path);
+          }}
+        >
+          <ListItemIcon>{item.icon}</ListItemIcon>
+          <ListItemText>{item.label}</ListItemText>
+        </MenuItem>
+      ))}
     </Menu>
   );
 }

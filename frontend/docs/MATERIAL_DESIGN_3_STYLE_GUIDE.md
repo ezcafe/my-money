@@ -31,17 +31,17 @@ All spacing uses multiples of 4px (4dp):
 
 ```typescript
 // Common spacing values
-p: 2   // 8px  - Small padding
-p: 3   // 12px - Standard card padding
-p: 4   // 16px - Large padding (empty states)
+p: 2; // 8px  - Small padding
+p: 3; // 12px - Standard card padding
+p: 4; // 16px - Large padding (empty states)
 
-mb: 2  // 8px  - Small margin
-mb: 3  // 12px - Standard margin between sections
-mb: 4  // 16px - Large margin
+mb: 2; // 8px  - Small margin
+mb: 3; // 12px - Standard margin between sections
+mb: 4; // 16px - Large margin
 
-gap: 1 // 4px  - Small gap
-gap: 2 // 8px  - Standard gap
-gap: 3 // 12px - Large gap
+gap: 1; // 4px  - Small gap
+gap: 2; // 8px  - Standard gap
+gap: 3; // 12px - Large gap
 ```
 
 ### Page Layout Spacing
@@ -66,22 +66,22 @@ gap: 3 // 12px - Large gap
 
 ```typescript
 // Headings
-variant="h3"     // Large display (balance amounts)
-variant="h5"     // Card titles
-variant="h6"     // Section titles, page titles
+variant = 'h3'; // Large display (balance amounts)
+variant = 'h5'; // Card titles
+variant = 'h6'; // Section titles, page titles
 
 // Body text
-variant="body1"  // Primary text (fontWeight: 500 for emphasis)
-variant="body2"  // Secondary text, descriptions
-variant="subtitle2" // Labels, small headings
-variant="caption"   // Helper text, metadata
+variant = 'body1'; // Primary text (fontWeight: 500 for emphasis)
+variant = 'body2'; // Secondary text, descriptions
+variant = 'subtitle2'; // Labels, small headings
+variant = 'caption'; // Helper text, metadata
 ```
 
 ### Font Weights
 
 ```typescript
-fontWeight: 500  // Medium - for emphasized body text
-fontWeight: 600  // Semi-bold - for headings and important numbers
+fontWeight: 500; // Medium - for emphasized body text
+fontWeight: 600; // Semi-bold - for headings and important numbers
 ```
 
 ### Typography Usage Patterns
@@ -123,6 +123,7 @@ fontWeight: 600  // Semi-bold - for headings and important numbers
 ### Card Component
 
 **Standard Card Pattern:**
+
 ```typescript
 import {Card} from '../components/ui/Card';
 
@@ -132,11 +133,13 @@ import {Card} from '../components/ui/Card';
 ```
 
 **Card Spacing:**
+
 - Padding: `p: 3` (12px) - standard
 - Padding: `p: 4` (16px) - for empty states
 - Margin bottom: `mb: 3` (12px) - between sections
 
 **Card with Header:**
+
 ```typescript
 <Card sx={{mb: 3}}>
   <Box sx={{p: 3, pb: 2}}>
@@ -154,6 +157,7 @@ import {Card} from '../components/ui/Card';
 ### List Component
 
 **Standard List Pattern:**
+
 ```typescript
 <Card>
   <List disablePadding>
@@ -185,6 +189,7 @@ import {Card} from '../components/ui/Card';
 ```
 
 **List Item Spacing:**
+
 - Vertical padding: `py: 1.5` (6px)
 - Horizontal padding: `px: 2` (8px)
 - Dividers between items (except first)
@@ -192,6 +197,7 @@ import {Card} from '../components/ui/Card';
 ### Button Component
 
 **Standard Button Usage:**
+
 ```typescript
 import {Button} from '../components/ui/Button';
 
@@ -212,12 +218,14 @@ import {Button} from '../components/ui/Button';
 ```
 
 **Button Spacing:**
+
 - Use `sx={{textTransform: 'none'}}` to prevent uppercase
 - Full width buttons for mobile: `fullWidth={isMobile}`
 
 ### TextField Component
 
 **Standard TextField Usage:**
+
 ```typescript
 import {TextField} from '../components/ui/TextField';
 
@@ -364,38 +372,39 @@ export function ComplexPage(): React.JSX.Element {
 
 ```typescript
 // Standard surface
-backgroundColor: 'background.paper'  // Card background
-backgroundColor: 'background.default' // Page background
+backgroundColor: 'background.paper'; // Card background
+backgroundColor: 'background.default'; // Page background
 
 // Interactive surfaces
-backgroundColor: 'action.hover'      // Hover state
-backgroundColor: 'surfaceVariant'    // Alternative surface
+backgroundColor: 'action.hover'; // Hover state
+backgroundColor: 'surfaceVariant'; // Alternative surface
 ```
 
 ### Color Usage
 
 ```typescript
 // Primary actions
-color: 'primary.main'
+color: 'primary.main';
 
 // Success/Income
-color: 'success.main'
+color: 'success.main';
 
 // Error/Expenses
-color: 'error.main'
+color: 'error.main';
 
 // Warning
-color: 'warning.main'
+color: 'warning.main';
 
 // Text colors
-color: 'text.primary'        // Main text
-color: 'text.secondary'      // Secondary text
-color: 'text.disabled'       // Disabled text
+color: 'text.primary'; // Main text
+color: 'text.secondary'; // Secondary text
+color: 'text.disabled'; // Disabled text
 ```
 
 ### Elevation
 
 Elevation is handled automatically by the Card component:
+
 - Default: `elevation: 0` (flat)
 - Hover: `elevation: 4` (raised)
 
@@ -601,4 +610,3 @@ When creating a new page, ensure:
 - Use MUI components directly only when custom wrappers don't exist
 - Follow the established patterns for consistency
 - When in doubt, reference existing pages that follow these patterns
-

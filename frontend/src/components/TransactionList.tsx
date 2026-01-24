@@ -4,7 +4,7 @@
  * Used in Account, Category, Payee, and Budget detail pages
  */
 
-import React, {useState, useCallback, memo, useMemo} from 'react';
+import React, { useState, useCallback, memo, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -32,16 +32,13 @@ import {
   useTheme,
   Stack,
 } from '@mui/material';
-import {MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear} from '@mui/icons-material';
-import {FixedSizeList} from 'react-window';
-import {Card} from './ui/Card';
-import type {
-  PaginatedTransactions,
-  TransactionOrderByField,
-} from '../hooks/useTransactions';
-import {formatCurrencyPreserveDecimals, formatDateShort} from '../utils/formatting';
-import {ITEMS_PER_PAGE} from '../constants';
-import {useDateFormat} from '../hooks/useDateFormat';
+import { MoreVert, Edit, Delete, ArrowUpward, ArrowDownward, Clear } from '@mui/icons-material';
+import { FixedSizeList } from 'react-window';
+import { Card } from './ui/Card';
+import type { PaginatedTransactions, TransactionOrderByField } from '../hooks/useTransactions';
+import { formatCurrencyPreserveDecimals, formatDateShort } from '../utils/formatting';
+import { ITEMS_PER_PAGE } from '../constants';
+import { useDateFormat } from '../hooks/useDateFormat';
 
 /**
  * Props for TransactionList component
@@ -111,12 +108,13 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const {dateFormat} = useDateFormat();
+  const { dateFormat } = useDateFormat();
 
   // Menu state
-  const [menuAnchor, setMenuAnchor] = useState<{element: HTMLElement; transactionId: string} | null>(
-    null,
-  );
+  const [menuAnchor, setMenuAnchor] = useState<{
+    element: HTMLElement;
+    transactionId: string;
+  } | null>(null);
 
   // Delete state
   const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
@@ -124,9 +122,12 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
   /**
    * Handle menu open
    */
-  const handleMenuOpen = useCallback((event: React.MouseEvent<HTMLElement>, transactionId: string) => {
-    setMenuAnchor({element: event.currentTarget, transactionId});
-  }, []);
+  const handleMenuOpen = useCallback(
+    (event: React.MouseEvent<HTMLElement>, transactionId: string) => {
+      setMenuAnchor({ element: event.currentTarget, transactionId });
+    },
+    []
+  );
 
   /**
    * Handle menu close
@@ -172,7 +173,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
     (field: TransactionOrderByField) => {
       onSortChange(field, sortDirection);
     },
-    [sortDirection, onSortChange],
+    [sortDirection, onSortChange]
   );
 
   /**
@@ -217,11 +218,11 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
    * Render transaction row (memoized for virtual scrolling)
    */
   const renderTransactionRow = useCallback(
-    (transaction: typeof transactions.items[0], _index: number) => (
+    (transaction: (typeof transactions.items)[0], _index: number) => (
       <TableRow
         key={transaction.id}
         hover={Boolean(onRowClick)}
-        sx={onRowClick ? {cursor: 'pointer'} : undefined}
+        sx={onRowClick ? { cursor: 'pointer' } : undefined}
         onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
       >
         <TableCell>{formatDateShort(transaction.date, dateFormat)}</TableCell>
@@ -252,7 +253,16 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
         </TableCell>
       </TableRow>
     ),
-    [currency, dateFormat, showAccountColumn, showCategoryColumn, showPayeeColumn, onRowClick, handleMenuOpen, transactions],
+    [
+      currency,
+      dateFormat,
+      showAccountColumn,
+      showCategoryColumn,
+      showPayeeColumn,
+      onRowClick,
+      handleMenuOpen,
+      transactions,
+    ]
   );
 
   /**
@@ -264,7 +274,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
     const items = transactions.items;
     const CONTAINER_HEIGHT = Math.min(600, items.length * ROW_HEIGHT);
 
-    const Row = ({index, style}: {index: number; style: React.CSSProperties}) => {
+    const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
       const transaction = items[index];
       if (!transaction) return null;
       return (
@@ -275,7 +285,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
     };
 
     return (
-      <Box sx={{height: CONTAINER_HEIGHT, overflow: 'auto'}}>
+      <Box sx={{ height: CONTAINER_HEIGHT, overflow: 'auto' }}>
         <FixedSizeList
           height={CONTAINER_HEIGHT}
           itemCount={items.length}
@@ -314,7 +324,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
           },
         }}
       >
-        <FormControl size="small" sx={{minWidth: 120}}>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Sort by</InputLabel>
           <Select
             value={sortField}
@@ -345,16 +355,18 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
   const renderCardLayout = (): React.ReactNode => {
     if (transactions.items.length === 0) {
       return (
-        <Box sx={{p: 3, textAlign: 'center'}}>
+        <Box sx={{ p: 3, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            {isSearchMode ? 'No transactions found matching your search.' : 'No transactions found.'}
+            {isSearchMode
+              ? 'No transactions found matching your search.'
+              : 'No transactions found.'}
           </Typography>
         </Box>
       );
     }
 
     return (
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 1.5, p: {xs: 1, sm: 2}}}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: { xs: 1, sm: 2 } }}>
         {transactions.items.map((transaction) => (
           <Card
             key={transaction.id}
@@ -372,12 +384,19 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                 : {},
             }}
           >
-            <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5}}>
-              <Box sx={{flex: 1}}>
-                <Typography variant="body2" color="text.secondary" sx={{mb: 0.5}}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                mb: 0.5,
+              }}
+            >
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                   {formatDateShort(transaction.date, dateFormat)}
                 </Typography>
-                <Typography variant="h6" sx={{fontWeight: 600, mb: 1}}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                   {formatCurrencyPreserveDecimals(transaction.value, currency)}
                 </Typography>
               </Box>
@@ -397,18 +416,24 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                 <MoreVert fontSize="small" />
               </IconButton>
             </Box>
-            <Stack spacing={0.5} sx={{mt: 1}}>
-              {showAccountColumn && transaction.account ? <Typography variant="caption" color="text.secondary">
+            <Stack spacing={0.5} sx={{ mt: 1 }}>
+              {showAccountColumn && transaction.account ? (
+                <Typography variant="caption" color="text.secondary">
                   Account: {transaction.account.name}
-                </Typography> : null}
-              {showCategoryColumn && transaction.category ? <Typography variant="caption" color="text.secondary">
+                </Typography>
+              ) : null}
+              {showCategoryColumn && transaction.category ? (
+                <Typography variant="caption" color="text.secondary">
                   Category: {transaction.category.name}
-                </Typography> : null}
-              {showPayeeColumn && transaction.payee ? <Typography variant="caption" color="text.secondary">
+                </Typography>
+              ) : null}
+              {showPayeeColumn && transaction.payee ? (
+                <Typography variant="caption" color="text.secondary">
                   Payee: {transaction.payee.name}
-                </Typography> : null}
+                </Typography>
+              ) : null}
               {transaction.note ? (
-                <Typography variant="caption" color="text.secondary" sx={{mt: 0.5}}>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
                   Note: {transaction.note}
                 </Typography>
               ) : null}
@@ -422,7 +447,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
   // Show error if any
   if (error) {
     return (
-      <Card sx={{mt: 3, p: 2}}>
+      <Card sx={{ mt: 3, p: 2 }}>
         <Typography variant="body1" color="error">
           Error loading transactions: {error.message}
         </Typography>
@@ -431,7 +456,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
   }
 
   return (
-    <Card sx={{mt: 3, p: 0}}>
+    <Card sx={{ mt: 3, p: 0 }}>
       <Box
         sx={{
           display: 'flex',
@@ -444,17 +469,16 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
           },
         }}
       >
-        <Typography variant="h6" component="h2" gutterBottom sx={{mb: 0}}>
-          {isSearchMode ? `Search Results (${transactions.totalCount.toLocaleString()})` : `${transactions.totalCount.toLocaleString()} Transactions`}
+        <Typography variant="h6" component="h2" gutterBottom sx={{ mb: 0 }}>
+          {isSearchMode
+            ? `Search Results (${transactions.totalCount.toLocaleString()})`
+            : `${transactions.totalCount.toLocaleString()} Transactions`}
         </Typography>
-        {isSearchMode && onClearSearch ? <Button
-            startIcon={<Clear />}
-            onClick={onClearSearch}
-            variant="outlined"
-            size="small"
-          >
+        {isSearchMode && onClearSearch ? (
+          <Button startIcon={<Clear />} onClick={onClearSearch} variant="outlined" size="small">
             Clear Search
-          </Button> : null}
+          </Button>
+        ) : null}
       </Box>
       {renderSortControls()}
       {loading ? (
@@ -500,7 +524,9 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                   {transactions.items.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={getEmptyStateColSpan()} align="center">
-                        {isSearchMode ? 'No transactions found matching your search.' : 'No transactions found.'}
+                        {isSearchMode
+                          ? 'No transactions found matching your search.'
+                          : 'No transactions found.'}
                       </TableCell>
                     </TableRow>
                   ) : transactions.items.length > 50 ? (
@@ -508,7 +534,9 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                     VirtualizedTableRows
                   ) : (
                     // Render normally for smaller lists
-                    transactions.items.map((transaction, index) => renderTransactionRow(transaction, index))
+                    transactions.items.map((transaction, index) =>
+                      renderTransactionRow(transaction, index)
+                    )
                   )}
                 </TableBody>
               </Table>
@@ -543,20 +571,17 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
         onClose={handleMenuClose}
       >
         <MenuItem onClick={handleEdit}>
-          <Edit fontSize="small" sx={{mr: 1}} />
+          <Edit fontSize="small" sx={{ mr: 1 }} />
           Edit
         </MenuItem>
         <MenuItem onClick={handleDeleteClick}>
-          <Delete fontSize="small" sx={{mr: 1}} />
+          <Delete fontSize="small" sx={{ mr: 1 }} />
           Delete
         </MenuItem>
       </Menu>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={Boolean(deletingTransactionId)}
-        onClose={() => setDeletingTransactionId(null)}
-      >
+      <Dialog open={Boolean(deletingTransactionId)} onClose={() => setDeletingTransactionId(null)}>
         <DialogTitle>Delete Transaction</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -564,9 +589,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeletingTransactionId(null)}>
-            Cancel
-          </Button>
+          <Button onClick={() => setDeletingTransactionId(null)}>Cancel</Button>
           <Button onClick={handleDeleteConfirm} color="error">
             Delete
           </Button>
@@ -579,4 +602,3 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
 TransactionListComponent.displayName = 'TransactionList';
 
 export const TransactionList = memo(TransactionListComponent);
-

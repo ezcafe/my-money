@@ -3,11 +3,18 @@
  * Handles workspace invitation creation, validation, acceptance, and cancellation
  */
 
-import {randomBytes} from 'crypto';
-import type {WorkspaceRole, WorkspaceInvitation, WorkspaceMember} from '@prisma/client';
-import {prisma} from '../utils/prisma';
-import {NotFoundError, ValidationError} from '../utils/errors';
-import {checkWorkspaceAccess, checkWorkspacePermission} from './WorkspaceService';
+import { randomBytes } from 'crypto';
+import type {
+  WorkspaceRole,
+  WorkspaceInvitation,
+  WorkspaceMember,
+} from '@prisma/client';
+import { prisma } from '../utils/prisma';
+import { NotFoundError, ValidationError } from '../utils/errors';
+import {
+  checkWorkspaceAccess,
+  checkWorkspacePermission,
+} from './WorkspaceService';
 
 /**
  * Generate a cryptographically secure invitation token
@@ -34,7 +41,7 @@ export async function createInvitation(
   email: string,
   role: WorkspaceRole = 'Member',
   invitedBy: string,
-  expiresInDays: number = 7,
+  expiresInDays: number = 7
 ): Promise<WorkspaceInvitation> {
   // Verify inviter has permission to invite (Admin or Owner)
   await checkWorkspacePermission(workspaceId, invitedBy, 'Admin');
@@ -66,7 +73,9 @@ export async function createInvitation(
   });
 
   if (existingInvitation) {
-    throw new ValidationError('A pending invitation already exists for this email');
+    throw new ValidationError(
+      'A pending invitation already exists for this email'
+    );
   }
 
   // Generate token
@@ -112,9 +121,11 @@ export async function createInvitation(
  * @returns Invitation if valid
  * @throws NotFoundError if invitation not found or expired
  */
-export async function getInvitationByToken(token: string): Promise<WorkspaceInvitation> {
+export async function getInvitationByToken(
+  token: string
+): Promise<WorkspaceInvitation> {
   const invitation = await prisma.workspaceInvitation.findUnique({
-    where: {token},
+    where: { token },
     include: {
       workspace: {
         select: {
@@ -155,13 +166,16 @@ export async function getInvitationByToken(token: string): Promise<WorkspaceInvi
  * @param userId - User ID accepting the invitation
  * @returns Created workspace member
  */
-export async function acceptInvitation(token: string, userId: string): Promise<WorkspaceMember> {
+export async function acceptInvitation(
+  token: string,
+  userId: string
+): Promise<WorkspaceMember> {
   const invitation = await getInvitationByToken(token);
 
   // Verify user email matches invitation email (optional check - can be relaxed)
   const user = await prisma.user.findUnique({
-    where: {id: userId},
-    select: {email: true},
+    where: { id: userId },
+    select: { email: true },
   });
 
   if (!user) {
@@ -187,8 +201,8 @@ export async function acceptInvitation(token: string, userId: string): Promise<W
   if (existingMember) {
     // Mark invitation as accepted even if already a member
     await prisma.workspaceInvitation.update({
-      where: {id: invitation.id},
-      data: {acceptedAt: new Date()},
+      where: { id: invitation.id },
+      data: { acceptedAt: new Date() },
     });
     return existingMember;
   }
@@ -218,8 +232,8 @@ export async function acceptInvitation(token: string, userId: string): Promise<W
 
   // Mark invitation as accepted
   await prisma.workspaceInvitation.update({
-    where: {id: invitation.id},
-    data: {acceptedAt: new Date()},
+    where: { id: invitation.id },
+    data: { acceptedAt: new Date() },
   });
 
   return member;
@@ -232,9 +246,12 @@ export async function acceptInvitation(token: string, userId: string): Promise<W
  * @param userId - User ID canceling the invitation
  * @returns True if successful
  */
-export async function cancelInvitation(invitationId: string, userId: string): Promise<boolean> {
+export async function cancelInvitation(
+  invitationId: string,
+  userId: string
+): Promise<boolean> {
   const invitation = await prisma.workspaceInvitation.findUnique({
-    where: {id: invitationId},
+    where: { id: invitationId },
     select: {
       id: true,
       workspaceId: true,
@@ -253,7 +270,7 @@ export async function cancelInvitation(invitationId: string, userId: string): Pr
 
   // Delete invitation
   await prisma.workspaceInvitation.delete({
-    where: {id: invitationId},
+    where: { id: invitationId },
   });
 
   return true;
@@ -265,7 +282,10 @@ export async function cancelInvitation(invitationId: string, userId: string): Pr
  * @param userId - User ID (for permission check)
  * @returns Array of pending invitations
  */
-export async function getWorkspaceInvitations(workspaceId: string, userId: string): Promise<WorkspaceInvitation[]> {
+export async function getWorkspaceInvitations(
+  workspaceId: string,
+  userId: string
+): Promise<WorkspaceInvitation[]> {
   // Verify user has access to workspace
   await checkWorkspaceAccess(workspaceId, userId);
 

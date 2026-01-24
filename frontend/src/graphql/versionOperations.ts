@@ -3,7 +3,7 @@
  * Queries for entity version history
  */
 
-import {gql} from '@apollo/client';
+import { gql } from '@apollo/client';
 
 /**
  * Entity version fields fragment

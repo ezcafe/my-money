@@ -46,4 +46,3 @@
  * Last audit date: 2025-01-18
  * All raw SQL queries verified safe - no SQL injection vulnerabilities found.
  */
-

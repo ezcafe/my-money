@@ -3,7 +3,7 @@
  * Limits subscription connections per user to prevent abuse
  */
 
-import {logWarn} from './logger';
+import { logWarn } from './logger';
 
 /**
  * Maximum subscriptions per user

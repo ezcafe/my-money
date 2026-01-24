@@ -9,9 +9,9 @@
  * - Survives server restarts (until database restart)
  */
 
-import {Client} from 'pg';
-import {logError, logWarn, logInfo} from './logger';
-import {config} from '../config';
+import { Client } from 'pg';
+import { logError, logWarn, logInfo } from './logger';
+import { config } from '../config';
 
 /**
  * Cache version for breaking changes
@@ -41,7 +41,7 @@ let cacheMetrics: CacheMetrics = {
  * @returns Current cache metrics
  */
 export function getCacheMetrics(): CacheMetrics {
-  return {...cacheMetrics};
+  return { ...cacheMetrics };
 }
 
 /**
@@ -62,12 +62,19 @@ export function resetCacheMetrics(): void {
  * @param expectedVersion - Expected cache version (defaults to current version)
  * @returns Cached value or null if not found/expired/version mismatch
  */
-export async function get<T>(key: string, expectedVersion: number = CACHE_VERSION): Promise<T | null> {
+export async function get<T>(
+  key: string,
+  expectedVersion: number = CACHE_VERSION
+): Promise<T | null> {
   try {
     // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
     const client = await getDbClient();
     try {
-      const result = await client.query<{value: unknown; expires_at: Date; version: number | null}>(
+      const result = await client.query<{
+        value: unknown;
+        expires_at: Date;
+        version: number | null;
+      }>(
         'SELECT value, expires_at, COALESCE(version, 0) as version FROM "cache" WHERE key = $1 AND expires_at > NOW()',
         [key]
       );
@@ -99,10 +106,14 @@ export async function get<T>(key: string, expectedVersion: number = CACHE_VERSIO
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     cacheMetrics.misses++;
-    logError('Cache get failed', {
-      event: 'cache_get_failed',
-      key,
-    }, errorObj);
+    logError(
+      'Cache get failed',
+      {
+        event: 'cache_get_failed',
+        key,
+      },
+      errorObj
+    );
     // Return null on error to allow application to continue
     return null;
   }
@@ -116,7 +127,13 @@ export async function get<T>(key: string, expectedVersion: number = CACHE_VERSIO
  * @param tags - Optional cache tags for invalidation
  * @param version - Cache version (defaults to current version)
  */
-export async function set<T>(key: string, value: T, ttlMs: number, tags: string[] = [], version: number = CACHE_VERSION): Promise<void> {
+export async function set<T>(
+  key: string,
+  value: T,
+  ttlMs: number,
+  tags: string[] = [],
+  version: number = CACHE_VERSION
+): Promise<void> {
   try {
     const expiresAt = new Date(Date.now() + ttlMs);
     // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
@@ -139,10 +156,14 @@ export async function set<T>(key: string, value: T, ttlMs: number, tags: string[
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Cache set failed', {
-      event: 'cache_set_failed',
-      key,
-    }, errorObj);
+    logError(
+      'Cache set failed',
+      {
+        event: 'cache_set_failed',
+        key,
+      },
+      errorObj
+    );
     // Don't throw - cache failures shouldn't break the application
   }
 }
@@ -163,10 +184,14 @@ export async function deleteKey(key: string): Promise<void> {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Cache delete failed', {
-      event: 'cache_delete_failed',
-      key,
-    }, errorObj);
+    logError(
+      'Cache delete failed',
+      {
+        event: 'cache_delete_failed',
+        key,
+      },
+      errorObj
+    );
   }
 }
 
@@ -186,10 +211,14 @@ export async function deletePattern(pattern: string): Promise<void> {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Cache delete pattern failed', {
-      event: 'cache_delete_pattern_failed',
-      pattern,
-    }, errorObj);
+    logError(
+      'Cache delete pattern failed',
+      {
+        event: 'cache_delete_pattern_failed',
+        pattern,
+      },
+      errorObj
+    );
   }
 }
 
@@ -206,7 +235,7 @@ export async function getOrSet<T>(
   key: string,
   factory: () => Promise<T>,
   ttlMs: number,
-  tags: string[] = [],
+  tags: string[] = []
 ): Promise<T> {
   // Try to get from cache first
   const cached = await get<T>(key);
@@ -244,10 +273,14 @@ export async function invalidateByTag(tag: string): Promise<void> {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Cache invalidation by tag failed', {
-      event: 'cache_invalidate_tag_failed',
-      tag,
-    }, errorObj);
+    logError(
+      'Cache invalidation by tag failed',
+      {
+        event: 'cache_invalidate_tag_failed',
+        tag,
+      },
+      errorObj
+    );
   }
 }
 
@@ -266,10 +299,14 @@ export async function invalidateByTags(tags: string[]): Promise<void> {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Cache invalidation by tags failed', {
-      event: 'cache_invalidate_tags_failed',
-      tags: tags.join(','),
-    }, errorObj);
+    logError(
+      'Cache invalidation by tags failed',
+      {
+        event: 'cache_invalidate_tags_failed',
+        tags: tags.join(','),
+      },
+      errorObj
+    );
   }
 }
 
@@ -301,7 +338,9 @@ export async function clearExpired(): Promise<number> {
     // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
     const client = await getDbClient();
     try {
-      const result = await client.query('DELETE FROM "cache" WHERE expires_at <= NOW()');
+      const result = await client.query(
+        'DELETE FROM "cache" WHERE expires_at <= NOW()'
+      );
       return result.rowCount ?? 0;
     } finally {
       await client.end();
@@ -313,9 +352,13 @@ export async function clearExpired(): Promise<number> {
       // Tables don't exist yet, return 0
       return 0;
     }
-    logError('Cache cleanup failed', {
-      event: 'cache_cleanup_failed',
-    }, errorObj);
+    logError(
+      'Cache cleanup failed',
+      {
+        event: 'cache_cleanup_failed',
+      },
+      errorObj
+    );
     return 0;
   }
 }
@@ -336,8 +379,12 @@ export async function getStats(): Promise<{
     const client = await getDbClient();
     try {
       const [totalResult, expiredResult] = await Promise.all([
-        client.query<{count: bigint}>('SELECT COUNT(*) as count FROM "cache"'),
-        client.query<{count: bigint}>('SELECT COUNT(*) as count FROM "cache" WHERE expires_at <= NOW()'),
+        client.query<{ count: bigint }>(
+          'SELECT COUNT(*) as count FROM "cache"'
+        ),
+        client.query<{ count: bigint }>(
+          'SELECT COUNT(*) as count FROM "cache" WHERE expires_at <= NOW()'
+        ),
       ]);
 
       const totalEntries = Number(totalResult.rows[0]?.count ?? 0);
@@ -346,7 +393,8 @@ export async function getStats(): Promise<{
 
       const metrics = getCacheMetrics();
       const totalRequests = metrics.hits + metrics.misses;
-      const hitRate = totalRequests > 0 ? (metrics.hits / totalRequests) * 100 : 0;
+      const hitRate =
+        totalRequests > 0 ? (metrics.hits / totalRequests) * 100 : 0;
 
       return {
         totalEntries,
@@ -371,9 +419,13 @@ export async function getStats(): Promise<{
         hitRate: 0,
       };
     }
-    logError('Cache stats failed', {
-      event: 'cache_stats_failed',
-    }, errorObj);
+    logError(
+      'Cache stats failed',
+      {
+        event: 'cache_stats_failed',
+      },
+      errorObj
+    );
     return {
       totalEntries: 0,
       expiredEntries: 0,
@@ -399,12 +451,13 @@ async function getDbClient(maxRetries = 5, delayMs = 1000): Promise<Client> {
   const connectionString = config.database.url;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const client = new Client({connectionString});
+    const client = new Client({ connectionString });
     try {
       await client.connect();
       return client;
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
       // Clean up failed client
       try {
         await client.end();
@@ -444,9 +497,15 @@ export async function initializeCacheTables(): Promise<void> {
       await client.query(createTableSql);
 
       // Create cache indexes
-      await client.query('CREATE INDEX IF NOT EXISTS "cache_expires_at_idx" ON "cache"("expires_at")');
-      await client.query('CREATE INDEX IF NOT EXISTS "cache_value_gin_idx" ON "cache" USING GIN ("value")');
-      await client.query('CREATE INDEX IF NOT EXISTS "cache_tags_gin_idx" ON "cache" USING GIN ("tags")');
+      await client.query(
+        'CREATE INDEX IF NOT EXISTS "cache_expires_at_idx" ON "cache"("expires_at")'
+      );
+      await client.query(
+        'CREATE INDEX IF NOT EXISTS "cache_value_gin_idx" ON "cache" USING GIN ("value")'
+      );
+      await client.query(
+        'CREATE INDEX IF NOT EXISTS "cache_tags_gin_idx" ON "cache" USING GIN ("tags")'
+      );
     } finally {
       await client.end();
     }
@@ -457,23 +516,31 @@ export async function initializeCacheTables(): Promise<void> {
     const errorMessage = errorObj.message;
 
     // Check if it's a connection or database not ready error
-    const isConnectionError = errorMessage.includes('ECONNREFUSED') ||
-                              errorMessage.includes('connection') ||
-                              errorMessage.includes('connect') ||
-                              errorMessage.includes('does not exist') ||
-                              errorMessage.includes('relation') ||
-                              errorMessage.includes('timeout');
+    const isConnectionError =
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('connect') ||
+      errorMessage.includes('does not exist') ||
+      errorMessage.includes('relation') ||
+      errorMessage.includes('timeout');
 
     if (isConnectionError) {
-      logWarn('Cache tables initialization: Database not ready yet. This is normal during startup. Cache will be initialized when database is available.', {
-        event: 'cache_tables_init_deferred',
-        hint: 'The database may still be starting up. Cache functionality will be available once the database is ready.',
-      });
+      logWarn(
+        'Cache tables initialization: Database not ready yet. This is normal during startup. Cache will be initialized when database is available.',
+        {
+          event: 'cache_tables_init_deferred',
+          hint: 'The database may still be starting up. Cache functionality will be available once the database is ready.',
+        }
+      );
     } else {
-      logError('Failed to initialize cache tables', {
-        event: 'cache_tables_init_failed',
-        error: errorMessage,
-      }, errorObj);
+      logError(
+        'Failed to initialize cache tables',
+        {
+          event: 'cache_tables_init_failed',
+          error: errorMessage,
+        },
+        errorObj
+      );
     }
     throw errorObj;
   }

@@ -3,8 +3,8 @@
  * Provides payees data with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
-import {GET_PAYEES} from '../graphql/queries';
+import { useQuery } from '@apollo/client/react';
+import { GET_PAYEES } from '../graphql/queries';
 
 /**
  * Payee type from GraphQL query
@@ -34,7 +34,7 @@ interface GetPayeesData {
 }
 
 export function usePayees(): UsePayeesResult {
-  const {data, loading, error, refetch} = useQuery<GetPayeesData>(GET_PAYEES, {
+  const { data, loading, error, refetch } = useQuery<GetPayeesData>(GET_PAYEES, {
     errorPolicy: 'all',
     fetchPolicy: 'network-only',
   });
@@ -61,4 +61,3 @@ export function usePayees(): UsePayeesResult {
     },
   };
 }
-

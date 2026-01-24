@@ -3,8 +3,8 @@
  * Shared formatting functions for currency, dates, and numbers
  */
 
-import type {DateFormat} from '../contexts/DateFormatContext';
-import {DEFAULT_DATE_FORMAT} from '../contexts/DateFormatContext';
+import type { DateFormat } from '../contexts/DateFormatContext';
+import { DEFAULT_DATE_FORMAT } from '../contexts/DateFormatContext';
 
 /**
  * Minimal transaction interface for date grouping
@@ -78,7 +78,10 @@ export function formatDate(date: Date | string, _dateFormat?: DateFormat): strin
  * @param dateFormat - Optional date format pattern (defaults to MM/DD/YYYY)
  * @returns Formatted date string according to the specified format
  */
-export function formatDateShort(date: Date | string, dateFormat: DateFormat = DEFAULT_DATE_FORMAT): string {
+export function formatDateShort(
+  date: Date | string,
+  dateFormat: DateFormat = DEFAULT_DATE_FORMAT
+): string {
   return formatDateByPattern(date, dateFormat);
 }
 
@@ -121,19 +124,23 @@ export function dateFormatToDateTimeFormat(dateFormat: DateFormat): string {
  * @param currency - The currency code (default: 'USD')
  * @returns Formatted currency string preserving original decimal places
  */
-export function formatCurrencyPreserveDecimals(value: number | string, currency: string = 'USD'): string {
+export function formatCurrencyPreserveDecimals(
+  value: number | string,
+  currency: string = 'USD'
+): string {
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
 
   // Convert to string to check decimal places from original value
   const valueStr = typeof value === 'string' ? value : String(value);
 
   // Check if original string representation has .00 or .0
-  const hasExplicitZeroDecimals = typeof value === 'string' &&
+  const hasExplicitZeroDecimals =
+    typeof value === 'string' &&
     valueStr.includes('.') &&
     (valueStr.endsWith('.00') || valueStr.endsWith('.0'));
 
   // Check if value is a whole number (no decimal part)
-  const isWholeNumber = Number.isInteger(numValue) || (numValue % 1 === 0);
+  const isWholeNumber = Number.isInteger(numValue) || numValue % 1 === 0;
 
   // Determine minimum and maximum fraction digits
   let minFractionDigits = 0;
@@ -193,7 +200,7 @@ function isSameDay(date1: Date, date2: Date): boolean {
  * @returns Map of date keys (YYYY-MM-DD) to arrays of transactions
  */
 export function groupTransactionsByDate<T extends Transaction>(
-  transactions: T[],
+  transactions: T[]
 ): Map<string, T[]> {
   const grouped = new Map<string, T[]>();
 
@@ -215,7 +222,10 @@ export function groupTransactionsByDate<T extends Transaction>(
  * @param dateFormat - Optional date format pattern (defaults to MM/DD/YYYY)
  * @returns Formatted date header string
  */
-export function formatDateHeader(date: Date | string, dateFormat: DateFormat = DEFAULT_DATE_FORMAT): string {
+export function formatDateHeader(
+  date: Date | string,
+  dateFormat: DateFormat = DEFAULT_DATE_FORMAT
+): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const today = new Date();
   const yesterday = new Date(today);

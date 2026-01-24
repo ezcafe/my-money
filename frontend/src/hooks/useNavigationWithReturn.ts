@@ -3,9 +3,9 @@
  * Provides standardized navigation with return URL handling
  */
 
-import {useNavigate, useSearchParams} from 'react-router';
-import {useCallback} from 'react';
-import {validateReturnUrl} from '../utils/validation';
+import { useNavigate, useSearchParams } from 'react-router';
+import { useCallback } from 'react';
+import { validateReturnUrl } from '../utils/validation';
 
 /**
  * Options for navigation with return
@@ -20,9 +20,9 @@ interface UseNavigationWithReturnOptions {
  */
 interface UseNavigationWithReturnReturn {
   /** Navigate to a path, preserving return URL */
-  navigate: (path: string, options?: {replace?: boolean}) => void;
+  navigate: (path: string, options?: { replace?: boolean }) => void;
   /** Navigate back to return URL or default */
-  navigateBack: (options?: {replace?: boolean}) => void;
+  navigateBack: (options?: { replace?: boolean }) => void;
   /** Get validated return URL */
   getReturnUrl: () => string;
 }
@@ -32,10 +32,12 @@ interface UseNavigationWithReturnReturn {
  * @param options - Navigation options
  * @returns Navigation functions with return URL support
  */
-export function useNavigationWithReturn(options: UseNavigationWithReturnOptions = {}): UseNavigationWithReturnReturn {
+export function useNavigationWithReturn(
+  options: UseNavigationWithReturnOptions = {}
+): UseNavigationWithReturnReturn {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const {defaultReturnUrl = '/'} = options;
+  const { defaultReturnUrl = '/' } = options;
 
   const getReturnUrl = useCallback((): string => {
     const returnTo = searchParams.get('returnTo');
@@ -43,21 +45,21 @@ export function useNavigationWithReturn(options: UseNavigationWithReturnOptions 
   }, [searchParams, defaultReturnUrl]);
 
   const navigateWithReturn = useCallback(
-    (path: string, navOptions?: {replace?: boolean}): void => {
+    (path: string, navOptions?: { replace?: boolean }): void => {
       const returnTo = getReturnUrl();
       const separator = path.includes('?') ? '&' : '?';
       const urlWithReturn = `${path}${separator}returnTo=${encodeURIComponent(returnTo)}`;
       void navigate(urlWithReturn, navOptions);
     },
-    [navigate, getReturnUrl],
+    [navigate, getReturnUrl]
   );
 
   const navigateBack = useCallback(
-    (navOptions?: {replace?: boolean}): void => {
+    (navOptions?: { replace?: boolean }): void => {
       const returnUrl = getReturnUrl();
       void navigate(returnUrl, navOptions);
     },
-    [navigate, getReturnUrl],
+    [navigate, getReturnUrl]
   );
 
   return {
@@ -66,4 +68,3 @@ export function useNavigationWithReturn(options: UseNavigationWithReturnOptions 
     getReturnUrl,
   };
 }
-

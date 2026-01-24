@@ -3,14 +3,14 @@
  * Main layout wrapper with transparent toolbar and back button
  */
 
-import React, {useState, useCallback, memo} from 'react';
-import {Box, AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Stack} from '@mui/material';
-import {ArrowBack, Search as SearchIcon, MoreVert, Edit, Delete} from '@mui/icons-material';
-import {useNavigate, useLocation} from 'react-router';
-import {useSearch} from '../../contexts/SearchContext';
-import {useTitle} from '../../contexts/TitleContext';
-import {FloatingSearchBox} from '../FloatingSearchBox';
-import {useKeyboardShortcuts} from '../../hooks/useKeyboardShortcuts';
+import React, { useState, useCallback, memo } from 'react';
+import { Box, AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Stack } from '@mui/material';
+import { ArrowBack, Search as SearchIcon, MoreVert, Edit, Delete } from '@mui/icons-material';
+import { useNavigate, useLocation } from 'react-router';
+import { useSearch } from '../../contexts/SearchContext';
+import { useTitle } from '../../contexts/TitleContext';
+import { FloatingSearchBox } from '../FloatingSearchBox';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
 export interface LayoutProps {
   children: React.ReactNode;
@@ -32,12 +32,18 @@ export interface LayoutProps {
  * Layout Component
  * Provides main app structure with transparent toolbar and back button
  */
-function LayoutComponent({children, title, hideSearch = false, actionButton, contextMenu}: LayoutProps): React.JSX.Element {
+function LayoutComponent({
+  children,
+  title,
+  hideSearch = false,
+  actionButton,
+  contextMenu,
+}: LayoutProps): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const isHomePage = location.pathname === '/';
-  const {openSearch, closeSearch, isSearchOpen} = useSearch();
-  const {title: contextTitle} = useTitle();
+  const { openSearch, closeSearch, isSearchOpen } = useSearch();
+  const { title: contextTitle } = useTitle();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   // Use context title if available, otherwise fall back to prop title
@@ -119,7 +125,7 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
   }, [contextMenu, handleContextMenuClose]);
 
   return (
-    <Stack direction="column" sx={{height: '100vh', overflow: 'hidden'}}>
+    <Stack direction="column" sx={{ height: '100vh', overflow: 'hidden' }}>
       {!isHomePage && (
         <AppBar
           position="static"
@@ -137,16 +143,18 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
               onClick={handleBack}
               aria-label="Back"
               sx={{
-                minWidth: {xs: 44, sm: 40},
-                minHeight: {xs: 44, sm: 40},
+                minWidth: { xs: 44, sm: 40 },
+                minHeight: { xs: 44, sm: 40 },
               }}
             >
               <ArrowBack />
             </IconButton>
-            {displayTitle ? <Typography variant="h6" component="h1" sx={{flexGrow: 1}}>
+            {displayTitle ? (
+              <Typography variant="h6" component="h1" sx={{ flexGrow: 1 }}>
                 {displayTitle}
-              </Typography> : null}
-            {!displayTitle && <Box sx={{flexGrow: 1}} />}
+              </Typography>
+            ) : null}
+            {!displayTitle && <Box sx={{ flexGrow: 1 }} />}
             {!hideSearch && (
               <IconButton
                 edge="end"
@@ -154,8 +162,8 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
                 onClick={handleSearchClick}
                 aria-label="Search"
                 sx={{
-                  minWidth: {xs: 44, sm: 40},
-                  minHeight: {xs: 44, sm: 40},
+                  minWidth: { xs: 44, sm: 40 },
+                  minHeight: { xs: 44, sm: 40 },
                 }}
               >
                 <SearchIcon />
@@ -168,8 +176,8 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
                 onClick={handleContextMenuOpen}
                 aria-label="More options"
                 sx={{
-                  minWidth: {xs: 44, sm: 40},
-                  minHeight: {xs: 44, sm: 40},
+                  minWidth: { xs: 44, sm: 40 },
+                  minHeight: { xs: 44, sm: 40 },
                 }}
               >
                 <MoreVert />
@@ -182,8 +190,8 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
                 onClick={actionButton.onClick}
                 aria-label={actionButton.ariaLabel}
                 sx={{
-                  minWidth: {xs: 44, sm: 40},
-                  minHeight: {xs: 44, sm: 40},
+                  minWidth: { xs: 44, sm: 40 },
+                  minHeight: { xs: 44, sm: 40 },
                 }}
               >
                 {actionButton.icon}
@@ -192,29 +200,27 @@ function LayoutComponent({children, title, hideSearch = false, actionButton, con
           </Toolbar>
         </AppBar>
       )}
-      {contextMenu ? <Menu
-          anchorEl={menuAnchor}
-          open={Boolean(menuAnchor)}
-          onClose={handleContextMenuClose}
-        >
+      {contextMenu ? (
+        <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleContextMenuClose}>
           {contextMenu.onEdit ? (
             <MenuItem onClick={handleEdit}>
               <Edit fontSize="small" />
-              <Box component="span" sx={{ml: 1}} />
+              <Box component="span" sx={{ ml: 1 }} />
               Edit
             </MenuItem>
           ) : null}
           <MenuItem onClick={handleDelete} disabled={contextMenu.disableDelete}>
             <Delete fontSize="small" />
-            <Box component="span" sx={{ml: 1}} />
+            <Box component="span" sx={{ ml: 1 }} />
             Delete
           </MenuItem>
-        </Menu> : null}
+        </Menu>
+      ) : null}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: {xs: 2, sm: 3},
+          p: { xs: 2, sm: 3 },
           overflowY: 'auto',
           animation: 'fadeIn 0.3s ease-in',
           '@keyframes fadeIn': {

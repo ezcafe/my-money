@@ -322,4 +322,3 @@ export const m3Breakpoints = {
   lg: 1280,
   xl: 1920,
 } as const;
-

@@ -5,9 +5,9 @@
  */
 
 import React from 'react';
-import {useLocation} from 'react-router';
-import {ErrorBoundary} from './ErrorBoundary';
-import {ErrorPage} from './ErrorPage';
+import { useLocation } from 'react-router';
+import { ErrorBoundary } from './ErrorBoundary';
+import { ErrorPage } from './ErrorPage';
 
 interface RouteErrorBoundaryProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ interface RouteErrorBoundaryProps {
  * Provides error isolation for individual routes
  * Enhanced with route-specific error reporting and recovery
  */
-export function RouteErrorBoundary({children}: RouteErrorBoundaryProps): React.JSX.Element {
+export function RouteErrorBoundary({ children }: RouteErrorBoundaryProps): React.JSX.Element {
   const location = useLocation();
 
   const handleError = (error: Error, errorInfo: React.ErrorInfo): void => {
@@ -43,10 +43,3 @@ export function RouteErrorBoundary({children}: RouteErrorBoundaryProps): React.J
     </ErrorBoundary>
   );
 }
-
-
-
-
-
-
-

@@ -31,7 +31,7 @@ class CircuitBreaker {
   private readonly options: CircuitBreakerOptions;
 
   constructor(options: Partial<CircuitBreakerOptions> = {}) {
-    this.options = {...DEFAULT_OPTIONS, ...options};
+    this.options = { ...DEFAULT_OPTIONS, ...options };
   }
 
   /**
@@ -66,7 +66,10 @@ class CircuitBreaker {
 
     if (this.state === 'open') {
       // Check if reset timeout has passed
-      if (this.lastFailureTime && now - this.lastFailureTime >= this.options.resetTimeoutMs) {
+      if (
+        this.lastFailureTime &&
+        now - this.lastFailureTime >= this.options.resetTimeoutMs
+      ) {
         this.state = 'half-open';
         this.successCount = 0;
       }
@@ -79,7 +82,10 @@ class CircuitBreaker {
     }
 
     // Reset failure count if monitoring window has passed
-    if (this.lastFailureTime && now - this.lastFailureTime >= this.options.monitoringWindowMs) {
+    if (
+      this.lastFailureTime &&
+      now - this.lastFailureTime >= this.options.monitoringWindowMs
+    ) {
       this.failureCount = 0;
     }
   }
@@ -141,6 +147,8 @@ export const dbCircuitBreaker = new CircuitBreaker({
  * @param operation - Database operation to execute
  * @returns Result of the operation
  */
-export async function executeWithCircuitBreaker<T>(operation: () => Promise<T>): Promise<T> {
+export async function executeWithCircuitBreaker<T>(
+  operation: () => Promise<T>
+): Promise<T> {
   return dbCircuitBreaker.execute(operation);
 }

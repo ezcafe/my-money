@@ -3,10 +3,10 @@
  * Common patterns for resolvers (pagination, authorization, etc.)
  */
 
-import type {GraphQLContext} from '../middleware/context';
-import {getUserDefaultWorkspace} from '../services/WorkspaceService';
-import {checkWorkspaceAccess} from '../services/WorkspaceService';
-import {NotFoundError} from './errors';
+import type { GraphQLContext } from '../middleware/context';
+import { getUserDefaultWorkspace } from '../services/WorkspaceService';
+import { checkWorkspaceAccess } from '../services/WorkspaceService';
+import { NotFoundError } from './errors';
 
 /**
  * Pagination input
@@ -34,22 +34,28 @@ export interface PaginationResult<T> {
  * @param cursor - Base64 encoded cursor
  * @returns Parsed offset and orderBy info
  */
-export function parseCursor(cursor: string | null | undefined): {offset: number; orderBy?: string} {
+export function parseCursor(cursor: string | null | undefined): {
+  offset: number;
+  orderBy?: string;
+} {
   if (!cursor) {
-    return {offset: 0};
+    return { offset: 0 };
   }
 
   try {
     const decoded = Buffer.from(cursor, 'base64');
-    const cursorData = JSON.parse(decoded.toString('utf-8')) as {offset: number; orderBy?: string};
+    const cursorData = JSON.parse(decoded.toString('utf-8')) as {
+      offset: number;
+      orderBy?: string;
+    };
     return cursorData;
   } catch {
     try {
       const decoded = Buffer.from(cursor, 'base64');
       const offset = Number.parseInt(decoded.toString('utf-8'), 10);
-      return {offset: isNaN(offset) ? 0 : offset};
+      return { offset: isNaN(offset) ? 0 : offset };
     } catch {
-      return {offset: 0};
+      return { offset: 0 };
     }
   }
 }
@@ -61,7 +67,7 @@ export function parseCursor(cursor: string | null | undefined): {offset: number;
  * @returns Base64 encoded cursor
  */
 export function createCursor(offset: number, orderBy?: string): string {
-  const buffer = Buffer.from(JSON.stringify({offset, orderBy}), 'utf-8');
+  const buffer = Buffer.from(JSON.stringify({ offset, orderBy }), 'utf-8');
   return buffer.toString('base64');
 }
 
@@ -75,9 +81,12 @@ export function createCursor(offset: number, orderBy?: string): string {
  */
 export async function ensureWorkspaceAccess(
   context: GraphQLContext,
-  workspaceId?: string,
+  workspaceId?: string
 ): Promise<string> {
-  const finalWorkspaceId = workspaceId ?? context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+  const finalWorkspaceId =
+    workspaceId ??
+    context.currentWorkspaceId ??
+    (await getUserDefaultWorkspace(context.userId));
   await checkWorkspaceAccess(finalWorkspaceId, context.userId);
   return finalWorkspaceId;
 }
@@ -92,11 +101,15 @@ export async function ensureWorkspaceAccess(
  */
 export async function verifyEntityInWorkspace<T>(
   repository: {
-    findById: (id: string, workspaceId: string, select?: Record<string, boolean>) => Promise<T | null>;
+    findById: (
+      id: string,
+      workspaceId: string,
+      select?: Record<string, boolean>
+    ) => Promise<T | null>;
   },
   id: string,
   workspaceId: string,
-  select?: Record<string, boolean>,
+  select?: Record<string, boolean>
 ): Promise<T | null> {
   return repository.findById(id, workspaceId, select);
 }
@@ -113,14 +126,23 @@ export async function verifyEntityInWorkspace<T>(
  */
 export async function requireEntityInWorkspace<T>(
   repository: {
-    findById: (id: string, workspaceId: string, select?: Record<string, boolean>) => Promise<T | null>;
+    findById: (
+      id: string,
+      workspaceId: string,
+      select?: Record<string, boolean>
+    ) => Promise<T | null>;
   },
   id: string,
   workspaceId: string,
   entityName: string,
-  select?: Record<string, boolean>,
+  select?: Record<string, boolean>
 ): Promise<T> {
-  const entity = await verifyEntityInWorkspace(repository, id, workspaceId, select);
+  const entity = await verifyEntityInWorkspace(
+    repository,
+    id,
+    workspaceId,
+    select
+  );
   if (!entity) {
     throw new NotFoundError(entityName);
   }
@@ -135,8 +157,8 @@ export async function requireEntityInWorkspace<T>(
  */
 export function calculatePagination(
   input: PaginationInput,
-  maxPageSize: number = 100,
-): {limit: number; offset: number} {
+  maxPageSize: number = 100
+): { limit: number; offset: number } {
   let limit = input.first ?? input.last ?? 20;
   limit = Math.min(limit, maxPageSize);
 
@@ -151,7 +173,7 @@ export function calculatePagination(
     offset = Math.max(0, beforeOffset - (input.last ?? 20));
   }
 
-  return {limit, offset};
+  return { limit, offset };
 }
 
 /**
@@ -168,7 +190,7 @@ export function buildPaginationResult<T>(
   totalCount: number,
   offset: number,
   limit: number,
-  orderBy?: string,
+  orderBy?: string
 ): PaginationResult<T> {
   const hasMore = offset + limit < totalCount;
   const hasPrevious = offset > 0;
@@ -178,6 +200,8 @@ export function buildPaginationResult<T>(
     totalCount,
     hasMore,
     nextCursor: hasMore ? createCursor(offset + limit, orderBy) : null,
-    previousCursor: hasPrevious ? createCursor(Math.max(0, offset - limit), orderBy) : null,
+    previousCursor: hasPrevious
+      ? createCursor(Math.max(0, offset - limit), orderBy)
+      : null,
   };
 }

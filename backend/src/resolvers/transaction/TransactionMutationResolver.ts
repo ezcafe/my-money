@@ -3,20 +3,26 @@
  * Handles all transaction-related GraphQL mutations
  */
 
-import type {GraphQLContext} from '../../middleware/context';
-import type {Transaction} from '@prisma/client';
-import {NotFoundError} from '../../utils/errors';
-import {z} from 'zod';
-import {validate} from '../../utils/validation';
-import {withPrismaErrorHandling} from '../../utils/prismaErrors';
-import {incrementAccountBalance} from '../../services/AccountBalanceService';
-import {createTransaction, updateTransactionWithBalance} from '../../services/TransactionService';
-import {updateBudgetForTransaction} from '../../services/BudgetService';
-import {BaseResolver} from '../BaseResolver';
-import {invalidateAccountBalance} from '../../utils/cache';
-import {checkWorkspaceAccess, getUserDefaultWorkspace} from '../../services/WorkspaceService';
-import {publishTransactionUpdate} from '../SubscriptionResolver';
-import {getContainer} from '../../utils/container';
+import type { GraphQLContext } from '../../middleware/context';
+import type { Transaction } from '@prisma/client';
+import { NotFoundError } from '../../utils/errors';
+import { z } from 'zod';
+import { validate } from '../../utils/validation';
+import { withPrismaErrorHandling } from '../../utils/prismaErrors';
+import { incrementAccountBalance } from '../../services/AccountBalanceService';
+import {
+  createTransaction,
+  updateTransactionWithBalance,
+} from '../../services/TransactionService';
+import { updateBudgetForTransaction } from '../../services/BudgetService';
+import { BaseResolver } from '../BaseResolver';
+import { invalidateAccountBalance } from '../../utils/cache';
+import {
+  checkWorkspaceAccess,
+  getUserDefaultWorkspace,
+} from '../../services/WorkspaceService';
+import { publishTransactionUpdate } from '../SubscriptionResolver';
+import { getContainer } from '../../utils/container';
 import * as postgresCache from '../../utils/postgresCache';
 
 const CreateTransactionInputSchema = z.object({
@@ -50,21 +56,29 @@ export class TransactionMutationResolver extends BaseResolver {
    */
   async createTransaction(
     _: unknown,
-    {input}: {input: unknown},
-    context: GraphQLContext,
+    { input }: { input: unknown },
+    context: GraphQLContext
   ): Promise<Transaction> {
     // Validate input
     const validatedInput = validate(CreateTransactionInputSchema, input);
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Verify account belongs to workspace
-    const accountRepository = getContainer().getAccountRepository(context.prisma);
-    const account = await accountRepository.findById(validatedInput.accountId, workspaceId, {id: true});
+    const accountRepository = getContainer().getAccountRepository(
+      context.prisma
+    );
+    const account = await accountRepository.findById(
+      validatedInput.accountId,
+      workspaceId,
+      { id: true }
+    );
     if (!account) {
       throw new NotFoundError('Account');
     }
@@ -73,10 +87,15 @@ export class TransactionMutationResolver extends BaseResolver {
     const transaction = await withPrismaErrorHandling(
       async () => {
         return await context.prisma.$transaction(async (tx) => {
-          return await createTransaction(validatedInput, context.userId, workspaceId, tx);
+          return await createTransaction(
+            validatedInput,
+            context.userId,
+            workspaceId,
+            tx
+          );
         });
       },
-      {resource: 'Transaction', operation: 'create'},
+      { resource: 'Transaction', operation: 'create' }
     );
 
     // Publish update event
@@ -90,21 +109,29 @@ export class TransactionMutationResolver extends BaseResolver {
    */
   async updateTransaction(
     _: unknown,
-    {id, input}: {id: string; input: unknown},
-    context: GraphQLContext,
+    { id, input }: { id: string; input: unknown },
+    context: GraphQLContext
   ): Promise<Transaction> {
     // Validate input
     const validatedInput = validate(UpdateTransactionInputSchema, input);
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
 
-    const transactionRepository = getContainer().getTransactionRepository(context.prisma);
-    const categoryRepository = getContainer().getCategoryRepository(context.prisma);
-    const accountRepository = getContainer().getAccountRepository(context.prisma);
+    const transactionRepository = getContainer().getTransactionRepository(
+      context.prisma
+    );
+    const categoryRepository = getContainer().getCategoryRepository(
+      context.prisma
+    );
+    const accountRepository = getContainer().getAccountRepository(
+      context.prisma
+    );
 
     // Verify transaction belongs to workspace and fetch with category
     const existingTransactionRaw = await transactionRepository.findById(
@@ -113,7 +140,7 @@ export class TransactionMutationResolver extends BaseResolver {
       undefined,
       {
         category: true,
-      },
+      }
     );
 
     if (!existingTransactionRaw) {
@@ -121,10 +148,11 @@ export class TransactionMutationResolver extends BaseResolver {
     }
 
     // Type assertion for transaction with category relation
-    const existingTransaction = existingTransactionRaw as typeof existingTransactionRaw & {
-      category: {categoryType: 'Income' | 'Expense'} | null;
-      version: number;
-    };
+    const existingTransaction =
+      existingTransactionRaw as typeof existingTransactionRaw & {
+        category: { categoryType: 'Income' | 'Expense' } | null;
+        version: number;
+      };
 
     // Store old transaction for version tracking (if needed in future)
     // const oldTransaction = {...existingTransaction};
@@ -133,12 +161,20 @@ export class TransactionMutationResolver extends BaseResolver {
     // Prepare new transaction data
     const newTransactionData = {
       ...existingTransaction,
-      ...(validatedInput.value !== undefined && {value: validatedInput.value}),
-      ...(validatedInput.date !== undefined && {date: validatedInput.date}),
-      ...(validatedInput.accountId !== undefined && {accountId: validatedInput.accountId}),
-      ...(validatedInput.categoryId !== undefined && {categoryId: validatedInput.categoryId}),
-      ...(validatedInput.payeeId !== undefined && {payeeId: validatedInput.payeeId}),
-      ...(validatedInput.note !== undefined && {note: validatedInput.note}),
+      ...(validatedInput.value !== undefined && {
+        value: validatedInput.value,
+      }),
+      ...(validatedInput.date !== undefined && { date: validatedInput.date }),
+      ...(validatedInput.accountId !== undefined && {
+        accountId: validatedInput.accountId,
+      }),
+      ...(validatedInput.categoryId !== undefined && {
+        categoryId: validatedInput.categoryId,
+      }),
+      ...(validatedInput.payeeId !== undefined && {
+        payeeId: validatedInput.payeeId,
+      }),
+      ...(validatedInput.note !== undefined && { note: validatedInput.note }),
       version: existingTransaction.version + 1,
       lastEditedBy: context.userId,
     };
@@ -151,12 +187,16 @@ export class TransactionMutationResolver extends BaseResolver {
       validatedInput.expectedVersion,
       existingTransaction as unknown as Record<string, unknown>,
       newTransactionData as unknown as Record<string, unknown>,
-      workspaceId,
+      workspaceId
     );
 
     // Verify account if changed
     if (validatedInput.accountId) {
-      const account = await accountRepository.findById(validatedInput.accountId, workspaceId, {id: true});
+      const account = await accountRepository.findById(
+        validatedInput.accountId,
+        workspaceId,
+        { id: true }
+      );
 
       if (!account) {
         throw new NotFoundError('Account');
@@ -164,13 +204,13 @@ export class TransactionMutationResolver extends BaseResolver {
     }
 
     // Verify and fetch new category if changed
-    let newCategory: {categoryType: 'Income' | 'Expense'} | null = null;
+    let newCategory: { categoryType: 'Income' | 'Expense' } | null = null;
     if (validatedInput.categoryId !== undefined) {
       if (validatedInput.categoryId) {
         const foundCategory = await categoryRepository.findById(
           validatedInput.categoryId,
           workspaceId,
-          {id: true, categoryType: true},
+          { id: true, categoryType: true }
         );
 
         if (!foundCategory) {
@@ -195,7 +235,7 @@ export class TransactionMutationResolver extends BaseResolver {
         existingTransaction as unknown as Record<string, unknown>,
         newTransactionData as unknown as Record<string, unknown>,
         context.userId,
-        tx,
+        tx
       );
 
       const updatedTransaction = await updateTransactionWithBalance(
@@ -211,14 +251,14 @@ export class TransactionMutationResolver extends BaseResolver {
         newCategory,
         context.userId,
         workspaceId,
-        tx,
+        tx
       );
 
       // Increment version and update lastEditedBy
       await tx.transaction.update({
-        where: {id},
+        where: { id },
         data: {
-          version: {increment: 1},
+          version: { increment: 1 },
           lastEditedBy: context.userId,
         },
       });
@@ -235,14 +275,22 @@ export class TransactionMutationResolver extends BaseResolver {
   /**
    * Delete transaction
    */
-  async deleteTransaction(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
+  async deleteTransaction(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<boolean> {
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
 
     // Verify workspace access
     await checkWorkspaceAccess(workspaceId, context.userId);
 
-    const transactionRepository = getContainer().getTransactionRepository(context.prisma);
+    const transactionRepository = getContainer().getTransactionRepository(
+      context.prisma
+    );
 
     // Verify transaction belongs to workspace and fetch with category
     const transactionRaw = await transactionRepository.findById(
@@ -251,7 +299,7 @@ export class TransactionMutationResolver extends BaseResolver {
       undefined,
       {
         category: true,
-      },
+      }
     );
 
     if (!transactionRaw) {
@@ -260,23 +308,25 @@ export class TransactionMutationResolver extends BaseResolver {
 
     // Type assertion for transaction with category relation
     const transaction = transactionRaw as typeof transactionRaw & {
-      category: {categoryType: 'Income' | 'Expense'} | null;
+      category: { categoryType: 'Income' | 'Expense' } | null;
     };
 
     // Calculate balance delta to reverse based on category type
     const transactionValue = Number(transaction.value);
-    const balanceDelta = transaction.category?.categoryType === 'Income'
-      ? -transactionValue  // Reverse income: subtract
-      : transactionValue;  // Reverse expense: add back
+    const balanceDelta =
+      transaction.category?.categoryType === 'Income'
+        ? -transactionValue // Reverse income: subtract
+        : transactionValue; // Reverse expense: add back
 
     // Delete transaction and update account balance atomically
     await context.prisma.$transaction(async (tx) => {
-      const txTransactionRepository = getContainer().getTransactionRepository(tx);
+      const txTransactionRepository =
+        getContainer().getTransactionRepository(tx);
 
       // Get account to find workspaceId for budget updates
       const account = await tx.account.findUnique({
-        where: {id: transaction.accountId},
-        select: {workspaceId: true},
+        where: { id: transaction.accountId },
+        select: { workspaceId: true },
       });
 
       // Update budgets before deleting (need transaction data)
@@ -295,7 +345,7 @@ export class TransactionMutationResolver extends BaseResolver {
           },
           'delete',
           undefined,
-          tx,
+          tx
         );
       }
 

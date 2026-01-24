@@ -3,8 +3,8 @@
  * Parses GraphQL field selections to optimize database queries
  */
 
-import type {GraphQLResolveInfo} from 'graphql';
-import {Kind} from 'graphql';
+import type { GraphQLResolveInfo } from 'graphql';
+import { Kind } from 'graphql';
 
 /**
  * Check if a field is requested in the GraphQL query
@@ -12,8 +12,13 @@ import {Kind} from 'graphql';
  * @param fieldName - Field name to check
  * @returns True if field is requested, false otherwise
  */
-export function isFieldRequested(info: GraphQLResolveInfo, fieldName: string): boolean {
-  const fieldNode = info.fieldNodes.find((node) => node.name.value === info.fieldName);
+export function isFieldRequested(
+  info: GraphQLResolveInfo,
+  fieldName: string
+): boolean {
+  const fieldNode = info.fieldNodes.find(
+    (node) => node.name.value === info.fieldName
+  );
   if (!fieldNode?.selectionSet) {
     return false;
   }
@@ -32,7 +37,9 @@ export function isFieldRequested(info: GraphQLResolveInfo, fieldName: string): b
  * @returns Array of requested field names
  */
 export function getRequestedFields(info: GraphQLResolveInfo): string[] {
-  const fieldNode = info.fieldNodes.find((node) => node.name.value === info.fieldName);
+  const fieldNode = info.fieldNodes.find(
+    (node) => node.name.value === info.fieldName
+  );
   if (!fieldNode?.selectionSet) {
     return [];
   }
@@ -56,7 +63,7 @@ export function getRequestedFields(info: GraphQLResolveInfo): string[] {
 export function buildSelectClause(
   info: GraphQLResolveInfo,
   availableFields: string[],
-  relationFields?: Record<string, string[]>,
+  relationFields?: Record<string, string[]>
 ): Record<string, boolean> | undefined {
   const requestedFields = getRequestedFields(info);
 
@@ -66,7 +73,9 @@ export function buildSelectClause(
   }
 
   // Check if we should use select (only if some fields are not requested)
-  const shouldUseSelect = availableFields.some((field) => !requestedFields.includes(field));
+  const shouldUseSelect = availableFields.some(
+    (field) => !requestedFields.includes(field)
+  );
 
   if (!shouldUseSelect) {
     return undefined;
@@ -103,6 +112,9 @@ export function buildSelectClause(
  * @param relationName - Relation field name
  * @returns True if relation should be included, false otherwise
  */
-export function shouldIncludeRelation(info: GraphQLResolveInfo, relationName: string): boolean {
+export function shouldIncludeRelation(
+  info: GraphQLResolveInfo,
+  relationName: string
+): boolean {
   return isFieldRequested(info, relationName);
 }

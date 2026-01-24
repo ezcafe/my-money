@@ -3,10 +3,13 @@
  * Handles all database operations for budgets
  */
 
-import type {Budget, PrismaClient} from '@prisma/client';
-import {BaseRepository} from './BaseRepository';
+import type { Budget, PrismaClient } from '@prisma/client';
+import { BaseRepository } from './BaseRepository';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Budget Repository
@@ -25,14 +28,14 @@ export class BudgetRepository extends BaseRepository {
     id: string,
     workspaceId: string,
     select?: Record<string, boolean>,
-    include?: Record<string, boolean>,
+    include?: Record<string, boolean>
   ): Promise<Budget | null> {
     const queryOptions: {
-      where: {id: string; workspaceId: string};
+      where: { id: string; workspaceId: string };
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
     } = {
-      where: {id, workspaceId},
+      where: { id, workspaceId },
     };
 
     if (select) {
@@ -58,14 +61,14 @@ export class BudgetRepository extends BaseRepository {
       categoryId?: string;
       payeeId?: string;
     },
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<Budget[]> {
     const where: {
       workspaceId: string;
       accountId?: string;
       categoryId?: string;
       payeeId?: string;
-    } = {workspaceId};
+    } = { workspaceId };
 
     if (filters?.accountId) {
       where.accountId = filters.accountId;
@@ -80,7 +83,7 @@ export class BudgetRepository extends BaseRepository {
     const queryOptions: {
       where: typeof where;
       select?: Record<string, boolean>;
-    } = {where};
+    } = { where };
 
     if (select) {
       queryOptions.select = select;
@@ -103,16 +106,16 @@ export class BudgetRepository extends BaseRepository {
       payeeId: string | null;
     },
     workspaceId: string,
-    tx?: PrismaTransaction,
-  ): Promise<Array<{id: string; amount: number; currentSpent: number}>> {
+    tx?: PrismaTransaction
+  ): Promise<Array<{ id: string; amount: number; currentSpent: number }>> {
     const client = tx ?? this.prisma;
     const budgets = await client.budget.findMany({
       where: {
         workspaceId,
         OR: [
-          {accountId: transaction.accountId},
-          {categoryId: transaction.categoryId},
-          {payeeId: transaction.payeeId},
+          { accountId: transaction.accountId },
+          { categoryId: transaction.categoryId },
+          { payeeId: transaction.payeeId },
         ],
       },
       select: {
@@ -144,10 +147,10 @@ export class BudgetRepository extends BaseRepository {
       createdBy: string;
       lastEditedBy: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Budget> {
     const client = tx ?? this.prisma;
-    return client.budget.create({data});
+    return client.budget.create({ data });
   }
 
   /**
@@ -165,11 +168,11 @@ export class BudgetRepository extends BaseRepository {
       lastResetDate?: Date;
       lastEditedBy?: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Budget> {
     const client = tx ?? this.prisma;
     return client.budget.update({
-      where: {id},
+      where: { id },
       data,
     });
   }
@@ -194,8 +197,8 @@ export class BudgetRepository extends BaseRepository {
       currentSpent?: number;
       lastResetDate?: Date;
     },
-    tx?: PrismaTransaction,
-  ): Promise<{count: number}> {
+    tx?: PrismaTransaction
+  ): Promise<{ count: number }> {
     const client = tx ?? this.prisma;
     return client.budget.updateMany({
       where,
@@ -212,7 +215,7 @@ export class BudgetRepository extends BaseRepository {
   async delete(id: string, tx?: PrismaTransaction): Promise<Budget> {
     const client = tx ?? this.prisma;
     return client.budget.delete({
-      where: {id},
+      where: { id },
     });
   }
 
@@ -223,7 +226,7 @@ export class BudgetRepository extends BaseRepository {
    */
   async count(workspaceId: string): Promise<number> {
     return this.prisma.budget.count({
-      where: {workspaceId},
+      where: { workspaceId },
     });
   }
 
@@ -243,13 +246,13 @@ export class BudgetRepository extends BaseRepository {
       payeeId?: string | null;
     },
     select?: Record<string, boolean>,
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Budget | null> {
     const client = tx ?? this.prisma;
     const queryOptions: {
       where: typeof where;
       select?: Record<string, boolean>;
-    } = {where};
+    } = { where };
 
     if (select) {
       queryOptions.select = select;
@@ -268,14 +271,14 @@ export class BudgetRepository extends BaseRepository {
   async findUnique(
     id: string,
     select?: Record<string, boolean>,
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<Budget | null> {
     const client = tx ?? this.prisma;
     const queryOptions: {
-      where: {id: string};
+      where: { id: string };
       select?: Record<string, boolean>;
     } = {
-      where: {id},
+      where: { id },
     };
 
     if (select) {

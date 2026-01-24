@@ -4,20 +4,28 @@
  * Uses UnitOfWork pattern for atomic transactions
  */
 
-import type {GraphQLContext} from '../middleware/context';
-import type {Account, Category, Payee, Transaction} from '@prisma/client';
-import {NotFoundError, ValidationError} from '../utils/errors';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
-import {checkWorkspaceAccess, getUserDefaultWorkspace} from '../services/WorkspaceService';
-import {BaseResolver} from './BaseResolver';
-import {UnitOfWork} from '../utils/UnitOfWork';
-import {createTransaction} from '../services/TransactionService';
+import type { GraphQLContext } from '../middleware/context';
+import type { Account, Category, Payee, Transaction } from '@prisma/client';
+import { NotFoundError, ValidationError } from '../utils/errors';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import {
+  checkWorkspaceAccess,
+  getUserDefaultWorkspace,
+} from '../services/WorkspaceService';
+import { BaseResolver } from './BaseResolver';
+import { UnitOfWork } from '../utils/UnitOfWork';
+import { createTransaction } from '../services/TransactionService';
 import * as postgresCache from '../utils/postgresCache';
-import {CACHE_TAGS} from '../utils/cacheTags';
-import {publishAccountUpdate, publishCategoryUpdate, publishPayeeUpdate, publishTransactionUpdate} from './SubscriptionResolver';
-import {z} from 'zod';
-import {validate} from '../utils/validation';
-import {sanitizeUserInput} from '../utils/sanitization';
+import { CACHE_TAGS } from '../utils/cacheTags';
+import {
+  publishAccountUpdate,
+  publishCategoryUpdate,
+  publishPayeeUpdate,
+  publishTransactionUpdate,
+} from './SubscriptionResolver';
+import { z } from 'zod';
+import { validate } from '../utils/validation';
+import { sanitizeUserInput } from '../utils/sanitization';
 
 /**
  * Batch operation result
@@ -25,7 +33,7 @@ import {sanitizeUserInput} from '../utils/sanitization';
 export interface BatchResult<T> {
   created: T[];
   updated: T[];
-  errors: Array<{index: number; message: string}>;
+  errors: Array<{ index: number; message: string }>;
 }
 
 /**
@@ -34,7 +42,9 @@ export interface BatchResult<T> {
 const BatchCreateAccountInputSchema = z.object({
   name: z.string().min(1).max(255),
   initBalance: z.number().finite().optional(),
-  accountType: z.enum(['Cash', 'CreditCard', 'Bank', 'Saving', 'Loans']).optional(),
+  accountType: z
+    .enum(['Cash', 'CreditCard', 'Bank', 'Saving', 'Loans'])
+    .optional(),
   workspaceId: z.string().uuid().optional(),
 });
 
@@ -42,7 +52,9 @@ const BatchUpdateAccountInputSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(255).optional(),
   initBalance: z.number().finite().optional(),
-  accountType: z.enum(['Cash', 'CreditCard', 'Bank', 'Saving', 'Loans']).optional(),
+  accountType: z
+    .enum(['Cash', 'CreditCard', 'Bank', 'Saving', 'Loans'])
+    .optional(),
 });
 
 const BatchCreateCategoryInputSchema = z.object({
@@ -100,19 +112,23 @@ export class BatchResolver extends BaseResolver {
    */
   async bulkCreateAccounts(
     _: unknown,
-    {inputs}: {inputs: unknown[]},
-    context: GraphQLContext,
+    { inputs }: { inputs: unknown[] },
+    context: GraphQLContext
   ): Promise<BatchResult<Account>> {
     // Get workspace ID
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
       try {
-        return {index, data: validate(BatchCreateAccountInputSchema, input)};
+        return { index, data: validate(BatchCreateAccountInputSchema, input) };
       } catch (error) {
-        throw new ValidationError(`Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new ValidationError(
+          `Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
@@ -126,7 +142,7 @@ export class BatchResolver extends BaseResolver {
     await UnitOfWork.create(context.prisma, async (uow) => {
       const accountRepository = uow.getAccountRepository();
 
-      for (const {index, data} of validatedInputs) {
+      for (const { index, data } of validatedInputs) {
         try {
           // Sanitize name
           const sanitizedName = sanitizeUserInput(data.name);
@@ -144,7 +160,7 @@ export class BatchResolver extends BaseResolver {
                 isDefault: false,
               });
             },
-            {resource: 'Account', operation: 'create'},
+            { resource: 'Account', operation: 'create' }
           );
 
           result.created.push(account as unknown as Account);
@@ -173,19 +189,23 @@ export class BatchResolver extends BaseResolver {
    */
   async bulkUpdateAccounts(
     _: unknown,
-    {inputs}: {inputs: unknown[]},
-    context: GraphQLContext,
+    { inputs }: { inputs: unknown[] },
+    context: GraphQLContext
   ): Promise<BatchResult<Account>> {
     // Get workspace ID
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
       try {
-        return {index, data: validate(BatchUpdateAccountInputSchema, input)};
+        return { index, data: validate(BatchUpdateAccountInputSchema, input) };
       } catch (error) {
-        throw new ValidationError(`Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new ValidationError(
+          `Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
@@ -199,10 +219,14 @@ export class BatchResolver extends BaseResolver {
     await UnitOfWork.create(context.prisma, async (uow) => {
       const accountRepository = uow.getAccountRepository();
 
-      for (const {index, data} of validatedInputs) {
+      for (const { index, data } of validatedInputs) {
         try {
           // Verify account exists and belongs to workspace
-          const existing = await accountRepository.findById(data.id, workspaceId, {id: true});
+          const existing = await accountRepository.findById(
+            data.id,
+            workspaceId,
+            { id: true }
+          );
           if (!existing) {
             throw new NotFoundError('Account');
           }
@@ -232,7 +256,7 @@ export class BatchResolver extends BaseResolver {
             async () => {
               return await accountRepository.update(data.id, updateData);
             },
-            {resource: 'Account', operation: 'update'},
+            { resource: 'Account', operation: 'update' }
           );
 
           result.updated.push(account as unknown as Account);
@@ -261,19 +285,23 @@ export class BatchResolver extends BaseResolver {
    */
   async bulkCreateCategories(
     _: unknown,
-    {inputs}: {inputs: unknown[]},
-    context: GraphQLContext,
+    { inputs }: { inputs: unknown[] },
+    context: GraphQLContext
   ): Promise<BatchResult<Category>> {
     // Get workspace ID
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
       try {
-        return {index, data: validate(BatchCreateCategoryInputSchema, input)};
+        return { index, data: validate(BatchCreateCategoryInputSchema, input) };
       } catch (error) {
-        throw new ValidationError(`Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new ValidationError(
+          `Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
@@ -287,7 +315,7 @@ export class BatchResolver extends BaseResolver {
     await UnitOfWork.create(context.prisma, async (uow) => {
       const categoryRepository = uow.getCategoryRepository();
 
-      for (const {index, data} of validatedInputs) {
+      for (const { index, data } of validatedInputs) {
         try {
           // Sanitize name
           const sanitizedName = sanitizeUserInput(data.name);
@@ -304,7 +332,7 @@ export class BatchResolver extends BaseResolver {
                 isDefault: false,
               });
             },
-            {resource: 'Category', operation: 'create'},
+            { resource: 'Category', operation: 'create' }
           );
 
           result.created.push(category as unknown as Category);
@@ -330,19 +358,23 @@ export class BatchResolver extends BaseResolver {
    */
   async bulkUpdateCategories(
     _: unknown,
-    {inputs}: {inputs: unknown[]},
-    context: GraphQLContext,
+    { inputs }: { inputs: unknown[] },
+    context: GraphQLContext
   ): Promise<BatchResult<Category>> {
     // Get workspace ID
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
       try {
-        return {index, data: validate(BatchUpdateCategoryInputSchema, input)};
+        return { index, data: validate(BatchUpdateCategoryInputSchema, input) };
       } catch (error) {
-        throw new ValidationError(`Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new ValidationError(
+          `Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
@@ -356,10 +388,14 @@ export class BatchResolver extends BaseResolver {
     await UnitOfWork.create(context.prisma, async (uow) => {
       const categoryRepository = uow.getCategoryRepository();
 
-      for (const {index, data} of validatedInputs) {
+      for (const { index, data } of validatedInputs) {
         try {
           // Verify category exists and belongs to workspace
-          const existing = await categoryRepository.findById(data.id, workspaceId, {id: true});
+          const existing = await categoryRepository.findById(
+            data.id,
+            workspaceId,
+            { id: true }
+          );
           if (!existing) {
             throw new NotFoundError('Category');
           }
@@ -385,7 +421,7 @@ export class BatchResolver extends BaseResolver {
             async () => {
               return await categoryRepository.update(data.id, updateData);
             },
-            {resource: 'Category', operation: 'update'},
+            { resource: 'Category', operation: 'update' }
           );
 
           result.updated.push(category as unknown as Category);
@@ -411,19 +447,23 @@ export class BatchResolver extends BaseResolver {
    */
   async bulkCreatePayees(
     _: unknown,
-    {inputs}: {inputs: unknown[]},
-    context: GraphQLContext,
+    { inputs }: { inputs: unknown[] },
+    context: GraphQLContext
   ): Promise<BatchResult<Payee>> {
     // Get workspace ID
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
       try {
-        return {index, data: validate(BatchCreatePayeeInputSchema, input)};
+        return { index, data: validate(BatchCreatePayeeInputSchema, input) };
       } catch (error) {
-        throw new ValidationError(`Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new ValidationError(
+          `Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
@@ -437,7 +477,7 @@ export class BatchResolver extends BaseResolver {
     await UnitOfWork.create(context.prisma, async (uow) => {
       const payeeRepository = uow.getPayeeRepository();
 
-      for (const {index, data} of validatedInputs) {
+      for (const { index, data } of validatedInputs) {
         try {
           // Sanitize name
           const sanitizedName = sanitizeUserInput(data.name);
@@ -453,7 +493,7 @@ export class BatchResolver extends BaseResolver {
                 isDefault: false,
               });
             },
-            {resource: 'Payee', operation: 'create'},
+            { resource: 'Payee', operation: 'create' }
           );
 
           result.created.push(payee as unknown as Payee);
@@ -479,19 +519,23 @@ export class BatchResolver extends BaseResolver {
    */
   async bulkUpdatePayees(
     _: unknown,
-    {inputs}: {inputs: unknown[]},
-    context: GraphQLContext,
+    { inputs }: { inputs: unknown[] },
+    context: GraphQLContext
   ): Promise<BatchResult<Payee>> {
     // Get workspace ID
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
       try {
-        return {index, data: validate(BatchUpdatePayeeInputSchema, input)};
+        return { index, data: validate(BatchUpdatePayeeInputSchema, input) };
       } catch (error) {
-        throw new ValidationError(`Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new ValidationError(
+          `Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
@@ -505,10 +549,14 @@ export class BatchResolver extends BaseResolver {
     await UnitOfWork.create(context.prisma, async (uow) => {
       const payeeRepository = uow.getPayeeRepository();
 
-      for (const {index, data} of validatedInputs) {
+      for (const { index, data } of validatedInputs) {
         try {
           // Verify payee exists and belongs to workspace
-          const existing = await payeeRepository.findById(data.id, workspaceId, {id: true});
+          const existing = await payeeRepository.findById(
+            data.id,
+            workspaceId,
+            { id: true }
+          );
           if (!existing) {
             throw new NotFoundError('Payee');
           }
@@ -527,7 +575,7 @@ export class BatchResolver extends BaseResolver {
             async () => {
               return await payeeRepository.update(data.id, updateData);
             },
-            {resource: 'Payee', operation: 'update'},
+            { resource: 'Payee', operation: 'update' }
           );
 
           result.updated.push(payee as unknown as Payee);
@@ -553,19 +601,26 @@ export class BatchResolver extends BaseResolver {
    */
   async bulkCreateTransactions(
     _: unknown,
-    {inputs}: {inputs: unknown[]},
-    context: GraphQLContext,
+    { inputs }: { inputs: unknown[] },
+    context: GraphQLContext
   ): Promise<BatchResult<Transaction>> {
     // Get workspace ID
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
       try {
-        return {index, data: validate(BatchCreateTransactionInputSchema, input)};
+        return {
+          index,
+          data: validate(BatchCreateTransactionInputSchema, input),
+        };
       } catch (error) {
-        throw new ValidationError(`Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new ValidationError(
+          `Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
@@ -580,19 +635,25 @@ export class BatchResolver extends BaseResolver {
       const accountRepository = uow.getAccountRepository();
 
       // Verify all accounts exist and belong to workspace
-      const accountIds = [...new Set(validatedInputs.map((input) => input.data.accountId))];
+      const accountIds = [
+        ...new Set(validatedInputs.map((input) => input.data.accountId)),
+      ];
       await Promise.all(
         accountIds.map(async (accountId) => {
-          const account = await accountRepository.findById(accountId, workspaceId, {id: true});
+          const account = await accountRepository.findById(
+            accountId,
+            workspaceId,
+            { id: true }
+          );
           if (!account) {
             throw new NotFoundError(`Account ${accountId}`);
           }
           return account;
-        }),
+        })
       );
 
       // Create transactions
-      for (const {index, data} of validatedInputs) {
+      for (const { index, data } of validatedInputs) {
         try {
           const transaction = await withPrismaErrorHandling(
             async () => {
@@ -607,10 +668,10 @@ export class BatchResolver extends BaseResolver {
                 },
                 context.userId,
                 workspaceId,
-                uow.getTransaction(),
+                uow.getTransaction()
               );
             },
-            {resource: 'Transaction', operation: 'create'},
+            { resource: 'Transaction', operation: 'create' }
           );
 
           result.created.push(transaction as unknown as Transaction);
@@ -636,19 +697,26 @@ export class BatchResolver extends BaseResolver {
    */
   async bulkUpdateTransactions(
     _: unknown,
-    {inputs}: {inputs: unknown[]},
-    context: GraphQLContext,
+    { inputs }: { inputs: unknown[] },
+    context: GraphQLContext
   ): Promise<BatchResult<Transaction>> {
     // Get workspace ID
-    const workspaceId = context.currentWorkspaceId ?? await getUserDefaultWorkspace(context.userId);
+    const workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
     await checkWorkspaceAccess(workspaceId, context.userId);
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
       try {
-        return {index, data: validate(BatchUpdateTransactionInputSchema, input)};
+        return {
+          index,
+          data: validate(BatchUpdateTransactionInputSchema, input),
+        };
       } catch (error) {
-        throw new ValidationError(`Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
+        throw new ValidationError(
+          `Invalid input at index ${index}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 
@@ -663,17 +731,25 @@ export class BatchResolver extends BaseResolver {
       const transactionRepository = uow.getTransactionRepository();
       const accountRepository = uow.getAccountRepository();
 
-      for (const {index, data} of validatedInputs) {
+      for (const { index, data } of validatedInputs) {
         try {
           // Verify transaction exists and belongs to workspace
-          const existing = await transactionRepository.findById(data.id, workspaceId, {id: true});
+          const existing = await transactionRepository.findById(
+            data.id,
+            workspaceId,
+            { id: true }
+          );
           if (!existing) {
             throw new NotFoundError('Transaction');
           }
 
           // Verify account if provided
           if (data.accountId) {
-            const account = await accountRepository.findById(data.accountId, workspaceId, {id: true});
+            const account = await accountRepository.findById(
+              data.accountId,
+              workspaceId,
+              { id: true }
+            );
             if (!account) {
               throw new NotFoundError('Account');
             }
@@ -718,7 +794,7 @@ export class BatchResolver extends BaseResolver {
             async () => {
               return await transactionRepository.update(data.id, updateData);
             },
-            {resource: 'Transaction', operation: 'update'},
+            { resource: 'Transaction', operation: 'update' }
           );
 
           result.updated.push(transaction as unknown as Transaction);

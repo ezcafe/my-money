@@ -4,17 +4,17 @@
  * Ensures all operations within a unit of work are atomic
  */
 
-import type {PrismaClient} from '@prisma/client';
-import type {PrismaTransaction} from '../repositories/BaseRepository';
-import {getContainer} from './container';
-import type {AccountRepository} from '../repositories/AccountRepository';
-import type {CategoryRepository} from '../repositories/CategoryRepository';
-import type {PayeeRepository} from '../repositories/PayeeRepository';
-import type {TransactionRepository} from '../repositories/TransactionRepository';
-import type {BudgetRepository} from '../repositories/BudgetRepository';
-import type {RecurringTransactionRepository} from '../repositories/RecurringTransactionRepository';
-import {retry, isRetryableError} from './retry';
-import {logError, logInfo} from './logger';
+import type { PrismaClient } from '@prisma/client';
+import type { PrismaTransaction } from '../repositories/BaseRepository';
+import { getContainer } from './container';
+import type { AccountRepository } from '../repositories/AccountRepository';
+import type { CategoryRepository } from '../repositories/CategoryRepository';
+import type { PayeeRepository } from '../repositories/PayeeRepository';
+import type { TransactionRepository } from '../repositories/TransactionRepository';
+import type { BudgetRepository } from '../repositories/BudgetRepository';
+import type { RecurringTransactionRepository } from '../repositories/RecurringTransactionRepository';
+import { retry, isRetryableError } from './retry';
+import { logError, logInfo } from './logger';
 
 /**
  * Unit of Work class
@@ -48,8 +48,12 @@ export class UnitOfWork {
     options?: {
       timeout?: number;
       maxRetries?: number;
-      isolationLevel?: 'ReadUncommitted' | 'ReadCommitted' | 'RepeatableRead' | 'Serializable';
-    },
+      isolationLevel?:
+        | 'ReadUncommitted'
+        | 'ReadCommitted'
+        | 'RepeatableRead'
+        | 'Serializable';
+    }
   ): Promise<T> {
     const maxRetries = options?.maxRetries ?? 3;
     const timeout = options?.timeout ?? 30000; // 30 seconds default
@@ -63,18 +67,23 @@ export class UnitOfWork {
               return await callback(uow);
             } catch (error) {
               // Transaction will automatically rollback on error
-              const errorObj = error instanceof Error ? error : new Error(String(error));
-              logError('Transaction failed', {
-                event: 'transaction_failed',
-                error: errorObj.message,
-              }, errorObj);
+              const errorObj =
+                error instanceof Error ? error : new Error(String(error));
+              logError(
+                'Transaction failed',
+                {
+                  event: 'transaction_failed',
+                  error: errorObj.message,
+                },
+                errorObj
+              );
               throw error;
             }
           },
           {
             timeout,
             isolationLevel: options?.isolationLevel,
-          },
+          }
         );
       },
       {
@@ -92,7 +101,7 @@ export class UnitOfWork {
           }
           return false;
         },
-      },
+      }
     );
   }
 

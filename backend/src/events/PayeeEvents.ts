@@ -3,7 +3,7 @@
  * Defines all payee-related events and their payloads
  */
 
-import type {Payee} from '@prisma/client';
+import type { Payee } from '@prisma/client';
 
 /**
  * Payee event payloads
@@ -14,7 +14,7 @@ export interface PayeeEventPayloads extends Record<string, unknown[]> {
   'payee.deleted': [Payee];
 }
 
-import type {TypedEventEmitter} from './EventEmitter';
+import type { TypedEventEmitter } from './EventEmitter';
 
 /**
  * Payee event emitter type

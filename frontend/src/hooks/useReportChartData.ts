@@ -3,10 +3,14 @@
  * Manages chart data preparation, series visibility, and chart utilities for report page
  */
 
-import {useState, useCallback, useMemo, useEffect} from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import dayjs from 'dayjs';
-import {formatDateShort, formatMonthYear, formatCurrencyPreserveDecimals} from '../utils/formatting';
-import type {DateFormat} from '../contexts/DateFormatContext';
+import {
+  formatDateShort,
+  formatMonthYear,
+  formatCurrencyPreserveDecimals,
+} from '../utils/formatting';
+import type { DateFormat } from '../contexts/DateFormatContext';
 
 /**
  * Transaction type from report query
@@ -124,7 +128,11 @@ function getDateGroupingType(startDate: string, endDate: string): 'month' | 'wee
  * @param dateFormat - Date format for date-level grouping
  * @returns Group key string
  */
-function getGroupKey(date: string, groupingType: 'month' | 'week' | 'date', dateFormat: DateFormat): string {
+function getGroupKey(
+  date: string,
+  groupingType: 'month' | 'week' | 'date',
+  dateFormat: DateFormat
+): string {
   const dateObj = dayjs(date);
 
   switch (groupingType) {
@@ -173,7 +181,7 @@ export function useReportChartData(
   startDate: string,
   endDate: string,
   dateFormat: DateFormat,
-  _currency: string,
+  _currency: string
 ): UseReportChartDataReturn {
   // Chart series visibility state (track which series are hidden)
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
@@ -192,16 +200,25 @@ export function useReportChartData(
 
     // Separate income and expense transactions
     const incomeTransactions = transactions.filter((t) => t.category?.categoryType === 'Income');
-    const expenseTransactions = transactions.filter((t) => !t.category || t.category.categoryType === 'Expense');
+    const expenseTransactions = transactions.filter(
+      (t) => !t.category || t.category.categoryType === 'Expense'
+    );
 
     // Group by date period
     // Structure: Map<groupKey, {income: number, expense: number}>
-    const groupedData = new Map<string, {income: number; expense: number; originalDate: string}>();
+    const groupedData = new Map<
+      string,
+      { income: number; expense: number; originalDate: string }
+    >();
 
     // Process income transactions
     for (const transaction of incomeTransactions) {
       const groupKey = getGroupKey(transaction.date, groupingType, dateFormat);
-      const existing = groupedData.get(groupKey) ?? {income: 0, expense: 0, originalDate: transaction.date};
+      const existing = groupedData.get(groupKey) ?? {
+        income: 0,
+        expense: 0,
+        originalDate: transaction.date,
+      };
       existing.income += Number(transaction.value);
       groupedData.set(groupKey, existing);
     }
@@ -209,7 +226,11 @@ export function useReportChartData(
     // Process expense transactions
     for (const transaction of expenseTransactions) {
       const groupKey = getGroupKey(transaction.date, groupingType, dateFormat);
-      const existing = groupedData.get(groupKey) ?? {income: 0, expense: 0, originalDate: transaction.date};
+      const existing = groupedData.get(groupKey) ?? {
+        income: 0,
+        expense: 0,
+        originalDate: transaction.date,
+      };
       existing.expense += Math.abs(Number(transaction.value));
       groupedData.set(groupKey, existing);
     }
@@ -237,7 +258,10 @@ export function useReportChartData(
           expense: data.expense,
         };
       })
-      .sort((a, b) => new Date(a.originalDate ?? '').getTime() - new Date(b.originalDate ?? '').getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.originalDate ?? '').getTime() - new Date(b.originalDate ?? '').getTime()
+      );
 
     return dataPoints;
   }, [transactions, startDate, endDate, dateFormat]);
@@ -364,26 +388,23 @@ export function useReportChartData(
   /**
    * Format Y-axis tick values with abbreviation
    */
-  const formatYAxisTick = useCallback(
-    (value: unknown): string => {
-      const numValue = typeof value === 'number' ? value : Number(value);
-      if (typeof numValue !== 'number' || Number.isNaN(numValue) || !Number.isFinite(numValue)) {
-        return '';
-      }
-      // Use formatNumberAbbreviation if available, otherwise format directly
-      if (numValue >= 1_000_000_000) {
-        return `${(numValue / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
-      }
-      if (numValue >= 1_000_000) {
-        return `${(numValue / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-      }
-      if (numValue >= 1_000) {
-        return `${(numValue / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-      }
-      return numValue.toString();
-    },
-    [],
-  );
+  const formatYAxisTick = useCallback((value: unknown): string => {
+    const numValue = typeof value === 'number' ? value : Number(value);
+    if (typeof numValue !== 'number' || Number.isNaN(numValue) || !Number.isFinite(numValue)) {
+      return '';
+    }
+    // Use formatNumberAbbreviation if available, otherwise format directly
+    if (numValue >= 1_000_000_000) {
+      return `${(numValue / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+    }
+    if (numValue >= 1_000_000) {
+      return `${(numValue / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    }
+    if (numValue >= 1_000) {
+      return `${(numValue / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+    }
+    return numValue.toString();
+  }, []);
 
   /**
    * Prepare pie chart data - always group by categories
@@ -404,7 +425,7 @@ export function useReportChartData(
 
     // Convert to array and sort by value (descending)
     const dataPoints = Array.from(groupedData.entries())
-      .map(([name, value]) => ({name, value}))
+      .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
     return dataPoints;
@@ -495,11 +516,13 @@ export function useReportChartData(
 
     // Separate income and expense transactions
     const incomeTransactions = transactions.filter((t) => t.category?.categoryType === 'Income');
-    const expenseTransactions = transactions.filter((t) => !t.category || t.category.categoryType === 'Expense');
+    const expenseTransactions = transactions.filter(
+      (t) => !t.category || t.category.categoryType === 'Expense'
+    );
 
     // Build node map and links
     const nodeMap = new Map<string, number>();
-    const links: Array<{source: string; target: string; value: number}> = [];
+    const links: Array<{ source: string; target: string; value: number }> = [];
 
     // Process income: Income Category -> Account
     // Structure: Map<categoryName, Map<accountName, amount>>

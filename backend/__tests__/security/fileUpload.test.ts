@@ -2,14 +2,21 @@
  * File Upload Security Tests
  */
 
-import {describe, it, expect} from '@jest/globals';
-import {sanitizeFilename, validateFileExtension} from '../../src/resolvers/ImportResolver';
+import { describe, it, expect } from '@jest/globals';
+import {
+  sanitizeFilename,
+  validateFileExtension,
+} from '../../src/resolvers/ImportResolver';
 
 describe('File Upload Security', () => {
   describe('Filename Sanitization', () => {
     it('should remove path traversal attempts', () => {
-      expect(sanitizeFilename('../../../etc/passwd')).toBe('___________etc_passwd');
-      expect(sanitizeFilename('..\\..\\windows\\system32')).toBe('__windows_system32');
+      expect(sanitizeFilename('../../../etc/passwd')).toBe(
+        '___________etc_passwd'
+      );
+      expect(sanitizeFilename('..\\..\\windows\\system32')).toBe(
+        '__windows_system32'
+      );
     });
 
     it('should limit filename length', () => {
@@ -53,4 +60,3 @@ describe('File Upload Security', () => {
     });
   });
 });
-

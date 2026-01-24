@@ -3,30 +3,39 @@
  * Shows account details with paginated transactions and charts
  */
 
-import React, {useState, memo, useCallback, useEffect, useRef} from 'react';
-import {useParams, useNavigate, useLocation} from 'react-router';
+import React, { useState, memo, useCallback, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router';
 import Typography from '@mui/material/Typography';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {useAccount} from '../hooks/useAccount';
-import {useTransactions, type TransactionOrderInput, type TransactionOrderByField} from '../hooks/useTransactions';
-import {formatCurrencyPreserveDecimals} from '../utils/formatting';
-import {ITEMS_PER_PAGE} from '../constants';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {DELETE_TRANSACTION} from '../graphql/mutations';
-import {GET_PREFERENCES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_ACCOUNT} from '../graphql/queries';
-import {useSearch} from '../contexts/SearchContext';
-import {useTitle} from '../contexts/TitleContext';
-import {TransactionList} from '../components/TransactionList';
-import {Card} from '../components/ui/Card';
-import {PageContainer} from '../components/common/PageContainer';
-import {VersionHistoryPanel} from '../components/VersionHistoryPanel';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { useAccount } from '../hooks/useAccount';
+import {
+  useTransactions,
+  type TransactionOrderInput,
+  type TransactionOrderByField,
+} from '../hooks/useTransactions';
+import { formatCurrencyPreserveDecimals } from '../utils/formatting';
+import { ITEMS_PER_PAGE } from '../constants';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { DELETE_TRANSACTION } from '../graphql/mutations';
+import {
+  GET_PREFERENCES,
+  GET_TRANSACTIONS,
+  GET_RECENT_TRANSACTIONS,
+  GET_ACCOUNT,
+} from '../graphql/queries';
+import { useSearch } from '../contexts/SearchContext';
+import { useTitle } from '../contexts/TitleContext';
+import { TransactionList } from '../components/TransactionList';
+import { Card } from '../components/ui/Card';
+import { PageContainer } from '../components/common/PageContainer';
+import { VersionHistoryPanel } from '../components/VersionHistoryPanel';
 
 /**
  * Account Details Page Component
  */
 const AccountDetailsPageComponent = (): React.JSX.Element => {
-  const {id} = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const prevLocationRef = useRef<string>(location.pathname);
@@ -39,33 +48,45 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Search state
-  const {searchQuery, clearSearch} = useSearch();
+  const { searchQuery, clearSearch } = useSearch();
   const isSearchMode = Boolean(searchQuery);
 
   // Title state
-  const {setTitle} = useTitle();
+  const { setTitle } = useTitle();
 
   // Get currency preference
-  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
+    GET_PREFERENCES
+  );
   const currency = preferencesData?.preferences?.currency ?? 'USD';
 
   // Build orderBy object
   const orderBy: TransactionOrderInput | undefined =
-    sortField && sortDirection
-      ? {field: sortField, direction: sortDirection}
-      : undefined;
+    sortField && sortDirection ? { field: sortField, direction: sortDirection } : undefined;
 
   // Get cursor for current page (page 1 = undefined, page 2 = cursorHistory[1], etc.)
   const currentCursor = page > 1 ? cursorHistory[page - 1] : undefined;
 
-  const {account, loading: accountLoading, error: accountError, refetch: refetchAccount} =
-    useAccount(id);
+  const {
+    account,
+    loading: accountLoading,
+    error: accountError,
+    refetch: refetchAccount,
+  } = useAccount(id);
   const {
     transactions,
     loading: transactionsLoading,
     error: transactionsError,
     refetch: refetchTransactions,
-  } = useTransactions(id, undefined, undefined, ITEMS_PER_PAGE, currentCursor, orderBy, searchQuery || undefined);
+  } = useTransactions(
+    id,
+    undefined,
+    undefined,
+    ITEMS_PER_PAGE,
+    currentCursor,
+    orderBy,
+    searchQuery || undefined
+  );
 
   // Update cursor history when we get a new nextCursor
   useEffect(() => {
@@ -93,7 +114,13 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   }, [account, setTitle]);
 
   const [deleteTransaction] = useMutation(DELETE_TRANSACTION, {
-    refetchQueries: id ? [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}, {query: GET_ACCOUNT, variables: {id}}] : [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}],
+    refetchQueries: id
+      ? [
+          { query: GET_TRANSACTIONS },
+          { query: GET_RECENT_TRANSACTIONS },
+          { query: GET_ACCOUNT, variables: { id } },
+        ]
+      : [{ query: GET_TRANSACTIONS }, { query: GET_RECENT_TRANSACTIONS }],
     awaitRefetchQueries: true,
     onCompleted: () => {
       void refetchTransactions();
@@ -111,7 +138,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
       setPage(1);
       setCursorHistory([undefined]);
     },
-    [],
+    []
   );
 
   /**
@@ -121,10 +148,12 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     (transactionId: string) => {
       if (id) {
         const returnTo = `/accounts/${id}`;
-        void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`);
+        void navigate(
+          `/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`
+        );
       }
     },
-    [id, navigate],
+    [id, navigate]
   );
 
   /**
@@ -134,10 +163,12 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
     (transactionId: string) => {
       if (id) {
         const returnTo = `/accounts/${id}`;
-        void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`);
+        void navigate(
+          `/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`
+        );
       }
     },
-    [id, navigate],
+    [id, navigate]
   );
 
   /**
@@ -146,16 +177,19 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   const handleDelete = useCallback(
     (transactionId: string) => {
       void deleteTransaction({
-        variables: {id: transactionId},
+        variables: { id: transactionId },
       });
     },
-    [deleteTransaction],
+    [deleteTransaction]
   );
 
   // Refetch data when returning from edit page
   useEffect(() => {
     // If we navigated back from a different path (e.g., from edit page), refetch data
-    if (prevLocationRef.current !== location.pathname && prevLocationRef.current.includes('/transactions/')) {
+    if (
+      prevLocationRef.current !== location.pathname &&
+      prevLocationRef.current.includes('/transactions/')
+    ) {
       void refetchTransactions();
       void refetchAccount();
     }
@@ -188,8 +222,8 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
 
   return (
     <PageContainer>
-      <Card sx={{mb: 3, p: 3}}>
-        <Typography variant="subtitle2" color="text.secondary" sx={{mb: 1}}>
+      <Card sx={{ mb: 3, p: 3 }}>
+        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
           Balance
         </Typography>
         <Typography variant="h3" component="div" color="primary.main" fontWeight={600}>
@@ -219,9 +253,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
       />
 
       {/* Version History Section */}
-      {id ? (
-        <VersionHistoryPanel entityType="Account" entityId={id} />
-      ) : null}
+      {id ? <VersionHistoryPanel entityType="Account" entityId={id} /> : null}
     </PageContainer>
   );
 };

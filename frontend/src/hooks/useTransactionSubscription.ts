@@ -3,10 +3,10 @@
  * Provides real-time transaction updates via GraphQL subscriptions
  */
 
-import {useSubscription} from '@apollo/client/react';
-import {TRANSACTION_UPDATED_SUBSCRIPTION} from '../graphql/subscriptions';
-import {client} from '../graphql/client';
-import type {Transaction} from './useTransactions';
+import { useSubscription } from '@apollo/client/react';
+import { TRANSACTION_UPDATED_SUBSCRIPTION } from '../graphql/subscriptions';
+import { client } from '../graphql/client';
+import type { Transaction } from './useTransactions';
 
 /**
  * Hook return type
@@ -27,22 +27,25 @@ interface TransactionUpdatedData {
 }
 
 export function useTransactionSubscription(workspaceId: string): UseTransactionSubscriptionResult {
-  const {data, loading, error} = useSubscription<TransactionUpdatedData>(TRANSACTION_UPDATED_SUBSCRIPTION, {
-    variables: {workspaceId},
-    onData: ({data: subscriptionData}) => {
-      if (subscriptionData?.data?.transactionUpdated) {
-        // Update Apollo cache with new transaction data
-        const transaction = subscriptionData.data.transactionUpdated;
-        client.cache.writeQuery({
-          query: TRANSACTION_UPDATED_SUBSCRIPTION,
-          variables: {workspaceId},
-          data: {transactionUpdated: transaction},
-        });
-      }
-    },
-    errorPolicy: 'all',
-    shouldResubscribe: true,
-  });
+  const { data, loading, error } = useSubscription<TransactionUpdatedData>(
+    TRANSACTION_UPDATED_SUBSCRIPTION,
+    {
+      variables: { workspaceId },
+      onData: ({ data: subscriptionData }) => {
+        if (subscriptionData?.data?.transactionUpdated) {
+          // Update Apollo cache with new transaction data
+          const transaction = subscriptionData.data.transactionUpdated;
+          client.cache.writeQuery({
+            query: TRANSACTION_UPDATED_SUBSCRIPTION,
+            variables: { workspaceId },
+            data: { transactionUpdated: transaction },
+          });
+        }
+      },
+      errorPolicy: 'all',
+      shouldResubscribe: true,
+    }
+  );
 
   let errorResult: Error | undefined;
   if (error) {

@@ -74,4 +74,3 @@ export const CIRCUIT_BREAKER_COOLDOWN_MS = 30000; // 30 seconds
  * GraphQL request timeout in milliseconds (30 seconds)
  */
 export const GRAPHQL_REQUEST_TIMEOUT_MS = 30000;
-

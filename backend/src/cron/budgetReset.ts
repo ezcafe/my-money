@@ -4,10 +4,13 @@
  */
 
 import cron from 'node-cron';
-import {prisma} from '../utils/prisma';
-import {logInfo, logError, logWarn} from '../utils/logger';
-import {getCurrentMonthStart} from '../services/BudgetService';
-import {BUDGET_BATCH_SIZE, BUDGET_CONCURRENCY_LIMIT} from '../utils/constants';
+import { prisma } from '../utils/prisma';
+import { logInfo, logError, logWarn } from '../utils/logger';
+import { getCurrentMonthStart } from '../services/BudgetService';
+import {
+  BUDGET_BATCH_SIZE,
+  BUDGET_CONCURRENCY_LIMIT,
+} from '../utils/constants';
 
 /**
  * Process budget resets for all users
@@ -46,12 +49,12 @@ export async function processBudgetResets(): Promise<{
     // Process batch in parallel with concurrency limit
     const batchPromises: Array<Promise<void>> = [];
 
-      for (let j = 0; j < batch.length; j += BUDGET_CONCURRENCY_LIMIT) {
-        const concurrentBatch = batch.slice(j, j + BUDGET_CONCURRENCY_LIMIT);
+    for (let j = 0; j < batch.length; j += BUDGET_CONCURRENCY_LIMIT) {
+      const concurrentBatch = batch.slice(j, j + BUDGET_CONCURRENCY_LIMIT);
       const promises = concurrentBatch.map(async (budget) => {
         try {
           await prisma.budget.update({
-            where: {id: budget.id},
+            where: { id: budget.id },
             data: {
               currentSpent: 0,
               lastResetDate: monthStart,
@@ -59,10 +62,15 @@ export async function processBudgetResets(): Promise<{
           });
           reset++;
         } catch (error) {
-          const errorObj = error instanceof Error ? error : new Error(String(error));
-          logError('Failed to reset budget', {
-            budgetId: budget.id,
-          }, errorObj);
+          const errorObj =
+            error instanceof Error ? error : new Error(String(error));
+          logError(
+            'Failed to reset budget',
+            {
+              budgetId: budget.id,
+            },
+            errorObj
+          );
         }
       });
       batchPromises.push(...promises);
@@ -97,10 +105,15 @@ export function startBudgetResetCron(): void {
       const stats = await processBudgetResets();
       logInfo('Budget reset - completed', stats);
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Budget reset - failed', {
-        jobName: 'budgetReset',
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Budget reset - failed',
+        {
+          jobName: 'budgetReset',
+        },
+        errorObj
+      );
 
       // In production, this could trigger alerts to monitoring systems
       // For now, we log the error and continue
@@ -112,4 +125,3 @@ export function startBudgetResetCron(): void {
     description: 'Monthly on the first day at midnight',
   });
 }
-

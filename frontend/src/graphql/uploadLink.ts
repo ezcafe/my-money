@@ -3,10 +3,10 @@
  * Handles multipart/form-data requests for file uploads in Apollo Client v4
  */
 
-import {ApolloLink, Observable} from '@apollo/client';
-import type {FetchResult, Operation} from '@apollo/client';
-import {print} from 'graphql';
-import {API_CONFIG} from '../config/api';
+import { ApolloLink, Observable } from '@apollo/client';
+import type { FetchResult, Operation } from '@apollo/client';
+import { print } from 'graphql';
+import { API_CONFIG } from '../config/api';
 
 /**
  * Check if a value is a File object
@@ -30,7 +30,10 @@ function hasFiles(variables: Record<string, unknown>): boolean {
     }
     if (Array.isArray(value)) {
       for (const item of value) {
-        if (isFile(item) || (item && typeof item === 'object' && hasFiles(item as Record<string, unknown>))) {
+        if (
+          isFile(item) ||
+          (item && typeof item === 'object' && hasFiles(item as Record<string, unknown>))
+        ) {
           return true;
         }
       }
@@ -62,7 +65,12 @@ function createFormData(operation: Operation): FormData {
         map[fileKey] = [currentPath];
         processed[key] = null; // Placeholder, will be replaced by map
         fileIndex++;
-      } else if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      } else if (
+        value &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        !(value instanceof Date)
+      ) {
         processed[key] = processVariables(value as Record<string, unknown>, currentPath);
       } else if (Array.isArray(value)) {
         processed[key] = value.map((item: unknown, index: number): unknown => {
@@ -89,10 +97,13 @@ function createFormData(operation: Operation): FormData {
   const processedVariables = processVariables(operation.variables as Record<string, unknown>);
 
   // Add operations and map to FormData
-  formData.append('operations', JSON.stringify({
-    query: print(operation.query),
-    variables: processedVariables,
-  }));
+  formData.append(
+    'operations',
+    JSON.stringify({
+      query: print(operation.query),
+      variables: processedVariables,
+    })
+  );
 
   formData.append('map', JSON.stringify(map));
 
@@ -132,7 +143,8 @@ export const uploadLink = new ApolloLink((operation, forward) => {
 
         // Don't set Content-Type - browser will set it with boundary for multipart/form-data
         // Copy other headers from context (excluding Content-Type)
-        const contextHeaders = (operation.getContext().headers as Record<string, unknown> | undefined) ?? {};
+        const contextHeaders =
+          (operation.getContext().headers as Record<string, unknown> | undefined) ?? {};
         for (const [key, value] of Object.entries(contextHeaders)) {
           if (key.toLowerCase() !== 'content-type' && typeof value === 'string') {
             headers[key] = value;
@@ -159,4 +171,3 @@ export const uploadLink = new ApolloLink((operation, forward) => {
     })();
   });
 });
-

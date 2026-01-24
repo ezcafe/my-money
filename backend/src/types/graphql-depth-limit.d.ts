@@ -2,7 +2,7 @@
  * Type declaration for graphql-depth-limit
  */
 declare module 'graphql-depth-limit' {
-  import type {ValidationRule} from 'graphql';
+  import type { ValidationRule } from 'graphql';
 
   /**
    * Create a depth limit validation rule
@@ -12,7 +12,7 @@ declare module 'graphql-depth-limit' {
    */
   function depthLimit(
     maxDepth: number,
-    options?: {ignore?: string[]},
+    options?: { ignore?: string[] }
   ): ValidationRule;
 
   export default depthLimit;

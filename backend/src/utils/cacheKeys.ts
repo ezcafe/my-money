@@ -37,7 +37,10 @@ export function reportKey(userId: string, filterHash: string): string {
  * @param filterHash - Hash of filter parameters
  * @returns Cache key
  */
-export function transactionQueryKey(userId: string, filterHash: string): string {
+export function transactionQueryKey(
+  userId: string,
+  filterHash: string
+): string {
   return `transaction:query:${userId}:${filterHash}`;
 }
 
@@ -93,7 +96,7 @@ export function hashFilters(filters: Record<string, unknown>): string {
   let hash = 0;
   for (let i = 0; i < sorted.length; i++) {
     const char = sorted.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
 

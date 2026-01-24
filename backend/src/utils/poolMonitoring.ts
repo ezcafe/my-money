@@ -3,9 +3,9 @@
  * Provides metrics and health checks for database connection pool
  */
 
-import {Client} from 'pg';
-import {logInfo, logWarn, logError} from './logger';
-import {config} from '../config';
+import { Client } from 'pg';
+import { logInfo, logWarn, logError } from './logger';
+import { config } from '../config';
 
 /**
  * Pool metrics interface
@@ -35,7 +35,7 @@ async function getDbClient(maxRetries = 5, delayMs = 1000): Promise<Client> {
   const connectionString = config.database.url;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const client = new Client({connectionString});
+    const client = new Client({ connectionString });
     try {
       await client.connect();
       return client;
@@ -97,9 +97,13 @@ export async function getPoolMetrics(): Promise<PoolMetrics> {
     return metrics;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to get pool metrics', {
-      event: 'pool_metrics_failed',
-    }, errorObj);
+    logError(
+      'Failed to get pool metrics',
+      {
+        event: 'pool_metrics_failed',
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }
@@ -125,19 +129,21 @@ export async function getDetailedPoolStats(): Promise<{
     const client = await getDbClient();
     try {
       // Get PostgreSQL max_connections setting
-      const maxConnResult = await client.query<{setting: string}>(
+      const maxConnResult = await client.query<{ setting: string }>(
         "SELECT setting FROM pg_settings WHERE name = 'max_connections'"
       );
-      const maxConnections = maxConnResult.rows[0] ? Number.parseInt(maxConnResult.rows[0].setting, 10) : 100;
+      const maxConnections = maxConnResult.rows[0]
+        ? Number.parseInt(maxConnResult.rows[0].setting, 10)
+        : 100;
 
       // Get current connection count
-      const connCountResult = await client.query<{count: bigint}>(
-        "SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()"
+      const connCountResult = await client.query<{ count: bigint }>(
+        'SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()'
       );
       const currentConnections = Number(connCountResult.rows[0]?.count ?? 0);
 
       // Get active queries
-      const activeQueriesResult = await client.query<{count: bigint}>(
+      const activeQueriesResult = await client.query<{ count: bigint }>(
         "SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database() AND state = 'active'"
       );
       const activeQueries = Number(activeQueriesResult.rows[0]?.count ?? 0);
@@ -161,9 +167,13 @@ export async function getDetailedPoolStats(): Promise<{
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to get detailed pool stats', {
-      event: 'pool_stats_failed',
-    }, errorObj);
+    logError(
+      'Failed to get detailed pool stats',
+      {
+        event: 'pool_stats_failed',
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }
@@ -187,12 +197,16 @@ export async function checkPoolHealth(): Promise<{
 
   // Check connection timeout
   if (metrics.connectionTimeoutMs < 5000) {
-    warnings.push('Connection timeout is very low, may cause connection failures under load');
+    warnings.push(
+      'Connection timeout is very low, may cause connection failures under load'
+    );
   }
 
   // Check idle timeout
   if (metrics.idleTimeoutMs < 10000) {
-    warnings.push('Idle timeout is very low, connections may be closed too frequently');
+    warnings.push(
+      'Idle timeout is very low, connections may be closed too frequently'
+    );
   }
 
   const healthy = warnings.length === 0;
@@ -218,9 +232,10 @@ export async function checkPoolHealth(): Promise<{
 export async function logPoolMetrics(): Promise<void> {
   try {
     const stats = await getDetailedPoolStats();
-    const utilization = stats.maxConnections > 0
-      ? (stats.currentConnections / stats.maxConnections) * 100
-      : 0;
+    const utilization =
+      stats.maxConnections > 0
+        ? (stats.currentConnections / stats.maxConnections) * 100
+        : 0;
 
     logInfo('Database pool metrics', {
       event: 'pool_metrics',
@@ -244,8 +259,12 @@ export async function logPoolMetrics(): Promise<void> {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to log pool metrics', {
-      event: 'pool_metrics_log_failed',
-    }, errorObj);
+    logError(
+      'Failed to log pool metrics',
+      {
+        event: 'pool_metrics_log_failed',
+      },
+      errorObj
+    );
   }
 }

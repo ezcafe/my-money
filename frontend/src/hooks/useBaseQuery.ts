@@ -3,9 +3,9 @@
  * Provides consistent error handling pattern for Apollo queries
  */
 
-import {useQuery, type QueryHookOptions, type QueryResult} from '@apollo/client/react';
-import type {DocumentNode, OperationVariables} from '@apollo/client';
-import {getUserFriendlyErrorMessage} from '../utils/errorNotification';
+import { useQuery, type QueryHookOptions, type QueryResult } from '@apollo/client/react';
+import type { DocumentNode, OperationVariables } from '@apollo/client';
+import { getUserFriendlyErrorMessage } from '../utils/errorNotification';
 
 /**
  * Standardized error type
@@ -32,16 +32,19 @@ export interface UseBaseQueryResult<TData, TVariables extends OperationVariables
  * @param options - Apollo query options
  * @returns Query result with standardized error handling
  */
-export function useBaseQuery<TData = unknown, TVariables extends OperationVariables = OperationVariables>(
+export function useBaseQuery<
+  TData = unknown,
+  TVariables extends OperationVariables = OperationVariables,
+>(
   query: DocumentNode,
-  options?: QueryHookOptions<TData, TVariables>,
+  options?: QueryHookOptions<TData, TVariables>
 ): UseBaseQueryResult<TData, TVariables> {
   const queryResult = useQuery<TData, TVariables>(query, {
     errorPolicy: 'all',
     ...options,
   } as QueryHookOptions<TData, TVariables>);
 
-  const {data, loading, error, refetch} = queryResult;
+  const { data, loading, error, refetch } = queryResult;
 
   // Standardize error handling
   let standardizedError: QueryError | undefined;
@@ -63,4 +66,3 @@ export function useBaseQuery<TData = unknown, TVariables extends OperationVariab
     queryResult: queryResult as QueryResult<TData, TVariables>,
   };
 }
-

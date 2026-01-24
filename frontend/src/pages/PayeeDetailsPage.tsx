@@ -3,27 +3,36 @@
  * Shows payee details with paginated transactions
  */
 
-import React, {useState, memo, useCallback, useEffect, useRef} from 'react';
-import {useParams, useNavigate, useLocation} from 'react-router';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {usePayee} from '../hooks/usePayee';
-import {useTransactions, type TransactionOrderInput, type TransactionOrderByField} from '../hooks/useTransactions';
-import {ITEMS_PER_PAGE} from '../constants';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {DELETE_TRANSACTION} from '../graphql/mutations';
-import {GET_PREFERENCES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_PAYEE} from '../graphql/queries';
-import {useSearch} from '../contexts/SearchContext';
-import {useTitle} from '../contexts/TitleContext';
-import {TransactionList} from '../components/TransactionList';
-import {PageContainer} from '../components/common/PageContainer';
-import {VersionHistoryPanel} from '../components/VersionHistoryPanel';
+import React, { useState, memo, useCallback, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { usePayee } from '../hooks/usePayee';
+import {
+  useTransactions,
+  type TransactionOrderInput,
+  type TransactionOrderByField,
+} from '../hooks/useTransactions';
+import { ITEMS_PER_PAGE } from '../constants';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { DELETE_TRANSACTION } from '../graphql/mutations';
+import {
+  GET_PREFERENCES,
+  GET_TRANSACTIONS,
+  GET_RECENT_TRANSACTIONS,
+  GET_PAYEE,
+} from '../graphql/queries';
+import { useSearch } from '../contexts/SearchContext';
+import { useTitle } from '../contexts/TitleContext';
+import { TransactionList } from '../components/TransactionList';
+import { PageContainer } from '../components/common/PageContainer';
+import { VersionHistoryPanel } from '../components/VersionHistoryPanel';
 
 /**
  * Payee Details Page Component
  */
 const PayeeDetailsPageComponent = (): React.JSX.Element => {
-  const {id} = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const prevLocationRef = useRef<string>(location.pathname);
@@ -35,32 +44,39 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Search state
-  const {searchQuery, clearSearch} = useSearch();
+  const { searchQuery, clearSearch } = useSearch();
   const isSearchMode = Boolean(searchQuery);
 
   // Title state
-  const {setTitle} = useTitle();
+  const { setTitle } = useTitle();
 
   // Get currency preference
-  const {data: preferencesData} = useQuery<{preferences?: {currency: string}}>(GET_PREFERENCES);
+  const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
+    GET_PREFERENCES
+  );
   const currency = preferencesData?.preferences?.currency ?? 'USD';
 
   // Build orderBy object
   const orderBy: TransactionOrderInput | undefined =
-    sortField && sortDirection
-      ? {field: sortField, direction: sortDirection}
-      : undefined;
+    sortField && sortDirection ? { field: sortField, direction: sortDirection } : undefined;
 
   const currentCursor = page > 1 ? cursorHistory[page - 1] : undefined;
 
-  const {payee, loading: payeeLoading, error: payeeError, refetch: refetchPayee} =
-    usePayee(id);
+  const { payee, loading: payeeLoading, error: payeeError, refetch: refetchPayee } = usePayee(id);
   const {
     transactions,
     loading: transactionsLoading,
     error: transactionsError,
     refetch: refetchTransactions,
-  } = useTransactions(undefined, undefined, id, ITEMS_PER_PAGE, currentCursor, orderBy, searchQuery || undefined);
+  } = useTransactions(
+    undefined,
+    undefined,
+    id,
+    ITEMS_PER_PAGE,
+    currentCursor,
+    orderBy,
+    searchQuery || undefined
+  );
 
   useEffect(() => {
     if (transactions.nextCursor && page === cursorHistory.length) {
@@ -85,7 +101,11 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
   }, [payee, setTitle]);
 
   const [deleteTransaction] = useMutation(DELETE_TRANSACTION, {
-    refetchQueries: [{query: GET_TRANSACTIONS}, {query: GET_RECENT_TRANSACTIONS}, {query: GET_PAYEE}],
+    refetchQueries: [
+      { query: GET_TRANSACTIONS },
+      { query: GET_RECENT_TRANSACTIONS },
+      { query: GET_PAYEE },
+    ],
     awaitRefetchQueries: true,
     onCompleted: () => {
       void refetchTransactions();
@@ -103,7 +123,7 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
       setPage(1);
       setCursorHistory([undefined]);
     },
-    [],
+    []
   );
 
   /**
@@ -113,10 +133,12 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
     (transactionId: string) => {
       if (id) {
         const returnTo = `/payees/${id}`;
-        void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`);
+        void navigate(
+          `/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`
+        );
       }
     },
-    [id, navigate],
+    [id, navigate]
   );
 
   /**
@@ -126,10 +148,12 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
     (transactionId: string) => {
       if (id) {
         const returnTo = `/payees/${id}`;
-        void navigate(`/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`);
+        void navigate(
+          `/transactions/${transactionId}/edit?returnTo=${encodeURIComponent(returnTo)}`
+        );
       }
     },
-    [id, navigate],
+    [id, navigate]
   );
 
   /**
@@ -138,16 +162,19 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
   const handleDelete = useCallback(
     (transactionId: string) => {
       void deleteTransaction({
-        variables: {id: transactionId},
+        variables: { id: transactionId },
       });
     },
-    [deleteTransaction],
+    [deleteTransaction]
   );
 
   // Refetch data when returning from edit page
   useEffect(() => {
     // If we navigated back from a different path (e.g., from edit page), refetch data
-    if (prevLocationRef.current !== location.pathname && prevLocationRef.current.includes('/transactions/')) {
+    if (
+      prevLocationRef.current !== location.pathname &&
+      prevLocationRef.current.includes('/transactions/')
+    ) {
       void refetchTransactions();
       void refetchPayee();
     }
@@ -202,9 +229,7 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
       />
 
       {/* Version History Section */}
-      {id ? (
-        <VersionHistoryPanel entityType="Payee" entityId={id} />
-      ) : null}
+      {id ? <VersionHistoryPanel entityType="Payee" entityId={id} /> : null}
     </PageContainer>
   );
 };
@@ -212,4 +237,3 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
 PayeeDetailsPageComponent.displayName = 'PayeeDetailsPage';
 
 export const PayeeDetailsPage = memo(PayeeDetailsPageComponent);
-

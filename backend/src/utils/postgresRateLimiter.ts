@@ -9,9 +9,9 @@
  * - Automatic cleanup of expired entries
  */
 
-import {Client} from 'pg';
-import {logError, logInfo} from './logger';
-import {config} from '../config';
+import { Client } from 'pg';
+import { logError, logInfo } from './logger';
+import { config } from '../config';
 
 /**
  * Rate limit check result
@@ -36,7 +36,7 @@ export interface RateLimitResult {
 export async function checkRateLimit(
   key: string,
   max: number,
-  windowMs: number,
+  windowMs: number
 ): Promise<RateLimitResult> {
   try {
     const now = Date.now();
@@ -94,10 +94,14 @@ export async function checkRateLimit(
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Rate limit check failed', {
-      event: 'rate_limit_check_failed',
-      key,
-    }, errorObj);
+    logError(
+      'Rate limit check failed',
+      {
+        event: 'rate_limit_check_failed',
+        key,
+      },
+      errorObj
+    );
 
     // On error, allow the request (fail open)
     // This prevents rate limiter failures from breaking the application
@@ -118,7 +122,9 @@ export async function clearExpired(): Promise<number> {
     // Use direct pg.Client instead of prisma.$executeRaw (PrismaPg adapter doesn't support it)
     const client = await getDbClient();
     try {
-      const result = await client.query('DELETE FROM "rate_limit" WHERE reset_time <= NOW()');
+      const result = await client.query(
+        'DELETE FROM "rate_limit" WHERE reset_time <= NOW()'
+      );
       return result.rowCount ?? 0;
     } finally {
       await client.end();
@@ -130,9 +136,13 @@ export async function clearExpired(): Promise<number> {
       // Tables don't exist yet, return 0
       return 0;
     }
-    logError('Rate limit cleanup failed', {
-      event: 'rate_limit_cleanup_failed',
-    }, errorObj);
+    logError(
+      'Rate limit cleanup failed',
+      {
+        event: 'rate_limit_cleanup_failed',
+      },
+      errorObj
+    );
     return 0;
   }
 }
@@ -151,8 +161,12 @@ export async function getStats(): Promise<{
     const client = await getDbClient();
     try {
       const [totalResult, expiredResult] = await Promise.all([
-        client.query<{count: bigint}>('SELECT COUNT(*) as count FROM "rate_limit"'),
-        client.query<{count: bigint}>('SELECT COUNT(*) as count FROM "rate_limit" WHERE reset_time <= NOW()'),
+        client.query<{ count: bigint }>(
+          'SELECT COUNT(*) as count FROM "rate_limit"'
+        ),
+        client.query<{ count: bigint }>(
+          'SELECT COUNT(*) as count FROM "rate_limit" WHERE reset_time <= NOW()'
+        ),
       ]);
 
       const totalEntries = Number(totalResult.rows[0]?.count ?? 0);
@@ -178,9 +192,13 @@ export async function getStats(): Promise<{
         activeEntries: 0,
       };
     }
-    logError('Rate limit stats failed', {
-      event: 'rate_limit_stats_failed',
-    }, errorObj);
+    logError(
+      'Rate limit stats failed',
+      {
+        event: 'rate_limit_stats_failed',
+      },
+      errorObj
+    );
     return {
       totalEntries: 0,
       expiredEntries: 0,
@@ -204,7 +222,7 @@ async function getDbClient(maxRetries = 5, delayMs = 1000): Promise<Client> {
   const connectionString = config.database.url;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const client = new Client({connectionString});
+    const client = new Client({ connectionString });
     try {
       await client.connect();
       return client;
@@ -242,7 +260,9 @@ export async function initializeRateLimitTables(): Promise<void> {
       await client.query(createTableSql);
 
       // Create rate_limit index
-      await client.query('CREATE INDEX IF NOT EXISTS "rate_limit_reset_time_idx" ON "rate_limit"("reset_time")');
+      await client.query(
+        'CREATE INDEX IF NOT EXISTS "rate_limit_reset_time_idx" ON "rate_limit"("reset_time")'
+      );
     } finally {
       await client.end();
     }
@@ -250,9 +270,13 @@ export async function initializeRateLimitTables(): Promise<void> {
     logInfo('Rate limit tables initialized', {});
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to initialize rate limit tables', {
-      event: 'rate_limit_tables_init_failed',
-    }, errorObj);
+    logError(
+      'Failed to initialize rate limit tables',
+      {
+        event: 'rate_limit_tables_init_failed',
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }

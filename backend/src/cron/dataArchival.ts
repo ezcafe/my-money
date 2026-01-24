@@ -4,9 +4,13 @@
  * Runs daily to keep the database size manageable
  */
 
-import {archiveOldTransactions, getArchivalStats, cleanupArchivedTransactions} from '../services/DataArchivalService';
-import {logInfo, logError, logWarn} from '../utils/logger';
-import {prisma} from '../utils/prisma';
+import {
+  archiveOldTransactions,
+  getArchivalStats,
+  cleanupArchivedTransactions,
+} from '../services/DataArchivalService';
+import { logInfo, logError, logWarn } from '../utils/logger';
+import { prisma } from '../utils/prisma';
 import cron from 'node-cron';
 
 /**
@@ -26,7 +30,7 @@ export async function runDataArchival(): Promise<void> {
 
     // Get all workspaces
     const workspaces = await prisma.workspace.findMany({
-      select: {id: true},
+      select: { id: true },
     });
 
     let totalArchived = 0;
@@ -34,7 +38,10 @@ export async function runDataArchival(): Promise<void> {
     // Archive transactions for each workspace
     for (const workspace of workspaces) {
       try {
-        const archivedCount = await archiveOldTransactions(DEFAULT_RETENTION_DAYS, workspace.id);
+        const archivedCount = await archiveOldTransactions(
+          DEFAULT_RETENTION_DAYS,
+          workspace.id
+        );
         totalArchived += archivedCount;
 
         logInfo('Archived transactions for workspace', {
@@ -43,17 +50,23 @@ export async function runDataArchival(): Promise<void> {
           archivedCount,
         });
       } catch (error) {
-        logError('Failed to archive transactions for workspace', {
-          event: 'data_archival_workspace_failed',
-          workspaceId: workspace.id,
-        }, error instanceof Error ? error : new Error(String(error)));
+        logError(
+          'Failed to archive transactions for workspace',
+          {
+            event: 'data_archival_workspace_failed',
+            workspaceId: workspace.id,
+          },
+          error instanceof Error ? error : new Error(String(error))
+        );
         // Continue with other workspaces even if one fails
       }
     }
 
     // Also archive transactions without workspace (legacy data)
     try {
-      const archivedCount = await archiveOldTransactions(DEFAULT_RETENTION_DAYS);
+      const archivedCount = await archiveOldTransactions(
+        DEFAULT_RETENTION_DAYS
+      );
       totalArchived += archivedCount;
     } catch {
       logWarn('Failed to archive legacy transactions', {
@@ -81,9 +94,13 @@ export async function runDataArchival(): Promise<void> {
       stats: JSON.stringify(stats),
     });
   } catch (error) {
-    logError('Data archival cron job failed', {
-      event: 'data_archival_cron_failed',
-    }, error instanceof Error ? error : new Error(String(error)));
+    logError(
+      'Data archival cron job failed',
+      {
+        event: 'data_archival_cron_failed',
+      },
+      error instanceof Error ? error : new Error(String(error))
+    );
     throw error;
   }
 }
@@ -102,9 +119,13 @@ export function startDataArchivalCron(): void {
     try {
       await runDataArchival();
     } catch (error) {
-      logError('Data archival cron job failed', {
-        event: 'data_archival_cron_error',
-      }, error instanceof Error ? error : new Error(String(error)));
+      logError(
+        'Data archival cron job failed',
+        {
+          event: 'data_archival_cron_error',
+        },
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   });
 

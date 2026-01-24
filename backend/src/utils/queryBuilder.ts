@@ -3,32 +3,33 @@
  * Common functions for building database queries
  */
 
-import type {Prisma} from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 /**
  * Build Prisma orderBy clause from GraphQL orderBy input
  * @param orderBy - GraphQL orderBy input
  * @returns Prisma orderBy clause
  */
-export function buildOrderBy(
-  orderBy?: {field: 'date' | 'value' | 'category' | 'account' | 'payee'; direction: 'asc' | 'desc'},
-): Prisma.TransactionOrderByWithRelationInput {
+export function buildOrderBy(orderBy?: {
+  field: 'date' | 'value' | 'category' | 'account' | 'payee';
+  direction: 'asc' | 'desc';
+}): Prisma.TransactionOrderByWithRelationInput {
   const orderField = orderBy?.field ?? 'date';
   const orderDirection = orderBy?.direction ?? 'desc';
 
   switch (orderField) {
     case 'date':
-      return {date: orderDirection};
+      return { date: orderDirection };
     case 'value':
-      return {value: orderDirection};
+      return { value: orderDirection };
     case 'category':
-      return {category: {name: orderDirection}};
+      return { category: { name: orderDirection } };
     case 'account':
-      return {account: {name: orderDirection}};
+      return { account: { name: orderDirection } };
     case 'payee':
-      return {payee: {name: orderDirection}};
+      return { payee: { name: orderDirection } };
     default:
-      return {date: orderDirection};
+      return { date: orderDirection };
   }
 }
 
@@ -51,36 +52,36 @@ export function buildTransactionWhere(
     payeeIds?: string[];
     memberIds?: string[];
   },
-  workspaceId: string,
+  workspaceId: string
 ): Prisma.TransactionWhereInput {
   const where: Prisma.TransactionWhereInput = {
-    account: {workspaceId},
+    account: { workspaceId },
   };
 
   // Filter by memberIds if provided (createdBy or lastEditedBy)
   if (filters.memberIds && filters.memberIds.length > 0) {
     where.OR = [
-      {createdBy: {in: filters.memberIds}},
-      {lastEditedBy: {in: filters.memberIds}},
+      { createdBy: { in: filters.memberIds } },
+      { lastEditedBy: { in: filters.memberIds } },
     ];
   }
 
   if (filters.accountId) {
     where.accountId = filters.accountId;
   } else if (filters.accountIds && filters.accountIds.length > 0) {
-    where.accountId = {in: filters.accountIds};
+    where.accountId = { in: filters.accountIds };
   }
 
   if (filters.categoryId) {
     where.categoryId = filters.categoryId;
   } else if (filters.categoryIds && filters.categoryIds.length > 0) {
-    where.categoryId = {in: filters.categoryIds};
+    where.categoryId = { in: filters.categoryIds };
   }
 
   if (filters.payeeId) {
     where.payeeId = filters.payeeId;
   } else if (filters.payeeIds && filters.payeeIds.length > 0) {
-    where.payeeId = {in: filters.payeeIds};
+    where.payeeId = { in: filters.payeeIds };
   }
 
   if (filters.note) {

@@ -4,14 +4,17 @@
  * Uses stored balance column for O(1) read performance
  */
 
-import type {PrismaClient} from '@prisma/client';
-import {prisma} from '../utils/prisma';
-import {NotFoundError} from '../utils/errors';
-import {invalidateAccountBalance} from '../utils/cache';
-import {getContainer} from '../utils/container';
-import type {AccountRepository} from '../repositories/AccountRepository';
+import type { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
+import { NotFoundError } from '../utils/errors';
+import { invalidateAccountBalance } from '../utils/cache';
+import { getContainer } from '../utils/container';
+import type { AccountRepository } from '../repositories/AccountRepository';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Account Balance Service Class
@@ -39,7 +42,9 @@ export class AccountBalanceService {
    * @returns Current balance
    */
   async getAccountBalance(accountId: string): Promise<number> {
-    const account = await this.accountRepository.findById(accountId, '', {balance: true});
+    const account = await this.accountRepository.findById(accountId, '', {
+      balance: true,
+    });
 
     if (!account) {
       throw new NotFoundError('Account');
@@ -59,11 +64,15 @@ export class AccountBalanceService {
   async incrementAccountBalance(
     accountId: string,
     delta: number,
-    tx?: PrismaTransaction | PrismaClient,
+    tx?: PrismaTransaction | PrismaClient
   ): Promise<number> {
     const client = tx ?? this.client;
     const accountRepository = getContainer().getAccountRepository(client);
-    const balance = await accountRepository.incrementBalance(accountId, delta, tx);
+    const balance = await accountRepository.incrementBalance(
+      accountId,
+      delta,
+      tx
+    );
 
     // Invalidate cache after balance update (only if not in transaction)
     // If in transaction, cache will be invalidated after transaction commits
@@ -86,14 +95,16 @@ export class AccountBalanceService {
    */
   async recalculateAccountBalance(
     accountId: string,
-    tx?: PrismaTransaction | PrismaClient,
+    tx?: PrismaTransaction | PrismaClient
   ): Promise<number> {
     const client = tx ?? this.client;
     const container = getContainer();
     const accountRepository = container.getAccountRepository(client);
     const transactionRepository = container.getTransactionRepository(client);
 
-    const account = await accountRepository.findById(accountId, '', {initBalance: true});
+    const account = await accountRepository.findById(accountId, '', {
+      initBalance: true,
+    });
 
     if (!account) {
       throw new NotFoundError('Account');
@@ -101,14 +112,14 @@ export class AccountBalanceService {
 
     // Get all transactions with their categories
     const transactions = await transactionRepository.findMany(
-      {accountId},
+      { accountId },
       {
         include: {
           category: {
-            select: {categoryType: true},
+            select: { categoryType: true },
           },
         },
-      },
+      }
     );
 
     // Calculate balance delta from all transactions
@@ -117,18 +128,19 @@ export class AccountBalanceService {
     for (const transaction of transactions) {
       const value = Number(transaction.value);
       const transactionWithCategory = transaction as typeof transaction & {
-        category?: {categoryType: 'Income' | 'Expense'};
+        category?: { categoryType: 'Income' | 'Expense' };
       };
-      const delta = transactionWithCategory.category?.categoryType === 'Income'
-        ? value
-        : -value;
+      const delta =
+        transactionWithCategory.category?.categoryType === 'Income'
+          ? value
+          : -value;
       transactionSum += delta;
     }
 
     const newBalance = Number(account.initBalance) + transactionSum;
 
     // Update stored balance
-    await accountRepository.update(accountId, {balance: newBalance}, tx);
+    await accountRepository.update(accountId, { balance: newBalance }, tx);
 
     // Invalidate cache after balance update (only if not in transaction)
     if (!tx) {
@@ -167,9 +179,13 @@ export async function getAccountBalance(accountId: string): Promise<number> {
 export async function incrementAccountBalance(
   accountId: string,
   delta: number,
-  tx?: PrismaTransaction | PrismaClient,
+  tx?: PrismaTransaction | PrismaClient
 ): Promise<number> {
-  return getAccountBalanceService().incrementAccountBalance(accountId, delta, tx);
+  return getAccountBalanceService().incrementAccountBalance(
+    accountId,
+    delta,
+    tx
+  );
 }
 
 /**
@@ -177,7 +193,7 @@ export async function incrementAccountBalance(
  */
 export async function recalculateAccountBalance(
   accountId: string,
-  tx?: PrismaTransaction | PrismaClient,
+  tx?: PrismaTransaction | PrismaClient
 ): Promise<number> {
   return getAccountBalanceService().recalculateAccountBalance(accountId, tx);
 }

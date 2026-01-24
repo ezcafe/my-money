@@ -3,8 +3,8 @@
  * Provides payee data with loading and error states
  */
 
-import {GET_PAYEE} from '../graphql/queries';
-import {useEntity} from './useEntity';
+import { GET_PAYEE } from '../graphql/queries';
+import { useEntity } from './useEntity';
 
 /**
  * Payee type from GraphQL query
@@ -35,9 +35,9 @@ interface GetPayeeData {
 }
 
 export function usePayee(id: string | undefined): UsePayeeResult {
-  const {entity, loading, error, refetch} = useEntity<Payee, GetPayeeData>({
+  const { entity, loading, error, refetch } = useEntity<Payee, GetPayeeData>({
     query: GET_PAYEE,
-    variables: {id},
+    variables: { id },
     skip: !id,
     errorPolicy: 'all',
     extractEntity: (data) => data.payee,
@@ -50,4 +50,3 @@ export function usePayee(id: string | undefined): UsePayeeResult {
     refetch,
   };
 }
-

@@ -3,7 +3,7 @@
  * Tracks subscription usage and performance
  */
 
-import {logInfo} from './logger';
+import { logInfo } from './logger';
 
 /**
  * Subscription metrics
@@ -28,7 +28,10 @@ const metrics: SubscriptionMetrics = {
   peakConcurrentSubscriptions: 0,
 };
 
-const activeSubscriptions = new Map<string, {type: string; userId: string; startTime: number}>();
+const activeSubscriptions = new Map<
+  string,
+  { type: string; userId: string; startTime: number }
+>();
 
 /**
  * Track subscription start
@@ -36,11 +39,21 @@ const activeSubscriptions = new Map<string, {type: string; userId: string; start
  * @param type - Subscription type (e.g., 'ACCOUNT_UPDATED')
  * @param userId - User ID
  */
-export function trackSubscriptionStart(subscriptionId: string, type: string, userId: string): void {
-  activeSubscriptions.set(subscriptionId, {type, userId, startTime: Date.now()});
+export function trackSubscriptionStart(
+  subscriptionId: string,
+  type: string,
+  userId: string
+): void {
+  activeSubscriptions.set(subscriptionId, {
+    type,
+    userId,
+    startTime: Date.now(),
+  });
   metrics.totalSubscriptions++;
-  metrics.subscriptionsByType[type] = (metrics.subscriptionsByType[type] ?? 0) + 1;
-  metrics.subscriptionsByUser[userId] = (metrics.subscriptionsByUser[userId] ?? 0) + 1;
+  metrics.subscriptionsByType[type] =
+    (metrics.subscriptionsByType[type] ?? 0) + 1;
+  metrics.subscriptionsByUser[userId] =
+    (metrics.subscriptionsByUser[userId] ?? 0) + 1;
 
   const currentActive = activeSubscriptions.size;
   if (currentActive > metrics.peakConcurrentSubscriptions) {
@@ -59,9 +72,10 @@ export function trackSubscriptionEnd(subscriptionId: string): void {
     // Update average duration (simple moving average)
     const currentAvg = metrics.averageSubscriptionDuration;
     const totalEnded = metrics.totalSubscriptions - activeSubscriptions.size;
-    metrics.averageSubscriptionDuration = totalEnded > 0
-      ? (currentAvg * totalEnded + duration) / (totalEnded + 1)
-      : duration;
+    metrics.averageSubscriptionDuration =
+      totalEnded > 0
+        ? (currentAvg * totalEnded + duration) / (totalEnded + 1)
+        : duration;
 
     activeSubscriptions.delete(subscriptionId);
   }
@@ -74,8 +88,8 @@ export function trackSubscriptionEnd(subscriptionId: string): void {
 export function getSubscriptionMetrics(): SubscriptionMetrics {
   return {
     ...metrics,
-    subscriptionsByType: {...metrics.subscriptionsByType},
-    subscriptionsByUser: {...metrics.subscriptionsByUser},
+    subscriptionsByType: { ...metrics.subscriptionsByType },
+    subscriptionsByUser: { ...metrics.subscriptionsByUser },
   };
 }
 

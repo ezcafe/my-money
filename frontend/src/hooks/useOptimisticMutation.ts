@@ -3,14 +3,23 @@
  * Provides a hook for mutations with optimistic updates
  */
 
-import {useMutation} from '@apollo/client/react';
-import type {DocumentNode, InMemoryCache, OperationVariables, FetchResult, ApolloCache} from '@apollo/client';
-import type {MutationHookOptions, MutationTuple} from '@apollo/client/react';
+import { useMutation } from '@apollo/client/react';
+import type {
+  DocumentNode,
+  InMemoryCache,
+  OperationVariables,
+  FetchResult,
+  ApolloCache,
+} from '@apollo/client';
+import type { MutationHookOptions, MutationTuple } from '@apollo/client/react';
 
 /**
  * Options for optimistic mutation
  */
-interface OptimisticMutationOptions<TData, TVariables extends OperationVariables = OperationVariables> {
+interface OptimisticMutationOptions<
+  TData,
+  TVariables extends OperationVariables = OperationVariables,
+> {
   /**
    * Function to create optimistic response from variables
    */
@@ -35,11 +44,14 @@ interface OptimisticMutationOptions<TData, TVariables extends OperationVariables
  * @param options - Optimistic mutation options
  * @returns Mutation tuple [mutate function, mutation result]
  */
-export function useOptimisticMutation<TData, TVariables extends OperationVariables = OperationVariables>(
+export function useOptimisticMutation<
+  TData,
+  TVariables extends OperationVariables = OperationVariables,
+>(
   mutation: DocumentNode,
-  options: OptimisticMutationOptions<TData, TVariables>,
+  options: OptimisticMutationOptions<TData, TVariables>
 ): MutationTuple<TData, TVariables> {
-  const {optimisticResponse, updateCache, invalidateCache, mutationOptions} = options;
+  const { optimisticResponse, updateCache, invalidateCache, mutationOptions } = options;
 
   return useMutation<TData, TVariables>(mutation, {
     ...mutationOptions,

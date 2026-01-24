@@ -71,7 +71,7 @@ function isValidHexColor(hex: string): boolean {
 /**
  * Convert hex color to RGB
  */
-function hexToRgb(hex: string): {r: number; g: number; b: number} {
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result?.[1] || !result[2] || !result[3]) {
     throw new Error(`Invalid hex color: ${hex}`);
@@ -87,16 +87,18 @@ function hexToRgb(hex: string): {r: number; g: number; b: number} {
  * Convert RGB to hex
  */
 function rgbToHex(r: number, g: number, b: number): string {
-  return `#${[r, g, b].map((x) => {
-    const hex = x.toString(16);
-    return hex.length === 1 ? `0${hex}` : hex;
-  }).join('')}`;
+  return `#${[r, g, b]
+    .map((x) => {
+      const hex = x.toString(16);
+      return hex.length === 1 ? `0${hex}` : hex;
+    })
+    .join('')}`;
 }
 
 /**
  * Convert RGB to HSL
  */
-function rgbToHsl(r: number, g: number, b: number): {h: number; s: number; l: number} {
+function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
   r /= 255;
   g /= 255;
   b /= 255;
@@ -125,13 +127,13 @@ function rgbToHsl(r: number, g: number, b: number): {h: number; s: number; l: nu
     }
   }
 
-  return {h: h * 360, s: s * 100, l: l * 100};
+  return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
 /**
  * Convert HSL to RGB
  */
-function hslToRgb(h: number, s: number, l: number): {r: number; g: number; b: number} {
+function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
   h /= 360;
   s /= 100;
   l /= 100;
@@ -198,21 +200,45 @@ export function generateDynamicPalette(sourceColor: string, isDark: boolean): Co
 
   // Generate primary container
   const primaryContainerLightness = isDark ? 30 : 90;
-  const primaryContainerRgb = hslToRgb(primaryHue, Math.min(primarySaturation * 0.5, 20), primaryContainerLightness);
-  const primaryContainer = rgbToHex(primaryContainerRgb.r, primaryContainerRgb.g, primaryContainerRgb.b);
+  const primaryContainerRgb = hslToRgb(
+    primaryHue,
+    Math.min(primarySaturation * 0.5, 20),
+    primaryContainerLightness
+  );
+  const primaryContainer = rgbToHex(
+    primaryContainerRgb.r,
+    primaryContainerRgb.g,
+    primaryContainerRgb.b
+  );
   const onPrimaryContainer = isDark ? '#EADDFF' : '#21005D';
 
   // Generate secondary colors
   const secondaryContainerLightness = isDark ? 30 : 90;
-  const secondaryContainerRgb = hslToRgb(secondaryHue, Math.min(primarySaturation * 0.4, 15), secondaryContainerLightness);
-  const secondaryContainer = rgbToHex(secondaryContainerRgb.r, secondaryContainerRgb.g, secondaryContainerRgb.b);
+  const secondaryContainerRgb = hslToRgb(
+    secondaryHue,
+    Math.min(primarySaturation * 0.4, 15),
+    secondaryContainerLightness
+  );
+  const secondaryContainer = rgbToHex(
+    secondaryContainerRgb.r,
+    secondaryContainerRgb.g,
+    secondaryContainerRgb.b
+  );
   const onSecondary = isDark ? '#332D41' : '#FFFFFF';
   const onSecondaryContainer = isDark ? '#E8DEF8' : '#1D192B';
 
   // Generate tertiary colors
   const tertiaryContainerLightness = isDark ? 30 : 90;
-  const tertiaryContainerRgb = hslToRgb(tertiaryHue, Math.min(primarySaturation * 0.4, 15), tertiaryContainerLightness);
-  const tertiaryContainer = rgbToHex(tertiaryContainerRgb.r, tertiaryContainerRgb.g, tertiaryContainerRgb.b);
+  const tertiaryContainerRgb = hslToRgb(
+    tertiaryHue,
+    Math.min(primarySaturation * 0.4, 15),
+    tertiaryContainerLightness
+  );
+  const tertiaryContainer = rgbToHex(
+    tertiaryContainerRgb.r,
+    tertiaryContainerRgb.g,
+    tertiaryContainerRgb.b
+  );
   const onTertiary = isDark ? '#492532' : '#FFFFFF';
   const onTertiaryContainer = isDark ? '#FFD8E4' : '#31111D';
 
@@ -284,7 +310,10 @@ export function generateDynamicPalette(sourceColor: string, isDark: boolean): Co
  * Static color schemes
  * Predefined palettes for common color choices
  */
-export const staticColorSchemes: Record<StaticColorSchemeName, {light: ColorPalette; dark: ColorPalette}> = {
+export const staticColorSchemes: Record<
+  StaticColorSchemeName,
+  { light: ColorPalette; dark: ColorPalette }
+> = {
   blue: {
     light: {
       primary: '#006A6B',
@@ -953,7 +982,7 @@ export const staticColorSchemes: Record<StaticColorSchemeName, {light: ColorPale
 export function getColorPalette(
   schemeType: ColorSchemeType,
   schemeValue: string | null | undefined,
-  isDark: boolean,
+  isDark: boolean
 ): ColorPalette {
   if (schemeType === 'dynamic' && schemeValue) {
     // Validate that schemeValue is a valid hex color
@@ -979,4 +1008,3 @@ export function getColorPalette(
 export function getStaticColorSchemeNames(): StaticColorSchemeName[] {
   return Object.keys(staticColorSchemes) as StaticColorSchemeName[];
 }
-

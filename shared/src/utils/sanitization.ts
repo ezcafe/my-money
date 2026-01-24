@@ -36,23 +36,37 @@ export function sanitizeString(input: string | null | undefined): string {
  * @returns Sanitized object
  */
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
-  const sanitized = {...obj};
+  const sanitized = { ...obj };
 
   for (const [key, value] of Object.entries(sanitized)) {
     if (typeof value === 'string') {
       (sanitized as Record<string, unknown>)[key] = sanitizeString(value);
-    } else if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-      (sanitized as Record<string, unknown>)[key] = sanitizeObject(value as Record<string, unknown>);
+    } else if (
+      value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      !(value instanceof Date)
+    ) {
+      (sanitized as Record<string, unknown>)[key] = sanitizeObject(
+        value as Record<string, unknown>
+      );
     } else if (Array.isArray(value)) {
-      (sanitized as Record<string, unknown>)[key] = value.map((item): unknown => {
-        if (typeof item === 'string') {
-          return sanitizeString(item);
+      (sanitized as Record<string, unknown>)[key] = value.map(
+        (item): unknown => {
+          if (typeof item === 'string') {
+            return sanitizeString(item);
+          }
+          if (
+            item !== null &&
+            typeof item === 'object' &&
+            !Array.isArray(item) &&
+            !(item instanceof Date)
+          ) {
+            return sanitizeObject(item as Record<string, unknown>);
+          }
+          return item;
         }
-        if (item !== null && typeof item === 'object' && !Array.isArray(item) && !(item instanceof Date)) {
-          return sanitizeObject(item as Record<string, unknown>);
-        }
-        return item;
-      });
+      );
     }
   }
 
@@ -66,7 +80,10 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
  * @param maxLength - Maximum length (default: 10000)
  * @returns Sanitized string
  */
-export function sanitizeUserInput(input: string | null | undefined, maxLength: number = 10000): string {
+export function sanitizeUserInput(
+  input: string | null | undefined,
+  maxLength: number = 10000
+): string {
   if (!input || typeof input !== 'string') {
     return '';
   }
@@ -104,7 +121,8 @@ export function sanitizeUserInput(input: string | null | undefined, maxLength: n
  * @param input - Form input object
  * @returns Sanitized input
  */
-export function sanitizeFormInput<T extends Record<string, unknown>>(input: T): T {
+export function sanitizeFormInput<T extends Record<string, unknown>>(
+  input: T
+): T {
   return sanitizeObject(input);
 }
-

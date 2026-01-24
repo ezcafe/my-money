@@ -3,21 +3,40 @@
  * Lists and manages all budgets
  */
 
-import React, {useState} from 'react';
-import {useNavigate} from 'react-router';
-import {Box, Typography, List, ListItem, ListItemButton, ListItemText, Divider, Autocomplete, Button, LinearProgress, Chip, ToggleButtonGroup, ToggleButton, Stack} from '@mui/material';
-import {useQuery, useMutation} from '@apollo/client/react';
-import {Dialog} from '../components/ui/Dialog';
-import {GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES} from '../graphql/queries';
-import {CREATE_BUDGET, UPDATE_BUDGET, DELETE_BUDGET} from '../graphql/mutations';
-import {AttachMoney} from '@mui/icons-material';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {EmptyState} from '../components/common/EmptyState';
-import {Card} from '../components/ui/Card';
-import {TextField} from '../components/ui/TextField';
-import {PageContainer} from '../components/common/PageContainer';
-import {getAccountTypeLabel, getCategoryTypeLabel, GROUP_HEADER_STYLES} from '../utils/groupSelectOptions';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router';
+import {
+  Box,
+  Typography,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Divider,
+  Autocomplete,
+  Button,
+  LinearProgress,
+  Chip,
+  ToggleButtonGroup,
+  ToggleButton,
+  Stack,
+} from '@mui/material';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { Dialog } from '../components/ui/Dialog';
+import { GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES } from '../graphql/queries';
+import { CREATE_BUDGET, UPDATE_BUDGET, DELETE_BUDGET } from '../graphql/mutations';
+import { AttachMoney } from '@mui/icons-material';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { EmptyState } from '../components/common/EmptyState';
+import { Card } from '../components/ui/Card';
+import { TextField } from '../components/ui/TextField';
+import { PageContainer } from '../components/common/PageContainer';
+import {
+  getAccountTypeLabel,
+  getCategoryTypeLabel,
+  GROUP_HEADER_STYLES,
+} from '../utils/groupSelectOptions';
 
 /**
  * Budgets Page Component
@@ -36,7 +55,11 @@ export function BudgetsPage(): React.JSX.Element {
   const [selectedEntityId, setSelectedEntityId] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
 
-  const {data: budgetsData, loading: budgetsLoading, error: budgetsError} = useQuery<{
+  const {
+    data: budgetsData,
+    loading: budgetsLoading,
+    error: budgetsError,
+  } = useQuery<{
     budgets: Array<{
       id: string;
       amount: string;
@@ -44,18 +67,24 @@ export function BudgetsPage(): React.JSX.Element {
       accountId: string | null;
       categoryId: string | null;
       payeeId: string | null;
-      account: {id: string; name: string} | null;
-      category: {id: string; name: string; type: string} | null;
-      payee: {id: string; name: string} | null;
+      account: { id: string; name: string } | null;
+      category: { id: string; name: string; type: string } | null;
+      payee: { id: string; name: string } | null;
       percentageUsed: number;
     }>;
   }>(GET_BUDGETS, {
     fetchPolicy: 'cache-and-network',
   });
 
-  const {data: accountsData} = useQuery<{accounts: Array<{id: string; name: string; accountType: string}>}>(GET_ACCOUNTS);
-  const {data: categoriesData} = useQuery<{categories: Array<{id: string; name: string; categoryType: string}>}>(GET_CATEGORIES);
-  const {data: payeesData} = useQuery<{payees: Array<{id: string; name: string}>}>(GET_PAYEES);
+  const { data: accountsData } = useQuery<{
+    accounts: Array<{ id: string; name: string; accountType: string }>;
+  }>(GET_ACCOUNTS);
+  const { data: categoriesData } = useQuery<{
+    categories: Array<{ id: string; name: string; categoryType: string }>;
+  }>(GET_CATEGORIES);
+  const { data: payeesData } = useQuery<{ payees: Array<{ id: string; name: string }> }>(
+    GET_PAYEES
+  );
 
   const [createBudget] = useMutation(CREATE_BUDGET, {
     refetchQueries: ['GetBudgets'],
@@ -73,11 +102,10 @@ export function BudgetsPage(): React.JSX.Element {
   const categories = (categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense');
   const payees = payeesData?.payees ?? [];
 
-
   const confirmDeleteBudget = async (): Promise<void> => {
     if (budgetToDelete) {
       try {
-        await deleteBudget({variables: {id: budgetToDelete}});
+        await deleteBudget({ variables: { id: budgetToDelete } });
         setDeleteDialogOpen(false);
         setBudgetToDelete(null);
       } catch {
@@ -119,7 +147,7 @@ export function BudgetsPage(): React.JSX.Element {
           input.payeeId = selectedEntityId;
         }
 
-        await createBudget({variables: {input}});
+        await createBudget({ variables: { input } });
       }
       setBudgetDialogOpen(false);
       setEditingBudget(null);
@@ -131,9 +159,9 @@ export function BudgetsPage(): React.JSX.Element {
   };
 
   const getBudgetName = (budget: {
-    account: {name: string} | null;
-    category: {name: string} | null;
-    payee: {name: string} | null;
+    account: { name: string } | null;
+    category: { name: string } | null;
+    payee: { name: string } | null;
   }): string => {
     if (budget.account) return budget.account.name;
     if (budget.category) return budget.category.name;
@@ -163,12 +191,7 @@ export function BudgetsPage(): React.JSX.Element {
   }
 
   if (budgetsError) {
-    return (
-      <ErrorAlert
-        title="Error Loading Budgets"
-        message={budgetsError.message}
-      />
-    );
+    return <ErrorAlert title="Error Loading Budgets" message={budgetsError.message} />;
   }
 
   const budgets = budgetsData?.budgets ?? [];
@@ -188,7 +211,12 @@ export function BudgetsPage(): React.JSX.Element {
       <Card>
         <List disablePadding>
           {budgets.map((budget, index) => {
-            if (!budget?.id || budget.percentageUsed === undefined || budget.currentSpent == null || budget.amount == null) {
+            if (
+              !budget?.id ||
+              budget.percentageUsed === undefined ||
+              budget.currentSpent == null ||
+              budget.amount == null
+            ) {
               return null;
             }
             // TypeScript now knows budget is fully defined
@@ -199,9 +227,9 @@ export function BudgetsPage(): React.JSX.Element {
               accountId: string | null;
               categoryId: string | null;
               payeeId: string | null;
-              account: {id: string; name: string} | null;
-              category: {id: string; name: string; type: string} | null;
-              payee: {id: string; name: string} | null;
+              account: { id: string; name: string } | null;
+              category: { id: string; name: string; type: string } | null;
+              payee: { id: string; name: string } | null;
               percentageUsed: number;
             };
             const percentage = safeBudget.percentageUsed;
@@ -222,17 +250,21 @@ export function BudgetsPage(): React.JSX.Element {
                   >
                     <ListItemText
                       primary={
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{mb: 1}}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                           <AttachMoney fontSize="small" color="primary" />
                           <Typography variant="body1" fontWeight={500}>
                             {getBudgetName(safeBudget)}
                           </Typography>
-                          <Chip label={getBudgetTypeLabel(safeBudget)} size="small" variant="outlined" />
+                          <Chip
+                            label={getBudgetTypeLabel(safeBudget)}
+                            size="small"
+                            variant="outlined"
+                          />
                         </Stack>
                       }
                       secondary={
                         <Box>
-                          <Stack direction="row" justifyContent="space-between" sx={{mb: 0.5}}>
+                          <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
                             <Typography variant="caption" color="text.secondary">
                               {spent.toFixed(2)} / {total.toFixed(2)}
                             </Typography>
@@ -244,7 +276,7 @@ export function BudgetsPage(): React.JSX.Element {
                             variant="determinate"
                             value={Math.min(percentage, 100)}
                             color={getProgressColor(percentage)}
-                            sx={{height: 8, borderRadius: 1}}
+                            sx={{ height: 8, borderRadius: 1 }}
                           />
                         </Box>
                       }
@@ -290,7 +322,7 @@ export function BudgetsPage(): React.JSX.Element {
             </Stack>
           }
         >
-          <Stack spacing={2} sx={{minWidth: 400}}>
+          <Stack spacing={2} sx={{ minWidth: 400 }}>
             {!editingBudget && (
               <>
                 <Typography variant="body2" color="text.secondary">
@@ -315,10 +347,14 @@ export function BudgetsPage(): React.JSX.Element {
             )}
 
             {budgetType === 'account' && (
-              <Autocomplete<{id: string; name: string; accountType: string}, false, false, false>
+              <Autocomplete<{ id: string; name: string; accountType: string }, false, false, false>
                 options={accounts}
                 getOptionLabel={(option) => option.name}
-                groupBy={(option) => getAccountTypeLabel(option.accountType as 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans')}
+                groupBy={(option) =>
+                  getAccountTypeLabel(
+                    option.accountType as 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans'
+                  )
+                }
                 value={accounts.find((a) => a.id === selectedEntityId) ?? null}
                 onChange={(_, value) => {
                   setSelectedEntityId(value?.id ?? '');
@@ -329,17 +365,17 @@ export function BudgetsPage(): React.JSX.Element {
                     sx: GROUP_HEADER_STYLES,
                   },
                 }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Account" required />
-                )}
+                renderInput={(params) => <TextField {...params} label="Account" required />}
               />
             )}
 
             {budgetType === 'category' && (
-              <Autocomplete<{id: string; name: string; categoryType: string}, false, false, false>
+              <Autocomplete<{ id: string; name: string; categoryType: string }, false, false, false>
                 options={categories}
                 getOptionLabel={(option) => option.name}
-                groupBy={(option) => getCategoryTypeLabel(option.categoryType as 'Income' | 'Expense')}
+                groupBy={(option) =>
+                  getCategoryTypeLabel(option.categoryType as 'Income' | 'Expense')
+                }
                 value={categories.find((c) => c.id === selectedEntityId) ?? null}
                 onChange={(_, value) => {
                   setSelectedEntityId(value?.id ?? '');
@@ -350,14 +386,12 @@ export function BudgetsPage(): React.JSX.Element {
                     sx: GROUP_HEADER_STYLES,
                   },
                 }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Category" required />
-                )}
+                renderInput={(params) => <TextField {...params} label="Category" required />}
               />
             )}
 
             {budgetType === 'payee' && (
-              <Autocomplete<{id: string; name: string}, false, false, false>
+              <Autocomplete<{ id: string; name: string }, false, false, false>
                 options={payees}
                 getOptionLabel={(option) => option.name}
                 value={payees.find((p) => p.id === selectedEntityId) ?? null}
@@ -365,9 +399,7 @@ export function BudgetsPage(): React.JSX.Element {
                   setSelectedEntityId(value?.id ?? '');
                 }}
                 disabled={!!editingBudget}
-                renderInput={(params) => (
-                  <TextField {...params} label="Payee" required />
-                )}
+                renderInput={(params) => <TextField {...params} label="Payee" required />}
               />
             )}
 
@@ -378,7 +410,7 @@ export function BudgetsPage(): React.JSX.Element {
               onChange={(e) => {
                 setAmount(e.target.value);
               }}
-              inputProps={{min: 0, step: 0.01}}
+              inputProps={{ min: 0, step: 0.01 }}
               required
               fullWidth
             />
@@ -423,4 +455,3 @@ export function BudgetsPage(): React.JSX.Element {
     </PageContainer>
   );
 }
-

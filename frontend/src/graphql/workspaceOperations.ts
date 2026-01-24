@@ -3,7 +3,7 @@
  * Queries and mutations for workspaces, members, and invitations
  */
 
-import {gql} from '@apollo/client';
+import { gql } from '@apollo/client';
 
 /**
  * Workspace fields fragment

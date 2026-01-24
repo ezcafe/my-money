@@ -3,16 +3,19 @@
  * Provides standardized error handling for mutations
  */
 
-import {useMutation, type MutationHookOptions, type MutationTuple} from '@apollo/client/react';
-import type {OperationVariables} from '@apollo/client';
-import {useNotifications} from '../contexts/NotificationContext';
-import {getUserFriendlyErrorMessage} from '../utils/errorNotification';
-import type {DocumentNode} from 'graphql';
+import { useMutation, type MutationHookOptions, type MutationTuple } from '@apollo/client/react';
+import type { OperationVariables } from '@apollo/client';
+import { useNotifications } from '../contexts/NotificationContext';
+import { getUserFriendlyErrorMessage } from '../utils/errorNotification';
+import type { DocumentNode } from 'graphql';
 
 /**
  * Options for mutation with error handling
  */
-interface UseMutationWithErrorHandlingOptions<TData, TVariables extends OperationVariables> extends Omit<MutationHookOptions<TData, TVariables>, 'onError'> {
+interface UseMutationWithErrorHandlingOptions<
+  TData,
+  TVariables extends OperationVariables,
+> extends Omit<MutationHookOptions<TData, TVariables>, 'onError'> {
   /** Success message to show on completion */
   successMessage?: string;
   /** Custom error handler (optional) */
@@ -29,11 +32,14 @@ interface UseMutationWithErrorHandlingOptions<TData, TVariables extends Operatio
  * @param options - Mutation options with error handling
  * @returns Mutation tuple with error handling
  */
-export function useMutationWithErrorHandling<TData = unknown, TVariables extends OperationVariables = OperationVariables>(
+export function useMutationWithErrorHandling<
+  TData = unknown,
+  TVariables extends OperationVariables = OperationVariables,
+>(
   mutation: DocumentNode,
-  options: UseMutationWithErrorHandlingOptions<TData, TVariables> = {},
+  options: UseMutationWithErrorHandlingOptions<TData, TVariables> = {}
 ): MutationTuple<TData, TVariables> {
-  const {showSuccessNotification, showErrorNotification} = useNotifications();
+  const { showSuccessNotification, showErrorNotification } = useNotifications();
   const {
     successMessage,
     onError: customOnError,
@@ -72,4 +78,3 @@ export function useMutationWithErrorHandling<TData = unknown, TVariables extends
 
   return [mutate, result] as MutationTuple<TData, TVariables>;
 }
-

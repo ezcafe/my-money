@@ -11,7 +11,7 @@
  */
 export function createOptimisticResponse<TData>(
   mutationName: string,
-  data: TData,
+  data: TData
 ): Record<string, TData> {
   return {
     [mutationName]: data,

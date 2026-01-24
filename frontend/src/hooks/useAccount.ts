@@ -3,8 +3,8 @@
  * Provides account data with loading and error states
  */
 
-import {GET_ACCOUNT} from '../graphql/queries';
-import {useEntity} from './useEntity';
+import { GET_ACCOUNT } from '../graphql/queries';
+import { useEntity } from './useEntity';
 
 /**
  * Account type from GraphQL query
@@ -38,9 +38,9 @@ interface GetAccountData {
 }
 
 export function useAccount(id: string | undefined): UseAccountResult {
-  const {entity, loading, error, refetch} = useEntity<Account, GetAccountData>({
+  const { entity, loading, error, refetch } = useEntity<Account, GetAccountData>({
     query: GET_ACCOUNT,
-    variables: {id},
+    variables: { id },
     skip: !id,
     errorPolicy: 'all',
     extractEntity: (data) => data.account,
@@ -53,4 +53,3 @@ export function useAccount(id: string | undefined): UseAccountResult {
     refetch,
   };
 }
-

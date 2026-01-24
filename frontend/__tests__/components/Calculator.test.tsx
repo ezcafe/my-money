@@ -4,16 +4,16 @@
  */
 
 import React from 'react';
-import {render, screen, fireEvent} from '@testing-library/react';
-import {Calculator} from '../../src/components/Calculator';
-import {ThemeProvider} from '../../src/theme/ThemeProvider';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { Calculator } from '../../src/components/Calculator';
+import { ThemeProvider } from '../../src/theme/ThemeProvider';
 
 describe('Calculator', () => {
   const renderCalculator = () => {
     return render(
       <ThemeProvider>
         <Calculator />
-      </ThemeProvider>,
+      </ThemeProvider>
     );
   };
 
@@ -79,11 +79,3 @@ describe('Calculator', () => {
     expect(screen.getByLabelText('Preferences')).toBeInTheDocument();
   });
 });
-
-
-
-
-
-
-
-

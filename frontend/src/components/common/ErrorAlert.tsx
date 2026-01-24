@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import {Alert, AlertTitle, Box, Button} from '@mui/material';
-import {Refresh} from '@mui/icons-material';
+import { Alert, AlertTitle, Box, Button } from '@mui/material';
+import { Refresh } from '@mui/icons-material';
 
 interface ErrorAlertProps {
   title?: string;
@@ -29,7 +29,7 @@ export function ErrorAlert({
   retryLabel = 'Retry',
 }: ErrorAlertProps): React.JSX.Element {
   return (
-    <Box sx={{mb: 2}}>
+    <Box sx={{ mb: 2 }}>
       <Alert
         severity={severity}
         onClose={onClose}
@@ -40,7 +40,7 @@ export function ErrorAlert({
               size="small"
               onClick={onRetry}
               startIcon={<Refresh />}
-              sx={{textTransform: 'none'}}
+              sx={{ textTransform: 'none' }}
             >
               {retryLabel}
             </Button>
@@ -53,4 +53,3 @@ export function ErrorAlert({
     </Box>
   );
 }
-

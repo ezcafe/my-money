@@ -3,11 +3,27 @@
  * Displays a floating search box at the bottom of the page
  */
 
-import React, {useState, useEffect, useMemo, useRef, type KeyboardEvent} from 'react';
-import {Box, Paper, TextField, IconButton, InputAdornment, useTheme, List, ListItem, ListItemButton, Typography, Divider} from '@mui/material';
-import {Search as SearchIcon, Close as CloseIcon, History as HistoryIcon} from '@mui/icons-material';
-import {useLocation} from 'react-router';
-import {useSearch} from '../contexts/SearchContext';
+import React, { useState, useEffect, useMemo, useRef, type KeyboardEvent } from 'react';
+import {
+  Box,
+  Paper,
+  TextField,
+  IconButton,
+  InputAdornment,
+  useTheme,
+  List,
+  ListItem,
+  ListItemButton,
+  Typography,
+  Divider,
+} from '@mui/material';
+import {
+  Search as SearchIcon,
+  Close as CloseIcon,
+  History as HistoryIcon,
+} from '@mui/icons-material';
+import { useLocation } from 'react-router';
+import { useSearch } from '../contexts/SearchContext';
 
 /**
  * Floating Search Box Component
@@ -15,7 +31,15 @@ import {useSearch} from '../contexts/SearchContext';
 export function FloatingSearchBox(): React.JSX.Element | null {
   const theme = useTheme();
   const location = useLocation();
-  const {isSearchOpen, closeSearch, performSearch, clearSearch, searchQuery, suggestions, searchHistory} = useSearch();
+  const {
+    isSearchOpen,
+    closeSearch,
+    performSearch,
+    clearSearch,
+    searchQuery,
+    suggestions,
+    searchHistory,
+  } = useSearch();
   const [inputValue, setInputValue] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -86,9 +110,7 @@ export function FloatingSearchBox(): React.JSX.Element | null {
     } else if (event.key === 'ArrowDown') {
       event.preventDefault();
       setShowSuggestions(true);
-      setSelectedSuggestionIndex((prev) => 
-        prev < suggestions.length - 1 ? prev + 1 : prev
-      );
+      setSelectedSuggestionIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : -1));
@@ -150,7 +172,8 @@ export function FloatingSearchBox(): React.JSX.Element | null {
           display: 'flex',
           gap: 1,
           alignItems: 'center',
-          backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#ffffff',
+          backgroundColor:
+            theme.palette.mode === 'dark' ? theme.palette.background.paper : '#ffffff',
           border: '1px solid',
           borderColor: 'divider',
           borderRadius: 2,
@@ -162,7 +185,7 @@ export function FloatingSearchBox(): React.JSX.Element | null {
           },
         }}
       >
-        <Box sx={{position: 'relative', flex: 1}}>
+        <Box sx={{ position: 'relative', flex: 1 }}>
           <TextField
             inputRef={inputRef}
             fullWidth
@@ -216,8 +239,8 @@ export function FloatingSearchBox(): React.JSX.Element | null {
                             },
                           }}
                         >
-                          <SearchIcon sx={{mr: 1, fontSize: 20, opacity: 0.6}} />
-                          <Typography variant="body2" noWrap sx={{flex: 1}}>
+                          <SearchIcon sx={{ mr: 1, fontSize: 20, opacity: 0.6 }} />
+                          <Typography variant="body2" noWrap sx={{ flex: 1 }}>
                             {suggestion}
                           </Typography>
                         </ListItemButton>
@@ -229,7 +252,7 @@ export function FloatingSearchBox(): React.JSX.Element | null {
                 {searchHistory.length > 0 && inputValue.trim() === '' ? (
                   <>
                     <ListItem>
-                      <Typography variant="caption" color="text.secondary" sx={{px: 2, py: 1}}>
+                      <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 1 }}>
                         Recent searches
                       </Typography>
                     </ListItem>
@@ -237,10 +260,10 @@ export function FloatingSearchBox(): React.JSX.Element | null {
                       <ListItem key={`history-${index}`} disablePadding>
                         <ListItemButton
                           onClick={() => handleSuggestionClick(historyItem)}
-                          sx={{minHeight: 40}}
+                          sx={{ minHeight: 40 }}
                         >
-                          <HistoryIcon sx={{mr: 1, fontSize: 20, opacity: 0.6}} />
-                          <Typography variant="body2" noWrap sx={{flex: 1}}>
+                          <HistoryIcon sx={{ mr: 1, fontSize: 20, opacity: 0.6 }} />
+                          <Typography variant="body2" noWrap sx={{ flex: 1 }}>
                             {historyItem}
                           </Typography>
                         </ListItemButton>
@@ -262,4 +285,3 @@ export function FloatingSearchBox(): React.JSX.Element | null {
     </Box>
   );
 }
-

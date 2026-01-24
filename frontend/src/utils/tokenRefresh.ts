@@ -4,7 +4,11 @@
  * Tokens are stored in httpOnly cookies for enhanced security
  */
 
-import {TOKEN_EXPIRATION_BUFFER_SECONDS, TOKEN_REFRESH_MAX_RETRY_ATTEMPTS, TOKEN_REFRESH_INITIAL_RETRY_DELAY_MS} from './constants';
+import {
+  TOKEN_EXPIRATION_BUFFER_SECONDS,
+  TOKEN_REFRESH_MAX_RETRY_ATTEMPTS,
+  TOKEN_REFRESH_INITIAL_RETRY_DELAY_MS,
+} from './constants';
 
 /**
  * Flag to prevent multiple simultaneous redirects
@@ -21,7 +25,7 @@ let refreshPromise: Promise<string | null> | null = null;
  * @param token - JWT token string
  * @returns Decoded token payload or null if invalid
  */
-export function decodeToken(token: string): {exp?: number; iat?: number; sub?: string} | null {
+export function decodeToken(token: string): { exp?: number; iat?: number; sub?: string } | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) {
@@ -50,7 +54,10 @@ export function decodeToken(token: string): {exp?: number; iat?: number; sub?: s
  * @param bufferSeconds - Buffer time in seconds before expiration (default: TOKEN_EXPIRATION_BUFFER_SECONDS)
  * @returns true if token is expired or will expire soon
  */
-export function isTokenExpired(token: string, bufferSeconds: number = TOKEN_EXPIRATION_BUFFER_SECONDS): boolean {
+export function isTokenExpired(
+  token: string,
+  bufferSeconds: number = TOKEN_EXPIRATION_BUFFER_SECONDS
+): boolean {
   const decoded = decodeToken(token);
   if (!decoded?.exp) {
     return true; // Consider invalid tokens as expired
@@ -115,7 +122,8 @@ async function performTokenRefresh(): Promise<string | null> {
   try {
     // Call backend refresh endpoint
     // Backend will use refresh token from cookie and update access token cookie
-    const backendUrl = process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
+    const backendUrl =
+      process.env.REACT_APP_GRAPHQL_URL?.replace('/graphql', '') ?? 'http://localhost:4000';
     const refreshUrl = `${backendUrl}/auth/refresh`;
 
     let response: Response;
@@ -161,7 +169,11 @@ async function performTokenRefresh(): Promise<string | null> {
       if (response.status === 400 || response.status === 401) {
         console.warn('Token refresh failed, redirecting to login');
         // Only redirect if we're not already on the login page and not already redirecting
-        if (!isRedirecting && window.location.pathname !== '/login' && window.location.pathname !== '/auth/callback') {
+        if (
+          !isRedirecting &&
+          window.location.pathname !== '/login' &&
+          window.location.pathname !== '/auth/callback'
+        ) {
           isRedirecting = true;
           window.location.href = '/login';
         }
@@ -224,11 +236,10 @@ export async function refreshToken(): Promise<string | null> {
   }
 
   // Start a new refresh with retry logic
-  refreshPromise = performTokenRefreshWithRetry()
-    .finally(() => {
-      // Clear the promise when done so future refreshes can proceed
-      refreshPromise = null;
-    });
+  refreshPromise = performTokenRefreshWithRetry().finally(() => {
+    // Clear the promise when done so future refreshes can proceed
+    refreshPromise = null;
+  });
 
   return refreshPromise;
 }
@@ -249,4 +260,3 @@ export async function ensureValidToken(token: string | null): Promise<string | n
   // The error handler will then trigger a refresh
   return token ? 'cookie-based-token' : null;
 }
-

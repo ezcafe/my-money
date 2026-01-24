@@ -4,7 +4,7 @@
  * Use this for Promise-based data fetching instead of useEffect + useState
  */
 
-import {use} from 'react';
+import { use } from 'react';
 
 /**
  * Hook to unwrap a Promise using React.use()
@@ -23,21 +23,19 @@ export function useAsyncData<T>(promise: Promise<T>): T {
  * @param promise - Promise to unwrap (can be null/undefined to skip)
  * @returns Object with data, loading, and error
  */
-export function useAsyncDataSafe<T>(
-  promise: Promise<T> | null | undefined,
-): {
+export function useAsyncDataSafe<T>(promise: Promise<T> | null | undefined): {
   data: T | undefined;
   loading: boolean;
   error: Error | undefined;
 } {
   if (!promise) {
-    return {data: undefined, loading: false, error: undefined};
+    return { data: undefined, loading: false, error: undefined };
   }
 
   // Wrap promise to catch errors and convert to a resolved promise with error state
   // React.use() must be called unconditionally and cannot be in try/catch
   const wrappedPromise = promise
-    .then((data) => ({data, error: undefined as Error | undefined}))
+    .then((data) => ({ data, error: undefined as Error | undefined }))
     .catch((error) => ({
       data: undefined as T | undefined,
       error: error instanceof Error ? error : new Error(String(error)),

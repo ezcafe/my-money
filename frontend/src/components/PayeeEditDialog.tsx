@@ -3,14 +3,14 @@
  * Dialog for creating/editing payees
  */
 
-import React, {useState, useEffect} from 'react';
-import {Box, Typography} from '@mui/material';
-import {useMutation} from '@apollo/client/react';
-import {Dialog} from './ui/Dialog';
-import {Button} from './ui/Button';
-import {TextField} from './ui/TextField';
-import {CREATE_PAYEE, UPDATE_PAYEE} from '../graphql/mutations';
-import type {Payee} from '../hooks/usePayees';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography } from '@mui/material';
+import { useMutation } from '@apollo/client/react';
+import { Dialog } from './ui/Dialog';
+import { Button } from './ui/Button';
+import { TextField } from './ui/TextField';
+import { CREATE_PAYEE, UPDATE_PAYEE } from '../graphql/mutations';
+import type { Payee } from '../hooks/usePayees';
 
 /**
  * Payee edit dialog props
@@ -34,7 +34,7 @@ export function PayeeEditDialog({
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const [createPayee, {loading: creating}] = useMutation(CREATE_PAYEE, {
+  const [createPayee, { loading: creating }] = useMutation(CREATE_PAYEE, {
     refetchQueries: ['GetPayees'],
     awaitRefetchQueries: true,
     onCompleted: () => {
@@ -46,7 +46,7 @@ export function PayeeEditDialog({
     },
   });
 
-  const [updatePayee, {loading: updating}] = useMutation(UPDATE_PAYEE, {
+  const [updatePayee, { loading: updating }] = useMutation(UPDATE_PAYEE, {
     refetchQueries: ['GetPayees', 'GetPayee'],
     awaitRefetchQueries: true,
     onCompleted: () => {
@@ -99,7 +99,7 @@ export function PayeeEditDialog({
   };
 
   const actions = (
-    <Box sx={{display: 'flex', gap: 1, justifyContent: 'flex-end'}}>
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
       <Button onClick={onClose} disabled={loading} variant="outlined">
         Cancel
       </Button>
@@ -116,10 +116,12 @@ export function PayeeEditDialog({
       title={payee ? 'Edit Payee' : 'Create Payee'}
       actions={actions}
     >
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-        {error ? <Typography color="error" variant="body2">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {error ? (
+          <Typography color="error" variant="body2">
             {error}
-          </Typography> : null}
+          </Typography>
+        ) : null}
 
         <TextField
           label="Name"
@@ -132,4 +134,3 @@ export function PayeeEditDialog({
     </Dialog>
   );
 }
-

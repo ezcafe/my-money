@@ -3,14 +3,14 @@
  * TDD: Write tests first, then implement
  */
 
-import {describe, it, expect, beforeEach, afterEach} from '@jest/globals';
-import {prisma} from '../../src/utils/prisma';
-import {AccountResolver} from '../../src/resolvers/AccountResolver';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { prisma } from '../../src/utils/prisma';
+import { AccountResolver } from '../../src/resolvers/AccountResolver';
 
 describe('AccountResolver', () => {
   let testUserId: string;
   let testAccountId: string;
-  let context: {userId: string; prisma: typeof prisma};
+  let context: { userId: string; prisma: typeof prisma };
 
   beforeEach(async () => {
     const user = await prisma.user.create({
@@ -37,9 +37,9 @@ describe('AccountResolver', () => {
   });
 
   afterEach(async () => {
-    await prisma.transaction.deleteMany({where: {userId: testUserId}});
-    await prisma.account.deleteMany({where: {userId: testUserId}});
-    await prisma.user.deleteMany({where: {id: testUserId}});
+    await prisma.transaction.deleteMany({ where: { userId: testUserId } });
+    await prisma.account.deleteMany({ where: { userId: testUserId } });
+    await prisma.user.deleteMany({ where: { id: testUserId } });
   });
 
   describe('accounts', () => {
@@ -52,7 +52,7 @@ describe('AccountResolver', () => {
 
     it('should create a default account if none exists', async () => {
       // Delete all accounts for this user
-      await prisma.account.deleteMany({where: {userId: testUserId}});
+      await prisma.account.deleteMany({ where: { userId: testUserId } });
 
       const resolver = new AccountResolver();
       const accounts = await resolver.accounts(null, {}, context);
@@ -66,7 +66,7 @@ describe('AccountResolver', () => {
 
     it('should create a default account if no default account exists', async () => {
       // Delete all accounts for this user
-      await prisma.account.deleteMany({where: {userId: testUserId}});
+      await prisma.account.deleteMany({ where: { userId: testUserId } });
 
       // Create a non-default account
       await prisma.account.create({
@@ -92,14 +92,22 @@ describe('AccountResolver', () => {
   describe('account', () => {
     it('should return account by id', async () => {
       const resolver = new AccountResolver();
-      const account = await resolver.account(null, {id: testAccountId}, context);
+      const account = await resolver.account(
+        null,
+        { id: testAccountId },
+        context
+      );
       expect(account).not.toBeNull();
       expect(account?.id).toBe(testAccountId);
     });
 
     it('should return null for non-existent account', async () => {
       const resolver = new AccountResolver();
-      const account = await resolver.account(null, {id: 'non-existent'}, context);
+      const account = await resolver.account(
+        null,
+        { id: 'non-existent' },
+        context
+      );
       expect(account).toBeNull();
     });
   });
@@ -115,7 +123,7 @@ describe('AccountResolver', () => {
             initBalance: 500,
           },
         },
-        context,
+        context
       );
       expect(account.name).toBe('New Account');
       expect(Number(account.initBalance)).toBe(500);
@@ -133,7 +141,7 @@ describe('AccountResolver', () => {
             name: 'Updated Name',
           },
         },
-        context,
+        context
       );
       expect(account.name).toBe('Updated Name');
     });
@@ -148,7 +156,7 @@ describe('AccountResolver', () => {
             initBalance: 2000,
           },
         },
-        context,
+        context
       );
       expect(Number(account.initBalance)).toBe(2000);
     });
@@ -157,10 +165,16 @@ describe('AccountResolver', () => {
   describe('deleteAccount', () => {
     it('should delete account', async () => {
       const resolver = new AccountResolver();
-      const result = await resolver.deleteAccount(null, {id: testAccountId}, context);
+      const result = await resolver.deleteAccount(
+        null,
+        { id: testAccountId },
+        context
+      );
       expect(result).toBe(true);
 
-      const account = await prisma.account.findUnique({where: {id: testAccountId}});
+      const account = await prisma.account.findUnique({
+        where: { id: testAccountId },
+      });
       expect(account).toBeNull();
     });
 
@@ -176,10 +190,8 @@ describe('AccountResolver', () => {
 
       const resolver = new AccountResolver();
       await expect(
-        resolver.deleteAccount(null, {id: defaultAccount.id}, context),
+        resolver.deleteAccount(null, { id: defaultAccount.id }, context)
       ).rejects.toThrow();
     });
   });
 });
-
-

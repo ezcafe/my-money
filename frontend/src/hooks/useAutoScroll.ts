@@ -3,7 +3,7 @@
  * Handles both initial scroll on load and auto-scroll when new items are detected
  */
 
-import {useEffect, useRef} from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Item with ID for tracking new additions
@@ -37,13 +37,13 @@ export function useAutoScroll<T extends ItemWithId>(
   scrollRef: React.RefObject<HTMLElement | null>,
   items: T[],
   isLoading: boolean,
-  options: UseAutoScrollOptions = {},
+  options: UseAutoScrollOptions = {}
 ): void {
-  const {scrollDelay = 300, smooth = true} = options;
+  const { scrollDelay = 300, smooth = true } = options;
   const hasScrolledOnLoad = useRef(false);
   const previousItemsLength = useRef(0);
   const previousNewestItemId = useRef<string | null>(null);
-  const itemsBeforeLoading = useRef<{length: number; newestId: string | null} | null>(null);
+  const itemsBeforeLoading = useRef<{ length: number; newestId: string | null } | null>(null);
 
   /**
    * Scroll to bottom on initial load when data is ready
@@ -86,19 +86,19 @@ export function useAutoScroll<T extends ItemWithId>(
     // Skip if this is the initial load (before first scroll)
     if (!hasScrolledOnLoad.current) {
       previousItemsLength.current = items.length;
-      previousNewestItemId.current = items.length > 0 ? items[0]?.id ?? null : null;
+      previousNewestItemId.current = items.length > 0 ? (items[0]?.id ?? null) : null;
       // Store items state when loading starts
       if (isLoading) {
         itemsBeforeLoading.current = {
           length: items.length,
-          newestId: items.length > 0 ? items[0]?.id ?? null : null,
+          newestId: items.length > 0 ? (items[0]?.id ?? null) : null,
         };
       }
       return;
     }
 
     // Get the newest item ID (first item since ordered with newest first)
-    const newestItemId = items.length > 0 ? items[0]?.id ?? null : null;
+    const newestItemId = items.length > 0 ? (items[0]?.id ?? null) : null;
 
     // When loading starts, store the current state for comparison later
     if (isLoading && !itemsBeforeLoading.current) {
@@ -110,8 +110,9 @@ export function useAutoScroll<T extends ItemWithId>(
 
     // When loading finishes, check if items changed during the load
     if (!isLoading && itemsBeforeLoading.current) {
-      const itemsChangedDuringLoad = items.length !== itemsBeforeLoading.current.length ||
-                                     newestItemId !== itemsBeforeLoading.current.newestId;
+      const itemsChangedDuringLoad =
+        items.length !== itemsBeforeLoading.current.length ||
+        newestItemId !== itemsBeforeLoading.current.newestId;
 
       if (itemsChangedDuringLoad) {
         timeoutId = setTimeout(() => {
@@ -132,8 +133,7 @@ export function useAutoScroll<T extends ItemWithId>(
     // Check for changes when not loading (for cases where loading state doesn't change)
     if (!isLoading && !itemsBeforeLoading.current) {
       const itemCountIncreased = items.length > previousItemsLength.current;
-      const newItemAdded = newestItemId !== null &&
-                          newestItemId !== previousNewestItemId.current;
+      const newItemAdded = newestItemId !== null && newestItemId !== previousNewestItemId.current;
 
       if (newItemAdded || itemCountIncreased) {
         timeoutId = setTimeout(() => {
@@ -161,4 +161,3 @@ export function useAutoScroll<T extends ItemWithId>(
     };
   }, [items, isLoading, scrollRef, scrollDelay, smooth]);
 }
-

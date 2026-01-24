@@ -3,11 +3,25 @@
  * Manages workspace members, invitations, and settings
  */
 
-import React, {useState} from 'react';
-import {useParams, useNavigate} from 'react-router';
-import {Box, Typography, List, ListItem, ListItemText, Divider, Chip, Stack, IconButton, Select, MenuItem, FormControl, InputLabel} from '@mui/material';
-import {useQuery, useMutation} from '@apollo/client/react';
-import {ArrowBack, PersonAdd, Cancel, PersonRemove} from '@mui/icons-material';
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router';
+import {
+  Box,
+  Typography,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Chip,
+  Stack,
+  IconButton,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+} from '@mui/material';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { ArrowBack, PersonAdd, Cancel, PersonRemove } from '@mui/icons-material';
 import {
   GET_WORKSPACE,
   GET_WORKSPACE_MEMBERS,
@@ -16,15 +30,15 @@ import {
   REMOVE_WORKSPACE_MEMBER,
   CANCEL_WORKSPACE_INVITATION,
 } from '../graphql/workspaceOperations';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {Card} from '../components/ui/Card';
-import {Button} from '../components/ui/Button';
-import {PageContainer} from '../components/common/PageContainer';
-import {InviteUserDialog} from '../components/InviteUserDialog';
-import {DeleteConfirmDialog} from '../components/common/DeleteConfirmDialog';
-import {formatDateShort} from '../utils/formatting';
-import {useDateFormat} from '../hooks/useDateFormat';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { PageContainer } from '../components/common/PageContainer';
+import { InviteUserDialog } from '../components/InviteUserDialog';
+import { DeleteConfirmDialog } from '../components/common/DeleteConfirmDialog';
+import { formatDateShort } from '../utils/formatting';
+import { useDateFormat } from '../hooks/useDateFormat';
 
 type WorkspaceRole = 'Owner' | 'Admin' | 'Member';
 
@@ -32,16 +46,20 @@ type WorkspaceRole = 'Owner' | 'Admin' | 'Member';
  * Workspace Settings Page Component
  */
 export function WorkspaceSettingsPage(): React.JSX.Element {
-  const {id} = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const {dateFormat} = useDateFormat();
+  const { dateFormat } = useDateFormat();
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [removeMemberDialogOpen, setRemoveMemberDialogOpen] = useState(false);
   const [cancelInvitationDialogOpen, setCancelInvitationDialogOpen] = useState(false);
-  const [memberToRemove, setMemberToRemove] = useState<{id: string; email: string} | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; email: string } | null>(null);
   const [invitationToCancel, setInvitationToCancel] = useState<string | null>(null);
 
-  const {data: workspaceData, loading: workspaceLoading, error: workspaceError} = useQuery<{
+  const {
+    data: workspaceData,
+    loading: workspaceLoading,
+    error: workspaceError,
+  } = useQuery<{
     workspace: {
       id: string;
       name: string;
@@ -49,12 +67,16 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
       updatedAt: string;
     };
   }>(GET_WORKSPACE, {
-    variables: {id},
+    variables: { id },
     skip: !id,
     fetchPolicy: 'cache-and-network',
   });
 
-  const {data: membersData, loading: membersLoading, refetch: _refetchMembers} = useQuery<{
+  const {
+    data: membersData,
+    loading: membersLoading,
+    refetch: _refetchMembers,
+  } = useQuery<{
     workspaceMembers: Array<{
       id: string;
       userId: string;
@@ -66,12 +88,16 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
       };
     }>;
   }>(GET_WORKSPACE_MEMBERS, {
-    variables: {workspaceId: id},
+    variables: { workspaceId: id },
     skip: !id,
     fetchPolicy: 'cache-and-network',
   });
 
-  const {data: invitationsData, loading: invitationsLoading, refetch: refetchInvitations} = useQuery<{
+  const {
+    data: invitationsData,
+    loading: invitationsLoading,
+    refetch: refetchInvitations,
+  } = useQuery<{
     workspaceInvitations: Array<{
       id: string;
       email: string;
@@ -85,16 +111,16 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
       };
     }>;
   }>(GET_WORKSPACE_INVITATIONS, {
-    variables: {workspaceId: id},
+    variables: { workspaceId: id },
     skip: !id,
     fetchPolicy: 'cache-and-network',
   });
 
-  const [updateMemberRole, {loading: updatingRole}] = useMutation(UPDATE_WORKSPACE_MEMBER_ROLE, {
+  const [updateMemberRole, { loading: updatingRole }] = useMutation(UPDATE_WORKSPACE_MEMBER_ROLE, {
     refetchQueries: ['GetWorkspaceMembers'],
   });
 
-  const [removeMember, {loading: removing}] = useMutation(REMOVE_WORKSPACE_MEMBER, {
+  const [removeMember, { loading: removing }] = useMutation(REMOVE_WORKSPACE_MEMBER, {
     refetchQueries: ['GetWorkspaceMembers'],
     onCompleted: () => {
       setRemoveMemberDialogOpen(false);
@@ -102,7 +128,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
     },
   });
 
-  const [cancelInvitation, {loading: canceling}] = useMutation(CANCEL_WORKSPACE_INVITATION, {
+  const [cancelInvitation, { loading: canceling }] = useMutation(CANCEL_WORKSPACE_INVITATION, {
     refetchQueries: ['GetWorkspaceInvitations'],
     onCompleted: () => {
       setCancelInvitationDialogOpen(false);
@@ -185,7 +211,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
 
   return (
     <PageContainer>
-      <Box sx={{display: 'flex', alignItems: 'center', gap: 2, mb: 3}}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
         <IconButton
           onClick={() => {
             void navigate('/workspaces');
@@ -201,7 +227,9 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
       <Stack spacing={3}>
         {/* Members Section */}
         <Card>
-          <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
+          >
             <Typography variant="h6">Members</Typography>
             <Button
               startIcon={<PersonAdd />}
@@ -237,7 +265,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                       }}
                     />
                     <Stack direction="row" spacing={1} alignItems="center">
-                      <FormControl size="small" sx={{minWidth: 120}}>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
                         <InputLabel>Role</InputLabel>
                         <Select
                           value={member.role}
@@ -256,7 +284,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                         size="small"
                         color="error"
                         onClick={() => {
-                          setMemberToRemove({id: member.id, email: member.user.email});
+                          setMemberToRemove({ id: member.id, email: member.user.email });
                           setRemoveMemberDialogOpen(true);
                         }}
                       >
@@ -273,7 +301,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
         {/* Pending Invitations Section */}
         {pendingInvitations.length > 0 && (
           <Card>
-            <Typography variant="h6" sx={{mb: 2}}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
               Pending Invitations
             </Typography>
             <List disablePadding>

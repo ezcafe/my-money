@@ -3,8 +3,8 @@
  * Page for adding new transactions with optional recurring transaction support
  */
 
-import React, {useState, useEffect, useMemo} from 'react';
-import {useNavigate, useSearchParams} from 'react-router';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   Box,
   TextField,
@@ -19,28 +19,38 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
-import {CalendarToday} from '@mui/icons-material';
-import {DateCalendar} from '@mui/x-date-pickers/DateCalendar';
-import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
-import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs';
-import dayjs, {type Dayjs} from 'dayjs';
-import {useMutation, useQuery} from '@apollo/client/react';
-import {Card} from '../components/ui/Card';
-import {Button} from '../components/ui/Button';
-import {CREATE_TRANSACTION, CREATE_RECURRING_TRANSACTION} from '../graphql/mutations';
-import {GET_CATEGORIES_AND_PAYEES, GET_TRANSACTIONS, GET_RECENT_TRANSACTIONS, GET_ACCOUNT, GET_RECURRING_TRANSACTIONS} from '../graphql/queries';
-import {useAccounts} from '../hooks/useAccounts';
-import {useTitle} from '../contexts/TitleContext';
-import {getRecurringTypeOptions, getCronExpression, type RecurringType} from '../utils/recurringTypes';
-import {validateReturnUrl} from '../utils/validation';
-import {PageContainer} from '../components/common/PageContainer';
+import { CalendarToday } from '@mui/icons-material';
+import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { type Dayjs } from 'dayjs';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { CREATE_TRANSACTION, CREATE_RECURRING_TRANSACTION } from '../graphql/mutations';
+import {
+  GET_CATEGORIES_AND_PAYEES,
+  GET_TRANSACTIONS,
+  GET_RECENT_TRANSACTIONS,
+  GET_ACCOUNT,
+  GET_RECURRING_TRANSACTIONS,
+} from '../graphql/queries';
+import { useAccounts } from '../hooks/useAccounts';
+import { useTitle } from '../contexts/TitleContext';
+import {
+  getRecurringTypeOptions,
+  getCronExpression,
+  type RecurringType,
+} from '../utils/recurringTypes';
+import { validateReturnUrl } from '../utils/validation';
+import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
   GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
-import type {Account} from '../hooks/useAccounts';
-import type {Category} from '../hooks/useCategories';
+import type { Account } from '../hooks/useAccounts';
+import type { Category } from '../hooks/useCategories';
 
 /**
  * Transaction Add Page Component
@@ -49,15 +59,18 @@ export function TransactionAddPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = validateReturnUrl(searchParams.get('returnTo'), '/');
-  const {setTitle} = useTitle();
+  const { setTitle } = useTitle();
 
-  const {accounts} = useAccounts();
-  const {data: combinedData} = useQuery<{
-    categories?: Array<{id: string; name: string; categoryType: string; isDefault: boolean}>;
-    payees?: Array<{id: string; name: string; isDefault: boolean}>;
+  const { accounts } = useAccounts();
+  const { data: combinedData } = useQuery<{
+    categories?: Array<{ id: string; name: string; categoryType: string; isDefault: boolean }>;
+    payees?: Array<{ id: string; name: string; isDefault: boolean }>;
   }>(GET_CATEGORIES_AND_PAYEES);
 
-  const categories = useMemo(() => (combinedData?.categories ?? []) as Category[], [combinedData?.categories]);
+  const categories = useMemo(
+    () => (combinedData?.categories ?? []) as Category[],
+    [combinedData?.categories]
+  );
   const payees = combinedData?.payees ?? [];
 
   // State declarations must come before they are used
@@ -99,17 +112,21 @@ export function TransactionAddPage(): React.JSX.Element {
     };
   }, [setTitle]);
 
-
-  const [createTransaction, {loading: creatingTransaction}] = useMutation(CREATE_TRANSACTION, {
+  const [createTransaction, { loading: creatingTransaction }] = useMutation(CREATE_TRANSACTION, {
     refetchQueries: () => {
-      const queries: Array<{query: typeof GET_TRANSACTIONS} | {query: typeof GET_RECENT_TRANSACTIONS} | {query: typeof GET_ACCOUNT; variables: {id: string}} | {query: typeof GET_RECURRING_TRANSACTIONS}> = [
-        {query: GET_TRANSACTIONS},
-        {query: GET_RECENT_TRANSACTIONS},
-        {query: GET_RECURRING_TRANSACTIONS},
+      const queries: Array<
+        | { query: typeof GET_TRANSACTIONS }
+        | { query: typeof GET_RECENT_TRANSACTIONS }
+        | { query: typeof GET_ACCOUNT; variables: { id: string } }
+        | { query: typeof GET_RECURRING_TRANSACTIONS }
+      > = [
+        { query: GET_TRANSACTIONS },
+        { query: GET_RECENT_TRANSACTIONS },
+        { query: GET_RECURRING_TRANSACTIONS },
       ];
       // Only refetch GET_ACCOUNT if we have an accountId from the form
       if (accountId) {
-        queries.push({query: GET_ACCOUNT, variables: {id: accountId}});
+        queries.push({ query: GET_ACCOUNT, variables: { id: accountId } });
       }
       return queries;
     },
@@ -123,18 +140,23 @@ export function TransactionAddPage(): React.JSX.Element {
     },
   });
 
-  const [createRecurringTransaction, {loading: creatingRecurring}] = useMutation(
+  const [createRecurringTransaction, { loading: creatingRecurring }] = useMutation(
     CREATE_RECURRING_TRANSACTION,
     {
       refetchQueries: () => {
-        const queries: Array<{query: typeof GET_RECURRING_TRANSACTIONS} | {query: typeof GET_TRANSACTIONS} | {query: typeof GET_RECENT_TRANSACTIONS} | {query: typeof GET_ACCOUNT; variables: {id: string}}> = [
-          {query: GET_RECURRING_TRANSACTIONS},
-          {query: GET_TRANSACTIONS},
-          {query: GET_RECENT_TRANSACTIONS},
+        const queries: Array<
+          | { query: typeof GET_RECURRING_TRANSACTIONS }
+          | { query: typeof GET_TRANSACTIONS }
+          | { query: typeof GET_RECENT_TRANSACTIONS }
+          | { query: typeof GET_ACCOUNT; variables: { id: string } }
+        > = [
+          { query: GET_RECURRING_TRANSACTIONS },
+          { query: GET_TRANSACTIONS },
+          { query: GET_RECENT_TRANSACTIONS },
         ];
         // Only refetch GET_ACCOUNT if we have an accountId from the form
         if (accountId) {
-          queries.push({query: GET_ACCOUNT, variables: {id: accountId}});
+          queries.push({ query: GET_ACCOUNT, variables: { id: accountId } });
         }
         return queries;
       },
@@ -146,7 +168,7 @@ export function TransactionAddPage(): React.JSX.Element {
       onCompleted: () => {
         setError(null);
       },
-    },
+    }
   );
 
   /**
@@ -309,10 +331,12 @@ export function TransactionAddPage(): React.JSX.Element {
           p: 3,
         }}
       >
-        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}>
-          {error ? <Typography color="error" variant="body2">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+          {error ? (
+            <Typography color="error" variant="body2">
               {error}
-            </Typography> : null}
+            </Typography>
+          ) : null}
 
           <TextField
             label="Value"
@@ -341,7 +365,7 @@ export function TransactionAddPage(): React.JSX.Element {
             required
             error={Boolean(valueError)}
             helperText={valueError}
-            inputProps={{step: '0.01'}}
+            inputProps={{ step: '0.01' }}
           />
 
           <Autocomplete<Account, false, false, false>
@@ -424,7 +448,8 @@ export function TransactionAddPage(): React.JSX.Element {
             label="Recurring Transaction"
           />
 
-          {isRecurring ? <>
+          {isRecurring ? (
+            <>
               <FormControl fullWidth>
                 <InputLabel>Recurring Type</InputLabel>
                 <Select
@@ -445,7 +470,7 @@ export function TransactionAddPage(): React.JSX.Element {
                   variant="outlined"
                   onClick={handleDatePickerOpen}
                   startIcon={<CalendarToday />}
-                  sx={{justifyContent: 'flex-start', textTransform: 'none'}}
+                  sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                 >
                   {nextRunDateText}
                 </Button>
@@ -460,9 +485,10 @@ export function TransactionAddPage(): React.JSX.Element {
                 }
                 label="Also create transaction now"
               />
-            </> : null}
+            </>
+          ) : null}
 
-          <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto'}}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto' }}>
             <Button
               onClick={() => {
                 const validReturnUrl = validateReturnUrl(returnTo);
@@ -500,7 +526,7 @@ export function TransactionAddPage(): React.JSX.Element {
         }}
       >
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <Box sx={{display: 'flex', flexDirection: 'column', p: 2}}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', p: 2 }}>
             <DateCalendar
               value={nextRunDate}
               onChange={handleNextRunDateChange}
@@ -512,4 +538,3 @@ export function TransactionAddPage(): React.JSX.Element {
     </PageContainer>
   );
 }
-

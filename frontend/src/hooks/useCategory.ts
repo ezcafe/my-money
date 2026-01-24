@@ -3,8 +3,8 @@
  * Provides category data with loading and error states
  */
 
-import {GET_CATEGORY} from '../graphql/queries';
-import {useEntity} from './useEntity';
+import { GET_CATEGORY } from '../graphql/queries';
+import { useEntity } from './useEntity';
 
 /**
  * Category type from GraphQL query
@@ -36,9 +36,9 @@ interface GetCategoryData {
 }
 
 export function useCategory(id: string | undefined): UseCategoryResult {
-  const {entity, loading, error, refetch} = useEntity<Category, GetCategoryData>({
+  const { entity, loading, error, refetch } = useEntity<Category, GetCategoryData>({
     query: GET_CATEGORY,
-    variables: {id},
+    variables: { id },
     skip: !id,
     errorPolicy: 'all',
     extractEntity: (data) => data.category,
@@ -51,4 +51,3 @@ export function useCategory(id: string | undefined): UseCategoryResult {
     refetch,
   };
 }
-

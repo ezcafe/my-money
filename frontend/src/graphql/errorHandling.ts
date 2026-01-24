@@ -3,9 +3,9 @@
  * Centralized error handling logic for Apollo Client
  */
 
-import {refreshToken} from '../utils/tokenRefresh';
-import {showErrorNotification, getUserFriendlyErrorMessage} from '../utils/errorNotification';
-import {CONNECTION_ERROR_THROTTLE_MS} from '../constants';
+import { refreshToken } from '../utils/tokenRefresh';
+import { showErrorNotification, getUserFriendlyErrorMessage } from '../utils/errorNotification';
+import { CONNECTION_ERROR_THROTTLE_MS } from '../constants';
 
 /**
  * Circuit breaker state for connection errors
@@ -108,10 +108,12 @@ async function handleAuthError(): Promise<void> {
  * @param graphQLErrors - Array of GraphQL errors
  */
 export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
-  for (const {message, locations, path, extensions} of graphQLErrors) {
+  for (const { message, locations, path, extensions } of graphQLErrors) {
     // Handle authentication errors
-    const extensionsObj = extensions && typeof extensions === 'object' ? extensions as Record<string, unknown> : null;
-    const statusCode = extensionsObj && 'statusCode' in extensionsObj ? extensionsObj.statusCode : undefined;
+    const extensionsObj =
+      extensions && typeof extensions === 'object' ? (extensions as Record<string, unknown>) : null;
+    const statusCode =
+      extensionsObj && 'statusCode' in extensionsObj ? extensionsObj.statusCode : undefined;
     const code = extensionsObj && 'code' in extensionsObj ? extensionsObj.code : undefined;
 
     if (code === 'UNAUTHORIZED' || (typeof statusCode === 'number' && statusCode === 401)) {
@@ -123,7 +125,7 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
     // Handle specific error codes with user-friendly messages
     const errorObj = new Error(message);
     if (extensionsObj) {
-      Object.assign(errorObj, {extensions: extensionsObj});
+      Object.assign(errorObj, { extensions: extensionsObj });
     }
     let userMessage = getUserFriendlyErrorMessage(errorObj);
     let retryable = false;
@@ -131,7 +133,10 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
 
     switch (code) {
       case 'RATE_LIMIT_EXCEEDED': {
-        const retryAfterSeconds = extensionsObj && typeof extensionsObj.retryAfter === 'number' ? extensionsObj.retryAfter : 60;
+        const retryAfterSeconds =
+          extensionsObj && typeof extensionsObj.retryAfter === 'number'
+            ? extensionsObj.retryAfter
+            : 60;
         userMessage = `Too many requests. Please wait ${retryAfterSeconds} seconds before trying again. You can continue using the app, but some actions may be temporarily limited.`;
         retryable = true;
         retryAfter = retryAfterSeconds;
@@ -139,19 +144,26 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
       }
       case 'QUERY_TOO_COMPLEX':
       case 'QUERY_COST_EXCEEDED':
-        userMessage = 'Your request is too complex. Try reducing the number of filters or the date range. If the problem persists, refresh the page.';
+        userMessage =
+          'Your request is too complex. Try reducing the number of filters or the date range. If the problem persists, refresh the page.';
         retryable = true;
         break;
       case 'QUERY_DEPTH_EXCEEDED':
-        userMessage = 'Query depth exceeds limit. Please simplify your request by reducing nested filters or selections.';
+        userMessage =
+          'Query depth exceeds limit. Please simplify your request by reducing nested filters or selections.';
         retryable = false;
         break;
       case 'VALIDATION_ERROR':
       case 'BAD_USER_INPUT': {
         // Show field-specific validation errors with actionable guidance
-        const validationErrors = extensionsObj && 'validationErrors' in extensionsObj ? extensionsObj.validationErrors : undefined;
+        const validationErrors =
+          extensionsObj && 'validationErrors' in extensionsObj
+            ? extensionsObj.validationErrors
+            : undefined;
         if (validationErrors && Array.isArray(validationErrors)) {
-          const fieldErrors = (validationErrors as Array<{path: Array<string | number>; message: string}>)
+          const fieldErrors = (
+            validationErrors as Array<{ path: Array<string | number>; message: string }>
+          )
             .map((err) => {
               const fieldName = err.path.length > 0 ? err.path[err.path.length - 1] : 'field';
               return `${String(fieldName)}: ${err.message}`;
@@ -165,35 +177,45 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
         break;
       }
       case 'INPUT_SIZE_EXCEEDED':
-        userMessage = 'Your input is too large. Please reduce the amount of data you\'re trying to submit. For file uploads, ensure files are under the size limit.';
+        userMessage =
+          "Your input is too large. Please reduce the amount of data you're trying to submit. For file uploads, ensure files are under the size limit.";
         retryable = false;
         break;
       case 'NOT_FOUND': {
         // Provide context-specific help based on the resource type
-        const resourceType = message.toLowerCase().includes('account') ? 'account'
-          : message.toLowerCase().includes('category') ? 'category'
-          : message.toLowerCase().includes('payee') ? 'payee'
-          : message.toLowerCase().includes('transaction') ? 'transaction'
-          : message.toLowerCase().includes('budget') ? 'budget'
-          : 'resource';
+        const resourceType = message.toLowerCase().includes('account')
+          ? 'account'
+          : message.toLowerCase().includes('category')
+            ? 'category'
+            : message.toLowerCase().includes('payee')
+              ? 'payee'
+              : message.toLowerCase().includes('transaction')
+                ? 'transaction'
+                : message.toLowerCase().includes('budget')
+                  ? 'budget'
+                  : 'resource';
         userMessage = `The ${resourceType} you're looking for doesn't exist or has been deleted. Please check your selection or navigate back to the list.`;
         retryable = false;
         break;
       }
       case 'FORBIDDEN':
-        userMessage = 'You don\'t have permission to perform this action. If you believe this is an error, please contact support.';
+        userMessage =
+          "You don't have permission to perform this action. If you believe this is an error, please contact support.";
         retryable = false;
         break;
       case 'INTERNAL_SERVER_ERROR':
-        userMessage = 'An unexpected error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page or contact support.';
+        userMessage =
+          'An unexpected error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page or contact support.';
         retryable = true;
         break;
       case 'DATABASE_ERROR':
-        userMessage = 'A database error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page.';
+        userMessage =
+          'A database error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page.';
         retryable = true;
         break;
       case 'NETWORK_ERROR':
-        userMessage = 'Network connection error. Please check your internet connection and try again. If you\'re offline, some features may be limited.';
+        userMessage =
+          "Network connection error. Please check your internet connection and try again. If you're offline, some features may be limited.";
         retryable = true;
         break;
       case 'TIMEOUT':
@@ -233,11 +255,17 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
         codeStr = code;
       } else if (typeof code === 'object' && code !== null) {
         codeStr = JSON.stringify(code);
-      } else if (typeof code === 'number' || typeof code === 'boolean' || typeof code === 'bigint') {
+      } else if (
+        typeof code === 'number' ||
+        typeof code === 'boolean' ||
+        typeof code === 'bigint'
+      ) {
         codeStr = String(code);
       }
     }
-    console.error(`GraphQL error: Message: ${message}, Location: ${locationsStr}, Path: ${pathStr}, Code: ${codeStr}`);
+    console.error(
+      `GraphQL error: Message: ${message}, Location: ${locationsStr}, Path: ${pathStr}, Code: ${codeStr}`
+    );
   }
 }
 
@@ -246,7 +274,11 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
  * @param networkError - Network error object
  */
 export function handleNetworkError(networkError: NetworkError): void {
-  const networkStatusCode = 'statusCode' in networkError && typeof (networkError as {statusCode?: number}).statusCode === 'number' ? (networkError as {statusCode: number}).statusCode : undefined;
+  const networkStatusCode =
+    'statusCode' in networkError &&
+    typeof (networkError as { statusCode?: number }).statusCode === 'number'
+      ? (networkError as { statusCode: number }).statusCode
+      : undefined;
 
   if (networkStatusCode === 401) {
     // Attempt token refresh on 401
@@ -256,12 +288,14 @@ export function handleNetworkError(networkError: NetworkError): void {
 
   // Handle connection errors more gracefully
   const errorMessage = networkError instanceof Error ? networkError.message : String(networkError);
-  const isConnectionError = errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('Failed to fetch');
+  const isConnectionError =
+    errorMessage.includes('ERR_CONNECTION_REFUSED') || errorMessage.includes('Failed to fetch');
 
   if (isConnectionError) {
     // Check circuit breaker before processing errors
     if (isCircuitOpen()) {
-      const userMessage = 'Server is temporarily unavailable due to repeated connection failures. Please wait 30 seconds and try again. Your data is safe.';
+      const userMessage =
+        'Server is temporarily unavailable due to repeated connection failures. Please wait 30 seconds and try again. Your data is safe.';
       showErrorNotification(userMessage, {
         originalError: errorMessage,
         circuitOpen: true,
@@ -278,8 +312,12 @@ export function handleNetworkError(networkError: NetworkError): void {
     // Only show once to avoid spam
     const lastConnectionError = sessionStorage.getItem('last_connection_error');
     const now = Date.now();
-    if (!lastConnectionError || now - Number.parseInt(lastConnectionError, 10) > CONNECTION_ERROR_THROTTLE_MS) {
-      const userMessage = 'Cannot connect to the server. Please check your internet connection and ensure the server is running. If the problem persists, try refreshing the page.';
+    if (
+      !lastConnectionError ||
+      now - Number.parseInt(lastConnectionError, 10) > CONNECTION_ERROR_THROTTLE_MS
+    ) {
+      const userMessage =
+        'Cannot connect to the server. Please check your internet connection and ensure the server is running. If the problem persists, try refreshing the page.';
       showErrorNotification(userMessage, {
         originalError: errorMessage,
         retryable: true,
@@ -295,19 +333,23 @@ export function handleNetworkError(networkError: NetworkError): void {
   } else {
     // Show user-friendly error message for other network errors with context
     let userMessage = getUserFriendlyErrorMessage(networkError);
-    
+
     // Add context-specific suggestions based on error
     if (networkStatusCode === 503) {
-      userMessage = 'Service temporarily unavailable. The server may be under maintenance. Please try again in a few moments.';
+      userMessage =
+        'Service temporarily unavailable. The server may be under maintenance. Please try again in a few moments.';
     } else if (networkStatusCode === 504) {
-      userMessage = 'Request timed out. The server took too long to respond. Please try again with a simpler request or refresh the page.';
+      userMessage =
+        'Request timed out. The server took too long to respond. Please try again with a simpler request or refresh the page.';
     } else if (networkStatusCode === 500) {
-      userMessage = 'Server error occurred. Your data is safe. Please try again in a moment. If the problem persists, contact support.';
+      userMessage =
+        'Server error occurred. Your data is safe. Please try again in a moment. If the problem persists, contact support.';
     }
-    
+
     showErrorNotification(userMessage, {
       originalError: errorMessage,
-      retryable: networkStatusCode !== 400 && networkStatusCode !== 401 && networkStatusCode !== 403,
+      retryable:
+        networkStatusCode !== 400 && networkStatusCode !== 401 && networkStatusCode !== 403,
     });
   }
 }

@@ -5,7 +5,7 @@
  */
 
 import DOMPurify from 'dompurify';
-import {sanitizeFormInput as sharedSanitizeFormInput} from '@my-money/shared';
+import { sanitizeFormInput as sharedSanitizeFormInput } from '@my-money/shared';
 
 /**
  * Sanitize a string input to prevent XSS attacks using DOMPurify
@@ -17,7 +17,7 @@ export function sanitizeString(input: string): string {
     return String(input);
   }
   // DOMPurify sanitizes HTML/script tags and dangerous content
-  return DOMPurify.sanitize(input, {ALLOWED_TAGS: [], ALLOWED_ATTR: []});
+  return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
 }
 
 /**
@@ -26,18 +26,30 @@ export function sanitizeString(input: string): string {
  * @returns Sanitized object
  */
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
-  const sanitized = {...obj};
+  const sanitized = { ...obj };
   for (const [key, value] of Object.entries(sanitized)) {
     if (typeof value === 'string') {
       (sanitized as Record<string, unknown>)[key] = sanitizeString(value);
-    } else if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-      (sanitized as Record<string, unknown>)[key] = sanitizeObject(value as Record<string, unknown>);
+    } else if (
+      value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      !(value instanceof Date)
+    ) {
+      (sanitized as Record<string, unknown>)[key] = sanitizeObject(
+        value as Record<string, unknown>
+      );
     } else if (Array.isArray(value)) {
       (sanitized as Record<string, unknown>)[key] = value.map((item: unknown) => {
         if (typeof item === 'string') {
           return sanitizeString(item);
         }
-        if (item !== null && typeof item === 'object' && !Array.isArray(item) && !(item instanceof Date)) {
+        if (
+          item !== null &&
+          typeof item === 'object' &&
+          !Array.isArray(item) &&
+          !(item instanceof Date)
+        ) {
           return sanitizeObject(item as Record<string, unknown>);
         }
         return item;
@@ -56,4 +68,3 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
 export function sanitizeFormInput<T extends Record<string, unknown>>(input: T): T {
   return sharedSanitizeFormInput(input);
 }
-

@@ -3,16 +3,15 @@
  * Handles recurring transaction-related GraphQL operations
  */
 
-
-import type {GraphQLContext} from '../middleware/context';
-import type {RecurringTransaction} from '@prisma/client';
-import {NotFoundError} from '../utils/errors';
-import {z} from 'zod';
-import {validate} from '../utils/validation';
+import type { GraphQLContext } from '../middleware/context';
+import type { RecurringTransaction } from '@prisma/client';
+import { NotFoundError } from '../utils/errors';
+import { z } from 'zod';
+import { validate } from '../utils/validation';
 import cronValidator from 'cron-validator';
-import {withPrismaErrorHandling} from '../utils/prismaErrors';
-import {validateContext} from '../utils/baseResolver';
-import {BaseResolver} from './BaseResolver';
+import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import { validateContext } from '../utils/baseResolver';
+import { BaseResolver } from './BaseResolver';
 
 /**
  * Validate cron expression
@@ -60,23 +59,28 @@ export class RecurringTransactionResolver extends BaseResolver {
   /**
    * Get all recurring transactions for current user
    */
-  async recurringTransactions(_: unknown, __: unknown, context: GraphQLContext): Promise<RecurringTransaction[]> {
+  async recurringTransactions(
+    _: unknown,
+    __: unknown,
+    context: GraphQLContext
+  ): Promise<RecurringTransaction[]> {
     validateContext(context);
     return await withPrismaErrorHandling(
       async () => {
-        const recurringTransactions = await context.prisma.recurringTransaction.findMany({
-          where: {
-            account: {
-              createdBy: context.userId,
+        const recurringTransactions =
+          await context.prisma.recurringTransaction.findMany({
+            where: {
+              account: {
+                createdBy: context.userId,
+              },
             },
-          },
-          include: {
-            account: true,
-            category: true,
-            payee: true,
-          },
-          orderBy: {nextRunDate: 'asc'},
-        });
+            include: {
+              account: true,
+              category: true,
+              payee: true,
+            },
+            orderBy: { nextRunDate: 'asc' },
+          });
 
         // Map userId from account.createdBy since it's not in the RecurringTransaction model
         // but required by the GraphQL schema
@@ -85,7 +89,7 @@ export class RecurringTransactionResolver extends BaseResolver {
           userId: rt.account.createdBy,
         })) as unknown as RecurringTransaction[];
       },
-      {resource: 'RecurringTransaction', operation: 'read'},
+      { resource: 'RecurringTransaction', operation: 'read' }
     );
   }
 
@@ -107,9 +111,12 @@ export class RecurringTransactionResolver extends BaseResolver {
         nextRunDate: Date;
       };
     },
-    context: GraphQLContext,
+    context: GraphQLContext
   ): Promise<RecurringTransaction> {
-    const validatedInput = validate(CreateRecurringTransactionInputSchema, input);
+    const validatedInput = validate(
+      CreateRecurringTransactionInputSchema,
+      input
+    );
 
     // Verify account belongs to user
     const account = await context.prisma.account.findFirst({
@@ -117,7 +124,7 @@ export class RecurringTransactionResolver extends BaseResolver {
         id: validatedInput.accountId,
         createdBy: context.userId,
       },
-      select: {id: true, workspaceId: true},
+      select: { id: true, workspaceId: true },
     });
 
     if (!account) {
@@ -131,9 +138,9 @@ export class RecurringTransactionResolver extends BaseResolver {
       const category = await context.prisma.category.findFirst({
         where: {
           id: validatedInput.categoryId,
-          workspaceId: workspaceId,
+          workspaceId,
         },
-        select: {id: true},
+        select: { id: true },
       });
 
       if (!category) {
@@ -146,9 +153,9 @@ export class RecurringTransactionResolver extends BaseResolver {
       const payee = await context.prisma.payee.findFirst({
         where: {
           id: validatedInput.payeeId,
-          workspaceId: workspaceId,
+          workspaceId,
         },
-        select: {id: true},
+        select: { id: true },
       });
 
       if (!payee) {
@@ -156,22 +163,23 @@ export class RecurringTransactionResolver extends BaseResolver {
       }
     }
 
-    const recurringTransaction = await context.prisma.recurringTransaction.create({
-      data: {
-        cronExpression: validatedInput.cronExpression,
-        value: validatedInput.value,
-        accountId: validatedInput.accountId,
-        categoryId: validatedInput.categoryId ?? null,
-        payeeId: validatedInput.payeeId ?? null,
-        note: validatedInput.note ?? null,
-        nextRunDate: validatedInput.nextRunDate,
-      },
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
-    });
+    const recurringTransaction =
+      await context.prisma.recurringTransaction.create({
+        data: {
+          cronExpression: validatedInput.cronExpression,
+          value: validatedInput.value,
+          accountId: validatedInput.accountId,
+          categoryId: validatedInput.categoryId ?? null,
+          payeeId: validatedInput.payeeId ?? null,
+          note: validatedInput.note ?? null,
+          nextRunDate: validatedInput.nextRunDate,
+        },
+        include: {
+          account: true,
+          category: true,
+          payee: true,
+        },
+      });
 
     // Map userId from account.createdBy since it's not in the RecurringTransaction model
     // but required by the GraphQL schema
@@ -201,9 +209,12 @@ export class RecurringTransactionResolver extends BaseResolver {
         nextRunDate?: Date;
       };
     },
-    context: GraphQLContext,
+    context: GraphQLContext
   ): Promise<RecurringTransaction> {
-    const validatedInput = validate(UpdateRecurringTransactionInputSchema, input);
+    const validatedInput = validate(
+      UpdateRecurringTransactionInputSchema,
+      input
+    );
 
     // Verify recurring transaction belongs to user
     const existing = await context.prisma.recurringTransaction.findFirst({
@@ -213,7 +224,7 @@ export class RecurringTransactionResolver extends BaseResolver {
           createdBy: context.userId,
         },
       },
-      select: {id: true},
+      select: { id: true },
     });
 
     if (!existing) {
@@ -227,7 +238,7 @@ export class RecurringTransactionResolver extends BaseResolver {
           id: validatedInput.accountId,
           createdBy: context.userId,
         },
-        select: {id: true},
+        select: { id: true },
       });
 
       if (!account) {
@@ -235,25 +246,38 @@ export class RecurringTransactionResolver extends BaseResolver {
       }
     }
 
-    const recurringTransaction = await context.prisma.recurringTransaction.update({
-      where: {id},
-      data: {
-        ...(validatedInput.cronExpression !== undefined && {
-          cronExpression: validatedInput.cronExpression,
-        }),
-        ...(validatedInput.value !== undefined && {value: validatedInput.value}),
-        ...(validatedInput.accountId !== undefined && {accountId: validatedInput.accountId}),
-        ...(validatedInput.categoryId !== undefined && {categoryId: validatedInput.categoryId}),
-        ...(validatedInput.payeeId !== undefined && {payeeId: validatedInput.payeeId}),
-        ...(validatedInput.note !== undefined && {note: validatedInput.note}),
-        ...(validatedInput.nextRunDate !== undefined && {nextRunDate: validatedInput.nextRunDate}),
-      },
-      include: {
-        account: true,
-        category: true,
-        payee: true,
-      },
-    });
+    const recurringTransaction =
+      await context.prisma.recurringTransaction.update({
+        where: { id },
+        data: {
+          ...(validatedInput.cronExpression !== undefined && {
+            cronExpression: validatedInput.cronExpression,
+          }),
+          ...(validatedInput.value !== undefined && {
+            value: validatedInput.value,
+          }),
+          ...(validatedInput.accountId !== undefined && {
+            accountId: validatedInput.accountId,
+          }),
+          ...(validatedInput.categoryId !== undefined && {
+            categoryId: validatedInput.categoryId,
+          }),
+          ...(validatedInput.payeeId !== undefined && {
+            payeeId: validatedInput.payeeId,
+          }),
+          ...(validatedInput.note !== undefined && {
+            note: validatedInput.note,
+          }),
+          ...(validatedInput.nextRunDate !== undefined && {
+            nextRunDate: validatedInput.nextRunDate,
+          }),
+        },
+        include: {
+          account: true,
+          category: true,
+          payee: true,
+        },
+      });
 
     return recurringTransaction;
   }
@@ -261,23 +285,28 @@ export class RecurringTransactionResolver extends BaseResolver {
   /**
    * Delete recurring transaction
    */
-  async deleteRecurringTransaction(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<boolean> {
-    const recurringTransaction = await context.prisma.recurringTransaction.findFirst({
-      where: {
-        id,
-        account: {
-          createdBy: context.userId,
+  async deleteRecurringTransaction(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<boolean> {
+    const recurringTransaction =
+      await context.prisma.recurringTransaction.findFirst({
+        where: {
+          id,
+          account: {
+            createdBy: context.userId,
+          },
         },
-      },
-      select: {id: true},
-    });
+        select: { id: true },
+      });
 
     if (!recurringTransaction) {
       throw new NotFoundError('RecurringTransaction');
     }
 
     await context.prisma.recurringTransaction.delete({
-      where: {id},
+      where: { id },
     });
 
     return true;

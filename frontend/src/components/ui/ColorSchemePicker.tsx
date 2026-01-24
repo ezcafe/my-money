@@ -3,27 +3,20 @@
  * Allows users to customize color scheme (dynamic or static)
  */
 
-import React, {useState, useEffect, useCallback} from 'react';
-import {
-  Box,
-  Typography,
-  ToggleButtonGroup,
-  ToggleButton,
-  Paper,
-  Tooltip,
-} from '@mui/material';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Box, Typography, ToggleButtonGroup, ToggleButton, Paper, Tooltip } from '@mui/material';
 import Grid from '@mui/material/Grid2';
-import {CheckCircle} from '@mui/icons-material';
-import {useTheme} from '../../theme/ThemeProvider';
-import {useMutation} from '@apollo/client/react';
-import {UPDATE_PREFERENCES} from '../../graphql/mutations';
+import { CheckCircle } from '@mui/icons-material';
+import { useTheme } from '../../theme/ThemeProvider';
+import { useMutation } from '@apollo/client/react';
+import { UPDATE_PREFERENCES } from '../../graphql/mutations';
 import {
   getStaticColorSchemeNames,
   getColorPalette,
   type StaticColorSchemeName,
   type ColorSchemeType,
 } from '../../theme/colorSchemes';
-import type {ColorSchemeConfig} from '../../theme/index';
+import type { ColorSchemeConfig } from '../../theme/index';
 
 /**
  * Color scheme preview box
@@ -99,7 +92,8 @@ function ColorSchemePreview({
             />
           </Box>
         </Box>
-        {isSelected ? <CheckCircle
+        {isSelected ? (
+          <CheckCircle
             sx={{
               color: 'primary.main',
               position: 'absolute',
@@ -107,7 +101,8 @@ function ColorSchemePreview({
               right: 2,
               fontSize: '1rem',
             }}
-          /> : null}
+          />
+        ) : null}
         <Typography
           variant="caption"
           sx={{
@@ -130,7 +125,7 @@ function ColorSchemePreview({
  * Color Scheme Picker Component
  */
 export function ColorSchemePicker(): React.JSX.Element {
-  const {colorScheme, updateColorScheme, mode} = useTheme();
+  const { colorScheme, updateColorScheme, mode } = useTheme();
   const [updatePreferences] = useMutation(UPDATE_PREFERENCES, {
     refetchQueries: ['GetPreferences'],
   });
@@ -149,7 +144,7 @@ export function ColorSchemePicker(): React.JSX.Element {
   };
   const [dynamicColor, setDynamicColor] = useState<string>(getInitialDynamicColor());
   const [staticScheme, setStaticScheme] = useState<StaticColorSchemeName>(
-    (colorScheme?.value as StaticColorSchemeName) ?? 'purple',
+    (colorScheme?.value as StaticColorSchemeName) ?? 'purple'
   );
 
   // Sync with theme context
@@ -160,7 +155,9 @@ export function ColorSchemePicker(): React.JSX.Element {
         // Validate hex color format before setting
         const hexPattern = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
         if (colorScheme.value && hexPattern.test(colorScheme.value)) {
-          const hexValue = colorScheme.value.startsWith('#') ? colorScheme.value : `#${colorScheme.value}`;
+          const hexValue = colorScheme.value.startsWith('#')
+            ? colorScheme.value
+            : `#${colorScheme.value}`;
           setDynamicColor(hexValue);
         } else {
           setDynamicColor('#6750A4');
@@ -194,7 +191,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         },
       });
     },
-    [dynamicColor, staticScheme, updateColorScheme, updatePreferences],
+    [dynamicColor, staticScheme, updateColorScheme, updatePreferences]
   );
 
   /**
@@ -218,7 +215,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         },
       });
     },
-    [updateColorScheme, updatePreferences],
+    [updateColorScheme, updatePreferences]
   );
 
   /**
@@ -241,7 +238,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         },
       });
     },
-    [updateColorScheme, updatePreferences],
+    [updateColorScheme, updatePreferences]
   );
 
   const staticSchemes = getStaticColorSchemeNames();
@@ -251,7 +248,7 @@ export function ColorSchemePicker(): React.JSX.Element {
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" gutterBottom sx={{mb: 2}}>
+      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
         Color Scheme
       </Typography>
       <ToggleButtonGroup
@@ -260,7 +257,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         onChange={handleSchemeTypeChange}
         aria-label="color scheme type"
         fullWidth
-        sx={{mb: 3}}
+        sx={{ mb: 3 }}
       >
         <ToggleButton value="dynamic" aria-label="dynamic color">
           Dynamic
@@ -272,7 +269,7 @@ export function ColorSchemePicker(): React.JSX.Element {
 
       {displaySchemeType === 'dynamic' && (
         <Box>
-          <Typography variant="body2" color="text.secondary" gutterBottom sx={{mb: 1}}>
+          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 1 }}>
             Choose a source color
           </Typography>
           <Box
@@ -308,7 +305,7 @@ export function ColorSchemePicker(): React.JSX.Element {
                   borderColor: 'divider',
                 }}
               />
-              <Typography variant="body2" sx={{fontFamily: 'monospace'}}>
+              <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                 {dynamicColor.toUpperCase()}
               </Typography>
             </Box>
@@ -318,14 +315,14 @@ export function ColorSchemePicker(): React.JSX.Element {
 
       {displaySchemeType === 'static' && (
         <Box>
-          <Typography variant="body2" color="text.secondary" gutterBottom sx={{mb: 2}}>
+          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
             Choose a color scheme
           </Typography>
           <Grid container spacing={2}>
             {staticSchemes.map((scheme) => {
               const palette = getColorPalette('static', scheme, mode === 'dark');
               return (
-                <Grid size={{xs: 6, sm: 4, md: 3}} key={scheme}>
+                <Grid size={{ xs: 6, sm: 4, md: 3 }} key={scheme}>
                   <ColorSchemePreview
                     name={scheme}
                     primaryColor={palette.primary}
@@ -345,4 +342,3 @@ export function ColorSchemePicker(): React.JSX.Element {
     </Box>
   );
 }
-

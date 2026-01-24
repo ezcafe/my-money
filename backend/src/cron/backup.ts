@@ -5,8 +5,8 @@
  */
 
 import cron from 'node-cron';
-import {runBackup} from '../../scripts/backup';
-import {logInfo, logError} from '../utils/logger';
+import { runBackup } from '../../scripts/backup';
+import { logInfo, logError } from '../utils/logger';
 
 /**
  * Start cron job to run database backup daily
@@ -20,10 +20,15 @@ export function startBackupCron(): void {
       await runBackup();
       logInfo('Database backup - completed');
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Database backup - failed', {
-        jobName: 'databaseBackup',
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Database backup - failed',
+        {
+          jobName: 'databaseBackup',
+        },
+        errorObj
+      );
     }
   });
 

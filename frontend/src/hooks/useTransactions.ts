@@ -3,8 +3,8 @@
  * Provides transactions data with loading and error states
  */
 
-import {useQuery} from '@apollo/client/react';
-import {GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS} from '../graphql/queries';
+import { useQuery } from '@apollo/client/react';
+import { GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS } from '../graphql/queries';
 
 /**
  * Transaction type from GraphQL query
@@ -84,12 +84,15 @@ export interface TransactionOrderInput {
  */
 export function useRecentTransactions(
   limit: number = 30,
-  orderBy: TransactionOrderInput = {field: 'date', direction: 'asc'},
+  orderBy: TransactionOrderInput = { field: 'date', direction: 'asc' }
 ): UseRecentTransactionsResult {
-  const {data, loading, error, refetch} = useQuery<GetRecentTransactionsData>(GET_RECENT_TRANSACTIONS, {
-    variables: {limit, orderBy},
-    errorPolicy: 'all',
-  });
+  const { data, loading, error, refetch } = useQuery<GetRecentTransactionsData>(
+    GET_RECENT_TRANSACTIONS,
+    {
+      variables: { limit, orderBy },
+      errorPolicy: 'all',
+    }
+  );
 
   let errorResult: Error | undefined;
   if (error) {
@@ -136,10 +139,10 @@ export function useTransactions(
   after?: string,
   orderBy?: TransactionOrderInput,
   note?: string,
-  querySkip?: boolean,
+  querySkip?: boolean
 ): UseTransactionsResult {
-  const {data, loading, error, refetch} = useQuery<GetTransactionsData>(GET_TRANSACTIONS, {
-    variables: {accountId, categoryId, payeeId, first, after, orderBy, note},
+  const { data, loading, error, refetch } = useQuery<GetTransactionsData>(GET_TRANSACTIONS, {
+    variables: { accountId, categoryId, payeeId, first, after, orderBy, note },
     errorPolicy: 'all',
     skip: querySkip ?? false,
   });
@@ -171,4 +174,3 @@ export function useTransactions(
     },
   };
 }
-

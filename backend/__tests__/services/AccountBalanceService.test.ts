@@ -3,8 +3,8 @@
  * TDD: These tests are written first, then implementation follows
  */
 
-import {describe, it, expect, beforeEach, afterEach} from '@jest/globals';
-import {prisma} from '../../src/utils/prisma';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { prisma } from '../../src/utils/prisma';
 import {
   incrementAccountBalance,
   getAccountBalance,
@@ -39,9 +39,9 @@ describe('AccountBalanceService', () => {
 
   afterEach(async () => {
     // Cleanup
-    await prisma.transaction.deleteMany({where: {userId: testUserId}});
-    await prisma.account.deleteMany({where: {userId: testUserId}});
-    await prisma.user.deleteMany({where: {id: testUserId}});
+    await prisma.transaction.deleteMany({ where: { userId: testUserId } });
+    await prisma.account.deleteMany({ where: { userId: testUserId } });
+    await prisma.user.deleteMany({ where: { id: testUserId } });
   });
 
   describe('recalculateAccountBalance (legacy calculateAccountBalance tests)', () => {
@@ -88,9 +88,24 @@ describe('AccountBalanceService', () => {
       await prisma.$transaction(async (tx) => {
         await tx.transaction.createMany({
           data: [
-            {value: 200, accountId: testAccountId, userId: testUserId, date: new Date()},
-            {value: -50, accountId: testAccountId, userId: testUserId, date: new Date()},
-            {value: 300, accountId: testAccountId, userId: testUserId, date: new Date()},
+            {
+              value: 200,
+              accountId: testAccountId,
+              userId: testUserId,
+              date: new Date(),
+            },
+            {
+              value: -50,
+              accountId: testAccountId,
+              userId: testUserId,
+              date: new Date(),
+            },
+            {
+              value: 300,
+              accountId: testAccountId,
+              userId: testUserId,
+              date: new Date(),
+            },
           ],
         });
         // Update balance incrementally
@@ -104,7 +119,9 @@ describe('AccountBalanceService', () => {
     });
 
     it('should throw error if account does not exist', async () => {
-      await expect(recalculateAccountBalance('non-existent-id')).rejects.toThrow();
+      await expect(
+        recalculateAccountBalance('non-existent-id')
+      ).rejects.toThrow();
     });
   });
 
@@ -125,7 +142,9 @@ describe('AccountBalanceService', () => {
     });
 
     it('should throw error if account does not exist', async () => {
-      await expect(incrementAccountBalance('non-existent-id', 100)).rejects.toThrow();
+      await expect(
+        incrementAccountBalance('non-existent-id', 100)
+      ).rejects.toThrow();
     });
   });
 
@@ -158,8 +177,18 @@ describe('AccountBalanceService', () => {
       // Create transactions without updating balance (simulating inconsistency)
       await prisma.transaction.createMany({
         data: [
-          {value: 200, accountId: testAccountId, userId: testUserId, date: new Date()},
-          {value: -50, accountId: testAccountId, userId: testUserId, date: new Date()},
+          {
+            value: 200,
+            accountId: testAccountId,
+            userId: testUserId,
+            date: new Date(),
+          },
+          {
+            value: -50,
+            accountId: testAccountId,
+            userId: testUserId,
+            date: new Date(),
+          },
         ],
       });
 
@@ -175,8 +204,8 @@ describe('AccountBalanceService', () => {
     it('should handle initBalance changes', async () => {
       // Update initBalance
       await prisma.account.update({
-        where: {id: testAccountId},
-        data: {initBalance: 2000},
+        where: { id: testAccountId },
+        data: { initBalance: 2000 },
       });
 
       // Recalculate should use new initBalance
@@ -185,5 +214,3 @@ describe('AccountBalanceService', () => {
     });
   });
 });
-
-

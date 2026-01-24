@@ -3,13 +3,8 @@
  * Displays version history for an entity with timeline view
  */
 
-import React, {useMemo} from 'react';
-import {
-  Box,
-  Typography,
-  Paper,
-  Chip,
-} from '@mui/material';
+import React, { useMemo } from 'react';
+import { Box, Typography, Paper, Chip } from '@mui/material';
 import {
   Timeline,
   TimelineItem,
@@ -18,15 +13,15 @@ import {
   TimelineContent,
   TimelineDot,
 } from './ui/Timeline';
-import {History, Person} from '@mui/icons-material';
-import {useQuery} from '@apollo/client/react';
-import {GET_ENTITY_VERSIONS} from '../graphql/versionOperations';
-import {formatDateShort} from '../utils/formatting';
-import {useDateFormat} from '../hooks/useDateFormat';
-import {LoadingSpinner} from './common/LoadingSpinner';
-import {ErrorAlert} from './common/ErrorAlert';
-import {EmptyState} from './common/EmptyState';
-import {Card} from './ui/Card';
+import { History, Person } from '@mui/icons-material';
+import { useQuery } from '@apollo/client/react';
+import { GET_ENTITY_VERSIONS } from '../graphql/versionOperations';
+import { formatDateShort } from '../utils/formatting';
+import { useDateFormat } from '../hooks/useDateFormat';
+import { LoadingSpinner } from './common/LoadingSpinner';
+import { ErrorAlert } from './common/ErrorAlert';
+import { EmptyState } from './common/EmptyState';
+import { Card } from './ui/Card';
 
 export interface VersionHistoryPanelProps {
   /**
@@ -52,8 +47,8 @@ export function VersionHistoryPanel({
   entityId,
   limit = 50,
 }: VersionHistoryPanelProps): React.JSX.Element {
-  const {dateFormat} = useDateFormat();
-  const {data, loading, error} = useQuery<{
+  const { dateFormat } = useDateFormat();
+  const { data, loading, error } = useQuery<{
     entityVersions: Array<{
       id: string;
       version: number;
@@ -83,7 +78,7 @@ export function VersionHistoryPanel({
 
   if (loading) {
     return (
-      <Card sx={{p: 3}}>
+      <Card sx={{ p: 3 }}>
         <LoadingSpinner message="Loading version history..." />
       </Card>
     );
@@ -91,7 +86,7 @@ export function VersionHistoryPanel({
 
   if (error) {
     return (
-      <Card sx={{p: 3}}>
+      <Card sx={{ p: 3 }}>
         <ErrorAlert
           title="Error Loading Version History"
           message={error?.message ?? 'Failed to load version history'}
@@ -102,7 +97,7 @@ export function VersionHistoryPanel({
 
   if (sortedVersions.length === 0) {
     return (
-      <Card sx={{p: 3}}>
+      <Card sx={{ p: 3 }}>
         <EmptyState
           icon={<History />}
           title="No Version History"
@@ -117,7 +112,16 @@ export function VersionHistoryPanel({
    */
   const getChangeSummary = (versionData: Record<string, unknown>): string => {
     const keys = Object.keys(versionData).filter(
-      (key) => !['id', 'version', 'createdAt', 'updatedAt', 'createdBy', 'lastEditedBy', 'workspaceId'].includes(key),
+      (key) =>
+        ![
+          'id',
+          'version',
+          'createdAt',
+          'updatedAt',
+          'createdBy',
+          'lastEditedBy',
+          'workspaceId',
+        ].includes(key)
     );
     if (keys.length === 0) {
       return 'No changes';
@@ -126,13 +130,16 @@ export function VersionHistoryPanel({
   };
 
   return (
-    <Card sx={{p: 3}}>
-      <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 3}}>
+    <Card sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <History color="primary" />
         <Typography variant="h6" component="h2">
           Version History
         </Typography>
-        <Chip label={`${sortedVersions.length} version${sortedVersions.length !== 1 ? 's' : ''}`} size="small" />
+        <Chip
+          label={`${sortedVersions.length} version${sortedVersions.length !== 1 ? 's' : ''}`}
+          size="small"
+        />
       </Box>
 
       <Timeline>
@@ -145,19 +152,28 @@ export function VersionHistoryPanel({
               {index < sortedVersions.length - 1 ? <TimelineConnector /> : null}
             </TimelineSeparator>
             <TimelineContent>
-              <Paper sx={{p: 2, backgroundColor: index === 0 ? 'action.hover' : 'background.paper'}}>
-                <Box sx={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1}}>
+              <Paper
+                sx={{ p: 2, backgroundColor: index === 0 ? 'action.hover' : 'background.paper' }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    mb: 1,
+                  }}
+                >
                   <Typography variant="subtitle2" fontWeight="medium">
                     Version {version.version}
                     {index === 0 ? (
-                      <Chip label="Current" size="small" color="primary" sx={{ml: 1}} />
+                      <Chip label="Current" size="small" color="primary" sx={{ ml: 1 }} />
                     ) : null}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {formatDateShort(version.editedAt, dateFormat)}
                   </Typography>
                 </Box>
-                <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 1}}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Person fontSize="small" color="action" />
                   <Typography variant="body2" color="text.secondary">
                     {version.editor.email}

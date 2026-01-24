@@ -3,9 +3,9 @@
  * Handles Save and Ignore actions for imported transactions
  */
 
-import React, {memo} from 'react';
-import {Box, LinearProgress, useMediaQuery, useTheme} from '@mui/material';
-import {Button} from '../ui/Button';
+import React, { memo } from 'react';
+import { Box, LinearProgress, useMediaQuery, useTheme } from '@mui/material';
+import { Button } from '../ui/Button';
 
 /**
  * ImportActions component props
@@ -20,13 +20,25 @@ interface ImportActionsProps {
 /**
  * Import Actions Component
  */
-const ImportActionsComponent = ({saving, deleting, onSave, onIgnore}: ImportActionsProps): React.JSX.Element => {
+const ImportActionsComponent = ({
+  saving,
+  deleting,
+  onSave,
+  onIgnore,
+}: ImportActionsProps): React.JSX.Element => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
     <>
-      <Box sx={{display: 'flex', flexDirection: {xs: 'column', sm: 'row'}, gap: 2, justifyContent: 'flex-end'}}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 2,
+          justifyContent: 'flex-end',
+        }}
+      >
         <Button
           variant="outlined"
           onClick={(): void => void onIgnore()}
@@ -45,7 +57,7 @@ const ImportActionsComponent = ({saving, deleting, onSave, onIgnore}: ImportActi
           {saving ? 'Saving Transactions...' : 'Save All Transactions'}
         </Button>
       </Box>
-      {saving ? <LinearProgress sx={{mt: 2}} /> : null}
+      {saving ? <LinearProgress sx={{ mt: 2 }} /> : null}
     </>
   );
 };

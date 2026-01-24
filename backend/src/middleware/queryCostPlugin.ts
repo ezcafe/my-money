@@ -3,10 +3,13 @@
  * Calculates estimated cost of GraphQL queries based on field selections
  */
 
-import type {GraphQLRequestContext, GraphQLRequestListener} from '@apollo/server';
-import {GraphQLError} from 'graphql';
-import type {GraphQLContext} from './context';
-import {ErrorCode} from '../utils/errorCodes';
+import type {
+  GraphQLRequestContext,
+  GraphQLRequestListener,
+} from '@apollo/server';
+import { GraphQLError } from 'graphql';
+import type { GraphQLContext } from './context';
+import { ErrorCode } from '../utils/errorCodes';
 
 /**
  * Configuration for query cost plugin
@@ -33,8 +36,8 @@ const DEFAULT_CONFIG: QueryCostConfig = {
  * @returns Calculated cost score
  */
 function calculateQueryCost(
-  operation: {selectionSet?: {selections: unknown[]}} | null | undefined,
-  config: QueryCostConfig,
+  operation: { selectionSet?: { selections: unknown[] } } | null | undefined,
+  config: QueryCostConfig
 ): number {
   if (!operation?.selectionSet) {
     return 0;
@@ -44,11 +47,14 @@ function calculateQueryCost(
    * Recursively calculate cost
    */
   function calculateCost(
-    selectionSet: {selections: Array<{kind: string; selectionSet?: unknown}>} | null | undefined,
-    depth: number = 0,
-  ): {fieldCount: number; maxDepth: number} {
+    selectionSet:
+      | { selections: Array<{ kind: string; selectionSet?: unknown }> }
+      | null
+      | undefined,
+    depth: number = 0
+  ): { fieldCount: number; maxDepth: number } {
     if (!selectionSet) {
-      return {fieldCount: 0, maxDepth: depth};
+      return { fieldCount: 0, maxDepth: depth };
     }
 
     let fieldCount = 0;
@@ -56,7 +62,7 @@ function calculateQueryCost(
     const maxAllowedDepth = 20; // Prevent infinite recursion
 
     if (depth > maxAllowedDepth) {
-      return {fieldCount: 0, maxDepth: depth};
+      return { fieldCount: 0, maxDepth: depth };
     }
 
     for (const selection of selectionSet.selections) {
@@ -64,20 +70,33 @@ function calculateQueryCost(
         fieldCount += 1;
         // Recurse into nested fields
         if ('selectionSet' in selection && selection.selectionSet) {
-          const nested = calculateCost(selection.selectionSet as {selections: Array<{kind: string; selectionSet?: unknown}>}, depth + 1);
+          const nested = calculateCost(
+            selection.selectionSet as {
+              selections: Array<{ kind: string; selectionSet?: unknown }>;
+            },
+            depth + 1
+          );
           fieldCount += nested.fieldCount;
           maxDepth = Math.max(maxDepth, nested.maxDepth);
         }
       }
     }
 
-    return {fieldCount, maxDepth};
+    return { fieldCount, maxDepth };
   }
 
-  const {fieldCount, maxDepth} = calculateCost(operation.selectionSet as {selections: Array<{kind: string; selectionSet?: unknown}>} | null | undefined);
+  const { fieldCount, maxDepth } = calculateCost(
+    operation.selectionSet as
+      | { selections: Array<{ kind: string; selectionSet?: unknown }> }
+      | null
+      | undefined
+  );
 
   // Calculate cost: base cost per field, multiplied by depth
-  const cost = fieldCount * config.baseCostPerField * Math.max(1, maxDepth * config.costMultiplierPerDepth);
+  const cost =
+    fieldCount *
+    config.baseCostPerField *
+    Math.max(1, maxDepth * config.costMultiplierPerDepth);
 
   return cost;
 }
@@ -90,27 +109,43 @@ function calculateQueryCost(
  */
 export function queryCostPlugin(config: Partial<QueryCostConfig> = {}): {
   requestDidStart(
-    _requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+    _requestContext: GraphQLRequestContext<
+      GraphQLContext | Record<string, never>
+    >
   ): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>>;
 } {
-  const finalConfig = {...DEFAULT_CONFIG, ...config};
+  const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
   return {
     // eslint-disable-next-line @typescript-eslint/require-await
     async requestDidStart(
-      _requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+      _requestContext: GraphQLRequestContext<
+        GraphQLContext | Record<string, never>
+      >
     ): Promise<GraphQLRequestListener<GraphQLContext | Record<string, never>>> {
       return {
         // eslint-disable-next-line @typescript-eslint/require-await
         async didResolveOperation(
-          requestContext: GraphQLRequestContext<GraphQLContext | Record<string, never>>,
+          requestContext: GraphQLRequestContext<
+            GraphQLContext | Record<string, never>
+          >
         ): Promise<void> {
           const operation = requestContext.operation;
           if (!operation) {
             return;
           }
 
-          const cost = calculateQueryCost(operation as unknown as {selectionSet?: {selections: Array<{kind: string; selectionSet?: unknown}>}} | null | undefined, finalConfig);
+          const cost = calculateQueryCost(
+            operation as unknown as
+              | {
+                  selectionSet?: {
+                    selections: Array<{ kind: string; selectionSet?: unknown }>;
+                  };
+                }
+              | null
+              | undefined,
+            finalConfig
+          );
 
           if (cost > finalConfig.maximumCost) {
             throw new GraphQLError('Query cost exceeds maximum limit', {

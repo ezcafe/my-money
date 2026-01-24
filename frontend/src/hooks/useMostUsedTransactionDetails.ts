@@ -3,10 +3,10 @@
  * Provides account, payee, and category that were most commonly used with the amount
  */
 
-import {useState, useEffect, useRef} from 'react';
-import {useLazyQuery} from '@apollo/client/react';
-import {GET_MOST_USED_TRANSACTION_DETAILS} from '../graphql/queries';
-import {debounce} from '../utils/rateLimiting';
+import { useState, useEffect, useRef } from 'react';
+import { useLazyQuery } from '@apollo/client/react';
+import { GET_MOST_USED_TRANSACTION_DETAILS } from '../graphql/queries';
+import { debounce } from '../utils/rateLimiting';
 
 /**
  * Most used transaction details type from GraphQL query
@@ -41,7 +41,7 @@ interface GetMostUsedTransactionDetailsData {
  */
 export function useMostUsedTransactionDetails(
   amount: number | null,
-  days: number = 90,
+  days: number = 90
 ): UseMostUsedTransactionDetailsResult {
   const [accountId, setAccountId] = useState<string | null>(null);
   const [payeeId, setPayeeId] = useState<string | null>(null);
@@ -49,12 +49,10 @@ export function useMostUsedTransactionDetails(
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | undefined>(undefined);
 
-  const [fetchDetails, {loading: queryLoading, error: queryError, data: queryData}] = useLazyQuery<GetMostUsedTransactionDetailsData>(
-    GET_MOST_USED_TRANSACTION_DETAILS,
-    {
+  const [fetchDetails, { loading: queryLoading, error: queryError, data: queryData }] =
+    useLazyQuery<GetMostUsedTransactionDetailsData>(GET_MOST_USED_TRANSACTION_DETAILS, {
       errorPolicy: 'all',
-    },
-  );
+    });
 
   // Update loading state when query loading changes
   useEffect(() => {
@@ -116,7 +114,7 @@ export function useMostUsedTransactionDetails(
         setCategoryId(null);
         setLoading(false);
       }
-    }, 300), // 300ms debounce delay
+    }, 300) // 300ms debounce delay
   ).current;
 
   // Trigger query when amount changes

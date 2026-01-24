@@ -3,14 +3,14 @@
  * Displays budget summary with progress bar and financial metrics
  */
 
-import React, {memo} from 'react';
-import {Box, Typography, LinearProgress, Chip, Stack, useTheme} from '@mui/material';
+import React, { memo } from 'react';
+import { Box, Typography, LinearProgress, Chip, Stack, useTheme } from '@mui/material';
 import Grid from '@mui/material/Grid2';
-import {alpha} from '@mui/material/styles';
-import {AttachMoney, TrendingUp, TrendingDown} from '@mui/icons-material';
-import {Card} from '../ui/Card';
-import {formatCurrencyPreserveDecimals} from '../../utils/formatting';
-import {getProgressColor, getStatusIcon, getBudgetTypeIcon} from '../../utils/budgetHelpers';
+import { alpha } from '@mui/material/styles';
+import { AttachMoney, TrendingUp, TrendingDown } from '@mui/icons-material';
+import { Card } from '../ui/Card';
+import { formatCurrencyPreserveDecimals } from '../../utils/formatting';
+import { getProgressColor, getStatusIcon, getBudgetTypeIcon } from '../../utils/budgetHelpers';
 
 /**
  * Budget data interface
@@ -35,7 +35,7 @@ interface BudgetSummaryProps {
 /**
  * Budget Summary Component
  */
-const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.JSX.Element => {
+const BudgetSummaryComponent = ({ budget, currency }: BudgetSummaryProps): React.JSX.Element => {
   const theme = useTheme();
 
   const budgetType = budget.accountId ? 'Account' : budget.categoryId ? 'Category' : 'Payee';
@@ -47,9 +47,9 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
   const isOverBudget = percentage >= 100;
 
   return (
-    <Card sx={{mb: 3, p: 3}}>
+    <Card sx={{ mb: 3, p: 3 }}>
       {/* Header Section */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{mb: 2}}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Chip
           icon={getBudgetTypeIcon(budget.accountId, budget.categoryId, budget.payeeId)}
           label={budgetType}
@@ -61,12 +61,12 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
           label={`${percentage.toFixed(1)}% Used`}
           color={progressColor}
           variant={isOverBudget ? 'filled' : 'outlined'}
-          sx={{fontWeight: 'medium'}}
+          sx={{ fontWeight: 'medium' }}
         />
       </Stack>
 
       {/* Progress Bar */}
-      <Box sx={{mb: 3}}>
+      <Box sx={{ mb: 3 }}>
         <LinearProgress
           variant="determinate"
           value={Math.min(percentage, 100)}
@@ -85,7 +85,7 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
       {/* Financial Metrics Grid */}
       <Grid container spacing={2}>
         {/* Budget Amount */}
-        <Grid size={{xs: 12, sm: 4}}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Box
             sx={{
               p: 2,
@@ -94,8 +94,8 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
               border: `1px solid ${theme.palette.divider}`,
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{mb: 0.5}}>
-              <AttachMoney sx={{fontSize: 18, color: 'primary.main'}} />
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+              <AttachMoney sx={{ fontSize: 18, color: 'primary.main' }} />
               <Typography variant="caption" color="text.secondary" fontWeight="medium">
                 Budget
               </Typography>
@@ -107,7 +107,7 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
         </Grid>
 
         {/* Spent Amount */}
-        <Grid size={{xs: 12, sm: 4}}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Box
             sx={{
               p: 2,
@@ -126,7 +126,7 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
               }`,
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{mb: 0.5}}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
               <TrendingUp
                 sx={{
                   fontSize: 18,
@@ -140,11 +140,7 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
               <Typography
                 variant="caption"
                 color={
-                  isOverBudget
-                    ? 'error.main'
-                    : percentage >= 80
-                      ? 'warning.main'
-                      : 'text.secondary'
+                  isOverBudget ? 'error.main' : percentage >= 80 ? 'warning.main' : 'text.secondary'
                 }
                 fontWeight="medium"
               >
@@ -155,11 +151,7 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
               variant="h6"
               fontWeight="bold"
               color={
-                isOverBudget
-                  ? 'error.main'
-                  : percentage >= 80
-                    ? 'warning.main'
-                    : 'text.primary'
+                isOverBudget ? 'error.main' : percentage >= 80 ? 'warning.main' : 'text.primary'
               }
             >
               {formatCurrencyPreserveDecimals(spent, currency)}
@@ -168,7 +160,7 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
         </Grid>
 
         {/* Remaining Amount */}
-        <Grid size={{xs: 12, sm: 4}}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Box
             sx={{
               p: 2,
@@ -178,13 +170,11 @@ const BudgetSummaryComponent = ({budget, currency}: BudgetSummaryProps): React.J
                   ? alpha(theme.palette.success.main, 0.12)
                   : theme.palette.error.light,
               border: `1px solid ${
-                remaining >= 0
-                  ? theme.palette.success.main
-                  : theme.palette.error.main
+                remaining >= 0 ? theme.palette.success.main : theme.palette.error.main
               }`,
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{mb: 0.5}}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
               <TrendingDown
                 sx={{
                   fontSize: 18,

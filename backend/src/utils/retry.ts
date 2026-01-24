@@ -35,7 +35,7 @@ function sleep(ms: number): Promise<void> {
  */
 export async function retry<T>(
   fn: () => Promise<T>,
-  options: RetryOptions = {},
+  options: RetryOptions = {}
 ): Promise<T> {
   const {
     maxAttempts,
@@ -97,4 +97,3 @@ export function isRetryableError(error: Error): boolean {
 
   return retryablePatterns.some((pattern) => pattern.test(error.message));
 }
-

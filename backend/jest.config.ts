@@ -1,4 +1,4 @@
-import type {Config} from 'jest';
+import type { Config } from 'jest';
 
 const config: Config = {
   preset: 'ts-jest',
@@ -33,16 +33,17 @@ const config: Config = {
     },
   },
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      tsconfig: {
-        module: 'ESNext',
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          module: 'ESNext',
+        },
+        isolatedModules: true, // Faster compilation
       },
-      isolatedModules: true, // Faster compilation
-    }],
+    ],
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
 };
 
 export default config;
-
-

@@ -13,11 +13,11 @@
  *   BACKUP_RETENTION_DAYS - Number of days to keep backups (default: 30)
  */
 
-import {exec} from 'child_process';
-import {promises as fs} from 'fs';
-import {join} from 'path';
-import {promisify} from 'util';
-import {logInfo, logError, logWarn} from '../src/utils/logger';
+import { exec } from 'child_process';
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import { promisify } from 'util';
+import { logInfo, logError, logWarn } from '../src/utils/logger';
 
 const execAsync = promisify(exec);
 
@@ -51,7 +51,10 @@ function getBackupConfig(): BackupConfig {
   return {
     databaseUrl,
     backupDir: process.env.BACKUP_DIR || join(process.cwd(), 'backups'),
-    retentionDays: Number.parseInt(process.env.BACKUP_RETENTION_DAYS || '30', 10),
+    retentionDays: Number.parseInt(
+      process.env.BACKUP_RETENTION_DAYS || '30',
+      10
+    ),
   };
 }
 
@@ -62,8 +65,8 @@ async function ensureBackupDir(backupDir: string): Promise<void> {
   try {
     await fs.access(backupDir);
   } catch {
-    await fs.mkdir(backupDir, {recursive: true});
-    logInfo('Created backup directory', {backupDir});
+    await fs.mkdir(backupDir, { recursive: true });
+    logInfo('Created backup directory', { backupDir });
   }
 }
 
@@ -116,7 +119,7 @@ async function createBackup(config: BackupConfig): Promise<string> {
       backupPath,
     });
 
-    await execAsync(pgDumpCommand, {env, shell: '/bin/bash'});
+    await execAsync(pgDumpCommand, { env, shell: '/bin/bash' });
 
     // Verify backup file exists and has content
     const stats = await fs.stat(backupPath);
@@ -127,16 +130,20 @@ async function createBackup(config: BackupConfig): Promise<string> {
     logInfo('Database backup created successfully', {
       backupPath,
       sizeBytes: stats.size,
-      sizeMB: Math.round(stats.size / 1024 / 1024 * 100) / 100,
+      sizeMB: Math.round((stats.size / 1024 / 1024) * 100) / 100,
     });
 
     return backupPath;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Database backup failed', {
-      database: databaseName,
-      backupPath,
-    }, errorObj);
+    logError(
+      'Database backup failed',
+      {
+        database: databaseName,
+        backupPath,
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }
@@ -152,7 +159,7 @@ async function verifyBackup(backupPath: string): Promise<boolean> {
     // Check file size (should be > 0)
     const stats = await fs.stat(backupPath);
     if (stats.size === 0) {
-      logWarn('Backup file is empty', {backupPath});
+      logWarn('Backup file is empty', { backupPath });
       return false;
     }
 
@@ -166,9 +173,13 @@ async function verifyBackup(backupPath: string): Promise<boolean> {
     return true;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Backup verification failed', {
-      backupPath,
-    }, errorObj);
+    logError(
+      'Backup verification failed',
+      {
+        backupPath,
+      },
+      errorObj
+    );
     return false;
   }
 }
@@ -176,7 +187,10 @@ async function verifyBackup(backupPath: string): Promise<boolean> {
 /**
  * Clean up old backups based on retention policy
  */
-async function cleanupOldBackups(backupDir: string, retentionDays: number): Promise<number> {
+async function cleanupOldBackups(
+  backupDir: string,
+  retentionDays: number
+): Promise<number> {
   try {
     const files = await fs.readdir(backupDir);
     const now = Date.now();
@@ -212,9 +226,13 @@ async function cleanupOldBackups(backupDir: string, retentionDays: number): Prom
     return deletedCount;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Backup cleanup failed', {
-      backupDir,
-    }, errorObj);
+    logError(
+      'Backup cleanup failed',
+      {
+        backupDir,
+      },
+      errorObj
+    );
     return 0;
   }
 }
@@ -258,4 +276,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   void main();
 }
 
-export {main as runBackup, getBackupConfig, createBackup, verifyBackup, cleanupOldBackups};
+export {
+  main as runBackup,
+  getBackupConfig,
+  createBackup,
+  verifyBackup,
+  cleanupOldBackups,
+};

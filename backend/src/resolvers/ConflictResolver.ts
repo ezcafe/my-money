@@ -3,11 +3,11 @@
  * Handles conflict resolution queries and mutations
  */
 
-import type {GraphQLContext} from '../middleware/context';
-import type {EntityConflict, EntityVersion} from '@prisma/client';
-import {VersionService} from '../services/VersionService';
-import {checkWorkspaceAccess} from '../services/WorkspaceService';
-import {NotFoundError, ForbiddenError} from '../utils/errors';
+import type { GraphQLContext } from '../middleware/context';
+import type { EntityConflict, EntityVersion } from '@prisma/client';
+import { VersionService } from '../services/VersionService';
+import { checkWorkspaceAccess } from '../services/WorkspaceService';
+import { NotFoundError, ForbiddenError } from '../utils/errors';
 
 /**
  * Conflict Resolver Class
@@ -29,8 +29,8 @@ export class ConflictResolver {
    */
   async entityConflicts(
     _: unknown,
-    {workspaceId}: {workspaceId: string},
-    context: GraphQLContext,
+    { workspaceId }: { workspaceId: string },
+    context: GraphQLContext
   ): Promise<EntityConflict[]> {
     // Verify user has access to workspace
     await checkWorkspaceAccess(workspaceId, context.userId);
@@ -45,7 +45,11 @@ export class ConflictResolver {
    * @param context - GraphQL context
    * @returns EntityConflict record or null
    */
-  async entityConflict(_: unknown, {id}: {id: string}, context: GraphQLContext): Promise<EntityConflict | null> {
+  async entityConflict(
+    _: unknown,
+    { id }: { id: string },
+    context: GraphQLContext
+  ): Promise<EntityConflict | null> {
     const conflict = await this.versionService.getConflict(id);
 
     if (!conflict) {
@@ -76,10 +80,16 @@ export class ConflictResolver {
       entityId: string;
       limit?: number;
     },
-    _context: GraphQLContext,
+    _context: GraphQLContext
   ): Promise<EntityVersion[]> {
     // Validate entityType
-    const validEntityTypes = ['Account', 'Category', 'Payee', 'Transaction', 'Budget'];
+    const validEntityTypes = [
+      'Account',
+      'Category',
+      'Payee',
+      'Transaction',
+      'Budget',
+    ];
     if (!validEntityTypes.includes(entityType)) {
       throw new ForbiddenError('Invalid entity type');
     }
@@ -90,7 +100,7 @@ export class ConflictResolver {
     const versions = await this.versionService.getEntityVersions(
       entityType as 'Account' | 'Category' | 'Payee' | 'Transaction' | 'Budget',
       entityId,
-      limit,
+      limit
     );
 
     // Verify user has access to workspace for each version
@@ -117,7 +127,7 @@ export class ConflictResolver {
       chosenVersion: number;
       mergeData?: Record<string, unknown>;
     },
-    context: GraphQLContext,
+    context: GraphQLContext
   ): Promise<EntityConflict> {
     // Get conflict to verify workspace access
     const conflict = await this.versionService.getConflict(conflictId);
@@ -130,12 +140,20 @@ export class ConflictResolver {
     await checkWorkspaceAccess(conflict.workspaceId, context.userId);
 
     // Validate chosenVersion
-    if (chosenVersion !== conflict.currentVersion && chosenVersion !== conflict.incomingVersion) {
+    if (
+      chosenVersion !== conflict.currentVersion &&
+      chosenVersion !== conflict.incomingVersion
+    ) {
       throw new ForbiddenError('Invalid chosen version');
     }
 
     // Resolve conflict
-    return this.versionService.resolveConflict(conflictId, chosenVersion, context.userId, mergeData);
+    return this.versionService.resolveConflict(
+      conflictId,
+      chosenVersion,
+      context.userId,
+      mergeData
+    );
   }
 
   /**
@@ -145,7 +163,11 @@ export class ConflictResolver {
    * @param context - GraphQL context
    * @returns Boolean indicating success
    */
-  async dismissConflict(_: unknown, {conflictId}: {conflictId: string}, context: GraphQLContext): Promise<boolean> {
+  async dismissConflict(
+    _: unknown,
+    { conflictId }: { conflictId: string },
+    context: GraphQLContext
+  ): Promise<boolean> {
     // Get conflict to verify workspace access
     const conflict = await this.versionService.getConflict(conflictId);
 
@@ -157,7 +179,11 @@ export class ConflictResolver {
     await checkWorkspaceAccess(conflict.workspaceId, context.userId);
 
     // Resolve conflict using current version
-    await this.versionService.resolveConflict(conflictId, conflict.currentVersion, context.userId);
+    await this.versionService.resolveConflict(
+      conflictId,
+      conflict.currentVersion,
+      context.userId
+    );
 
     return true;
   }

@@ -96,7 +96,9 @@ function sanitizeContext(context?: LogContext): LogContext | undefined {
   const sanitized: LogContext = {};
   for (const [key, value] of Object.entries(context)) {
     const keyLower = key.toLowerCase();
-    const isSensitive = SENSITIVE_KEYS.some((sensitiveKey) => keyLower.includes(sensitiveKey.toLowerCase()));
+    const isSensitive = SENSITIVE_KEYS.some((sensitiveKey) =>
+      keyLower.includes(sensitiveKey.toLowerCase())
+    );
 
     if (isSensitive && value !== null && value !== undefined) {
       sanitized[key] = '[REDACTED]';
@@ -148,7 +150,7 @@ function createLogEntry(
   level: StructuredLog['level'],
   message: string,
   context?: LogContext,
-  error?: Error,
+  error?: Error
 ): StructuredLog {
   const logEntry: StructuredLog = {
     timestamp: new Date().toISOString(),
@@ -157,7 +159,8 @@ function createLogEntry(
   };
 
   // Add correlation ID from context or global state
-  const correlationId = context?.correlationId ?? context?.requestId ?? globalCorrelationId;
+  const correlationId =
+    context?.correlationId ?? context?.requestId ?? globalCorrelationId;
   if (correlationId) {
     logEntry.correlationId = String(correlationId);
     logEntry.requestId = String(correlationId); // Alias for compatibility
@@ -168,7 +171,11 @@ function createLogEntry(
     const sanitizedContext = sanitizeContext(context);
     // Remove correlationId/requestId from context as it's already in root
     if (sanitizedContext) {
-      const {correlationId: _, requestId: __, ...restContext} = sanitizedContext;
+      const {
+        correlationId: _,
+        requestId: __,
+        ...restContext
+      } = sanitizedContext;
       logEntry.context = restContext;
     }
   }
@@ -201,7 +208,9 @@ function createLogEntry(
     }
 
     // Sanitize error message if it might contain sensitive data
-    const sanitizedMessage = SENSITIVE_KEYS.some((key) => errorMessage.toLowerCase().includes(key.toLowerCase()))
+    const sanitizedMessage = SENSITIVE_KEYS.some((key) =>
+      errorMessage.toLowerCase().includes(key.toLowerCase())
+    )
       ? '[REDACTED: Error message may contain sensitive data]'
       : errorMessage;
 
@@ -248,7 +257,11 @@ export function logWarn(message: string, context?: LogContext): void {
  * @param context - Additional context data (should include userId and requestId for tracing)
  * @param error - Error object
  */
-export function logError(message: string, context?: LogContext, error?: Error): void {
+export function logError(
+  message: string,
+  context?: LogContext,
+  error?: Error
+): void {
   if (!shouldLog('error')) {
     return;
   }
@@ -269,4 +282,3 @@ export function logDebug(message: string, context?: LogContext): void {
   // eslint-disable-next-line no-console
   console.debug(JSON.stringify(logEntry));
 }
-

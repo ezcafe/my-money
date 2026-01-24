@@ -3,7 +3,7 @@
  * Detects if the application is running inside a Docker container
  */
 
-import {existsSync, readFileSync} from 'fs';
+import { existsSync, readFileSync } from 'fs';
 
 /**
  * Check if the application is running inside a Docker container

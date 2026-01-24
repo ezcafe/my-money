@@ -4,16 +4,16 @@
  * Provides singleton instances and factory methods
  */
 
-import type {PrismaClient} from '@prisma/client';
-import type {PrismaTransaction} from '../repositories/BaseRepository';
-import {AccountRepository} from '../repositories/AccountRepository';
-import {CategoryRepository} from '../repositories/CategoryRepository';
-import {PayeeRepository} from '../repositories/PayeeRepository';
-import {TransactionRepository} from '../repositories/TransactionRepository';
-import {BudgetRepository} from '../repositories/BudgetRepository';
-import {RecurringTransactionRepository} from '../repositories/RecurringTransactionRepository';
-import {AccountService} from '../services/AccountService';
-import {VersionService} from '../services/VersionService';
+import type { PrismaClient } from '@prisma/client';
+import type { PrismaTransaction } from '../repositories/BaseRepository';
+import { AccountRepository } from '../repositories/AccountRepository';
+import { CategoryRepository } from '../repositories/CategoryRepository';
+import { PayeeRepository } from '../repositories/PayeeRepository';
+import { TransactionRepository } from '../repositories/TransactionRepository';
+import { BudgetRepository } from '../repositories/BudgetRepository';
+import { RecurringTransactionRepository } from '../repositories/RecurringTransactionRepository';
+import { AccountService } from '../services/AccountService';
+import { VersionService } from '../services/VersionService';
 import * as WorkspaceService from '../services/WorkspaceService';
 import * as InvitationService from '../services/InvitationService';
 import * as EmailService from '../services/EmailService';
@@ -24,12 +24,22 @@ import * as NotificationService from '../services/NotificationService';
  */
 interface ServiceContainer {
   // Repositories
-  getAccountRepository(prisma: PrismaTransaction | PrismaClient): AccountRepository;
-  getCategoryRepository(prisma: PrismaTransaction | PrismaClient): CategoryRepository;
+  getAccountRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): AccountRepository;
+  getCategoryRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): CategoryRepository;
   getPayeeRepository(prisma: PrismaTransaction | PrismaClient): PayeeRepository;
-  getTransactionRepository(prisma: PrismaTransaction | PrismaClient): TransactionRepository;
-  getBudgetRepository(prisma: PrismaTransaction | PrismaClient): BudgetRepository;
-  getRecurringTransactionRepository(prisma: PrismaTransaction | PrismaClient): RecurringTransactionRepository;
+  getTransactionRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): TransactionRepository;
+  getBudgetRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): BudgetRepository;
+  getRecurringTransactionRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): RecurringTransactionRepository;
 
   // Services
   getAccountService(prisma: PrismaTransaction | PrismaClient): AccountService;
@@ -48,42 +58,54 @@ class DefaultServiceContainer implements ServiceContainer {
   /**
    * Get account repository instance
    */
-  getAccountRepository(prisma: PrismaTransaction | PrismaClient): AccountRepository {
+  getAccountRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): AccountRepository {
     return new AccountRepository(prisma);
   }
 
   /**
    * Get category repository instance
    */
-  getCategoryRepository(prisma: PrismaTransaction | PrismaClient): CategoryRepository {
+  getCategoryRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): CategoryRepository {
     return new CategoryRepository(prisma);
   }
 
   /**
    * Get payee repository instance
    */
-  getPayeeRepository(prisma: PrismaTransaction | PrismaClient): PayeeRepository {
+  getPayeeRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): PayeeRepository {
     return new PayeeRepository(prisma);
   }
 
   /**
    * Get transaction repository instance
    */
-  getTransactionRepository(prisma: PrismaTransaction | PrismaClient): TransactionRepository {
+  getTransactionRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): TransactionRepository {
     return new TransactionRepository(prisma);
   }
 
   /**
    * Get budget repository instance
    */
-  getBudgetRepository(prisma: PrismaTransaction | PrismaClient): BudgetRepository {
+  getBudgetRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): BudgetRepository {
     return new BudgetRepository(prisma);
   }
 
   /**
    * Get recurring transaction repository instance
    */
-  getRecurringTransactionRepository(prisma: PrismaTransaction | PrismaClient): RecurringTransactionRepository {
+  getRecurringTransactionRepository(
+    prisma: PrismaTransaction | PrismaClient
+  ): RecurringTransactionRepository {
     return new RecurringTransactionRepository(prisma);
   }
 
@@ -97,7 +119,9 @@ class DefaultServiceContainer implements ServiceContainer {
   /**
    * Get version service instance
    */
-  getVersionService(_prisma?: PrismaTransaction | PrismaClient): VersionService {
+  getVersionService(
+    _prisma?: PrismaTransaction | PrismaClient
+  ): VersionService {
     return new VersionService();
   }
 

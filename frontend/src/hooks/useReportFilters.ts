@@ -3,22 +3,30 @@
  * Manages filter state, date presets, and filter operations for report page
  */
 
-import {useState, useCallback, useMemo} from 'react';
-import dayjs, {type Dayjs} from 'dayjs';
-import {formatDateShort} from '../utils/formatting';
-import type {DateFormat} from '../contexts/DateFormatContext';
+import { useState, useCallback, useMemo } from 'react';
+import dayjs, { type Dayjs } from 'dayjs';
+import { formatDateShort } from '../utils/formatting';
+import type { DateFormat } from '../contexts/DateFormatContext';
 
 /**
  * Preset date range type
  */
-export type DatePreset = 'today' | 'thisWeek' | 'thisMonth' | 'thisYear' | 'lastMonth' | 'last30Days' | 'last90Days' | 'custom';
+export type DatePreset =
+  | 'today'
+  | 'thisWeek'
+  | 'thisMonth'
+  | 'thisYear'
+  | 'lastMonth'
+  | 'last30Days'
+  | 'last90Days'
+  | 'custom';
 
 /**
  * Date preset configuration
  */
 interface DatePresetConfig {
   label: string;
-  getDates: () => {startDate: string; endDate: string};
+  getDates: () => { startDate: string; endDate: string };
 }
 
 /**
@@ -145,10 +153,10 @@ export function getDatePresets(): Record<DatePreset, DatePresetConfig> {
  */
 export function useReportFilters(
   dateFormat: DateFormat,
-  accounts: Array<{id: string; name: string}>,
-  categories: Array<{id: string; name: string}>,
-  payees: Array<{id: string; name: string}>,
-  members: Array<{id: string; userId: string; user: {id: string; email: string}}>,
+  accounts: Array<{ id: string; name: string }>,
+  categories: Array<{ id: string; name: string }>,
+  payees: Array<{ id: string; name: string }>,
+  members: Array<{ id: string; userId: string; user: { id: string; email: string } }>
 ): UseReportFiltersReturn {
   // Filter state (current input values)
   const [filters, setFilters] = useState<ReportFilters>({
@@ -189,16 +197,19 @@ export function useReportFilters(
    * Handle filter change
    */
   const handleFilterChange = useCallback((key: keyof ReportFilters, value: unknown): void => {
-    setFilters((prev) => ({...prev, [key]: value}));
+    setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   /**
    * Handle date picker button click
    */
-  const handleDatePickerOpen = useCallback((event: React.MouseEvent<HTMLElement>, type: 'start' | 'end') => {
-    setDatePickerAnchor(event.currentTarget);
-    setDatePickerType(type);
-  }, []);
+  const handleDatePickerOpen = useCallback(
+    (event: React.MouseEvent<HTMLElement>, type: 'start' | 'end') => {
+      setDatePickerAnchor(event.currentTarget);
+      setDatePickerType(type);
+    },
+    []
+  );
 
   /**
    * Handle date picker close
@@ -222,7 +233,7 @@ export function useReportFilters(
       setShowDatePickers(true);
       handleDatePickerClose();
     },
-    [handleFilterChange, handleDatePickerClose],
+    [handleFilterChange, handleDatePickerClose]
   );
 
   /**
@@ -239,7 +250,7 @@ export function useReportFilters(
       setShowDatePickers(true);
       handleDatePickerClose();
     },
-    [handleFilterChange, handleDatePickerClose],
+    [handleFilterChange, handleDatePickerClose]
   );
 
   /**
@@ -289,7 +300,7 @@ export function useReportFilters(
    * Apply filters - copy current filter inputs to applied filters
    */
   const handleApplyFilters = useCallback((): void => {
-    setAppliedFilters({...filters});
+    setAppliedFilters({ ...filters });
     // Only collapse if there are filter criteria applied
     const hasFilterCriteria =
       filters.accountIds.length > 0 ||
@@ -349,8 +360,8 @@ export function useReportFilters(
       chips.push({
         label: `${formatDateShort(appliedFilters.startDate, dateFormat)} - ${formatDateShort(appliedFilters.endDate, dateFormat)}`,
         onDelete: () => {
-          setFilters((prev) => ({...prev, startDate: '', endDate: ''}));
-          setAppliedFilters((prev) => ({...prev, startDate: '', endDate: ''}));
+          setFilters((prev) => ({ ...prev, startDate: '', endDate: '' }));
+          setAppliedFilters((prev) => ({ ...prev, startDate: '', endDate: '' }));
           setDatePreset(null);
           setShowDatePickers(false);
         },
@@ -364,8 +375,8 @@ export function useReportFilters(
           label: `Account: ${account.name}`,
           onDelete: () => {
             const newIds = appliedFilters.accountIds.filter((aid) => aid !== id);
-            setFilters((prev) => ({...prev, accountIds: newIds}));
-            setAppliedFilters((prev) => ({...prev, accountIds: newIds}));
+            setFilters((prev) => ({ ...prev, accountIds: newIds }));
+            setAppliedFilters((prev) => ({ ...prev, accountIds: newIds }));
           },
         });
       }
@@ -378,8 +389,8 @@ export function useReportFilters(
           label: `Category: ${category.name}`,
           onDelete: () => {
             const newIds = appliedFilters.categoryIds.filter((cid) => cid !== id);
-            setFilters((prev) => ({...prev, categoryIds: newIds}));
-            setAppliedFilters((prev) => ({...prev, categoryIds: newIds}));
+            setFilters((prev) => ({ ...prev, categoryIds: newIds }));
+            setAppliedFilters((prev) => ({ ...prev, categoryIds: newIds }));
           },
         });
       }
@@ -392,8 +403,8 @@ export function useReportFilters(
           label: `Payee: ${payee.name}`,
           onDelete: () => {
             const newIds = appliedFilters.payeeIds.filter((pid) => pid !== id);
-            setFilters((prev) => ({...prev, payeeIds: newIds}));
-            setAppliedFilters((prev) => ({...prev, payeeIds: newIds}));
+            setFilters((prev) => ({ ...prev, payeeIds: newIds }));
+            setAppliedFilters((prev) => ({ ...prev, payeeIds: newIds }));
           },
         });
       }
@@ -403,8 +414,8 @@ export function useReportFilters(
       chips.push({
         label: `Note: ${appliedFilters.note.trim()}`,
         onDelete: () => {
-          setFilters((prev) => ({...prev, note: ''}));
-          setAppliedFilters((prev) => ({...prev, note: ''}));
+          setFilters((prev) => ({ ...prev, note: '' }));
+          setAppliedFilters((prev) => ({ ...prev, note: '' }));
         },
       });
     }
@@ -416,8 +427,8 @@ export function useReportFilters(
           label: `Member: ${member.user.email}`,
           onDelete: () => {
             const newIds = appliedFilters.memberIds.filter((mid) => mid !== memberId);
-            setFilters((prev) => ({...prev, memberIds: newIds}));
-            setAppliedFilters((prev) => ({...prev, memberIds: newIds}));
+            setFilters((prev) => ({ ...prev, memberIds: newIds }));
+            setAppliedFilters((prev) => ({ ...prev, memberIds: newIds }));
           },
         });
       }

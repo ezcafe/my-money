@@ -3,9 +3,9 @@
  * Shows when the app is offline or has network connectivity issues
  */
 
-import React, {useState, useEffect} from 'react';
-import {Snackbar, Alert} from '@mui/material';
-import {useOfflineSync} from '../../hooks/useOfflineSync';
+import React, { useState, useEffect } from 'react';
+import { Snackbar, Alert } from '@mui/material';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
 
 /**
  * Offline Indicator Component
@@ -13,7 +13,7 @@ import {useOfflineSync} from '../../hooks/useOfflineSync';
  */
 export function OfflineIndicator(): React.JSX.Element {
   const [showOffline, setShowOffline] = useState(false);
-  const {networkStatus} = useOfflineSync({autoSync: true});
+  const { networkStatus } = useOfflineSync({ autoSync: true });
 
   useEffect(() => {
     setShowOffline(!networkStatus.isOnline || networkStatus.queueSize > 0);
@@ -43,13 +43,12 @@ export function OfflineIndicator(): React.JSX.Element {
   return (
     <Snackbar
       open={showOffline}
-      anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       onClose={handleClose}
     >
-      <Alert onClose={handleClose} severity={getSeverity()} sx={{width: '100%'}}>
+      <Alert onClose={handleClose} severity={getSeverity()} sx={{ width: '100%' }}>
         {getMessage()}
       </Alert>
     </Snackbar>
   );
 }
-

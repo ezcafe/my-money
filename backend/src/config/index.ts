@@ -4,7 +4,7 @@
  * Environment variables are validated and typed
  */
 
-import {existsSync, readFileSync} from 'fs';
+import { existsSync, readFileSync } from 'fs';
 
 export interface ServerConfig {
   port: number;
@@ -81,7 +81,9 @@ export function isRunningInDocker(): boolean {
  * @param connectionString - Original database connection string
  * @returns Adjusted connection string with correct hostname
  */
-export function adjustDatabaseConnectionString(connectionString: string): string {
+export function adjustDatabaseConnectionString(
+  connectionString: string
+): string {
   const inDocker = isRunningInDocker();
 
   if (inDocker) {
@@ -123,12 +125,16 @@ export function getDatabaseUrl(): string {
   }
 
   if (!url) {
-    throw new Error('DATABASE_URL environment variable is not set and cannot be constructed from POSTGRES_* vars');
+    throw new Error(
+      'DATABASE_URL environment variable is not set and cannot be constructed from POSTGRES_* vars'
+    );
   }
 
   // Validate the URL format - must contain user info
   if (!url.includes('@') || !url.includes('://')) {
-    throw new Error('DATABASE_URL is malformed - must be in format postgresql://user:password@host:port/database');
+    throw new Error(
+      'DATABASE_URL is malformed - must be in format postgresql://user:password@host:port/database'
+    );
   }
 
   return url;
@@ -149,7 +155,9 @@ function getDatabaseConfig(): DatabaseConfig {
       return adjustDatabaseConnectionString(url);
     },
     poolMax: Number.isNaN(poolMax) ? 100 : poolMax,
-    connectionTimeoutMs: Number.isNaN(connectionTimeoutMs) ? 10000 : connectionTimeoutMs,
+    connectionTimeoutMs: Number.isNaN(connectionTimeoutMs)
+      ? 10000
+      : connectionTimeoutMs,
     idleTimeoutMs: Number.isNaN(idleTimeoutMs) ? 30000 : idleTimeoutMs,
   } as DatabaseConfig;
 }

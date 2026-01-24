@@ -4,20 +4,20 @@
  */
 
 import React from 'react';
-import {useParams} from 'react-router';
-import {FormControl, InputLabel, Select, MenuItem} from '@mui/material';
-import {EntityEditForm, type EntityEditFormConfig} from '../components/common/EntityEditForm';
-import {CREATE_ACCOUNT, UPDATE_ACCOUNT} from '../graphql/mutations';
-import {GET_ACCOUNT, GET_ACCOUNTS} from '../graphql/queries';
+import { useParams } from 'react-router';
+import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { EntityEditForm, type EntityEditFormConfig } from '../components/common/EntityEditForm';
+import { CREATE_ACCOUNT, UPDATE_ACCOUNT } from '../graphql/mutations';
+import { GET_ACCOUNT, GET_ACCOUNTS } from '../graphql/queries';
 
 type AccountType = 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
 
-const ACCOUNT_TYPES: Array<{value: AccountType; label: string}> = [
-  {value: 'Cash', label: 'Cash'},
-  {value: 'CreditCard', label: 'Credit Card'},
-  {value: 'Bank', label: 'Bank'},
-  {value: 'Saving', label: 'Saving'},
-  {value: 'Loans', label: 'Loans'},
+const ACCOUNT_TYPES: Array<{ value: AccountType; label: string }> = [
+  { value: 'Cash', label: 'Cash' },
+  { value: 'CreditCard', label: 'Credit Card' },
+  { value: 'Bank', label: 'Bank' },
+  { value: 'Saving', label: 'Saving' },
+  { value: 'Loans', label: 'Loans' },
 ];
 
 /**
@@ -38,9 +38,12 @@ interface AccountData {
  * Account Edit Page Component
  */
 export function AccountEditPage(): React.JSX.Element {
-  const {id} = useParams<{id: string}>();
+  const { id } = useParams<{ id: string }>();
 
-  const config: EntityEditFormConfig<AccountData, {name: string; initBalance?: number; accountType?: AccountType}> = {
+  const config: EntityEditFormConfig<
+    AccountData,
+    { name: string; initBalance?: number; accountType?: AccountType }
+  > = {
     entityType: 'Account',
     defaultReturnUrl: '/accounts',
     getQuery: GET_ACCOUNT,
@@ -48,9 +51,9 @@ export function AccountEditPage(): React.JSX.Element {
     updateMutation: UPDATE_ACCOUNT,
     refetchQueries: (isEdit: boolean, entityId?: string) => {
       if (isEdit && entityId) {
-        return [{query: GET_ACCOUNTS}, {query: GET_ACCOUNT, variables: {id: entityId}}];
+        return [{ query: GET_ACCOUNTS }, { query: GET_ACCOUNT, variables: { id: entityId } }];
       }
-      return [{query: GET_ACCOUNTS}];
+      return [{ query: GET_ACCOUNTS }];
     },
     fields: [
       {
@@ -66,7 +69,7 @@ export function AccountEditPage(): React.JSX.Element {
         type: 'number',
         required: false,
         defaultValue: 0,
-        inputProps: {step: '0.01'},
+        inputProps: { step: '0.01' },
         validate: (value: unknown): string | null => {
           // Allow empty values (optional field)
           if (!value || (typeof value === 'string' && value.trim() === '')) {
@@ -103,17 +106,26 @@ export function AccountEditPage(): React.JSX.Element {
         ),
       },
     ],
-    extractEntity: (data: AccountData): {id: string; [key: string]: unknown} | null => data?.account ?? null,
+    extractEntity: (data: AccountData): { id: string; [key: string]: unknown } | null =>
+      data?.account ?? null,
     transformToInput: (values: Record<string, unknown>) => {
       const nameValue = values.name;
-      const nameStr = typeof nameValue === 'string' ? nameValue : typeof nameValue === 'number' ? String(nameValue) : '';
+      const nameStr =
+        typeof nameValue === 'string'
+          ? nameValue
+          : typeof nameValue === 'number'
+            ? String(nameValue)
+            : '';
 
       // Handle optional initBalance - default to 0 if empty or invalid
       const initBalanceValue = values.initBalance;
       let initBalance: number | undefined = undefined;
 
       if (initBalanceValue !== undefined && initBalanceValue !== null && initBalanceValue !== '') {
-        const parsed = typeof initBalanceValue === 'string' ? parseFloat(initBalanceValue) : Number(initBalanceValue);
+        const parsed =
+          typeof initBalanceValue === 'string'
+            ? parseFloat(initBalanceValue)
+            : Number(initBalanceValue);
         if (!isNaN(parsed)) {
           initBalance = parsed;
         }
@@ -121,18 +133,20 @@ export function AccountEditPage(): React.JSX.Element {
 
       // Handle accountType
       const accountTypeValue = values.accountType;
-      const accountType = accountTypeValue && typeof accountTypeValue === 'string' ? accountTypeValue as AccountType : undefined;
+      const accountType =
+        accountTypeValue && typeof accountTypeValue === 'string'
+          ? (accountTypeValue as AccountType)
+          : undefined;
 
       // If initBalance is undefined, backend will default to 0
       // If accountType is undefined, backend will default to Cash
       return {
         name: nameStr,
-        ...(initBalance !== undefined ? {initBalance} : {}),
-        ...(accountType !== undefined ? {accountType} : {}),
+        ...(initBalance !== undefined ? { initBalance } : {}),
+        ...(accountType !== undefined ? { accountType } : {}),
       };
     },
   };
 
   return <EntityEditForm id={id} config={config} />;
 }
-

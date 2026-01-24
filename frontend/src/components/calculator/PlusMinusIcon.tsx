@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import {SvgIcon} from '@mui/material';
-import type {SvgIconProps} from '@mui/material';
+import { SvgIcon } from '@mui/material';
+import type { SvgIconProps } from '@mui/material';
 
 /**
  * PlusMinus Icon
@@ -23,4 +23,3 @@ export function PlusMinusIcon(props: SvgIconProps): React.JSX.Element {
     </SvgIcon>
   );
 }
-

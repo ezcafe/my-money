@@ -4,7 +4,15 @@
  * Enhanced with search history and suggestions
  */
 
-import React, {createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode} from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from 'react';
 
 /**
  * Search history entry
@@ -62,9 +70,9 @@ function loadSearchHistory(): SearchHistoryEntry[] {
     const history = JSON.parse(stored) as SearchHistoryEntry[];
     const now = Date.now();
     const maxAge = MAX_HISTORY_AGE_DAYS * 24 * 60 * 60 * 1000;
-    
+
     // Filter out old entries
-    return history.filter((entry) => (now - entry.timestamp) < maxAge);
+    return history.filter((entry) => now - entry.timestamp < maxAge);
   } catch {
     return [];
   }
@@ -76,19 +84,19 @@ function loadSearchHistory(): SearchHistoryEntry[] {
 function saveSearchHistory(history: SearchHistoryEntry[]): void {
   try {
     // Keep only the most recent entries
-    const recent = history
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, MAX_HISTORY_ENTRIES);
+    const recent = history.sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_HISTORY_ENTRIES);
     localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(recent));
   } catch {
     // Ignore localStorage errors
   }
 }
 
-export function SearchProvider({children}: SearchProviderProps): React.JSX.Element {
+export function SearchProvider({ children }: SearchProviderProps): React.JSX.Element {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>(() => loadSearchHistory());
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>(() =>
+    loadSearchHistory()
+  );
 
   // Load history on mount
   useEffect(() => {
@@ -126,10 +134,7 @@ export function SearchProvider({children}: SearchProviderProps): React.JSX.Eleme
       // Remove duplicate entries
       const filtered = prev.filter((entry) => entry.query !== query);
       // Add new entry at the beginning
-      const updated = [
-        {query: query.trim(), timestamp: Date.now()},
-        ...filtered,
-      ];
+      const updated = [{ query: query.trim(), timestamp: Date.now() }, ...filtered];
       saveSearchHistory(updated);
       return updated;
     });
@@ -159,14 +164,17 @@ export function SearchProvider({children}: SearchProviderProps): React.JSX.Eleme
   /**
    * Perform search with query (closes search box and adds to history)
    */
-  const performSearch = useCallback((query: string) => {
-    const trimmedQuery = query.trim();
-    setSearchQuery(trimmedQuery);
-    if (trimmedQuery) {
-      addToHistory(trimmedQuery);
-    }
-    setIsSearchOpen(false);
-  }, [addToHistory]);
+  const performSearch = useCallback(
+    (query: string) => {
+      const trimmedQuery = query.trim();
+      setSearchQuery(trimmedQuery);
+      if (trimmedQuery) {
+        addToHistory(trimmedQuery);
+      }
+      setIsSearchOpen(false);
+    },
+    [addToHistory]
+  );
 
   /**
    * Clear search query
@@ -215,4 +223,3 @@ export function useSearch(): SearchContextType {
   }
   return context;
 }
-

@@ -3,8 +3,8 @@
  * Functions to track and manage cron job execution history
  */
 
-import {prisma} from './prisma';
-import {logWarn} from './logger';
+import { prisma } from './prisma';
+import { logWarn } from './logger';
 
 /**
  * Get last run date for a cron job
@@ -13,8 +13,8 @@ import {logWarn} from './logger';
  */
 export async function getLastRunDate(jobName: string): Promise<Date | null> {
   const execution = await prisma.cronJobExecution.findUnique({
-    where: {jobName},
-    select: {lastRunDate: true},
+    where: { jobName },
+    select: { lastRunDate: true },
   });
 
   if (!execution) {
@@ -29,9 +29,12 @@ export async function getLastRunDate(jobName: string): Promise<Date | null> {
  * @param jobName - Name of the cron job
  * @param runDate - Date of the last successful run
  */
-export async function updateLastRunDate(jobName: string, runDate: Date): Promise<void> {
+export async function updateLastRunDate(
+  jobName: string,
+  runDate: Date
+): Promise<void> {
   await prisma.cronJobExecution.upsert({
-    where: {jobName},
+    where: { jobName },
     create: {
       jobName,
       lastRunDate: runDate,
@@ -52,7 +55,7 @@ export async function updateLastRunDate(jobName: string, runDate: Date): Promise
 export function getMissedDailyRuns(
   lastRun: Date,
   currentDate: Date,
-  maxMissed: number = 365,
+  maxMissed: number = 365
 ): Date[] {
   const missedRuns: Date[] = [];
 
@@ -64,7 +67,7 @@ export function getMissedDailyRuns(
     0,
     0,
     0,
-    0,
+    0
   );
   const currentDateNormalized = new Date(
     currentDate.getFullYear(),
@@ -73,7 +76,7 @@ export function getMissedDailyRuns(
     0,
     0,
     0,
-    0,
+    0
   );
 
   // If last run is today or in the future, no missed runs
@@ -118,7 +121,7 @@ export function getMissedDailyRuns(
 export function getMissedMinutelyRuns(
   lastRun: Date,
   currentTime: Date,
-  maxMissed: number = 60,
+  maxMissed: number = 60
 ): Date[] {
   const missedRuns: Date[] = [];
 
@@ -130,7 +133,7 @@ export function getMissedMinutelyRuns(
     lastRun.getHours(),
     lastRun.getMinutes(),
     0,
-    0,
+    0
   );
   const currentTimeNormalized = new Date(
     currentTime.getFullYear(),
@@ -139,7 +142,7 @@ export function getMissedMinutelyRuns(
     currentTime.getHours(),
     currentTime.getMinutes(),
     0,
-    0,
+    0
   );
 
   // If last run is current minute or in the future, no missed runs
@@ -184,7 +187,7 @@ export function getMissedMinutelyRuns(
 export function getMissedHourlyRuns(
   lastRun: Date,
   currentTime: Date,
-  maxMissed: number = 24,
+  maxMissed: number = 24
 ): Date[] {
   const missedRuns: Date[] = [];
 
@@ -196,7 +199,7 @@ export function getMissedHourlyRuns(
     lastRun.getHours(),
     0,
     0,
-    0,
+    0
   );
   const currentTimeNormalized = new Date(
     currentTime.getFullYear(),
@@ -205,7 +208,7 @@ export function getMissedHourlyRuns(
     currentTime.getHours(),
     0,
     0,
-    0,
+    0
   );
 
   // If last run is current hour or in the future, no missed runs
@@ -243,14 +246,22 @@ export function getMissedHourlyRuns(
 /**
  * Recurring transaction interval types
  */
-export type RecurringInterval = 'minutely' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type RecurringInterval =
+  | 'minutely'
+  | 'hourly'
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'yearly';
 
 /**
  * Parse cron expression to determine interval type
  * @param cronExpression - Cron expression string
  * @returns Interval type or null if unrecognized
  */
-export function getIntervalFromCron(cronExpression: string): RecurringInterval | null {
+export function getIntervalFromCron(
+  cronExpression: string
+): RecurringInterval | null {
   // Known cron expressions from frontend
   if (cronExpression === '* * * * *') {
     return 'minutely';
@@ -279,7 +290,10 @@ export function getIntervalFromCron(cronExpression: string): RecurringInterval |
  * @param currentTime - Current time
  * @returns Next run date
  */
-export function calculateNextRunDate(cronExpression: string, currentTime: Date): Date {
+export function calculateNextRunDate(
+  cronExpression: string,
+  currentTime: Date
+): Date {
   const interval = getIntervalFromCron(cronExpression);
   const nextRunDate = new Date(currentTime);
 
@@ -331,7 +345,7 @@ export function calculateNextRunDate(cronExpression: string, currentTime: Date):
 export function getMissedWeeklyRuns(
   lastRun: Date,
   currentDate: Date,
-  maxMissed: number = 52,
+  maxMissed: number = 52
 ): Date[] {
   const missedRuns: Date[] = [];
 
@@ -343,7 +357,7 @@ export function getMissedWeeklyRuns(
     0,
     0,
     0,
-    0,
+    0
   );
   const currentDateNormalized = new Date(
     currentDate.getFullYear(),
@@ -352,7 +366,7 @@ export function getMissedWeeklyRuns(
     0,
     0,
     0,
-    0,
+    0
   );
 
   // Find the next Sunday after last run
@@ -392,7 +406,7 @@ export function getMissedWeeklyRuns(
 export function getMissedMonthlyRuns(
   lastRun: Date,
   currentDate: Date,
-  maxMissed: number = 12,
+  maxMissed: number = 12
 ): Date[] {
   const missedRuns: Date[] = [];
 
@@ -404,7 +418,7 @@ export function getMissedMonthlyRuns(
     0,
     0,
     0,
-    0,
+    0
   );
   const currentDateNormalized = new Date(
     currentDate.getFullYear(),
@@ -413,7 +427,7 @@ export function getMissedMonthlyRuns(
     0,
     0,
     0,
-    0,
+    0
   );
 
   // Find the first day of next month after last run
@@ -453,7 +467,7 @@ export function getMissedMonthlyRuns(
 export function getMissedYearlyRuns(
   lastRun: Date,
   currentDate: Date,
-  maxMissed: number = 10,
+  maxMissed: number = 10
 ): Date[] {
   const missedRuns: Date[] = [];
 
@@ -465,7 +479,7 @@ export function getMissedYearlyRuns(
     0,
     0,
     0,
-    0,
+    0
   );
   const currentDateNormalized = new Date(
     currentDate.getFullYear(),
@@ -474,7 +488,7 @@ export function getMissedYearlyRuns(
     0,
     0,
     0,
-    0,
+    0
   );
 
   // Find January 1st of next year after last run
@@ -516,13 +530,17 @@ export function getMissedRunsByInterval(
   cronExpression: string,
   lastRun: Date,
   currentTime: Date,
-  maxMissed: number = 365,
+  maxMissed: number = 365
 ): Date[] {
   const interval = getIntervalFromCron(cronExpression);
 
   switch (interval) {
     case 'minutely':
-      return getMissedMinutelyRuns(lastRun, currentTime, Math.min(maxMissed, 60));
+      return getMissedMinutelyRuns(
+        lastRun,
+        currentTime,
+        Math.min(maxMissed, 60)
+      );
     case 'hourly':
       return getMissedHourlyRuns(lastRun, currentTime, Math.min(maxMissed, 24));
     case 'daily':
@@ -530,7 +548,11 @@ export function getMissedRunsByInterval(
     case 'weekly':
       return getMissedWeeklyRuns(lastRun, currentTime, Math.min(maxMissed, 52));
     case 'monthly':
-      return getMissedMonthlyRuns(lastRun, currentTime, Math.min(maxMissed, 12));
+      return getMissedMonthlyRuns(
+        lastRun,
+        currentTime,
+        Math.min(maxMissed, 12)
+      );
     case 'yearly':
       return getMissedYearlyRuns(lastRun, currentTime, Math.min(maxMissed, 10));
     default:

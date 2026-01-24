@@ -3,21 +3,31 @@
  * Lists all workspaces the user belongs to and allows creating new ones
  */
 
-import React, {useState} from 'react';
-import {useNavigate} from 'react-router';
-import {Box, Typography, List, ListItemButton, ListItemText, Divider, Chip, Stack, IconButton} from '@mui/material';
-import {useQuery, useMutation} from '@apollo/client/react';
-import {Workspaces, Add, Settings, People} from '@mui/icons-material';
-import {GET_WORKSPACES, CREATE_WORKSPACE, DELETE_WORKSPACE} from '../graphql/workspaceOperations';
-import {LoadingSpinner} from '../components/common/LoadingSpinner';
-import {ErrorAlert} from '../components/common/ErrorAlert';
-import {EmptyState} from '../components/common/EmptyState';
-import {Card} from '../components/ui/Card';
-import {Dialog} from '../components/ui/Dialog';
-import {Button} from '../components/ui/Button';
-import {TextField} from '../components/ui/TextField';
-import {PageContainer} from '../components/common/PageContainer';
-import {DeleteConfirmDialog} from '../components/common/DeleteConfirmDialog';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router';
+import {
+  Box,
+  Typography,
+  List,
+  ListItemButton,
+  ListItemText,
+  Divider,
+  Chip,
+  Stack,
+  IconButton,
+} from '@mui/material';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { Workspaces, Add, Settings, People } from '@mui/icons-material';
+import { GET_WORKSPACES, CREATE_WORKSPACE, DELETE_WORKSPACE } from '../graphql/workspaceOperations';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorAlert } from '../components/common/ErrorAlert';
+import { EmptyState } from '../components/common/EmptyState';
+import { Card } from '../components/ui/Card';
+import { Dialog } from '../components/ui/Dialog';
+import { Button } from '../components/ui/Button';
+import { TextField } from '../components/ui/TextField';
+import { PageContainer } from '../components/common/PageContainer';
+import { DeleteConfirmDialog } from '../components/common/DeleteConfirmDialog';
 
 /**
  * Workspaces Page Component
@@ -29,7 +39,7 @@ export function WorkspacesPage(): React.JSX.Element {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
 
-  const {data, loading, error, refetch} = useQuery<{
+  const { data, loading, error, refetch } = useQuery<{
     workspaces: Array<{
       id: string;
       name: string;
@@ -45,7 +55,7 @@ export function WorkspacesPage(): React.JSX.Element {
     fetchPolicy: 'cache-and-network',
   });
 
-  const [createWorkspace, {loading: creating}] = useMutation(CREATE_WORKSPACE, {
+  const [createWorkspace, { loading: creating }] = useMutation(CREATE_WORKSPACE, {
     refetchQueries: ['GetWorkspaces'],
     onCompleted: () => {
       setCreateDialogOpen(false);
@@ -53,7 +63,7 @@ export function WorkspacesPage(): React.JSX.Element {
     },
   });
 
-  const [deleteWorkspace, {loading: deleting}] = useMutation(DELETE_WORKSPACE, {
+  const [deleteWorkspace, { loading: deleting }] = useMutation(DELETE_WORKSPACE, {
     refetchQueries: ['GetWorkspaces'],
     onCompleted: () => {
       setDeleteDialogOpen(false);
@@ -111,7 +121,7 @@ export function WorkspacesPage(): React.JSX.Element {
 
   return (
     <PageContainer>
-      <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3}}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           Workspaces
         </Typography>
@@ -153,7 +163,7 @@ export function WorkspacesPage(): React.JSX.Element {
                   <ListItemText
                     primary={workspace.name}
                     secondary={
-                      <Stack direction="row" spacing={1} sx={{mt: 0.5}}>
+                      <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
                         <Chip
                           icon={<People />}
                           label={`${workspace._count.members} member${workspace._count.members !== 1 ? 's' : ''}`}
@@ -203,7 +213,7 @@ export function WorkspacesPage(): React.JSX.Element {
         }}
         title="Create Workspace"
         actions={
-          <Box sx={{display: 'flex', gap: 1}}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               onClick={() => {
                 setCreateDialogOpen(false);

@@ -3,7 +3,7 @@
  * Manages calculator state and calculation handlers
  */
 
-import {useState, useCallback} from 'react';
+import { useState, useCallback } from 'react';
 
 /**
  * Calculator state interface

@@ -4,10 +4,10 @@
  */
 
 import React from 'react';
-import {Box, Typography, Stack, Chip} from '@mui/material';
-import {Button} from '../ui/Button';
-import {BackspaceIcon} from './BackspaceIcon';
-import {formatCurrencyPreserveDecimals} from '../../utils/formatting';
+import { Box, Typography, Stack, Chip } from '@mui/material';
+import { Button } from '../ui/Button';
+import { BackspaceIcon } from './BackspaceIcon';
+import { formatCurrencyPreserveDecimals } from '../../utils/formatting';
 
 interface CalculatorDisplayProps {
   display: string;
@@ -15,7 +15,7 @@ interface CalculatorDisplayProps {
   operation: string | null;
   waitingForNewValue: boolean;
   showAmount: boolean;
-  topUsedValues: Array<{value: number; count: number}>;
+  topUsedValues: Array<{ value: number; count: number }>;
   currency: string;
   onBackspace: () => void;
   onTopUsedValueClick: (value: number) => void;
@@ -45,9 +45,11 @@ export function CalculatorDisplay({
         justifyContent: 'space-between',
       }}
     >
-      {showAmount ? <Button variant="text" onClick={onBackspace}>
+      {showAmount ? (
+        <Button variant="text" onClick={onBackspace}>
           <BackspaceIcon />
-        </Button> : null}
+        </Button>
+      ) : null}
       <Box
         sx={{
           flex: 1,
@@ -91,7 +93,7 @@ export function CalculatorDisplay({
                   onClick={() => {
                     onTopUsedValueClick(Number(item.value));
                   }}
-                  sx={{cursor: 'pointer'}}
+                  sx={{ cursor: 'pointer' }}
                 />
               ))}
             </Stack>

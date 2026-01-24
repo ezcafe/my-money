@@ -76,4 +76,3 @@ export function cleanupExpiredNonces(): void {
 if (typeof window !== 'undefined') {
   setInterval(cleanupExpiredNonces, 60 * 1000); // Every minute
 }
-

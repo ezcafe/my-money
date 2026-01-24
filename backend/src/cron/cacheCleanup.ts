@@ -5,11 +5,17 @@
  */
 
 import cron from 'node-cron';
-import {clearExpired as clearCacheExpired, getStats as getCacheStats} from '../utils/postgresCache';
-import {clearExpired as clearRateLimitExpired, getStats as getRateLimitStats} from '../utils/postgresRateLimiter';
-import {clearExpiredRevocations} from '../utils/tokenRevocation';
-import {logPoolMetrics} from '../utils/poolMonitoring';
-import {logInfo, logError, logWarn} from '../utils/logger';
+import {
+  clearExpired as clearCacheExpired,
+  getStats as getCacheStats,
+} from '../utils/postgresCache';
+import {
+  clearExpired as clearRateLimitExpired,
+  getStats as getRateLimitStats,
+} from '../utils/postgresRateLimiter';
+import { clearExpiredRevocations } from '../utils/tokenRevocation';
+import { logPoolMetrics } from '../utils/poolMonitoring';
+import { logInfo, logError, logWarn } from '../utils/logger';
 
 /**
  * Cleanup expired cache and rate limit entries
@@ -34,7 +40,13 @@ export async function cleanupExpiredEntries(): Promise<{
 
   try {
     // Cleanup expired entries in parallel
-    const [cacheDeleted, rateLimitDeleted, tokenRevocationDeleted, cacheStats, rateLimitStats] = await Promise.all([
+    const [
+      cacheDeleted,
+      rateLimitDeleted,
+      tokenRevocationDeleted,
+      cacheStats,
+      rateLimitStats,
+    ] = await Promise.all([
       clearCacheExpired(),
       clearRateLimitExpired(),
       clearExpiredRevocations(),
@@ -100,10 +112,15 @@ export function startCacheCleanupCron(): void {
         tokenRevocationDeleted: stats.tokenRevocationDeleted,
       });
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Cache cleanup - failed', {
-        jobName: 'cacheCleanup',
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Cache cleanup - failed',
+        {
+          jobName: 'cacheCleanup',
+        },
+        errorObj
+      );
     }
   });
 
@@ -112,10 +129,15 @@ export function startCacheCleanupCron(): void {
     try {
       await logPoolMetrics();
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Pool metrics - failed', {
-        jobName: 'poolMetrics',
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Pool metrics - failed',
+        {
+          jobName: 'poolMetrics',
+        },
+        errorObj
+      );
     }
   });
 

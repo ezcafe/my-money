@@ -3,10 +3,13 @@
  * Handles all database operations for recurring transactions
  */
 
-import type {RecurringTransaction, PrismaClient} from '@prisma/client';
-import {BaseRepository} from './BaseRepository';
+import type { RecurringTransaction, PrismaClient } from '@prisma/client';
+import { BaseRepository } from './BaseRepository';
 
-type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Recurring Transaction Repository
@@ -25,14 +28,14 @@ export class RecurringTransactionRepository extends BaseRepository {
     id: string,
     userId: string,
     select?: Record<string, boolean>,
-    include?: Record<string, boolean>,
+    include?: Record<string, boolean>
   ): Promise<RecurringTransaction | null> {
     const queryOptions: {
-      where: {id: string; account: {createdBy: string}};
+      where: { id: string; account: { createdBy: string } };
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
     } = {
-      where: {id, account: {createdBy: userId}},
+      where: { id, account: { createdBy: userId } },
     };
 
     if (select) {
@@ -54,14 +57,14 @@ export class RecurringTransactionRepository extends BaseRepository {
   async findMany(
     userId: string,
     select?: Record<string, boolean>,
-    include?: Record<string, boolean>,
+    include?: Record<string, boolean>
   ): Promise<RecurringTransaction[]> {
     const queryOptions: {
-      where: {account: {createdBy: string}};
+      where: { account: { createdBy: string } };
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
     } = {
-      where: {account: {createdBy: userId}},
+      where: { account: { createdBy: userId } },
     };
 
     if (select) {
@@ -81,10 +84,10 @@ export class RecurringTransactionRepository extends BaseRepository {
    */
   async findDueToRun(
     date: Date = new Date(),
-    select?: Record<string, boolean>,
+    select?: Record<string, boolean>
   ): Promise<RecurringTransaction[]> {
     const queryOptions: {
-      where: {nextRunDate: {lte: Date}};
+      where: { nextRunDate: { lte: Date } };
       select?: Record<string, boolean>;
     } = {
       where: {
@@ -118,10 +121,10 @@ export class RecurringTransactionRepository extends BaseRepository {
       nextRunDate: Date;
       userId: string;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<RecurringTransaction> {
     const client = tx ?? this.prisma;
-    return client.recurringTransaction.create({data});
+    return client.recurringTransaction.create({ data });
   }
 
   /**
@@ -142,11 +145,11 @@ export class RecurringTransactionRepository extends BaseRepository {
       note?: string | null;
       nextRunDate?: Date;
     },
-    tx?: PrismaTransaction,
+    tx?: PrismaTransaction
   ): Promise<RecurringTransaction> {
     const client = tx ?? this.prisma;
     return client.recurringTransaction.update({
-      where: {id},
+      where: { id },
       data,
     });
   }
@@ -157,10 +160,13 @@ export class RecurringTransactionRepository extends BaseRepository {
    * @param tx - Optional transaction client
    * @returns Deleted recurring transaction
    */
-  async delete(id: string, tx?: PrismaTransaction): Promise<RecurringTransaction> {
+  async delete(
+    id: string,
+    tx?: PrismaTransaction
+  ): Promise<RecurringTransaction> {
     const client = tx ?? this.prisma;
     return client.recurringTransaction.delete({
-      where: {id},
+      where: { id },
     });
   }
 

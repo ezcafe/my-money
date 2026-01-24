@@ -3,8 +3,8 @@
  * Handles archival of old transactions and data retention policies
  */
 
-import {prisma} from '../utils/prisma';
-import {logInfo, logError} from '../utils/logger';
+import { prisma } from '../utils/prisma';
+import { logInfo, logError } from '../utils/logger';
 
 /**
  * Archive old transactions
@@ -15,7 +15,7 @@ import {logInfo, logError} from '../utils/logger';
  */
 export async function archiveOldTransactions(
   retentionDays: number = 365,
-  workspaceId?: string,
+  workspaceId?: string
 ): Promise<number> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
@@ -75,11 +75,15 @@ export async function archiveOldTransactions(
     return archivedCount;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to archive old transactions', {
-      event: 'data_archival_failed',
-      retentionDays,
-      workspaceId,
-    }, errorObj);
+    logError(
+      'Failed to archive old transactions',
+      {
+        event: 'data_archival_failed',
+        retentionDays,
+        workspaceId,
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }
@@ -97,19 +101,19 @@ export async function getArchivalStats(workspaceId?: string): Promise<{
   try {
     const queries = workspaceId
       ? [
-          prisma.$queryRaw<Array<{count: bigint}>>`
+          prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count FROM "Transaction"
             WHERE "accountId" IN (
               SELECT "id" FROM "Account" WHERE "workspaceId" = ${workspaceId}
             )
           `,
-          prisma.$queryRaw<Array<{count: bigint}>>`
+          prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count FROM "TransactionArchive"
             WHERE "accountId" IN (
               SELECT "id" FROM "Account" WHERE "workspaceId" = ${workspaceId}
             )
           `,
-          prisma.$queryRaw<Array<{count: bigint}>>`
+          prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count FROM "Transaction"
             WHERE "date" < NOW() - INTERVAL '365 days'
             AND "accountId" IN (
@@ -118,19 +122,20 @@ export async function getArchivalStats(workspaceId?: string): Promise<{
           `,
         ]
       : [
-          prisma.$queryRaw<Array<{count: bigint}>>`
+          prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count FROM "Transaction"
           `,
-          prisma.$queryRaw<Array<{count: bigint}>>`
+          prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count FROM "TransactionArchive"
           `,
-          prisma.$queryRaw<Array<{count: bigint}>>`
+          prisma.$queryRaw<Array<{ count: bigint }>>`
             SELECT COUNT(*) as count FROM "Transaction"
             WHERE "date" < NOW() - INTERVAL '365 days'
           `,
         ];
 
-    const [totalResult, archivedResult, toArchiveResult] = await Promise.all(queries);
+    const [totalResult, archivedResult, toArchiveResult] =
+      await Promise.all(queries);
 
     return {
       totalTransactions: Number(totalResult?.[0]?.count ?? 0),
@@ -139,10 +144,14 @@ export async function getArchivalStats(workspaceId?: string): Promise<{
     };
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to get archival stats', {
-      event: 'archival_stats_failed',
-      workspaceId,
-    }, errorObj);
+    logError(
+      'Failed to get archival stats',
+      {
+        event: 'archival_stats_failed',
+        workspaceId,
+      },
+      errorObj
+    );
     return {
       totalTransactions: 0,
       archivedTransactions: 0,
@@ -159,7 +168,7 @@ export async function getArchivalStats(workspaceId?: string): Promise<{
  */
 export function partitionTransactionsTable(
   startDate: Date,
-  endDate: Date,
+  endDate: Date
 ): Promise<void> {
   try {
     // Note: This is a simplified implementation
@@ -172,9 +181,13 @@ export function partitionTransactionsTable(
     return Promise.resolve();
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to partition transactions table', {
-      event: 'partition_failed',
-    }, errorObj);
+    logError(
+      'Failed to partition transactions table',
+      {
+        event: 'partition_failed',
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }
@@ -186,14 +199,14 @@ export function partitionTransactionsTable(
  * @returns Number of archived transactions deleted
  */
 export async function cleanupArchivedTransactions(
-  archiveRetentionDays: number = 1095,
+  archiveRetentionDays: number = 1095
 ): Promise<number> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - archiveRetentionDays);
 
   try {
     // Check if archive table exists
-    const tableExists = await prisma.$queryRaw<Array<{exists: boolean}>>`
+    const tableExists = await prisma.$queryRaw<Array<{ exists: boolean }>>`
       SELECT EXISTS (
         SELECT FROM information_schema.tables
         WHERE table_schema = 'public'
@@ -225,10 +238,14 @@ export async function cleanupArchivedTransactions(
     return deletedCount;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to cleanup archived transactions', {
-      event: 'archive_cleanup_failed',
-      archiveRetentionDays,
-    }, errorObj);
+    logError(
+      'Failed to cleanup archived transactions',
+      {
+        event: 'archive_cleanup_failed',
+        archiveRetentionDays,
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }

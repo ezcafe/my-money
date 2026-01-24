@@ -3,12 +3,17 @@
  * Provides theme context with M3 color scheme support
  */
 
-import React, {createContext, useContext, useEffect, useState, useCallback} from 'react';
-import {ThemeProvider as MUIThemeProvider, CssBaseline} from '@mui/material';
-import {useQuery} from '@apollo/client/react';
-import {createAppTheme, getInitialTheme, shouldUpdateTheme, type ColorSchemeConfig} from './index';
-import {GET_PREFERENCES} from '../graphql/queries';
-import type {Theme} from '@mui/material/styles';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { ThemeProvider as MUIThemeProvider, CssBaseline } from '@mui/material';
+import { useQuery } from '@apollo/client/react';
+import {
+  createAppTheme,
+  getInitialTheme,
+  shouldUpdateTheme,
+  type ColorSchemeConfig,
+} from './index';
+import { GET_PREFERENCES } from '../graphql/queries';
+import type { Theme } from '@mui/material/styles';
 
 interface ThemeContextType {
   theme: Theme;
@@ -40,13 +45,13 @@ interface ThemeProviderProps {
  * Theme Provider Component
  * Loads color scheme from preferences and applies M3 theme
  */
-export function ThemeProvider({children}: ThemeProviderProps): React.JSX.Element {
+export function ThemeProvider({ children }: ThemeProviderProps): React.JSX.Element {
   const [mode, setMode] = useState<'dark' | 'light'>(getInitialTheme());
   const [colorScheme, setColorScheme] = useState<ColorSchemeConfig | undefined>(undefined);
   const [theme, setThemeState] = useState<Theme>(createAppTheme(mode));
 
   // Load preferences to get color scheme
-  const {data: preferencesData} = useQuery<{
+  const { data: preferencesData } = useQuery<{
     preferences?: {
       colorScheme: string | null;
       colorSchemeValue: string | null;
@@ -123,5 +128,3 @@ export function ThemeProvider({children}: ThemeProviderProps): React.JSX.Element
     </ThemeContext.Provider>
   );
 }
-
-

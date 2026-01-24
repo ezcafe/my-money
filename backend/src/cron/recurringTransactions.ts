@@ -4,14 +4,13 @@
  * Includes retry logic, structured logging, and error tracking
  */
 
-
 import cron from 'node-cron';
-import {prisma} from '../utils/prisma';
-import {retry, isRetryableError} from '../utils/retry';
-import {logInfo, logError, logWarn} from '../utils/logger';
-import {incrementAccountBalance} from '../services/AccountBalanceService';
-import {updateBudgetForTransaction} from '../services/BudgetService';
-import {RECURRING_TRANSACTION_CONCURRENCY_LIMIT} from '../utils/constants';
+import { prisma } from '../utils/prisma';
+import { retry, isRetryableError } from '../utils/retry';
+import { logInfo, logError, logWarn } from '../utils/logger';
+import { incrementAccountBalance } from '../services/AccountBalanceService';
+import { updateBudgetForTransaction } from '../services/BudgetService';
+import { RECURRING_TRANSACTION_CONCURRENCY_LIMIT } from '../utils/constants';
 import {
   getLastRunDate,
   updateLastRunDate,
@@ -19,7 +18,7 @@ import {
   getMissedRunsByInterval,
   getIntervalFromCron,
 } from '../utils/cronJobUtils';
-import {transactionEventEmitter} from '../events';
+import { transactionEventEmitter } from '../events';
 
 /**
  * Process a single recurring transaction with retry logic
@@ -39,7 +38,7 @@ async function processRecurringTransaction(
     nextRunDate: Date;
   },
   currentTime: Date,
-  cronExpression: string,
+  cronExpression: string
 ): Promise<boolean> {
   const context = {
     recurringTransactionId: recurring.id,
@@ -49,31 +48,30 @@ async function processRecurringTransaction(
 
   try {
     // Fetch category if categoryId exists to determine balance delta
-    let category: {categoryType: 'Income' | 'Expense'} | null = null;
+    let category: { categoryType: 'Income' | 'Expense' } | null = null;
     if (recurring.categoryId) {
       const foundCategory = await prisma.category.findUnique({
-        where: {id: recurring.categoryId},
-        select: {categoryType: true},
+        where: { id: recurring.categoryId },
+        select: { categoryType: true },
       });
       category = foundCategory;
     }
 
     // Calculate balance delta based on category type
     // Income categories add money, Expense categories (or no category) subtract money
-    const balanceDelta = category?.categoryType === 'Income'
-      ? recurring.value
-      : -recurring.value;
+    const balanceDelta =
+      category?.categoryType === 'Income' ? recurring.value : -recurring.value;
 
     // Retry the operation with exponential backoff
-        await retry(
+    await retry(
       async () => {
         // Use database transaction to ensure atomicity
         // Transaction creation, balance update, and recurring transaction update must succeed together
         await prisma.$transaction(async (tx): Promise<void> => {
           // Get account to retrieve workspaceId and userId (from createdBy)
           const account = await tx.account.findUnique({
-            where: {id: recurring.accountId},
-            select: {workspaceId: true, createdBy: true},
+            where: { id: recurring.accountId },
+            select: { workspaceId: true, createdBy: true },
           });
 
           if (!account) {
@@ -120,7 +118,7 @@ async function processRecurringTransaction(
             },
             'create',
             undefined,
-            tx,
+            tx
           );
 
           // Calculate next run date based on cron expression
@@ -128,8 +126,8 @@ async function processRecurringTransaction(
 
           // Update next run date
           await tx.recurringTransaction.update({
-            where: {id: recurring.id},
-            data: {nextRunDate},
+            where: { id: recurring.id },
+            data: { nextRunDate },
           });
 
           // Emit event after transaction is created
@@ -142,7 +140,7 @@ async function processRecurringTransaction(
         maxDelayMs: 10000,
         backoffMultiplier: 2,
         retryableErrors: isRetryableError,
-      },
+      }
     );
 
     const nextRunDate = calculateNextRunDate(cronExpression, currentTime);
@@ -164,16 +162,19 @@ async function processRecurringTransaction(
         errorType: errorObj.name,
         retryable: isRetryableError(errorObj),
       },
-      errorObj,
+      errorObj
     );
 
     // Alert: Log critical failure that requires attention
     // In production, this could be sent to an alerting system
     if (!isRetryableError(errorObj)) {
-      logWarn('Recurring transactions - non-retryable error, manual intervention may be required', {
-        ...context,
-        errorType: errorObj.name,
-      });
+      logWarn(
+        'Recurring transactions - non-retryable error, manual intervention may be required',
+        {
+          ...context,
+          errorType: errorObj.name,
+        }
+      );
     }
 
     return false;
@@ -223,7 +224,7 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
         rt.cronExpression,
         rt.nextRunDate,
         cutoffTime,
-        1, // Only need to check if there's at least one missed run
+        1 // Only need to check if there's at least one missed run
       );
 
       // If there are missed runs, this transaction should be processed
@@ -240,16 +241,26 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
     });
   }
 
-  logInfo(`Recurring transactions - found ${dueTransactions.length} to process`, {
-    count: dueTransactions.length,
-  });
+  logInfo(
+    `Recurring transactions - found ${dueTransactions.length} to process`,
+    {
+      count: dueTransactions.length,
+    }
+  );
 
   let successful = 0;
   let failed = 0;
 
   // Process transactions in batches with concurrency limits to avoid memory issues
-  for (let i = 0; i < dueTransactions.length; i += RECURRING_TRANSACTION_CONCURRENCY_LIMIT) {
-    const batch = dueTransactions.slice(i, i + RECURRING_TRANSACTION_CONCURRENCY_LIMIT);
+  for (
+    let i = 0;
+    i < dueTransactions.length;
+    i += RECURRING_TRANSACTION_CONCURRENCY_LIMIT
+  ) {
+    const batch = dueTransactions.slice(
+      i,
+      i + RECURRING_TRANSACTION_CONCURRENCY_LIMIT
+    );
 
     const batchResults = await Promise.all(
       batch.map(async (recurring) => {
@@ -264,10 +275,10 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
             nextRunDate: recurring.nextRunDate,
           },
           cutoffTime,
-          recurring.cronExpression,
+          recurring.cronExpression
         );
         return success;
-      }),
+      })
     );
 
     for (const success of batchResults) {
@@ -301,7 +312,9 @@ export function startRecurringTransactionsCron(): void {
   const isDevelopment = process.env.NODE_ENV !== 'production';
   // In development, run every minute; in production, run daily at midnight
   const cronSchedule = isDevelopment ? '* * * * *' : '0 0 * * *';
-  const scheduleDescription = isDevelopment ? 'Every minute (development mode)' : 'Daily at midnight';
+  const scheduleDescription = isDevelopment
+    ? 'Every minute (development mode)'
+    : 'Daily at midnight';
 
   cron.schedule(cronSchedule, async (): Promise<void> => {
     const jobName = 'recurringTransactions';
@@ -317,7 +330,8 @@ export function startRecurringTransactionsCron(): void {
 
       if (lastRunDate) {
         // Get all recurring transactions to check for missed runs
-        const allRecurringTransactions = await prisma.recurringTransaction.findMany();
+        const allRecurringTransactions =
+          await prisma.recurringTransaction.findMany();
 
         // Collect all missed run dates across all transactions
         const allMissedRuns = new Map<string, Date[]>();
@@ -332,16 +346,17 @@ export function startRecurringTransactionsCron(): void {
 
           // Calculate missed runs for this transaction based on its interval
           // Use the transaction's nextRunDate as the starting point, or lastRunDate if earlier
-          const startDate = transaction.nextRunDate < lastRunDate
-            ? transaction.nextRunDate
-            : lastRunDate;
+          const startDate =
+            transaction.nextRunDate < lastRunDate
+              ? transaction.nextRunDate
+              : lastRunDate;
 
           const cutoffTime = isDevelopment ? now : today;
           const missedRuns = getMissedRunsByInterval(
             transaction.cronExpression,
             startDate,
             cutoffTime,
-            365, // Max missed runs per transaction
+            365 // Max missed runs per transaction
           );
 
           if (missedRuns.length > 0) {
@@ -357,13 +372,18 @@ export function startRecurringTransactionsCron(): void {
         }
 
         if (totalMissedRuns > 0) {
-          logWarn('Recurring transactions - missed runs detected, processing catch-up', {
-            jobName,
-            lastRunDate: lastRunDate.toISOString(),
-            currentDate: isDevelopment ? now.toISOString() : today.toISOString(),
-            totalMissedRuns,
-            uniqueDates: allMissedRuns.size,
-          });
+          logWarn(
+            'Recurring transactions - missed runs detected, processing catch-up',
+            {
+              jobName,
+              lastRunDate: lastRunDate.toISOString(),
+              currentDate: isDevelopment
+                ? now.toISOString()
+                : today.toISOString(),
+              totalMissedRuns,
+              uniqueDates: allMissedRuns.size,
+            }
+          );
 
           // Process each unique missed run date sequentially
           const sortedMissedDates = Array.from(allMissedRuns.keys())
@@ -379,11 +399,16 @@ export function startRecurringTransactionsCron(): void {
 
               await processRecurringTransactions(missedDate);
             } catch (error) {
-              const errorObj = error instanceof Error ? error : new Error(String(error));
-              logError('Recurring transactions - failed to process missed run', {
-                jobName,
-                date: missedDate.toISOString(),
-              }, errorObj);
+              const errorObj =
+                error instanceof Error ? error : new Error(String(error));
+              logError(
+                'Recurring transactions - failed to process missed run',
+                {
+                  jobName,
+                  date: missedDate.toISOString(),
+                },
+                errorObj
+              );
               // Continue with remaining missed runs even if one fails
             }
           }
@@ -406,10 +431,15 @@ export function startRecurringTransactionsCron(): void {
 
       logInfo('Recurring transactions - completed', stats);
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      logError('Recurring transactions - failed', {
-        jobName,
-      }, errorObj);
+      const errorObj =
+        error instanceof Error ? error : new Error(String(error));
+      logError(
+        'Recurring transactions - failed',
+        {
+          jobName,
+        },
+        errorObj
+      );
 
       // In production, this could trigger alerts to monitoring systems
       // For now, we log the error and continue
@@ -421,5 +451,3 @@ export function startRecurringTransactionsCron(): void {
     description: scheduleDescription,
   });
 }
-
-

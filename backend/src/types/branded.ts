@@ -7,42 +7,44 @@
 /**
  * Branded type for User IDs
  */
-export type UserId = string & {readonly __brand: 'UserId'};
+export type UserId = string & { readonly __brand: 'UserId' };
 
 /**
  * Branded type for Account IDs
  */
-export type AccountId = string & {readonly __brand: 'AccountId'};
+export type AccountId = string & { readonly __brand: 'AccountId' };
 
 /**
  * Branded type for Category IDs
  */
-export type CategoryId = string & {readonly __brand: 'CategoryId'};
+export type CategoryId = string & { readonly __brand: 'CategoryId' };
 
 /**
  * Branded type for Payee IDs
  */
-export type PayeeId = string & {readonly __brand: 'PayeeId'};
+export type PayeeId = string & { readonly __brand: 'PayeeId' };
 
 /**
  * Branded type for Transaction IDs
  */
-export type TransactionId = string & {readonly __brand: 'TransactionId'};
+export type TransactionId = string & { readonly __brand: 'TransactionId' };
 
 /**
  * Branded type for Budget IDs
  */
-export type BudgetId = string & {readonly __brand: 'BudgetId'};
+export type BudgetId = string & { readonly __brand: 'BudgetId' };
 
 /**
  * Branded type for Workspace IDs
  */
-export type WorkspaceId = string & {readonly __brand: 'WorkspaceId'};
+export type WorkspaceId = string & { readonly __brand: 'WorkspaceId' };
 
 /**
  * Branded type for Workspace Member IDs
  */
-export type WorkspaceMemberId = string & {readonly __brand: 'WorkspaceMemberId'};
+export type WorkspaceMemberId = string & {
+  readonly __brand: 'WorkspaceMemberId';
+};
 
 /**
  * Create a UserId from a string

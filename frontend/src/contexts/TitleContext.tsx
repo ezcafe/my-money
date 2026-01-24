@@ -3,7 +3,7 @@
  * Provides global appbar title management across the application
  */
 
-import React, {createContext, useContext, useState, useCallback, type ReactNode} from 'react';
+import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 
 /**
  * Title context interface
@@ -29,7 +29,7 @@ interface TitleProviderProps {
  * Title context provider component
  * Manages global appbar title state
  */
-export function TitleProvider({children}: TitleProviderProps): React.JSX.Element {
+export function TitleProvider({ children }: TitleProviderProps): React.JSX.Element {
   const [title, setTitleState] = useState<string | undefined>(undefined);
 
   /**
@@ -63,4 +63,3 @@ export function useTitle(): TitleContextType {
   }
   return context;
 }
-

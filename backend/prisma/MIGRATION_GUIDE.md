@@ -2,15 +2,15 @@
 
 ## Quick Decision Guide
 
-| Scenario | Use This | Command |
-|----------|----------|---------|
-| First-time setup (development) | Automatic sync | Set `RUN_MIGRATIONS=true`, start app |
-| First-time setup (production) | Manual migration | `npm run prisma:migrate` |
-| Schema changes (development) | Automatic sync | `npx prisma db push` or auto on startup |
-| Schema changes (production) | Manual migration | `npx prisma migrate dev --name <name>` |
-| Data migrations (any environment) | Manual migration | `npx prisma migrate dev --name <name> --create-only` |
-| Production deployment | Manual migration | `npm run prisma:deploy` |
-| Migration drift error | Resolve drift | See [Handling Migration Drift](#handling-migration-drift) |
+| Scenario                          | Use This         | Command                                                   |
+| --------------------------------- | ---------------- | --------------------------------------------------------- |
+| First-time setup (development)    | Automatic sync   | Set `RUN_MIGRATIONS=true`, start app                      |
+| First-time setup (production)     | Manual migration | `npm run prisma:migrate`                                  |
+| Schema changes (development)      | Automatic sync   | `npx prisma db push` or auto on startup                   |
+| Schema changes (production)       | Manual migration | `npx prisma migrate dev --name <name>`                    |
+| Data migrations (any environment) | Manual migration | `npx prisma migrate dev --name <name> --create-only`      |
+| Production deployment             | Manual migration | `npm run prisma:deploy`                                   |
+| Migration drift error             | Resolve drift    | See [Handling Migration Drift](#handling-migration-drift) |
 
 ## Migration Strategy
 
@@ -44,11 +44,13 @@ This application uses a **hybrid migration approach**:
    - Create a database (e.g., `mymoney`)
 
 2. **Configure DATABASE_URL** in your `.env` file:
+
    ```
    DATABASE_URL="postgresql://user:password@localhost:5432/mymoney?connection_limit=100&pool_timeout=20&connect_timeout=10"
    ```
 
 3. **Generate Prisma Client**:
+
    ```bash
    cd backend
    npm run prisma:generate
@@ -67,6 +69,7 @@ This application uses a **hybrid migration approach**:
    - Create a database (e.g., `mymoney`)
 
 2. **Configure DATABASE_URL** in your `.env` file:
+
    ```
    DATABASE_URL="postgresql://user:password@localhost:5432/mymoney?connection_limit=100&pool_timeout=20&connect_timeout=10"
    ```
@@ -109,9 +112,11 @@ The current schema includes:
    - No migration files created
 
 3. **Option B: Create migration** (production-ready)
+
    ```bash
    npx prisma migrate dev --name <descriptive_migration_name>
    ```
+
    - Review the generated migration SQL in `prisma/migrations/`
    - Prisma Client is generated automatically
 
@@ -120,6 +125,7 @@ The current schema includes:
 **For data changes (updating existing records, seeding data):**
 
 1. **Create a data migration**:
+
    ```bash
    npx prisma migrate dev --name <descriptive_migration_name> --create-only
    ```
@@ -127,6 +133,7 @@ The current schema includes:
 2. **Edit the migration SQL** in `prisma/migrations/<timestamp>_<name>/migration.sql`
    - Add your data update SQL
    - Use conditional checks if tables might not exist:
+
    ```sql
    DO $$
    BEGIN
@@ -141,6 +148,7 @@ The current schema includes:
    ```
 
 3. **Apply the migration**:
+
    ```bash
    npx prisma migrate dev
    ```
@@ -152,11 +160,13 @@ The current schema includes:
 **Important:** Always use `prisma migrate deploy` in production, never `prisma db push`.
 
 1. **Backup database** before applying migrations:
+
    ```bash
    pg_dump -h <host> -U <user> -d <database> > backup_$(date +%Y%m%d_%H%M%S).sql
    ```
 
 2. **Apply migrations**:
+
    ```bash
    cd backend
    npm run prisma:deploy
@@ -229,6 +239,7 @@ Use descriptive names that indicate the change:
 - `add_constraint_<table>_<name>` - Adding constraints
 
 Examples:
+
 - `add_budget_notifications`
 - `add_index_transaction_user_date`
 - `modify_account_balance_precision`
@@ -238,6 +249,7 @@ Examples:
 ### What is Migration Drift?
 
 Migration drift occurs when:
+
 - Database was created with `prisma db push` (no migration history)
 - Migration files exist but database doesn't have migration history
 - Database schema doesn't match expected migration state
@@ -249,16 +261,19 @@ Migration drift occurs when:
 If you see errors like "Drift detected" or "Migration failed to apply cleanly":
 
 1. **Check migration status**:
+
    ```bash
    npx prisma migrate status
    ```
 
 2. **Option A: Mark migrations as applied** (if schema already matches):
+
    ```bash
    npx prisma migrate resolve --applied <migration_name>
    ```
 
 3. **Option B: Reset and apply migrations** (⚠️ deletes all data):
+
    ```bash
    npx prisma migrate reset
    npx prisma migrate deploy
@@ -277,11 +292,13 @@ If you see errors like "Drift detected" or "Migration failed to apply cleanly":
 If you see "Could not find the migration file at migration.sql":
 
 1. **Check for empty migration directories**:
+
    ```bash
    ls -la prisma/migrations/
    ```
 
 2. **Remove empty directories**:
+
    ```bash
    rm -rf prisma/migrations/<empty_directory_name>
    ```
@@ -323,12 +340,14 @@ For data migrations that update existing data:
 ### When to Use `prisma db push` (Automatic Sync)
 
 ✅ Use for:
+
 - Local development and rapid iteration
 - Docker development environments
 - When you don't need migration history
 - Prototyping and testing
 
 ❌ Don't use for:
+
 - Production deployments
 - Data migrations
 - Team collaboration (no version control)
@@ -337,6 +356,7 @@ For data migrations that update existing data:
 ### When to Use `prisma migrate` (Manual Migrations)
 
 ✅ Use for:
+
 - Production deployments
 - Data migrations (updating existing records)
 - Team collaboration (version-controlled changes)
@@ -344,6 +364,7 @@ For data migrations that update existing data:
 - When you need rollback capability
 
 ❌ Don't use for:
+
 - Rapid prototyping (slower workflow)
 
 ## Quick Reference
@@ -395,4 +416,3 @@ npx prisma db push
 2. Edit migration SQL with conditional checks
 3. Test on staging with real data
 4. Apply to production: `npx prisma migrate deploy`
-

@@ -22,7 +22,7 @@ export interface DialogProps extends Omit<MUIDialogProps, 'ref' | 'title'> {
  * Dialog component wrapper
  * Allows easy framework switching in the future
  */
-export const Dialog: React.FC<DialogProps> = ({children, title, actions, ...props}) => {
+export const Dialog: React.FC<DialogProps> = ({ children, title, actions, ...props }) => {
   return (
     <MUIDialog {...props}>
       {title ? <DialogTitle>{title}</DialogTitle> : null}
@@ -33,25 +33,3 @@ export const Dialog: React.FC<DialogProps> = ({children, title, actions, ...prop
 };
 
 Dialog.displayName = 'Dialog';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

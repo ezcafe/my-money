@@ -4,10 +4,10 @@
  * Uses PostgreSQL UNLOGGED table for high-performance token revocation checks
  */
 
-import {Client} from 'pg';
-import {createHash} from 'crypto';
-import {logError, logInfo} from './logger';
-import {config} from '../config';
+import { Client } from 'pg';
+import { createHash } from 'crypto';
+import { logError, logInfo } from './logger';
+import { config } from '../config';
 
 /**
  * Hash token for secure storage in revocation list
@@ -30,7 +30,7 @@ export async function isTokenRevoked(token: string): Promise<boolean> {
     // Use direct pg.Client instead of prisma.$queryRaw (PrismaPg adapter doesn't support it)
     const client = await getDbClientForDDL();
     try {
-      const result = await client.query<{key: string}>(
+      const result = await client.query<{ key: string }>(
         'SELECT key FROM "token_revocation" WHERE key = $1 AND expires_at > NOW()',
         [tokenHash]
       );
@@ -40,9 +40,13 @@ export async function isTokenRevoked(token: string): Promise<boolean> {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Token revocation check failed', {
-      event: 'token_revocation_check_failed',
-    }, errorObj);
+    logError(
+      'Token revocation check failed',
+      {
+        event: 'token_revocation_check_failed',
+      },
+      errorObj
+    );
 
     // On error, assume token is not revoked (fail open)
     // This prevents revocation check failures from breaking authentication
@@ -61,7 +65,7 @@ export async function isTokenRevoked(token: string): Promise<boolean> {
  */
 export async function revokeToken(
   _token: string,
-  _expiresAt?: Date,
+  _expiresAt?: Date
 ): Promise<void> {
   // Token revocation is disabled - this is a no-op
   // The OIDC provider handles token invalidation automatically
@@ -93,10 +97,14 @@ export function revokeUserTokens(subject: string): void {
     });
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('User token revocation failed', {
-      event: 'user_tokens_revocation_failed',
-      subject,
-    }, errorObj);
+    logError(
+      'User token revocation failed',
+      {
+        event: 'user_tokens_revocation_failed',
+        subject,
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }
@@ -126,9 +134,13 @@ export async function clearExpiredRevocations(): Promise<number> {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to clear expired token revocations', {
-      event: 'token_revocation_cleanup_failed',
-    }, errorObj);
+    logError(
+      'Failed to clear expired token revocations',
+      {
+        event: 'token_revocation_cleanup_failed',
+      },
+      errorObj
+    );
     return 0;
   }
 }
@@ -157,9 +169,13 @@ export async function clearAllRevocations(): Promise<number> {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to clear all token revocations', {
-      event: 'token_revocation_clear_all_failed',
-    }, errorObj);
+    logError(
+      'Failed to clear all token revocations',
+      {
+        event: 'token_revocation_clear_all_failed',
+      },
+      errorObj
+    );
     return 0;
   }
 }
@@ -173,12 +189,15 @@ export async function clearAllRevocations(): Promise<number> {
  * Uses a direct Client connection instead of the pool to avoid connection issues
  * The pool may have connection string issues in Docker, so we create a fresh client
  */
-async function getDbClientForDDL(maxRetries = 5, delayMs = 1000): Promise<Client> {
+async function getDbClientForDDL(
+  maxRetries = 5,
+  delayMs = 1000
+): Promise<Client> {
   // config.database.url already has adjusted hostname via getter
   const connectionString = config.database.url;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const client = new Client({connectionString});
+    const client = new Client({ connectionString });
     try {
       await client.connect();
       return client;
@@ -215,7 +234,9 @@ export async function initializeTokenRevocationTable(): Promise<void> {
       await client.query(createTableSql);
 
       // Create index on expires_at for efficient cleanup queries
-      await client.query('CREATE INDEX IF NOT EXISTS "token_revocation_expires_at_idx" ON "token_revocation"("expires_at")');
+      await client.query(
+        'CREATE INDEX IF NOT EXISTS "token_revocation_expires_at_idx" ON "token_revocation"("expires_at")'
+      );
     } finally {
       await client.end();
     }
@@ -223,9 +244,13 @@ export async function initializeTokenRevocationTable(): Promise<void> {
     logInfo('Token revocation table initialized', {});
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logError('Failed to initialize token revocation table', {
-      event: 'token_revocation_table_init_failed',
-    }, errorObj);
+    logError(
+      'Failed to initialize token revocation table',
+      {
+        event: 'token_revocation_table_init_failed',
+      },
+      errorObj
+    );
     throw errorObj;
   }
 }

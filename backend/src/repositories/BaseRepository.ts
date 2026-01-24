@@ -3,9 +3,12 @@
  * Provides common repository functionality for all repositories
  */
 
-import type {PrismaClient} from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 
-export type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+export type PrismaTransaction = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Base Repository Class
@@ -31,7 +34,7 @@ export abstract class BaseRepository {
     options?: {
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
-    },
+    }
   ): {
     where: T;
     select?: Record<string, boolean>;
@@ -59,7 +62,9 @@ export abstract class BaseRepository {
    * @param tx - Optional transaction client
    * @returns Prisma client to use
    */
-  protected getClient(tx?: PrismaTransaction): PrismaTransaction | PrismaClient {
+  protected getClient(
+    tx?: PrismaTransaction
+  ): PrismaTransaction | PrismaClient {
     return tx ?? this.prisma;
   }
 
@@ -74,7 +79,7 @@ export abstract class BaseRepository {
   protected async findByIdWithWorkspace<T>(
     delegate: {
       findFirst: (args: {
-        where: {id: string; workspaceId: string};
+        where: { id: string; workspaceId: string };
         select?: Record<string, boolean>;
         include?: Record<string, boolean>;
       }) => Promise<T | null>;
@@ -84,9 +89,11 @@ export abstract class BaseRepository {
     options?: {
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
-    },
+    }
   ): Promise<T | null> {
-    return delegate.findFirst(this.buildQueryOptions({id, workspaceId}, options));
+    return delegate.findFirst(
+      this.buildQueryOptions({ id, workspaceId }, options)
+    );
   }
 
   /**
@@ -99,7 +106,7 @@ export abstract class BaseRepository {
   protected async findManyWithWorkspace<T, O = unknown>(
     delegate: {
       findMany: (args: {
-        where: {workspaceId: string};
+        where: { workspaceId: string };
         select?: Record<string, boolean>;
         skip?: number;
         take?: number;
@@ -112,16 +119,16 @@ export abstract class BaseRepository {
       skip?: number;
       take?: number;
       orderBy?: O;
-    },
+    }
   ): Promise<T[]> {
     const queryOptions: {
-      where: {workspaceId: string};
+      where: { workspaceId: string };
       select?: Record<string, boolean>;
       skip?: number;
       take?: number;
       orderBy?: O;
     } = {
-      where: {workspaceId},
+      where: { workspaceId },
     };
 
     if (options?.select) {
@@ -149,14 +156,14 @@ export abstract class BaseRepository {
    */
   protected async createEntity<T, D>(
     delegate: {
-      create: (args: {data: D}) => Promise<T>;
+      create: (args: { data: D }) => Promise<T>;
     },
     data: D,
-    _tx?: PrismaTransaction,
+    _tx?: PrismaTransaction
   ): Promise<T> {
     // For transaction client, we need to get the delegate from the transaction
     // This is a simplified version - in practice, repositories should pass the delegate directly
-    return delegate.create({data});
+    return delegate.create({ data });
   }
 
   /**
@@ -169,14 +176,14 @@ export abstract class BaseRepository {
    */
   protected async updateEntity<T, D>(
     delegate: {
-      update: (args: {where: {id: string}; data: D}) => Promise<T>;
+      update: (args: { where: { id: string }; data: D }) => Promise<T>;
     },
     id: string,
     data: D,
-    _tx?: PrismaTransaction,
+    _tx?: PrismaTransaction
   ): Promise<T> {
     return delegate.update({
-      where: {id},
+      where: { id },
       data,
     });
   }
@@ -190,13 +197,13 @@ export abstract class BaseRepository {
    */
   protected async deleteEntity<T>(
     delegate: {
-      delete: (args: {where: {id: string}}) => Promise<T>;
+      delete: (args: { where: { id: string } }) => Promise<T>;
     },
     id: string,
-    _tx?: PrismaTransaction,
+    _tx?: PrismaTransaction
   ): Promise<T> {
     return delegate.delete({
-      where: {id},
+      where: { id },
     });
   }
 
@@ -208,12 +215,12 @@ export abstract class BaseRepository {
    */
   protected async countWithWorkspace(
     delegate: {
-      count: (args: {where: {workspaceId: string}}) => Promise<number>;
+      count: (args: { where: { workspaceId: string } }) => Promise<number>;
     },
-    workspaceId: string,
+    workspaceId: string
   ): Promise<number> {
     return delegate.count({
-      where: {workspaceId},
+      where: { workspaceId },
     });
   }
 
@@ -227,20 +234,20 @@ export abstract class BaseRepository {
   protected async existsById(
     delegate: {
       findFirst: (args: {
-        where: {id: string; workspaceId?: string};
-        select?: {id: boolean};
-      }) => Promise<{id: string} | null>;
+        where: { id: string; workspaceId?: string };
+        select?: { id: boolean };
+      }) => Promise<{ id: string } | null>;
     },
     id: string,
-    workspaceId?: string,
+    workspaceId?: string
   ): Promise<boolean> {
-    const where: {id: string; workspaceId?: string} = {id};
+    const where: { id: string; workspaceId?: string } = { id };
     if (workspaceId) {
       where.workspaceId = workspaceId;
     }
     const result = await delegate.findFirst({
       where,
-      select: {id: true},
+      select: { id: true },
     });
     return result !== null;
   }
@@ -264,7 +271,7 @@ export abstract class BaseRepository {
     options?: {
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
-    },
+    }
   ): Promise<T | null> {
     return delegate.findFirst(this.buildQueryOptions(where, options));
   }
@@ -280,16 +287,12 @@ export abstract class BaseRepository {
    */
   protected async upsertEntity<T, W, D>(
     delegate: {
-      upsert: (args: {
-        where: W;
-        create: D;
-        update: D;
-      }) => Promise<T>;
+      upsert: (args: { where: W; create: D; update: D }) => Promise<T>;
     },
     where: W,
     create: D,
     update: D,
-    _tx?: PrismaTransaction,
+    _tx?: PrismaTransaction
   ): Promise<T> {
     return delegate.upsert({
       where,
@@ -307,12 +310,12 @@ export abstract class BaseRepository {
    */
   protected async deleteMany<W>(
     delegate: {
-      deleteMany: (args: {where: W}) => Promise<{count: number}>;
+      deleteMany: (args: { where: W }) => Promise<{ count: number }>;
     },
     where: W,
-    _tx?: PrismaTransaction,
+    _tx?: PrismaTransaction
   ): Promise<number> {
-    const result = await delegate.deleteMany({where});
+    const result = await delegate.deleteMany({ where });
     return result.count;
   }
 
@@ -326,13 +329,13 @@ export abstract class BaseRepository {
    */
   protected async updateManyEntities<W, D>(
     delegate: {
-      updateMany: (args: {where: W; data: D}) => Promise<{count: number}>;
+      updateMany: (args: { where: W; data: D }) => Promise<{ count: number }>;
     },
     where: W,
     data: D,
-    _tx?: PrismaTransaction,
+    _tx?: PrismaTransaction
   ): Promise<number> {
-    const result = await delegate.updateMany({where, data});
+    const result = await delegate.updateMany({ where, data });
     return result.count;
   }
 
@@ -344,10 +347,10 @@ export abstract class BaseRepository {
    */
   protected async countEntities<W>(
     delegate: {
-      count: (args: {where: W}) => Promise<number>;
+      count: (args: { where: W }) => Promise<number>;
     },
-    where: W,
+    where: W
   ): Promise<number> {
-    return delegate.count({where});
+    return delegate.count({ where });
   }
 }

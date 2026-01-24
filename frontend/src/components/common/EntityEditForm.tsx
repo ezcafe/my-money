@@ -3,21 +3,21 @@
  * Reusable form component for creating/editing entities (Account, Category, Payee, etc.)
  */
 
-import React, {useEffect, useCallback, type ReactNode} from 'react';
-import {useNavigate, useSearchParams} from 'react-router';
-import {Box, Typography, Button} from '@mui/material';
-import {useMutation, useQuery, useApolloClient} from '@apollo/client/react';
-import type {DocumentNode} from '@apollo/client';
-import {useForm, Controller} from 'react-hook-form';
-import {zodResolver} from '@hookform/resolvers/zod';
-import {z} from 'zod';
-import {Card} from '../ui/Card';
-import {TextField} from '../ui/TextField';
-import {LoadingSpinner} from './LoadingSpinner';
-import {ErrorAlert} from './ErrorAlert';
-import {useTitle} from '../../contexts/TitleContext';
-import {validateReturnUrl} from '../../utils/validation';
-import {PageContainer} from './PageContainer';
+import React, { useEffect, useCallback, type ReactNode } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Box, Typography, Button } from '@mui/material';
+import { useMutation, useQuery, useApolloClient } from '@apollo/client/react';
+import type { DocumentNode } from '@apollo/client';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Card } from '../ui/Card';
+import { TextField } from '../ui/TextField';
+import { LoadingSpinner } from './LoadingSpinner';
+import { ErrorAlert } from './ErrorAlert';
+import { useTitle } from '../../contexts/TitleContext';
+import { validateReturnUrl } from '../../utils/validation';
+import { PageContainer } from './PageContainer';
 
 /**
  * Field configuration for form fields
@@ -56,17 +56,24 @@ export interface EntityEditFormConfig<TData = unknown, TInput = unknown> {
   /** GraphQL mutation for updating entity */
   updateMutation: DocumentNode;
   /** Queries to refetch after mutation (can be query names, DocumentNode objects, or objects with query and variables) */
-  refetchQueries?: Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> | ((isEdit: boolean, entityId?: string) => Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}>);
+  refetchQueries?:
+    | Array<string | DocumentNode | { query: DocumentNode; variables?: Record<string, unknown> }>
+    | ((
+        isEdit: boolean,
+        entityId?: string
+      ) => Array<
+        string | DocumentNode | { query: DocumentNode; variables?: Record<string, unknown> }
+      >);
   /** Form fields configuration */
   fields: FormFieldConfig[];
   /** Extract entity from query data */
-  extractEntity?: (data: TData) => {id: string; [key: string]: unknown} | null | undefined;
+  extractEntity?: (data: TData) => { id: string; [key: string]: unknown } | null | undefined;
   /** Transform form values to mutation input */
   transformToInput: (values: Record<string, unknown>, isEdit: boolean) => TInput;
   /** Validate form values before submission */
   validateForm?: (values: Record<string, unknown>) => string | null;
   /** Generate optimistic response for mutations (optional) */
-  getOptimisticResponse?: (variables: {input?: TInput; id?: string}, isEdit: boolean) => unknown;
+  getOptimisticResponse?: (variables: { input?: TInput; id?: string }, isEdit: boolean) => unknown;
 }
 
 /**
@@ -90,7 +97,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = validateReturnUrl(searchParams.get('returnTo'), config.defaultReturnUrl);
-  const {setTitle} = useTitle();
+  const { setTitle } = useTitle();
   const client = useApolloClient();
   const isEditMode = Boolean(id);
 
@@ -139,7 +146,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   const {
     control,
     handleSubmit: handleFormSubmit,
-    formState: {errors: formErrors, isSubmitting},
+    formState: { errors: formErrors, isSubmitting },
     reset,
     setError: setFormError,
   } = form;
@@ -148,17 +155,20 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   const errors = formErrors;
 
   // Fetch entity data in edit mode
-  const {data, loading: queryLoading, error: queryError} = useQuery<TData>(
-    config.getQuery!,
-    {
-      variables: {id},
-      skip: !id || !config.getQuery,
-      errorPolicy: 'all',
-    },
-  );
+  const {
+    data,
+    loading: queryLoading,
+    error: queryError,
+  } = useQuery<TData>(config.getQuery!, {
+    variables: { id },
+    skip: !id || !config.getQuery,
+    errorPolicy: 'all',
+  });
 
   // Extract entity from query data
-  const entity = config.extractEntity ? config.extractEntity(data as TData) : (data as {id: string; [key: string]: unknown} | null | undefined);
+  const entity = config.extractEntity
+    ? config.extractEntity(data as TData)
+    : (data as { id: string; [key: string]: unknown } | null | undefined);
 
   // Set appbar title
   useEffect(() => {
@@ -173,7 +183,8 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
     if (entity) {
       const values: Record<string, unknown> = {};
       for (const field of config.fields) {
-        values[field.key] = entity[field.key] ?? field.defaultValue ?? (field.type === 'number' ? 0 : '');
+        values[field.key] =
+          entity[field.key] ?? field.defaultValue ?? (field.type === 'number' ? 0 : '');
       }
       reset(values);
     } else if (!isEditMode) {
@@ -187,7 +198,9 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   }, [entity, isEditMode, config.fields, reset]);
 
   // Get refetch queries for create - support function for conditional queries
-  const getCreateRefetchQueries = (): Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> => {
+  const getCreateRefetchQueries = (): Array<
+    string | DocumentNode | { query: DocumentNode; variables?: Record<string, unknown> }
+  > => {
     if (!config.refetchQueries) {
       return [];
     }
@@ -198,7 +211,9 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   };
 
   // Get refetch queries for update - support function for conditional queries
-  const getUpdateRefetchQueries = (): Array<string | DocumentNode | {query: DocumentNode; variables?: Record<string, unknown>}> => {
+  const getUpdateRefetchQueries = (): Array<
+    string | DocumentNode | { query: DocumentNode; variables?: Record<string, unknown> }
+  > => {
     if (!config.refetchQueries) {
       return [];
     }
@@ -209,17 +224,17 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   };
 
   // Create mutation with optimistic updates
-  const [createEntity, {loading: creating}] = useMutation(config.createMutation, {
+  const [createEntity, { loading: creating }] = useMutation(config.createMutation, {
     refetchQueries: getCreateRefetchQueries(),
     awaitRefetchQueries: true,
     optimisticResponse: config.getOptimisticResponse
-      ? (variables: {input?: TInput; id?: string}): unknown => {
+      ? (variables: { input?: TInput; id?: string }): unknown => {
           return config.getOptimisticResponse!(variables, false);
         }
       : undefined,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setFormError('root', {message: errorMessage});
+      setFormError('root', { message: errorMessage });
     },
     onCompleted: () => {
       void (async (): Promise<void> => {
@@ -230,7 +245,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
             for (const query of queriesToRefetch) {
               if (typeof query === 'string') {
                 // String query names - only refetch if query is in cache
-                await client.refetchQueries({include: [query]});
+                await client.refetchQueries({ include: [query] });
               } else if ('query' in query) {
                 // Object with query and variables
                 await client.query({
@@ -250,23 +265,23 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
             console.warn('Error refetching queries:', refetchError);
           }
         }
-        void navigate(returnTo, {replace: true});
+        void navigate(returnTo, { replace: true });
       })();
     },
   });
 
   // Update mutation with optimistic updates
-  const [updateEntity, {loading: updating}] = useMutation(config.updateMutation, {
+  const [updateEntity, { loading: updating }] = useMutation(config.updateMutation, {
     refetchQueries: getUpdateRefetchQueries(),
     awaitRefetchQueries: true,
     optimisticResponse: config.getOptimisticResponse
-      ? (variables: {input?: TInput; id?: string}): unknown => {
+      ? (variables: { input?: TInput; id?: string }): unknown => {
           return config.getOptimisticResponse!(variables, true);
         }
       : undefined,
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setFormError('root', {message: errorMessage});
+      setFormError('root', { message: errorMessage });
     },
     onCompleted: () => {
       void navigate(returnTo);
@@ -278,36 +293,39 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   /**
    * Handle form submission with react-hook-form
    */
-  const onSubmit = useCallback((formValues: Record<string, unknown>): void => {
-    // Validate form (if custom validation provided)
-    if (config.validateForm) {
-      const formError = config.validateForm(formValues);
-      if (formError) {
-        setFormError('root', {message: formError});
-        return;
+  const onSubmit = useCallback(
+    (formValues: Record<string, unknown>): void => {
+      // Validate form (if custom validation provided)
+      if (config.validateForm) {
+        const formError = config.validateForm(formValues);
+        if (formError) {
+          setFormError('root', { message: formError });
+          return;
+        }
       }
-    }
 
-    // Transform to input format
-    const input = config.transformToInput(formValues, isEditMode);
+      // Transform to input format
+      const input = config.transformToInput(formValues, isEditMode);
 
-    if (isEditMode && id) {
-      // Update existing entity
-      void updateEntity({
-        variables: {
-          id,
-          input,
-        },
-      });
-    } else {
-      // Create new entity
-      void createEntity({
-        variables: {
-          input,
-        },
-      });
-    }
-  }, [config, isEditMode, id, updateEntity, createEntity, setFormError]);
+      if (isEditMode && id) {
+        // Update existing entity
+        void updateEntity({
+          variables: {
+            id,
+            input,
+          },
+        });
+      } else {
+        // Create new entity
+        void createEntity({
+          variables: {
+            input,
+          },
+        });
+      }
+    },
+    [config, isEditMode, id, updateEntity, createEntity, setFormError]
+  );
 
   // Show loading state for edit mode
   if (isEditMode && queryLoading) {
@@ -354,11 +372,13 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
         <Box
           component="form"
           onSubmit={handleFormSubmit(onSubmit)}
-          sx={{display: 'flex', flexDirection: 'column', gap: 2, flex: 1}}
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}
         >
-          {errors.root ? <Typography color="error" variant="body2">
-              {(errors.root as {message?: string}).message ?? 'An error occurred'}
-            </Typography> : null}
+          {errors.root ? (
+            <Typography color="error" variant="body2">
+              {(errors.root as { message?: string }).message ?? 'An error occurred'}
+            </Typography>
+          ) : null}
 
           {config.fields.map((field) => {
             if (field.type === 'custom' && field.render) {
@@ -367,13 +387,9 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
                   key={field.key}
                   name={field.key}
                   control={control}
-                  render={({field: {value, onChange}}) => {
-                    const fieldError = errors[field.key] as {message?: string} | undefined;
-                    return (
-                      <Box>
-                        {field.render?.(value, onChange, fieldError?.message)}
-                      </Box>
-                    );
+                  render={({ field: { value, onChange } }) => {
+                    const fieldError = errors[field.key] as { message?: string } | undefined;
+                    return <Box>{field.render?.(value, onChange, fieldError?.message)}</Box>;
                   }}
                 />
               );
@@ -385,19 +401,20 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
                   key={field.key}
                   name={field.key}
                   control={control}
-                  render={({field: {value, onChange}}) => (
+                  render={({ field: { value, onChange } }) => (
                     <TextField
                       label={field.label}
                       type="number"
-                      value={typeof value === 'number' ? String(value) : value ?? ''}
+                      value={typeof value === 'number' ? String(value) : (value ?? '')}
                       onChange={(e) => {
-                        const numValue = e.target.value === '' ? 0 : Number.parseFloat(e.target.value);
+                        const numValue =
+                          e.target.value === '' ? 0 : Number.parseFloat(e.target.value);
                         onChange(isNaN(numValue) ? 0 : numValue);
                       }}
                       fullWidth
                       required={field.required}
                       error={Boolean(errors[field.key])}
-                      helperText={(errors[field.key] as {message?: string} | undefined)?.message}
+                      helperText={(errors[field.key] as { message?: string } | undefined)?.message}
                       inputProps={field.inputProps}
                     />
                   )}
@@ -411,7 +428,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
                 key={field.key}
                 name={field.key}
                 control={control}
-                render={({field: {value, onChange}}) => (
+                render={({ field: { value, onChange } }) => (
                   <TextField
                     label={field.label}
                     value={value ?? ''}
@@ -427,11 +444,11 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
             );
           })}
 
-          <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto'}}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto' }}>
             <Button
               type="button"
               onClick={() => {
-                void navigate(returnTo, {replace: true});
+                void navigate(returnTo, { replace: true });
               }}
               disabled={loading}
             >
@@ -446,4 +463,3 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
     </PageContainer>
   );
 }
-

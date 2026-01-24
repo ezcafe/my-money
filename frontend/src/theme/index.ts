@@ -3,12 +3,12 @@
  * Uses Material Design 3 design tokens and color schemes
  */
 
-import {createTheme} from '@mui/material/styles';
-import type {Theme} from '@mui/material/styles';
-import {getThemeByTime} from './palettes';
-import {m3Typography, m3Breakpoints, m3Shape, m3Elevation} from './tokens';
-import {getColorPalette, type ColorSchemeType} from './colorSchemes';
-import {MIN_TOUCH_TARGET_SIZE} from '../constants';
+import { createTheme } from '@mui/material/styles';
+import type { Theme } from '@mui/material/styles';
+import { getThemeByTime } from './palettes';
+import { m3Typography, m3Breakpoints, m3Shape, m3Elevation } from './tokens';
+import { getColorPalette, type ColorSchemeType } from './colorSchemes';
+import { MIN_TOUCH_TARGET_SIZE } from '../constants';
 
 /**
  * Color scheme configuration
@@ -32,9 +32,13 @@ export interface ColorSchemeConfig {
  */
 export function createAppTheme(
   mode: 'dark' | 'light' = getThemeByTime(),
-  colorScheme?: ColorSchemeConfig,
+  colorScheme?: ColorSchemeConfig
 ): Theme {
-  const palette = getColorPalette(colorScheme?.type ?? null, colorScheme?.value ?? null, mode === 'dark');
+  const palette = getColorPalette(
+    colorScheme?.type ?? null,
+    colorScheme?.value ?? null,
+    mode === 'dark'
+  );
   const isDark = mode === 'dark';
 
   return createTheme({
@@ -264,5 +268,3 @@ export function shouldUpdateTheme(lastCheck: Date): boolean {
 
   return wasDark !== isDark;
 }
-
-

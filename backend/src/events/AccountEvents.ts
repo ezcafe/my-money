@@ -3,7 +3,7 @@
  * Defines all account-related events and their payloads
  */
 
-import type {Account} from '@prisma/client';
+import type { Account } from '@prisma/client';
 
 /**
  * Account event payloads
@@ -14,7 +14,7 @@ export interface AccountEventPayloads extends Record<string, unknown[]> {
   'account.deleted': [Account];
 }
 
-import type {TypedEventEmitter} from './EventEmitter';
+import type { TypedEventEmitter } from './EventEmitter';
 
 /**
  * Account event emitter type

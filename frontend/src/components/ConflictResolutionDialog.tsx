@@ -3,22 +3,20 @@
  * Dialog for resolving entity conflicts with side-by-side comparison
  */
 
-import React, {useState, useMemo} from 'react';
-import {
-  Box,
-  Typography,
-  Divider,
-  Chip,
-  Alert,
-} from '@mui/material';
+import React, { useState, useMemo } from 'react';
+import { Box, Typography, Divider, Chip, Alert } from '@mui/material';
 import Grid from '@mui/material/Grid2';
-import {Warning, CheckCircle, Cancel} from '@mui/icons-material';
-import {useMutation} from '@apollo/client/react';
-import {Dialog} from './ui/Dialog';
-import {Button} from './ui/Button';
-import {RESOLVE_CONFLICT, DISMISS_CONFLICT, GET_ENTITY_CONFLICTS} from '../graphql/conflictOperations';
-import {formatDateTime, dateFormatToDateTimeFormat} from '../utils/formatting';
-import {useDateFormat} from '../hooks/useDateFormat';
+import { Warning, CheckCircle, Cancel } from '@mui/icons-material';
+import { useMutation } from '@apollo/client/react';
+import { Dialog } from './ui/Dialog';
+import { Button } from './ui/Button';
+import {
+  RESOLVE_CONFLICT,
+  DISMISS_CONFLICT,
+  GET_ENTITY_CONFLICTS,
+} from '../graphql/conflictOperations';
+import { formatDateTime, dateFormatToDateTimeFormat } from '../utils/formatting';
+import { useDateFormat } from '../hooks/useDateFormat';
 
 export interface ConflictResolutionDialogProps {
   /**
@@ -59,15 +57,15 @@ export function ConflictResolutionDialog({
   conflict,
   workspaceId,
 }: ConflictResolutionDialogProps): React.JSX.Element {
-  const {dateFormat} = useDateFormat();
+  const { dateFormat } = useDateFormat();
   const [chosenVersion, setChosenVersion] = useState<'current' | 'incoming' | null>(null);
   const [resolving, setResolving] = useState(false);
 
-  const [resolveConflict, {loading: resolvingConflict}] = useMutation(RESOLVE_CONFLICT, {
+  const [resolveConflict, { loading: resolvingConflict }] = useMutation(RESOLVE_CONFLICT, {
     refetchQueries: [
       {
         query: GET_ENTITY_CONFLICTS,
-        variables: {workspaceId},
+        variables: { workspaceId },
       },
     ],
     awaitRefetchQueries: true,
@@ -80,11 +78,11 @@ export function ConflictResolutionDialog({
     },
   });
 
-  const [dismissConflict, {loading: dismissingConflict}] = useMutation(DISMISS_CONFLICT, {
+  const [dismissConflict, { loading: dismissingConflict }] = useMutation(DISMISS_CONFLICT, {
     refetchQueries: [
       {
         query: GET_ENTITY_CONFLICTS,
-        variables: {workspaceId},
+        variables: { workspaceId },
       },
     ],
     awaitRefetchQueries: true,
@@ -110,7 +108,17 @@ export function ConflictResolutionDialog({
 
     for (const key of allKeys) {
       // Skip metadata fields
-      if (['id', 'version', 'createdAt', 'updatedAt', 'createdBy', 'lastEditedBy', 'workspaceId'].includes(key)) {
+      if (
+        [
+          'id',
+          'version',
+          'createdAt',
+          'updatedAt',
+          'createdBy',
+          'lastEditedBy',
+          'workspaceId',
+        ].includes(key)
+      ) {
         continue;
       }
 
@@ -140,7 +148,8 @@ export function ConflictResolutionDialog({
 
     setResolving(true);
 
-    const versionToUse = chosenVersion === 'current' ? conflict.currentVersion : conflict.incomingVersion;
+    const versionToUse =
+      chosenVersion === 'current' ? conflict.currentVersion : conflict.incomingVersion;
 
     try {
       await resolveConflict({
@@ -205,7 +214,7 @@ export function ConflictResolutionDialog({
       open={open}
       onClose={loading ? undefined : onClose}
       title={
-        <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Warning color="warning" />
           <Typography variant="h6">Resolve Conflict</Typography>
         </Box>
@@ -213,7 +222,7 @@ export function ConflictResolutionDialog({
       maxWidth="md"
       fullWidth
       actions={
-        <Box sx={{display: 'flex', gap: 2, justifyContent: 'flex-end', width: '100%'}}>
+        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', width: '100%' }}>
           <Button
             variant="outlined"
             onClick={handleDismiss}
@@ -233,10 +242,10 @@ export function ConflictResolutionDialog({
         </Box>
       }
     >
-      <Box sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <Alert severity="warning">
-          A conflict was detected for {conflict.entityType} {conflict.entityId}. Another user has made changes
-          while you were editing. Please choose which version to keep.
+          A conflict was detected for {conflict.entityType} {conflict.entityId}. Another user has
+          made changes while you were editing. Please choose which version to keep.
         </Alert>
 
         <Box>
@@ -249,25 +258,26 @@ export function ConflictResolutionDialog({
           <>
             <Divider />
             <Grid container spacing={2}>
-              <Grid size={{xs: 12, sm: 6}}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Box
                   sx={{
                     p: 2,
                     border: `2px solid ${chosenVersion === 'current' ? 'primary.main' : 'divider'}`,
                     borderRadius: 1,
-                    backgroundColor: chosenVersion === 'current' ? 'action.selected' : 'background.paper',
+                    backgroundColor:
+                      chosenVersion === 'current' ? 'action.selected' : 'background.paper',
                     cursor: 'pointer',
                   }}
                   onClick={() => setChosenVersion('current')}
                 >
-                  <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 2}}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="medium">
                       Current Version
                     </Typography>
                     <Chip label={`v${conflict.currentVersion}`} size="small" color="primary" />
                     {chosenVersion === 'current' ? <CheckCircle color="primary" /> : null}
                   </Box>
-                  <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {fieldDifferences.map((diff) => (
                       <Box key={diff.field}>
                         <Typography variant="caption" color="text.secondary">
@@ -279,25 +289,26 @@ export function ConflictResolutionDialog({
                   </Box>
                 </Box>
               </Grid>
-              <Grid size={{xs: 12, sm: 6}}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Box
                   sx={{
                     p: 2,
                     border: `2px solid ${chosenVersion === 'incoming' ? 'primary.main' : 'divider'}`,
                     borderRadius: 1,
-                    backgroundColor: chosenVersion === 'incoming' ? 'action.selected' : 'background.paper',
+                    backgroundColor:
+                      chosenVersion === 'incoming' ? 'action.selected' : 'background.paper',
                     cursor: 'pointer',
                   }}
                   onClick={() => setChosenVersion('incoming')}
                 >
-                  <Box sx={{display: 'flex', alignItems: 'center', gap: 1, mb: 2}}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="medium">
                       Incoming Version
                     </Typography>
                     <Chip label={`v${conflict.incomingVersion}`} size="small" />
                     {chosenVersion === 'incoming' ? <CheckCircle color="primary" /> : null}
                   </Box>
-                  <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {fieldDifferences.map((diff) => (
                       <Box key={diff.field}>
                         <Typography variant="caption" color="text.secondary">
