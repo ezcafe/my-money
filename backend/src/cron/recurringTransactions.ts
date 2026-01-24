@@ -62,6 +62,9 @@ async function processRecurringTransaction(
     const balanceDelta =
       category?.categoryType === 'Income' ? recurring.value : -recurring.value;
 
+    // Calculate next run date based on cron expression
+    const nextRunDate = calculateNextRunDate(cronExpression, currentTime);
+
     // Retry the operation with exponential backoff
     await retry(
       async () => {
@@ -121,10 +124,10 @@ async function processRecurringTransaction(
             tx
           );
 
-          // Calculate next run date based on cron expression
-          const nextRunDate = calculateNextRunDate(cronExpression, currentTime);
+    // Calculate next run date based on cron expression
+    // const nextRunDate = calculateNextRunDate(cronExpression, currentTime);
 
-          // Update next run date
+    // Update next run date
           await tx.recurringTransaction.update({
             where: { id: recurring.id },
             data: { nextRunDate },
@@ -143,11 +146,11 @@ async function processRecurringTransaction(
       }
     );
 
-    const nextRunDate = calculateNextRunDate(cronExpression, currentTime);
+    const nextRunDateFinal = calculateNextRunDate(cronExpression, currentTime);
 
     logInfo('Recurring transactions - successfully processed transaction', {
       ...context,
-      nextRunDate: nextRunDate.toISOString(),
+      nextRunDate: nextRunDateFinal.toISOString(),
     });
 
     return true;
@@ -228,6 +231,7 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
       );
 
       // If there are missed runs, this transaction should be processed
+      // Also check if the nextRunDate is in the past (historical missed run that wasn't updated)
       return missedRuns.length > 0 || rt.nextRunDate <= cutoffTime;
     });
   } else {

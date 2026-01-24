@@ -452,11 +452,17 @@ export function TransactionAddPage(): React.JSX.Element {
             <>
               <FormControl fullWidth>
                 <InputLabel>Recurring Type</InputLabel>
-                <Select
-                  value={recurringType}
-                  onChange={(e) => setRecurringType(e.target.value as RecurringType)}
-                  label="Recurring Type"
-                >
+                  <Select
+                    value={recurringType}
+                    onChange={(e) => {
+                      const newType = e.target.value as RecurringType;
+                      setRecurringType(newType);
+                      if (newType === 'minutely') {
+                        setNextRunDate(dayjs().add(1, 'minute'));
+                      }
+                    }}
+                    label="Recurring Type"
+                  >
                   {recurringTypeOptions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
