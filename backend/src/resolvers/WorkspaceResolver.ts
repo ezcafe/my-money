@@ -137,10 +137,10 @@ export class WorkspaceResolver {
    */
   async createWorkspace(
     _: unknown,
-    { name }: { name: string },
+    { input }: { input: { name: string } },
     context: GraphQLContext
   ): Promise<Workspace> {
-    const sanitizedName = sanitizeUserInput(name);
+    const sanitizedName = sanitizeUserInput(input.name);
 
     if (!sanitizedName || sanitizedName.trim().length === 0) {
       throw new Error('Workspace name is required');
@@ -178,15 +178,15 @@ export class WorkspaceResolver {
    */
   async updateWorkspace(
     _: unknown,
-    { id, name }: { id: string; name?: string },
+    { id, input }: { id: string; input: { name?: string } },
     context: GraphQLContext
   ): Promise<Workspace> {
     // Verify user has admin/owner permission
     await checkWorkspacePermission(id, context.userId, 'Admin');
 
     const updateData: { name?: string } = {};
-    if (name !== undefined) {
-      const sanitizedName = sanitizeUserInput(name);
+    if (input.name !== undefined) {
+      const sanitizedName = sanitizeUserInput(input.name);
       if (!sanitizedName || sanitizedName.trim().length === 0) {
         throw new Error('Workspace name cannot be empty');
       }

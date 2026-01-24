@@ -6,7 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Box,
   List,
   ListItemButton,
   ListItemText,
@@ -17,14 +16,11 @@ import {
 } from '@mui/material';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { Workspaces, Add, People, Login } from '@mui/icons-material';
-import { GET_WORKSPACES, CREATE_WORKSPACE, DELETE_WORKSPACE } from '../graphql/workspaceOperations';
+import { GET_WORKSPACES, DELETE_WORKSPACE } from '../graphql/workspaceOperations';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { EmptyState } from '../components/common/EmptyState';
 import { Card } from '../components/ui/Card';
-import { Dialog } from '../components/ui/Dialog';
-import { Button } from '../components/ui/Button';
-import { TextField } from '../components/ui/TextField';
 import { PageContainer } from '../components/common/PageContainer';
 import { DeleteConfirmDialog } from '../components/common/DeleteConfirmDialog';
 import { useHeader } from '../contexts/HeaderContext';
@@ -37,8 +33,6 @@ export function WorkspacesPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { setTitle, setActionButton } = useHeader();
   const { isAuthenticated } = useAuth();
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
 
@@ -47,14 +41,14 @@ export function WorkspacesPage(): React.JSX.Element {
     setActionButton({
       icon: <Add />,
       onClick: () => {
-        setCreateDialogOpen(true);
+        void navigate('/workspaces/add');
       },
       ariaLabel: 'Create Workspace',
     });
     return () => {
       setActionButton(undefined);
     };
-  }, [setTitle, setActionButton]);
+  }, [setTitle, setActionButton, navigate]);
 
   const { data, loading, error, refetch } = useQuery<{
     workspaces: Array<{
@@ -72,14 +66,6 @@ export function WorkspacesPage(): React.JSX.Element {
     skip: isAuthenticated !== true, // Skip query if not authenticated
   });
 
-  const [createWorkspace, { loading: creating }] = useMutation(CREATE_WORKSPACE, {
-    refetchQueries: ['GetWorkspaces'],
-    onCompleted: () => {
-      setCreateDialogOpen(false);
-      setWorkspaceName('');
-    },
-  });
-
   const [deleteWorkspace, { loading: deleting }] = useMutation(DELETE_WORKSPACE, {
     refetchQueries: ['GetWorkspaces'],
     onCompleted: () => {
@@ -89,22 +75,6 @@ export function WorkspacesPage(): React.JSX.Element {
   });
 
   const workspaces = data?.workspaces ?? [];
-
-  const handleCreateWorkspace = async (): Promise<void> => {
-    if (!workspaceName.trim()) {
-      return;
-    }
-
-    try {
-      await createWorkspace({
-        variables: {
-          name: workspaceName.trim(),
-        },
-      });
-    } catch {
-      // Error handled by mutation
-    }
-  };
 
   const handleDeleteWorkspace = async (): Promise<void> => {
     if (workspaceToDelete) {
@@ -156,7 +126,7 @@ export function WorkspacesPage(): React.JSX.Element {
                   }}
                   sx={{
                     py: 1.5,
-                    px: 2,
+                    px: 3,
                     transition: 'background-color 0.2s ease',
                     '&:hover': {
                       backgroundColor: 'action.hover',
@@ -203,43 +173,6 @@ export function WorkspacesPage(): React.JSX.Element {
           </List>
         </Card>
       )}
-
-      <Dialog
-        open={createDialogOpen}
-        onClose={() => {
-          setCreateDialogOpen(false);
-          setWorkspaceName('');
-        }}
-        title="Create Workspace"
-        actions={
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              onClick={() => {
-                setCreateDialogOpen(false);
-                setWorkspaceName('');
-              }}
-              disabled={creating}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleCreateWorkspace} disabled={creating || !workspaceName.trim()}>
-              {creating ? 'Creating...' : 'Create'}
-            </Button>
-          </Box>
-        }
-      >
-        <TextField
-          label="Workspace Name"
-          value={workspaceName}
-          onChange={(e) => {
-            setWorkspaceName(e.target.value);
-          }}
-          fullWidth
-          required
-          autoFocus
-          placeholder="Enter workspace name"
-        />
-      </Dialog>
 
       <DeleteConfirmDialog
         open={deleteDialogOpen}

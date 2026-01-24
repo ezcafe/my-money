@@ -162,8 +162,8 @@ export const GET_INVITATION_BY_TOKEN = gql`
  * Create a new workspace
  */
 export const CREATE_WORKSPACE = gql`
-  mutation CreateWorkspace($name: String!) {
-    createWorkspace(name: $name) {
+  mutation CreateWorkspace($input: CreateWorkspaceInput!) {
+    createWorkspace(input: $input) {
       id
       name
       createdAt
@@ -176,8 +176,8 @@ export const CREATE_WORKSPACE = gql`
  * Update workspace
  */
 export const UPDATE_WORKSPACE = gql`
-  mutation UpdateWorkspace($id: ID!, $name: String) {
-    updateWorkspace(id: $id, name: $name) {
+  mutation UpdateWorkspace($id: ID!, $input: UpdateWorkspaceInput!) {
+    updateWorkspace(id: $id, input: $input) {
       id
       name
       updatedAt

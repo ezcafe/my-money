@@ -511,7 +511,7 @@ export const resolvers = {
     ) =>
       workspaceResolver.createWorkspace(
         parent,
-        args as { name: string },
+        args as { input: { name: string } },
         context
       ),
     updateWorkspace: (
@@ -521,7 +521,7 @@ export const resolvers = {
     ) =>
       workspaceResolver.updateWorkspace(
         parent,
-        args as { id: string; name?: string },
+        args as { id: string; input: { name?: string } },
         context
       ),
     deleteWorkspace: (

@@ -371,12 +371,12 @@ type Mutation {
   """
   Create a new workspace
   """
-  createWorkspace(name: String!): Workspace!
+  createWorkspace(input: CreateWorkspaceInput!): Workspace!
 
   """
   Update workspace
   """
-  updateWorkspace(id: ID!, name: String): Workspace!
+  updateWorkspace(id: ID!, input: UpdateWorkspaceInput!): Workspace!
 
   """
   Delete workspace (Owner only)
@@ -850,6 +850,14 @@ input CreateBudgetInput {
 input UpdateBudgetInput {
   amount: Decimal
   expectedVersion: Int
+}
+
+input CreateWorkspaceInput {
+  name: String!
+}
+
+input UpdateWorkspaceInput {
+  name: String
 }
 
 """

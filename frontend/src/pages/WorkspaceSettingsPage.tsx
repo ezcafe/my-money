@@ -321,7 +321,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                       <ListItem
                         sx={{
                           py: 1.5,
-                          px: 2,
+                          px: 3,
                           transition: 'background-color 0.2s ease',
                           '&:hover': {
                             backgroundColor: 'action.hover',
@@ -417,7 +417,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                       <ListItem
                         sx={{
                           py: 1.5,
-                          px: 2,
+                          px: 3,
                           transition: 'background-color 0.2s ease',
                           '&:hover': {
                             backgroundColor: 'action.hover',

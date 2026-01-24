@@ -55,6 +55,9 @@ const ImportPage = lazy(() =>
 const WorkspacesPage = lazy(() =>
   import('./pages/WorkspacesPage').then((m) => ({ default: m.WorkspacesPage }))
 );
+const WorkspaceEditPage = lazy(() =>
+  import('./pages/WorkspaceEditPage').then((m) => ({ default: m.WorkspaceEditPage }))
+);
 const WorkspaceSettingsPage = lazy(() =>
   import('./pages/WorkspaceSettingsPage').then((m) => ({ default: m.WorkspaceSettingsPage }))
 );
@@ -304,6 +307,16 @@ function App(): React.JSX.Element {
                             <ProtectedRouteWithErrorBoundary>
                               <Layout title="Workspaces" hideSearch>
                                 <WorkspacesPage />
+                              </Layout>
+                            </ProtectedRouteWithErrorBoundary>
+                          }
+                        />
+                        <Route
+                          path="/workspaces/add"
+                          element={
+                            <ProtectedRouteWithErrorBoundary>
+                              <Layout hideSearch>
+                                <WorkspaceEditPage />
                               </Layout>
                             </ProtectedRouteWithErrorBoundary>
                           }

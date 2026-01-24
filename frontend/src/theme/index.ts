@@ -185,10 +185,20 @@ export function createAppTheme(
           },
         },
       },
+      MuiListItem: {
+        styleOverrides: {
+          root: {
+            paddingLeft: '12px',
+            paddingRight: '12px',
+          },
+        },
+      },
       MuiListItemButton: {
         styleOverrides: {
           root: {
             borderRadius: parseFloat(m3Shape.small), // 8px for list items
+            paddingLeft: '12px',
+            paddingRight: '12px',
             transition: 'background-color 0.2s ease, transform 0.1s ease',
             '&:hover': {
               backgroundColor: palette.surfaceVariant,

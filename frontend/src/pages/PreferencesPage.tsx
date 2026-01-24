@@ -887,7 +887,7 @@ export function PreferencesPage(): React.JSX.Element {
                 onClick={item.onClick}
                 sx={{
                   py: 1.5,
-                  px: 2,
+                  px: 3,
                   transition: 'background-color 0.2s ease',
                   '&:hover': {
                     backgroundColor: 'action.hover',
@@ -924,7 +924,7 @@ export function PreferencesPage(): React.JSX.Element {
               disabled={importing}
               sx={{
                 py: 1.5,
-                px: 2,
+                px: 3,
                 transition: 'background-color 0.2s ease',
                 '&:hover': {
                   backgroundColor: 'action.hover',
@@ -960,7 +960,7 @@ export function PreferencesPage(): React.JSX.Element {
             disabled={exporting}
             sx={{
               py: 1.5,
-              px: 2,
+              px: 3,
               transition: 'background-color 0.2s ease',
               '&:hover': {
                 backgroundColor: 'action.hover',
@@ -1164,7 +1164,7 @@ export function PreferencesPage(): React.JSX.Element {
             disabled={addingExampleData}
             sx={{
               py: 1.5,
-              px: 2,
+              px: 3,
               color: 'primary.main',
               transition: 'background-color 0.2s ease',
               '&:hover': {
@@ -1187,7 +1187,7 @@ export function PreferencesPage(): React.JSX.Element {
             onClick={handleResetDataClick}
             sx={{
               py: 1.5,
-              px: 2,
+              px: 3,
               color: 'error.main',
               transition: 'background-color 0.2s ease',
               '&:hover': {
@@ -1206,7 +1206,7 @@ export function PreferencesPage(): React.JSX.Element {
             onClick={handleLogout}
             sx={{
               py: 1.5,
-              px: 2,
+              px: 3,
               color: 'error.main',
               transition: 'background-color 0.2s ease',
               '&:hover': {

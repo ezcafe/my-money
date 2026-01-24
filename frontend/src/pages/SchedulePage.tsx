@@ -130,7 +130,7 @@ export function SchedulePage(): React.JSX.Element {
             return (
               <React.Fragment key={transaction.id}>
                 {index > 0 && <Divider />}
-                <ListItem sx={{ py: 1.5, px: 2 }}>
+                <ListItem sx={{ py: 1.5, px: 3 }}>
                   <Stack
                     direction="row"
                     justifyContent="space-between"

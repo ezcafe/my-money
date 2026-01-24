@@ -79,7 +79,7 @@ const HistoryListComponent = ({
                 {dateIndex > 0 && <Divider />}
                 <Box
                   sx={{
-                    px: 2,
+                    px: 3,
                     py: 1,
                     backgroundColor: 'background.default',
                     zIndex: 1,
@@ -105,7 +105,7 @@ const HistoryListComponent = ({
                       onClick={() => onTransactionClick?.(transaction)}
                       sx={{
                         py: 1.5,
-                        px: 2,
+                        px: 3,
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',

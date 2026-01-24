@@ -133,7 +133,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                   {groupIndex > 0 && <Divider />}
                   <Box
                     sx={{
-                      px: 2,
+                      px: 3,
                       py: 1,
                       backgroundColor: 'background.default',
                       zIndex: 1,
@@ -175,7 +175,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                         }}
                         sx={{
                           py: 1.5,
-                          px: 2,
+                          px: 3,
                           transition: 'background-color 0.2s ease',
                           '&:hover': {
                             backgroundColor: 'action.hover',

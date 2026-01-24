@@ -252,7 +252,7 @@ export function FloatingSearchBox(): React.JSX.Element | null {
                 {searchHistory.length > 0 && inputValue.trim() === '' ? (
                   <>
                     <ListItem>
-                      <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 1 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ px: 3, py: 1 }}>
                         Recent searches
                       </Typography>
                     </ListItem>
