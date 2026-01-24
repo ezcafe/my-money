@@ -71,6 +71,17 @@ export function createSubscriptionServer(
           create: {
             oidcSubject: userInfo.sub,
             email: userInfo.email ?? '',
+            // Atomically create the default workspace for WebSocket connections too.
+            workspaceMembers: {
+              create: {
+                role: 'Owner',
+                workspace: {
+                  create: {
+                    name: 'My Workspace',
+                  },
+                },
+              },
+            },
           },
         });
 

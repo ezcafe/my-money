@@ -9,7 +9,6 @@ import {
   Box,
   Typography,
   List,
-  ListItem,
   ListItemButton,
   ListItemText,
   Divider,
@@ -238,16 +237,19 @@ export function BudgetsPage(): React.JSX.Element {
             return (
               <React.Fragment key={safeBudget.id}>
                 {index > 0 && <Divider />}
-                <ListItem disablePadding>
-                  <ListItemButton
-                    onClick={() => {
-                      void navigate(`/budgets/${safeBudget.id}`);
-                    }}
-                    sx={{
-                      py: 1.5,
-                      px: 2,
-                    }}
-                  >
+                <ListItemButton
+                  onClick={() => {
+                    void navigate(`/budgets/${safeBudget.id}`);
+                  }}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    transition: 'background-color 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
+                >
                     <ListItemText
                       primary={
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
@@ -281,8 +283,7 @@ export function BudgetsPage(): React.JSX.Element {
                         </Box>
                       }
                     />
-                  </ListItemButton>
-                </ListItem>
+                </ListItemButton>
               </React.Fragment>
             );
           })}

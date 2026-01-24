@@ -15,6 +15,7 @@ import {
 import { GET_RECENT_TRANSACTIONS, GET_TRANSACTIONS } from '../graphql/queries';
 import { GET_WORKSPACES } from '../graphql/workspaceOperations';
 import { MAX_RECENT_TRANSACTIONS } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
 import { PageContainer } from '../components/common/PageContainer';
 import { ImportUpload } from '../components/import/ImportUpload';
 import { ImportMappingTable } from '../components/import/ImportMappingTable';
@@ -28,6 +29,7 @@ import { usePayees } from '../hooks/usePayees';
  * Import Page Component
  */
 export function ImportPage(): React.JSX.Element {
+  const { isAuthenticated } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -58,6 +60,7 @@ export function ImportPage(): React.JSX.Element {
     }>;
   }>(GET_WORKSPACES, {
     fetchPolicy: 'cache-and-network',
+    skip: isAuthenticated !== true, // Skip query if not authenticated
   });
 
   const workspaces = workspacesData?.workspaces ?? [];

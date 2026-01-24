@@ -79,6 +79,12 @@ const httpLink = new BatchHttpLink({
   fetch: fetchWithTimeout,
   // Include credentials (cookies) with all requests
   credentials: 'include',
+  // Add headers dynamically
+  headers: {
+    get 'X-Workspace-Id'() {
+      return localStorage.getItem('active_workspace_id') ?? '';
+    },
+  },
   // Batch configuration
   batchMax: 10, // Maximum 10 operations per batch
   batchInterval: 10, // Wait up to 10ms to collect operations
@@ -92,7 +98,11 @@ const wsLink = new GraphQLWsLink(
     // Include credentials (cookies) with WebSocket connection
     connectionParams: () => {
       // Cookies are automatically included by the browser
-      return {};
+      // Add workspace ID to connection params
+      const workspaceId = localStorage.getItem('active_workspace_id');
+      return {
+        ...(workspaceId ? { 'X-Workspace-Id': workspaceId } : {}),
+      };
     },
     // Reconnect on connection loss
     shouldRetry: () => true,

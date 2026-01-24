@@ -99,7 +99,6 @@ export const GET_WORKSPACES = gql`
       _count {
         members
         accounts
-        transactions
       }
     }
   }
@@ -118,7 +117,6 @@ export const GET_WORKSPACE = gql`
       _count {
         members
         accounts
-        transactions
       }
     }
   }

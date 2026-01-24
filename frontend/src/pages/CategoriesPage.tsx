@@ -134,7 +134,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                   <Box
                     sx={{
                       px: 2,
-                      py: 1.5,
+                      py: 1,
                       backgroundColor: 'background.default',
                       zIndex: 1,
                       display: 'flex',

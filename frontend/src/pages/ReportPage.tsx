@@ -20,6 +20,7 @@ import {
 } from '../graphql/queries';
 import { GET_WORKSPACES, GET_WORKSPACE_MEMBERS } from '../graphql/workspaceOperations';
 import { DELETE_TRANSACTION } from '../graphql/mutations';
+import { useAuth } from '../contexts/AuthContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDateFormat } from '../hooks/useDateFormat';
 import { useReportFilters } from '../hooks/useReportFilters';
@@ -53,6 +54,7 @@ interface ReportData {
  */
 export function ReportPage(): React.JSX.Element {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
     GET_PREFERENCES
   );
@@ -84,6 +86,7 @@ export function ReportPage(): React.JSX.Element {
     }>;
   }>(GET_WORKSPACES, {
     fetchPolicy: 'cache-and-network',
+    skip: isAuthenticated !== true, // Skip query if not authenticated
   });
 
   const workspaces = useMemo(() => workspacesData?.workspaces ?? [], [workspacesData?.workspaces]);

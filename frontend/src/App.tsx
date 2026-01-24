@@ -13,7 +13,9 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Layout } from './components/common/Layout';
 import { ProtectedRouteWithErrorBoundary } from './components/common/ProtectedRouteWithErrorBoundary';
 import { SearchProvider } from './contexts/SearchContext';
-import { TitleProvider } from './contexts/TitleContext';
+import { HeaderProvider } from './contexts/HeaderContext';
+import { WorkspaceProvider } from './contexts/WorkspaceContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { client } from './graphql/client';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
@@ -50,6 +52,15 @@ const ReportPage = lazy(() =>
 const ImportPage = lazy(() =>
   import('./pages/ImportPage').then((m) => ({ default: m.ImportPage }))
 );
+const WorkspacesPage = lazy(() =>
+  import('./pages/WorkspacesPage').then((m) => ({ default: m.WorkspacesPage }))
+);
+const WorkspaceSettingsPage = lazy(() =>
+  import('./pages/WorkspaceSettingsPage').then((m) => ({ default: m.WorkspaceSettingsPage }))
+);
+const WorkspaceLoaderPage = lazy(() =>
+  import('./pages/WorkspaceLoaderPage').then((m) => ({ default: m.WorkspaceLoaderPage }))
+);
 const PreferencesPage = lazy(() =>
   import('./pages/PreferencesPage').then((m) => ({ default: m.PreferencesPage }))
 );
@@ -75,9 +86,11 @@ function App(): React.JSX.Element {
         <ThemeProvider>
           <NotificationProvider>
             <DateFormatProvider>
+              <AuthProvider>
               <SearchProvider>
-                <TitleProvider>
-                  <BrowserRouter>
+                  <WorkspaceProvider>
+                    <HeaderProvider>
+                      <BrowserRouter>
                     <Suspense fallback={<LoadingSpinner message="Loading..." />}>
                       <Routes>
                         {/* Public routes - no authentication required */}
@@ -286,6 +299,34 @@ function App(): React.JSX.Element {
                           }
                         />
                         <Route
+                          path="/workspaces"
+                          element={
+                            <ProtectedRouteWithErrorBoundary>
+                              <Layout title="Workspaces" hideSearch>
+                                <WorkspacesPage />
+                              </Layout>
+                            </ProtectedRouteWithErrorBoundary>
+                          }
+                        />
+                        <Route
+                          path="/workspaces/:id"
+                          element={
+                            <ProtectedRouteWithErrorBoundary>
+                              <WorkspaceLoaderPage />
+                            </ProtectedRouteWithErrorBoundary>
+                          }
+                        />
+                        <Route
+                          path="/workspaces/:id/settings"
+                          element={
+                            <ProtectedRouteWithErrorBoundary>
+                              <Layout title="Workspace Settings" hideSearch>
+                                <WorkspaceSettingsPage />
+                              </Layout>
+                            </ProtectedRouteWithErrorBoundary>
+                          }
+                        />
+                        <Route
                           path="/preferences"
                           element={
                             <ProtectedRouteWithErrorBoundary>
@@ -297,16 +338,18 @@ function App(): React.JSX.Element {
                         />
                         <Route path="*" element={<Navigate to="/" replace />} />
                       </Routes>
-                    </Suspense>
-                    <OfflineIndicator />
-                  </BrowserRouter>
-                </TitleProvider>
+                      </Suspense>
+                      <OfflineIndicator />
+                    </BrowserRouter>
+                  </HeaderProvider>
+                </WorkspaceProvider>
               </SearchProvider>
+              </AuthProvider>
             </DateFormatProvider>
           </NotificationProvider>
-        </ThemeProvider>
-      </ApolloProvider>
-    </ErrorBoundary>
+      </ThemeProvider>
+    </ApolloProvider>
+  </ErrorBoundary>
   );
 }
 

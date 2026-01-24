@@ -18,7 +18,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { CREATE_BUDGET } from '../graphql/mutations';
 import { GET_BUDGETS, GET_ACCOUNTS, GET_CATEGORIES, GET_PAYEES } from '../graphql/queries';
-import { useTitle } from '../contexts/TitleContext';
+import { useHeader } from '../contexts/HeaderContext';
 import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
@@ -35,7 +35,7 @@ export function BudgetAddPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo') ?? '/budgets';
-  const { setTitle } = useTitle();
+  const { setTitle } = useHeader();
 
   const { data: accountsData } = useQuery<{
     accounts: Array<{ id: string; name: string; accountType: string }>;

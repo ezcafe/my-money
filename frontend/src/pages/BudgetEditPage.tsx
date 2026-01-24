@@ -13,7 +13,7 @@ import { UPDATE_BUDGET } from '../graphql/mutations';
 import { GET_BUDGET } from '../graphql/queries';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
-import { useTitle } from '../contexts/TitleContext';
+import { useHeader } from '../contexts/HeaderContext';
 import { PageContainer } from '../components/common/PageContainer';
 
 /**
@@ -50,7 +50,7 @@ export function BudgetEditPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo') ?? '/budgets';
-  const { setTitle } = useTitle();
+  const { setTitle } = useHeader();
 
   const {
     data: budgetData,

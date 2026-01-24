@@ -15,7 +15,7 @@ import { Card } from '../ui/Card';
 import { TextField } from '../ui/TextField';
 import { LoadingSpinner } from './LoadingSpinner';
 import { ErrorAlert } from './ErrorAlert';
-import { useTitle } from '../../contexts/TitleContext';
+import { useHeader } from '../../contexts/HeaderContext';
 import { validateReturnUrl } from '../../utils/validation';
 import { PageContainer } from './PageContainer';
 
@@ -97,7 +97,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = validateReturnUrl(searchParams.get('returnTo'), config.defaultReturnUrl);
-  const { setTitle } = useTitle();
+  const { setTitle } = useHeader();
   const client = useApolloClient();
   const isEditMode = Boolean(id);
 

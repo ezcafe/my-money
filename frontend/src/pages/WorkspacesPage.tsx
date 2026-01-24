@@ -3,11 +3,10 @@
  * Lists all workspaces the user belongs to and allows creating new ones
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Box,
-  Typography,
   List,
   ListItemButton,
   ListItemText,
@@ -17,7 +16,7 @@ import {
   IconButton,
 } from '@mui/material';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { Workspaces, Add, Settings, People } from '@mui/icons-material';
+import { Workspaces, Add, People, Login } from '@mui/icons-material';
 import { GET_WORKSPACES, CREATE_WORKSPACE, DELETE_WORKSPACE } from '../graphql/workspaceOperations';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
@@ -28,16 +27,34 @@ import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { PageContainer } from '../components/common/PageContainer';
 import { DeleteConfirmDialog } from '../components/common/DeleteConfirmDialog';
+import { useHeader } from '../contexts/HeaderContext';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Workspaces Page Component
  */
 export function WorkspacesPage(): React.JSX.Element {
   const navigate = useNavigate();
+  const { setTitle, setActionButton } = useHeader();
+  const { isAuthenticated } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTitle('Workspaces');
+    setActionButton({
+      icon: <Add />,
+      onClick: () => {
+        setCreateDialogOpen(true);
+      },
+      ariaLabel: 'Create Workspace',
+    });
+    return () => {
+      setActionButton(undefined);
+    };
+  }, [setTitle, setActionButton]);
 
   const { data, loading, error, refetch } = useQuery<{
     workspaces: Array<{
@@ -48,11 +65,11 @@ export function WorkspacesPage(): React.JSX.Element {
       _count: {
         members: number;
         accounts: number;
-        transactions: number;
       };
     }>;
   }>(GET_WORKSPACES, {
     fetchPolicy: 'cache-and-network',
+    skip: isAuthenticated !== true, // Skip query if not authenticated
   });
 
   const [createWorkspace, { loading: creating }] = useMutation(CREATE_WORKSPACE, {
@@ -121,20 +138,6 @@ export function WorkspacesPage(): React.JSX.Element {
 
   return (
     <PageContainer>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Workspaces
-        </Typography>
-        <Button
-          startIcon={<Add />}
-          onClick={() => {
-            setCreateDialogOpen(true);
-          }}
-        >
-          Create Workspace
-        </Button>
-      </Box>
-
       {workspaces.length === 0 ? (
         <EmptyState
           icon={<Workspaces />}
@@ -149,10 +152,10 @@ export function WorkspacesPage(): React.JSX.Element {
                 {index > 0 && <Divider />}
                 <ListItemButton
                   onClick={() => {
-                    void navigate(`/workspaces/${workspace.id}`);
+                    void navigate(`/workspaces/${workspace.id}/settings`);
                   }}
                   sx={{
-                    py: 2,
+                    py: 1.5,
                     px: 2,
                     transition: 'background-color 0.2s ease',
                     '&:hover': {
@@ -175,11 +178,6 @@ export function WorkspacesPage(): React.JSX.Element {
                           size="small"
                           variant="outlined"
                         />
-                        <Chip
-                          label={`${workspace._count.transactions} transaction${workspace._count.transactions !== 1 ? 's' : ''}`}
-                          size="small"
-                          variant="outlined"
-                        />
                       </Stack>
                     }
                     primaryTypographyProps={{
@@ -192,10 +190,11 @@ export function WorkspacesPage(): React.JSX.Element {
                       size="small"
                       onClick={(e) => {
                         e.stopPropagation();
-                        void navigate(`/workspaces/${workspace.id}/settings`);
+                        void navigate(`/workspaces/${workspace.id}`);
                       }}
+                      title="Load Workspace"
                     >
-                      <Settings />
+                      <Login />
                     </IconButton>
                   </Stack>
                 </ListItemButton>

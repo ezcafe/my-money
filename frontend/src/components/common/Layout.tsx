@@ -8,24 +8,18 @@ import { Box, AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Stack } f
 import { ArrowBack, Search as SearchIcon, MoreVert, Edit, Delete } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router';
 import { useSearch } from '../../contexts/SearchContext';
-import { useTitle } from '../../contexts/TitleContext';
+import { useHeader, type ActionButton, type ContextMenu } from '../../contexts/HeaderContext';
 import { FloatingSearchBox } from '../FloatingSearchBox';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { WorkspaceSelector } from '../WorkspaceSelector';
+import { WorkspaceSwitchButton } from '../WorkspaceSwitchButton';
 
 export interface LayoutProps {
   children: React.ReactNode;
   title?: string;
   hideSearch?: boolean;
-  actionButton?: {
-    icon: React.ReactNode;
-    onClick: () => void;
-    ariaLabel: string;
-  };
-  contextMenu?: {
-    onEdit?: () => void;
-    onDelete: () => void;
-    disableDelete?: boolean;
-  };
+  actionButton?: ActionButton;
+  contextMenu?: ContextMenu;
 }
 
 /**
@@ -43,11 +37,13 @@ function LayoutComponent({
   const location = useLocation();
   const isHomePage = location.pathname === '/';
   const { openSearch, closeSearch, isSearchOpen } = useSearch();
-  const { title: contextTitle } = useTitle();
+  const { title: contextTitle, actionButton: contextActionButton, contextMenu: contextContextMenu } = useHeader();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
-  // Use context title if available, otherwise fall back to prop title
+  // Use context values if available, otherwise fall back to prop values
   const displayTitle = contextTitle ?? title;
+  const displayActionButton = contextActionButton ?? actionButton;
+  const displayContextMenu = contextContextMenu ?? contextMenu;
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -108,21 +104,21 @@ function LayoutComponent({
    * Handle edit from context menu
    */
   const handleEdit = useCallback(() => {
-    if (contextMenu?.onEdit) {
-      contextMenu.onEdit();
+    if (displayContextMenu?.onEdit) {
+      displayContextMenu.onEdit();
       handleContextMenuClose();
     }
-  }, [contextMenu, handleContextMenuClose]);
+  }, [displayContextMenu, handleContextMenuClose]);
 
   /**
    * Handle delete from context menu
    */
   const handleDelete = useCallback(() => {
-    if (contextMenu) {
-      contextMenu.onDelete();
+    if (displayContextMenu) {
+      displayContextMenu.onDelete();
       handleContextMenuClose();
     }
-  }, [contextMenu, handleContextMenuClose]);
+  }, [displayContextMenu, handleContextMenuClose]);
 
   return (
     <Stack direction="column" sx={{ height: '100vh', overflow: 'hidden' }}>
@@ -155,6 +151,9 @@ function LayoutComponent({
               </Typography>
             ) : null}
             {!displayTitle && <Box sx={{ flexGrow: 1 }} />}
+            <Box sx={{ minWidth: 200, mr: 2, display: { xs: 'none', md: 'block' } }}>
+              <WorkspaceSelector />
+            </Box>
             {!hideSearch && (
               <IconButton
                 edge="end"
@@ -169,7 +168,7 @@ function LayoutComponent({
                 <SearchIcon />
               </IconButton>
             )}
-            {contextMenu ? (
+            {displayContextMenu ? (
               <IconButton
                 edge="end"
                 color="inherit"
@@ -183,33 +182,33 @@ function LayoutComponent({
                 <MoreVert />
               </IconButton>
             ) : null}
-            {!contextMenu && actionButton ? (
+            {!displayContextMenu && displayActionButton ? (
               <IconButton
                 edge="end"
                 color="inherit"
-                onClick={actionButton.onClick}
-                aria-label={actionButton.ariaLabel}
+                onClick={displayActionButton.onClick}
+                aria-label={displayActionButton.ariaLabel}
                 sx={{
                   minWidth: { xs: 44, sm: 40 },
                   minHeight: { xs: 44, sm: 40 },
                 }}
               >
-                {actionButton.icon}
+                {displayActionButton.icon}
               </IconButton>
             ) : null}
           </Toolbar>
         </AppBar>
       )}
-      {contextMenu ? (
+      {displayContextMenu ? (
         <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleContextMenuClose}>
-          {contextMenu.onEdit ? (
+          {displayContextMenu.onEdit ? (
             <MenuItem onClick={handleEdit}>
               <Edit fontSize="small" />
               <Box component="span" sx={{ ml: 1 }} />
               Edit
             </MenuItem>
           ) : null}
-          <MenuItem onClick={handleDelete} disabled={contextMenu.disableDelete}>
+          <MenuItem onClick={handleDelete} disabled={displayContextMenu.disableDelete}>
             <Delete fontSize="small" />
             <Box component="span" sx={{ ml: 1 }} />
             Delete
@@ -240,6 +239,7 @@ function LayoutComponent({
         {children}
       </Box>
       <FloatingSearchBox />
+      {isHomePage ? <WorkspaceSwitchButton /> : null}
     </Stack>
   );
 }

@@ -949,6 +949,12 @@ type Workspace {
   updatedAt: DateTime!
   members: [WorkspaceMember!]!
   invitations: [WorkspaceInvitation!]!
+  _count: WorkspaceCount
+}
+
+type WorkspaceCount {
+  members: Int!
+  accounts: Int!
 }
 
 type WorkspaceMember {

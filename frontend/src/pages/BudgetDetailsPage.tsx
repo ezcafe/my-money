@@ -21,7 +21,7 @@ import {
   GET_BUDGET,
 } from '../graphql/queries';
 import { useSearch } from '../contexts/SearchContext';
-import { useTitle } from '../contexts/TitleContext';
+import { useHeader } from '../contexts/HeaderContext';
 import { TransactionList } from '../components/TransactionList';
 import { PageContainer } from '../components/common/PageContainer';
 import { VersionHistoryPanel } from '../components/VersionHistoryPanel';
@@ -47,7 +47,7 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   const isSearchMode = Boolean(searchQuery);
 
   // Title state
-  const { setTitle } = useTitle();
+  const { setTitle } = useHeader();
 
   // Get currency preference
   const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(

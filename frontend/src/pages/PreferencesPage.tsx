@@ -11,7 +11,6 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   List,
-  ListItem,
   ListItemButton,
   ListItemText,
   Divider,
@@ -49,7 +48,9 @@ import {
 } from '../graphql/queries';
 import { UPDATE_PREFERENCES, IMPORT_CSV, RESET_DATA, ADD_EXAMPLE_DATA } from '../graphql/mutations';
 import { GET_WORKSPACES, GET_WORKSPACE_MEMBERS } from '../graphql/workspaceOperations';
+import { useAuth } from '../contexts/AuthContext';
 import {
+  Workspaces,
   AccountBalance,
   Category,
   Person,
@@ -233,6 +234,7 @@ function HelpIcon({ helpText }: { helpText: string }): React.JSX.Element {
  */
 export function PreferencesPage(): React.JSX.Element {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { showSuccessNotification, showErrorNotification } = useNotifications();
   const { data: preferencesData, loading: preferencesLoading } = useQuery<{
     preferences?: { currency: string; useThousandSeparator: boolean; dateFormat: string | null };
@@ -288,6 +290,7 @@ export function PreferencesPage(): React.JSX.Element {
     }>;
   }>(GET_WORKSPACES, {
     fetchPolicy: 'cache-and-network',
+    skip: isAuthenticated !== true, // Skip query if not authenticated
   });
 
   const workspaces = React.useMemo(
@@ -828,69 +831,74 @@ export function PreferencesPage(): React.JSX.Element {
           </Typography>
         </Box>
         <List disablePadding>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
+          {[
+            {
+              icon: <Workspaces sx={{ mr: 2, color: 'primary.main' }} />,
+              primary: 'Manage Workspaces',
+              secondary: 'Create and manage shared workspaces',
+              onClick: () => {
+                void navigate('/workspaces');
+              },
+            },
+            {
+              icon: <AccountBalance sx={{ mr: 2, color: 'primary.main' }} />,
+              primary: 'Manage Accounts',
+              secondary: 'View and edit your accounts',
+              onClick: () => {
                 void navigate('/accounts');
-              }}
-            >
-              <AccountBalance sx={{ mr: 2, color: 'primary.main' }} />
-              <ListItemText primary="Manage Accounts" secondary="View and edit your accounts" />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
+              },
+            },
+            {
+              icon: <Category sx={{ mr: 2, color: 'primary.main' }} />,
+              primary: 'Manage Categories',
+              secondary: 'Organize your income and expense categories',
+              onClick: () => {
                 void navigate('/categories');
-              }}
-            >
-              <Category sx={{ mr: 2, color: 'primary.main' }} />
-              <ListItemText
-                primary="Manage Categories"
-                secondary="Organize your income and expense categories"
-              />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
+              },
+            },
+            {
+              icon: <Person sx={{ mr: 2, color: 'primary.main' }} />,
+              primary: 'Manage Payees',
+              secondary: 'Manage people and organizations you transact with',
+              onClick: () => {
                 void navigate('/payees');
-              }}
-            >
-              <Person sx={{ mr: 2, color: 'primary.main' }} />
-              <ListItemText
-                primary="Manage Payees"
-                secondary="Manage people and organizations you transact with"
-              />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
+              },
+            },
+            {
+              icon: <AttachMoney sx={{ mr: 2, color: 'primary.main' }} />,
+              primary: 'Manage Budgets',
+              secondary: 'Set and track spending limits',
+              onClick: () => {
                 void navigate('/budgets');
-              }}
-            >
-              <AttachMoney sx={{ mr: 2, color: 'primary.main' }} />
-              <ListItemText primary="Manage Budgets" secondary="Set and track spending limits" />
-            </ListItemButton>
-          </ListItem>
-          <Divider />
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
+              },
+            },
+            {
+              icon: <Schedule sx={{ mr: 2, color: 'primary.main' }} />,
+              primary: 'Recurring Transactions',
+              secondary: 'Manage scheduled and recurring transactions',
+              onClick: () => {
                 void navigate('/schedule');
-              }}
-            >
-              <Schedule sx={{ mr: 2, color: 'primary.main' }} />
-              <ListItemText
-                primary="Recurring Transactions"
-                secondary="Manage scheduled and recurring transactions"
-              />
-            </ListItemButton>
-          </ListItem>
+              },
+            },
+          ].map((item, index) => (
+            <React.Fragment key={item.primary}>
+              {index > 0 && <Divider />}
+              <ListItemButton
+                onClick={item.onClick}
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                {item.icon}
+                <ListItemText primary={item.primary} secondary={item.secondary} />
+              </ListItemButton>
+            </React.Fragment>
+          ))}
         </List>
       </Card>
 
@@ -910,8 +918,19 @@ export function PreferencesPage(): React.JSX.Element {
           </Typography>
         </Box>
         <List disablePadding>
-          <ListItem disablePadding>
-            <ListItemButton onClick={handleImportClick} disabled={importing}>
+          <React.Fragment>
+            <ListItemButton
+              onClick={handleImportClick}
+              disabled={importing}
+              sx={{
+                py: 1.5,
+                px: 2,
+                transition: 'background-color 0.2s ease',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
+            >
               <Upload sx={{ mr: 2, color: importing ? 'text.disabled' : 'primary.main' }} />
               <ListItemText
                 primary={importing ? 'Importing...' : 'Import Data'}
@@ -932,27 +951,33 @@ export function PreferencesPage(): React.JSX.Element {
                 void handleFileChange(e);
               }}
             />
-          </ListItem>
+          </React.Fragment>
           <Divider />
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
-                void handleExport();
-              }}
-              disabled={exporting}
-            >
-              <Download sx={{ mr: 2, color: exporting ? 'text.disabled' : 'primary.main' }} />
-              <ListItemText
-                primary={exporting ? 'Exporting...' : 'Export Data'}
-                secondary={
-                  exporting
-                    ? 'Preparing your data for download'
-                    : 'Download all your data as CSV files for backup'
-                }
-              />
-              {exporting ? <CircularProgress size={20} sx={{ ml: 'auto' }} /> : null}
-            </ListItemButton>
-          </ListItem>
+          <ListItemButton
+            onClick={() => {
+              void handleExport();
+            }}
+            disabled={exporting}
+            sx={{
+              py: 1.5,
+              px: 2,
+              transition: 'background-color 0.2s ease',
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            <Download sx={{ mr: 2, color: exporting ? 'text.disabled' : 'primary.main' }} />
+            <ListItemText
+              primary={exporting ? 'Exporting...' : 'Export Data'}
+              secondary={
+                exporting
+                  ? 'Preparing your data for download'
+                  : 'Download all your data as CSV files for backup'
+              }
+            />
+            {exporting ? <CircularProgress size={20} sx={{ ml: 'auto' }} /> : null}
+          </ListItemButton>
         </List>
       </Card>
 
@@ -1134,40 +1159,64 @@ export function PreferencesPage(): React.JSX.Element {
           </Typography>
         </Box>
         <List disablePadding>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={handleAddExampleData}
-              disabled={addingExampleData}
-              sx={{ color: 'primary.main' }}
-            >
-              {addingExampleData ? (
-                <CircularProgress size={20} sx={{ mr: 2 }} />
-              ) : (
-                <DataObject sx={{ mr: 2 }} />
-              )}
-              <ListItemText
-                primary={addingExampleData ? 'Adding Example Data...' : 'Add Example Data'}
-                secondary="Add sample accounts, categories, and payees to get started"
-              />
-            </ListItemButton>
-          </ListItem>
+          <ListItemButton
+            onClick={handleAddExampleData}
+            disabled={addingExampleData}
+            sx={{
+              py: 1.5,
+              px: 2,
+              color: 'primary.main',
+              transition: 'background-color 0.2s ease',
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            {addingExampleData ? (
+              <CircularProgress size={20} sx={{ mr: 2 }} />
+            ) : (
+              <DataObject sx={{ mr: 2 }} />
+            )}
+            <ListItemText
+              primary={addingExampleData ? 'Adding Example Data...' : 'Add Example Data'}
+              secondary="Add sample accounts, categories, and payees to get started"
+            />
+          </ListItemButton>
           <Divider />
-          <ListItem disablePadding>
-            <ListItemButton onClick={handleResetDataClick} sx={{ color: 'error.main' }}>
-              <RestartAlt sx={{ mr: 2 }} />
-              <ListItemText
-                primary="Reset All Data"
-                secondary="Permanently delete all your data (default items will remain)"
-              />
-            </ListItemButton>
-          </ListItem>
+          <ListItemButton
+            onClick={handleResetDataClick}
+            sx={{
+              py: 1.5,
+              px: 2,
+              color: 'error.main',
+              transition: 'background-color 0.2s ease',
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            <RestartAlt sx={{ mr: 2 }} />
+            <ListItemText
+              primary="Reset All Data"
+              secondary="Permanently delete all your data (default items will remain)"
+            />
+          </ListItemButton>
           <Divider />
-          <ListItem disablePadding>
-            <ListItemButton onClick={handleLogout} sx={{ color: 'error.main' }}>
-              <Logout sx={{ mr: 2 }} />
-              <ListItemText primary="Logout" secondary="Sign out of your account" />
-            </ListItemButton>
-          </ListItem>
+          <ListItemButton
+            onClick={handleLogout}
+            sx={{
+              py: 1.5,
+              px: 2,
+              color: 'error.main',
+              transition: 'background-color 0.2s ease',
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            <Logout sx={{ mr: 2 }} />
+            <ListItemText primary="Logout" secondary="Sign out of your account" />
+          </ListItemButton>
         </List>
       </Card>
 

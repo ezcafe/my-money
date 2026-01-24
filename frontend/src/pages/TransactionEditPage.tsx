@@ -30,7 +30,7 @@ import {
 import { useAccounts } from '../hooks/useAccounts';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
-import { useTitle } from '../contexts/TitleContext';
+import { useHeader } from '../contexts/HeaderContext';
 import type { Transaction } from '../hooks/useTransactions';
 import { PageContainer } from '../components/common/PageContainer';
 import {
@@ -56,7 +56,7 @@ export function TransactionEditPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo') ?? '/';
-  const { setTitle } = useTitle();
+  const { setTitle } = useHeader();
 
   const { accounts } = useAccounts();
   const { data: categoriesData } = useQuery<{

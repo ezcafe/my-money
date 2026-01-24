@@ -4,7 +4,7 @@
  */
 
 import React, { memo, useMemo } from 'react';
-import { List, ListItemButton, ListItemText, Box, Typography } from '@mui/material';
+import { List, ListItemButton, ListItemText, Box, Typography, Divider } from '@mui/material';
 import { useQuery } from '@apollo/client/react';
 import { Card } from './ui/Card';
 import {
@@ -66,9 +66,9 @@ const HistoryListComponent = ({
 
   return (
     <Card>
-      <Box>
-        <List>
-          {dateKeys.map((dateKey) => {
+      <Box sx={{ pt: 9 }}>
+        <List disablePadding>
+          {dateKeys.map((dateKey, dateIndex) => {
             const dateTransactions = groupedTransactions.get(dateKey) ?? [];
             // Get the date from the first transaction in the group
             const date = dateTransactions[0]?.date;
@@ -76,6 +76,7 @@ const HistoryListComponent = ({
 
             return (
               <React.Fragment key={dateKey}>
+                {dateIndex > 0 && <Divider />}
                 <Box
                   sx={{
                     px: 2,
@@ -97,32 +98,40 @@ const HistoryListComponent = ({
                     }}
                   />
                 </Box>
-                {dateTransactions.map((transaction) => (
-                  <ListItemButton
-                    key={transaction.id}
-                    onClick={() => onTransactionClick?.(transaction)}
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <ListItemText
-                      primary={transaction.category?.name ?? ''}
-                      secondary={transaction.payee?.name ?? undefined}
-                      sx={{ flex: '0 1 auto' }}
-                    />
-                    <Typography
-                      variant="body1"
+                {dateTransactions.map((transaction, transactionIndex) => (
+                  <React.Fragment key={transaction.id}>
+                    {transactionIndex > 0 && <Divider />}
+                    <ListItemButton
+                      onClick={() => onTransactionClick?.(transaction)}
                       sx={{
-                        flexShrink: 0,
-                        ml: 2,
-                        textAlign: 'right',
+                        py: 1.5,
+                        px: 2,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'background-color 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: 'action.hover',
+                        },
                       }}
                     >
-                      {formatCurrencyPreserveDecimals(transaction.value, currency)}
-                    </Typography>
-                  </ListItemButton>
+                      <ListItemText
+                        primary={transaction.category?.name ?? ''}
+                        secondary={transaction.payee?.name ?? undefined}
+                        sx={{ flex: '0 1 auto' }}
+                      />
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          flexShrink: 0,
+                          ml: 2,
+                          textAlign: 'right',
+                        }}
+                      >
+                        {formatCurrencyPreserveDecimals(transaction.value, currency)}
+                      </Typography>
+                    </ListItemButton>
+                  </React.Fragment>
                 ))}
               </React.Fragment>
             );

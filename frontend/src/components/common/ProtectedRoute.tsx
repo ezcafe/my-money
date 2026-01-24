@@ -3,9 +3,9 @@
  * Redirects to login if user is not authenticated
  */
 
-import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router';
-import { isAuthenticated } from '../../utils/oidc';
+import React, { useEffect } from 'react';
+import { Navigate, useNavigate } from 'react-router';
+import { useAuth } from '../../contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface ProtectedRouteProps {
@@ -19,34 +19,26 @@ interface ProtectedRouteProps {
  * @param children - Child component to render if authenticated
  */
 export function ProtectedRoute({ children }: ProtectedRouteProps): React.JSX.Element {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated: authenticated, checkAuth } = useAuth();
+  const navigate = useNavigate();
 
+  // Re-check auth when component mounts
   useEffect(() => {
-    void isAuthenticated().then((isAuth) => {
-      setAuthenticated(isAuth);
-    });
-  }, []);
+    void checkAuth();
+  }, [checkAuth]);
 
-  // Monitor visibility changes to re-check auth when tab becomes visible
+  // Redirect to login if not authenticated
   useEffect(() => {
-    const handleVisibilityChange = (): void => {
-      if (!document.hidden && authenticated === true) {
-        void isAuthenticated().then((isAuth) => {
-          setAuthenticated(isAuth);
-        });
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return (): void => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [authenticated]);
+    if (authenticated === false) {
+      void navigate('/login', { replace: true });
+    }
+  }, [authenticated, navigate]);
 
   if (authenticated === null) {
     return <LoadingSpinner message="Checking authentication..." />;
   }
 
-  if (!authenticated) {
+  if (authenticated === false) {
     return <Navigate to="/login" replace />;
   }
 

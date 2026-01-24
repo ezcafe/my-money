@@ -94,6 +94,18 @@ export async function createContext(
       create: {
         oidcSubject: userInfo.sub,
         email: userInfo.email ?? '',
+        // Atomically create the default workspace and membership for the new user.
+        // This prevents race conditions where parallel resolvers might try to create it.
+        workspaceMembers: {
+          create: {
+            role: 'Owner',
+            workspace: {
+              create: {
+                name: 'My Workspace',
+              },
+            },
+          },
+        },
       },
     });
 
@@ -119,9 +131,18 @@ export async function createContext(
   // Get user workspaces
   const userWorkspaces = await getUserWorkspaces(user.id);
 
+  const headerWorkspaceId = c.req.header('X-Workspace-Id');
+  const queryWorkspaceId = c.req.query('workspaceId');
+
   // Get current workspace from header or query parameter
-  const currentWorkspaceId =
-    c.req.header('X-Workspace-Id') ?? c.req.query('workspaceId') ?? undefined;
+  // Treat empty string as undefined to allow fallback to default workspace
+  let currentWorkspaceId: string | undefined = undefined;
+
+  if (headerWorkspaceId && headerWorkspaceId.trim() !== '') {
+    currentWorkspaceId = headerWorkspaceId;
+  } else if (queryWorkspaceId && queryWorkspaceId.trim() !== '') {
+    currentWorkspaceId = queryWorkspaceId;
+  }
 
   return {
     userId: user.id,

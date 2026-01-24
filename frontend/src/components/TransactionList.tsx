@@ -225,16 +225,40 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
         sx={onRowClick ? { cursor: 'pointer' } : undefined}
         onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
       >
-        <TableCell>{formatDateShort(transaction.date, dateFormat)}</TableCell>
-        <TableCell>{formatCurrencyPreserveDecimals(transaction.value, currency)}</TableCell>
-        {showAccountColumn ? <TableCell>{transaction.account?.name ?? '-'}</TableCell> : null}
-        {showCategoryColumn ? <TableCell>{transaction.category?.name ?? '-'}</TableCell> : null}
-        {showPayeeColumn ? <TableCell>{transaction.payee?.name ?? '-'}</TableCell> : null}
-        <TableCell>{transaction.note ?? '-'}</TableCell>
+        <TableCell sx={{ py: 2, px: 4 }}>
+          <Typography variant="body1">
+            {formatDateShort(transaction.date, dateFormat)}
+          </Typography>
+        </TableCell>
+        <TableCell sx={{ py: 2, px: 4 }}>
+          <Typography variant="body1">
+            {formatCurrencyPreserveDecimals(transaction.value, currency)}
+          </Typography>
+        </TableCell>
+        {showAccountColumn ? (
+          <TableCell sx={{ py: 2, px: 4 }}>
+            <Typography variant="body1">{transaction.account?.name ?? '-'}</Typography>
+          </TableCell>
+        ) : null}
+        {showCategoryColumn ? (
+          <TableCell sx={{ py: 2, px: 4 }}>
+            <Typography variant="body1">{transaction.category?.name ?? '-'}</Typography>
+          </TableCell>
+        ) : null}
+        {showPayeeColumn ? (
+          <TableCell sx={{ py: 2, px: 4 }}>
+            <Typography variant="body1">{transaction.payee?.name ?? '-'}</Typography>
+          </TableCell>
+        ) : null}
+        <TableCell sx={{ py: 2, px: 4 }}>
+          <Typography variant="body1">{transaction.note ?? '-'}</Typography>
+        </TableCell>
         <TableCell
           align="right"
           onClick={(e) => e.stopPropagation()}
           sx={{
+            py: 2,
+            px: 4,
             '@media print': {
               display: 'none',
             },
@@ -502,21 +526,55 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Value</TableCell>
-                    {showAccountColumn ? <TableCell>Account</TableCell> : null}
-                    {showCategoryColumn ? <TableCell>Category</TableCell> : null}
-                    {showPayeeColumn ? <TableCell>Payee</TableCell> : null}
-                    <TableCell>Note</TableCell>
+                    <TableCell sx={{ py: 2, px: 4 }}>
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        Date
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 2, px: 4 }}>
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        Value
+                      </Typography>
+                    </TableCell>
+                    {showAccountColumn ? (
+                      <TableCell sx={{ py: 2, px: 4 }}>
+                        <Typography variant="subtitle2" fontWeight={600}>
+                          Account
+                        </Typography>
+                      </TableCell>
+                    ) : null}
+                    {showCategoryColumn ? (
+                      <TableCell sx={{ py: 2, px: 4 }}>
+                        <Typography variant="subtitle2" fontWeight={600}>
+                          Category
+                        </Typography>
+                      </TableCell>
+                    ) : null}
+                    {showPayeeColumn ? (
+                      <TableCell sx={{ py: 2, px: 4 }}>
+                        <Typography variant="subtitle2" fontWeight={600}>
+                          Payee
+                        </Typography>
+                      </TableCell>
+                    ) : null}
+                    <TableCell sx={{ py: 2, px: 4 }}>
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        Note
+                      </Typography>
+                    </TableCell>
                     <TableCell
                       align="right"
                       sx={{
+                        py: 2,
+                        px: 4,
                         '@media print': {
                           display: 'none',
                         },
                       }}
                     >
-                      Actions
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        Actions
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 </TableHead>

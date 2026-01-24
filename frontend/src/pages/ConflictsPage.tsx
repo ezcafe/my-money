@@ -10,6 +10,7 @@ import { useQuery } from '@apollo/client/react';
 import { GET_ENTITY_CONFLICTS } from '../graphql/conflictOperations';
 import { GET_WORKSPACES } from '../graphql/workspaceOperations';
 import { formatDateTime, dateFormatToDateTimeFormat } from '../utils/formatting';
+import { useAuth } from '../contexts/AuthContext';
 import { useDateFormat } from '../hooks/useDateFormat';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
@@ -22,6 +23,7 @@ import { WorkspaceSelector } from '../components/WorkspaceSelector';
  * Conflicts Page Component
  */
 export function ConflictsPage(): React.JSX.Element {
+  const { isAuthenticated } = useAuth();
   const { dateFormat } = useDateFormat();
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
   const [selectedConflict, setSelectedConflict] = useState<{
@@ -44,6 +46,7 @@ export function ConflictsPage(): React.JSX.Element {
     }>;
   }>(GET_WORKSPACES, {
     fetchPolicy: 'cache-and-network',
+    skip: isAuthenticated !== true, // Skip query if not authenticated
   });
 
   const workspaces = React.useMemo(

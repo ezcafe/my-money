@@ -356,7 +356,7 @@ const ImportMappingTableComponent = ({
                         })()}
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ minWidth: 200 }}>
+                    <TableCell sx={{ minWidth: 150 }}>
                       <FormControl size="small" fullWidth>
                         <InputLabel>Payee</InputLabel>
                         <Select
@@ -403,7 +403,7 @@ const ImportMappingTableComponent = ({
                         </Select>
                       </FormControl>
                     </TableCell>
-                    <TableCell sx={{ minWidth: 200 }}>
+                    <TableCell sx={{ minWidth: 300 }}>
                       <Autocomplete<Category, false, false, false>
                         size="small"
                         options={categories}
@@ -440,7 +440,7 @@ const ImportMappingTableComponent = ({
                         )}
                       />
                     </TableCell>
-                    <TableCell sx={{ minWidth: 200 }}>
+                    <TableCell sx={{ minWidth: 150 }}>
                       <Autocomplete<Account, false, false, false>
                         size="small"
                         options={accounts}

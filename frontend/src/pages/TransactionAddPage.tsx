@@ -36,7 +36,7 @@ import {
   GET_RECURRING_TRANSACTIONS,
 } from '../graphql/queries';
 import { useAccounts } from '../hooks/useAccounts';
-import { useTitle } from '../contexts/TitleContext';
+import { useHeader } from '../contexts/HeaderContext';
 import {
   getRecurringTypeOptions,
   getCronExpression,
@@ -59,7 +59,7 @@ export function TransactionAddPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = validateReturnUrl(searchParams.get('returnTo'), '/');
-  const { setTitle } = useTitle();
+  const { setTitle } = useHeader();
 
   const { accounts } = useAccounts();
   const { data: combinedData } = useQuery<{
@@ -452,17 +452,17 @@ export function TransactionAddPage(): React.JSX.Element {
             <>
               <FormControl fullWidth>
                 <InputLabel>Recurring Type</InputLabel>
-                  <Select
-                    value={recurringType}
-                    onChange={(e) => {
-                      const newType = e.target.value as RecurringType;
-                      setRecurringType(newType);
-                      if (newType === 'minutely') {
-                        setNextRunDate(dayjs().add(1, 'minute'));
-                      }
-                    }}
-                    label="Recurring Type"
-                  >
+                <Select
+                  value={recurringType}
+                  onChange={(e) => {
+                    const newType = e.target.value as RecurringType;
+                    setRecurringType(newType);
+                    if (newType === 'minutely') {
+                      setNextRunDate(dayjs().add(1, 'minute'));
+                    }
+                  }}
+                  label="Recurring Type"
+                >
                   {recurringTypeOptions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}

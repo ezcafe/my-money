@@ -25,7 +25,7 @@ import {
   GET_ACCOUNT,
 } from '../graphql/queries';
 import { useSearch } from '../contexts/SearchContext';
-import { useTitle } from '../contexts/TitleContext';
+import { useHeader } from '../contexts/HeaderContext';
 import { TransactionList } from '../components/TransactionList';
 import { Card } from '../components/ui/Card';
 import { PageContainer } from '../components/common/PageContainer';
@@ -52,7 +52,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   const isSearchMode = Boolean(searchQuery);
 
   // Title state
-  const { setTitle } = useTitle();
+  const { setTitle } = useHeader();
 
   // Get currency preference
   const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
