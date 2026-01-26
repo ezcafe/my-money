@@ -11,7 +11,7 @@ import { Receipt, Clear } from '@mui/icons-material';
 import { EmptyState } from '../components/common/EmptyState';
 import { validateDateRange } from '../utils/validation';
 import {
-  GET_PREFERENCES,
+  GET_SETTINGS,
   GET_CATEGORIES,
   GET_PAYEES,
   GET_REPORT_TRANSACTIONS,
@@ -56,10 +56,10 @@ interface ReportData {
 export function ReportPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
-    GET_PREFERENCES
+  const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(
+    GET_SETTINGS
   );
-  const currency = preferencesData?.preferences?.currency ?? 'USD';
+  const currency = settingsData?.settings?.currency ?? 'USD';
 
   const { accounts } = useAccounts();
   const { dateFormat } = useDateFormat();

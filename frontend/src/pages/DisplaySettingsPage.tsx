@@ -1,5 +1,5 @@
 /**
- * Display Preferences Page
+ * Display Settings Page
  * Allows user to change display-related settings including calculator keypad layout
  */
 
@@ -25,10 +25,10 @@ import { HelpOutline } from '@mui/icons-material';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { Card } from '../components/ui/Card';
 import { ColorSchemePicker } from '../components/ui/ColorSchemePicker';
-import { KeypadLayoutSelector } from '../components/preferences/KeypadLayoutSelector';
+import { KeypadLayoutSelector } from '../components/settings/KeypadLayoutSelector';
 import { CURRENCIES, type Currency } from '../utils/currencies';
-import { GET_PREFERENCES } from '../graphql/queries';
-import { UPDATE_PREFERENCES } from '../graphql/mutations';
+import { GET_SETTINGS } from '../graphql/queries';
+import { UPDATE_SETTINGS } from '../graphql/mutations';
 import { useNotifications } from '../contexts/NotificationContext';
 import type { DateFormat } from '../contexts/DateFormatContext';
 import { DEFAULT_DATE_FORMAT } from '../contexts/DateFormatContext';
@@ -103,20 +103,20 @@ function HelpIcon({ helpText }: { helpText: string }): React.JSX.Element {
 }
 
 /**
- * Display Preferences Page Component
+ * Display Settings Page Component
  */
-export function DisplayPreferencesPage(): React.JSX.Element {
+export function DisplaySettingsPage(): React.JSX.Element {
   const { showSuccessNotification, showErrorNotification } = useNotifications();
-  const { data: preferencesData, loading: preferencesLoading } = useQuery<{
-    preferences?: {
+  const { data: settingsData, loading: settingsLoading } = useQuery<{
+    settings?: {
       currency: string;
       useThousandSeparator: boolean;
       dateFormat: string | null;
       keypadLayout: string | null;
     };
-  }>(GET_PREFERENCES);
-  const [updatePreferences, { loading: updating }] = useMutation<{
-    updatePreferences: {
+  }>(GET_SETTINGS);
+  const [updateSettings, { loading: updating }] = useMutation<{
+    updateSettings: {
       id: string;
       currency: string;
       useThousandSeparator: boolean;
@@ -125,25 +125,25 @@ export function DisplayPreferencesPage(): React.JSX.Element {
       dateFormat: string | null;
       keypadLayout: string | null;
     };
-  }>(UPDATE_PREFERENCES, {
-    refetchQueries: ['GetPreferences'],
+  }>(UPDATE_SETTINGS, {
+    refetchQueries: ['GetSettings'],
     awaitRefetchQueries: true,
     update: (cache, { data }) => {
-      if (data?.updatePreferences) {
+      if (data?.updateSettings) {
         // Explicitly write to cache - this ensures the cache is updated before refetchQueries runs
         cache.writeQuery({
-          query: GET_PREFERENCES,
+          query: GET_SETTINGS,
           data: {
-            preferences: data.updatePreferences,
+            settings: data.updateSettings,
           },
         });
       }
     },
     onCompleted: () => {
-      showSuccessNotification('Preferences updated successfully');
+      showSuccessNotification('Settings updated successfully');
     },
     onError: (error) => {
-      showErrorNotification(error.message || 'Failed to update preferences');
+      showErrorNotification(error.message || 'Failed to update settings');
     },
   });
 
@@ -153,16 +153,16 @@ export function DisplayPreferencesPage(): React.JSX.Element {
   const [keypadLayout, setKeypadLayout] = useState<KeypadLayout>('layout1');
   const currencyUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize state from loaded preferences
+  // Initialize state from loaded settings
   useEffect(() => {
-    if (preferencesData?.preferences) {
-      if (preferencesData.preferences.useThousandSeparator !== undefined) {
-        setUseThousandSeparator(preferencesData.preferences.useThousandSeparator);
+    if (settingsData?.settings) {
+      if (settingsData.settings.useThousandSeparator !== undefined) {
+        setUseThousandSeparator(settingsData.settings.useThousandSeparator);
       }
-      if (preferencesData.preferences.currency) {
-        setCurrency(preferencesData.preferences.currency);
+      if (settingsData.settings.currency) {
+        setCurrency(settingsData.settings.currency);
       }
-      const rawFormat = preferencesData.preferences.dateFormat;
+      const rawFormat = settingsData.settings.dateFormat;
       if (!rawFormat) {
         setDateFormat(DEFAULT_DATE_FORMAT);
       } else {
@@ -181,14 +181,14 @@ export function DisplayPreferencesPage(): React.JSX.Element {
           setDateFormat(DEFAULT_DATE_FORMAT);
         }
       }
-      if (preferencesData.preferences.keypadLayout) {
-        const layout = preferencesData.preferences.keypadLayout as KeypadLayout;
+      if (settingsData.settings.keypadLayout) {
+        const layout = settingsData.settings.keypadLayout as KeypadLayout;
         if (layout === 'layout1' || layout === 'layout2' || layout === 'layout3') {
           setKeypadLayout(layout);
         }
       }
     }
-  }, [preferencesData]);
+  }, [settingsData]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -201,7 +201,7 @@ export function DisplayPreferencesPage(): React.JSX.Element {
 
   /**
    * Handle useThousandSeparator change
-   * Saves preference to backend
+   * Saves setting to backend
    * @param newValue - The new value from ToggleButtonGroup ("000" or ".")
    */
   const handleUseThousandSeparatorChange = (newValue: string | null): void => {
@@ -210,7 +210,7 @@ export function DisplayPreferencesPage(): React.JSX.Element {
     }
     const checked = newValue === '000';
     setUseThousandSeparator(checked);
-    void updatePreferences({
+    void updateSettings({
       variables: {
         input: {
           useThousandSeparator: checked,
@@ -231,9 +231,9 @@ export function DisplayPreferencesPage(): React.JSX.Element {
       clearTimeout(currencyUpdateTimeoutRef.current);
     }
 
-    // Set new timeout to update preferences after user stops typing (500ms delay)
+    // Set new timeout to update settings after user stops typing (500ms delay)
     currencyUpdateTimeoutRef.current = setTimeout(() => {
-      void updatePreferences({
+      void updateSettings({
         variables: {
           input: {
             currency: newCurrency,
@@ -246,12 +246,12 @@ export function DisplayPreferencesPage(): React.JSX.Element {
 
   /**
    * Handle date format change
-   * Saves preference to backend
+   * Saves setting to backend
    * @param newFormat - The new date format
    */
   const handleDateFormatChange = (newFormat: DateFormat): void => {
     setDateFormat(newFormat);
-    void updatePreferences({
+    void updateSettings({
       variables: {
         input: {
           dateFormat: newFormat,
@@ -262,12 +262,12 @@ export function DisplayPreferencesPage(): React.JSX.Element {
 
   /**
    * Handle keypad layout change
-   * Saves preference to backend
+   * Saves setting to backend
    * @param newLayout - The new keypad layout
    */
   const handleKeypadLayoutChange = (newLayout: KeypadLayout): void => {
     setKeypadLayout(newLayout);
-    void updatePreferences({
+    void updateSettings({
       variables: {
         input: {
           keypadLayout: newLayout,
@@ -281,7 +281,7 @@ export function DisplayPreferencesPage(): React.JSX.Element {
       <Card sx={{ mb: 3 }}>
         <Box sx={{ p: 3, pb: 2 }}>
           <Typography variant="h6" component="h2" sx={{ mb: 3 }}>
-            Display Preferences
+            Display Settings
           </Typography>
 
           <Stack spacing={3}>
@@ -304,7 +304,7 @@ export function DisplayPreferencesPage(): React.JSX.Element {
                 }}
                 aria-label="calculator quick button"
                 fullWidth
-                disabled={preferencesLoading || updating}
+                disabled={settingsLoading || updating}
                 size="large"
               >
                 <ToggleButton value="000" aria-label="000 button">
@@ -328,7 +328,7 @@ export function DisplayPreferencesPage(): React.JSX.Element {
                   </Box>
                 </ToggleButton>
               </ToggleButtonGroup>
-              {preferencesLoading || updating ? (
+              {settingsLoading || updating ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                   <CircularProgress size={16} />
                   <Typography variant="caption" color="text.secondary">
@@ -375,7 +375,7 @@ export function DisplayPreferencesPage(): React.JSX.Element {
                     helperText={updating ? 'Saving...' : undefined}
                   />
                 )}
-                disabled={preferencesLoading || updating}
+                disabled={settingsLoading || updating}
                 fullWidth
               />
             </Box>
@@ -391,7 +391,7 @@ export function DisplayPreferencesPage(): React.JSX.Element {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 Choose how dates are displayed throughout the application
               </Typography>
-              <FormControl fullWidth disabled={preferencesLoading || updating}>
+              <FormControl fullWidth disabled={settingsLoading || updating}>
                 <InputLabel>Date Format</InputLabel>
                 <Select
                   value={dateFormat}
@@ -445,9 +445,9 @@ export function DisplayPreferencesPage(): React.JSX.Element {
               <KeypadLayoutSelector
                 value={keypadLayout}
                 onChange={handleKeypadLayoutChange}
-                disabled={preferencesLoading || updating}
+                disabled={settingsLoading || updating}
               />
-              {preferencesLoading || updating ? (
+              {settingsLoading || updating ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                   <CircularProgress size={16} />
                   <Typography variant="caption" color="text.secondary">

@@ -13,7 +13,7 @@ import {
   formatDateHeader,
   getDateKey,
 } from '../utils/formatting';
-import { GET_PREFERENCES } from '../graphql/queries';
+import { GET_SETTINGS } from '../graphql/queries';
 import { useDateFormat } from '../hooks/useDateFormat';
 
 interface Transaction {
@@ -39,10 +39,10 @@ const HistoryListComponent = ({
   transactions,
   onTransactionClick,
 }: HistoryListProps): React.JSX.Element => {
-  const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
-    GET_PREFERENCES
+  const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(
+    GET_SETTINGS
   );
-  const currency = preferencesData?.preferences?.currency ?? 'USD';
+  const currency = settingsData?.settings?.currency ?? 'USD';
   const { dateFormat } = useDateFormat();
 
   // Group transactions by date and preserve order

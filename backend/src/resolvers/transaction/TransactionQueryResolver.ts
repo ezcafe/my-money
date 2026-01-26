@@ -117,8 +117,21 @@ export class TransactionQueryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Enforce maximum page size
     const MAX_PAGE_SIZE = 100;
@@ -138,12 +151,12 @@ export class TransactionQueryResolver extends BaseResolver {
       payeeId?: string | null;
       note?: { contains: string; mode: 'insensitive' };
     } = {
-      account: { workspaceId },
+      account: { workspaceId: finalWorkspaceId },
     };
 
     if (accountId) {
       // Verify account belongs to workspace
-      const account = await accountRepository.findById(accountId, workspaceId, {
+      const account = await accountRepository.findById(accountId, finalWorkspaceId, {
         id: true,
       });
       if (!account) {
@@ -156,7 +169,7 @@ export class TransactionQueryResolver extends BaseResolver {
       // Verify category exists and is accessible in workspace
       const category = await categoryRepository.findById(
         categoryId,
-        workspaceId,
+        finalWorkspaceId,
         { id: true }
       );
 
@@ -169,7 +182,7 @@ export class TransactionQueryResolver extends BaseResolver {
 
     if (payeeId) {
       // Verify payee exists and is accessible in workspace
-      const payee = await payeeRepository.findById(payeeId, workspaceId, {
+      const payee = await payeeRepository.findById(payeeId, finalWorkspaceId, {
         id: true,
       });
 
@@ -198,7 +211,7 @@ export class TransactionQueryResolver extends BaseResolver {
       payeeId,
       note,
       orderBy: orderBy ? `${orderBy.field}:${orderBy.direction}` : undefined,
-      workspaceId,
+      workspaceId: finalWorkspaceId,
     });
     const cacheKey = transactionQueryKey(context.userId, filterHash);
     const TRANSACTION_QUERY_CACHE_TTL_MS = 30 * 1000; // 30 seconds
@@ -215,8 +228,8 @@ export class TransactionQueryResolver extends BaseResolver {
 
       // Cache totalCount (fire and forget)
       const cacheTags = [
-        CACHE_TAGS.TRANSACTIONS(workspaceId),
-        CACHE_TAGS.TRANSACTION_QUERIES(workspaceId),
+        CACHE_TAGS.TRANSACTIONS(finalWorkspaceId),
+        CACHE_TAGS.TRANSACTION_QUERIES(finalWorkspaceId),
       ];
       void postgresCache
         .set(cacheKey, totalCount, TRANSACTION_QUERY_CACHE_TTL_MS, cacheTags)
@@ -283,8 +296,21 @@ export class TransactionQueryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Build Prisma orderBy based on field type
     const prismaOrderBy = buildOrderBy(orderBy);
@@ -297,7 +323,7 @@ export class TransactionQueryResolver extends BaseResolver {
     // Relations are loaded via DataLoaders in GraphQL field resolvers
     // This prevents N+1 query problems and reduces memory usage
     const transactions = await transactionRepository.findMany(
-      { account: { workspaceId } },
+      { account: { workspaceId: finalWorkspaceId } },
       {
         take: limit,
         orderBy: prismaOrderBy,
@@ -320,15 +346,28 @@ export class TransactionQueryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const transactionRepository = getContainer().getTransactionRepository(
       context.prisma
     );
     const transaction = await transactionRepository.findById(
       id,
-      workspaceId,
+      finalWorkspaceId,
       undefined,
       {
         account: true,
@@ -359,8 +398,21 @@ export class TransactionQueryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const transactionRepository = getContainer().getTransactionRepository(
       context.prisma
@@ -373,7 +425,7 @@ export class TransactionQueryResolver extends BaseResolver {
         await transactionRepository.groupBy(
           ['value'],
           {
-            account: { workspaceId },
+            account: { workspaceId: finalWorkspaceId },
             date: {
               gte: startDate,
             },
@@ -425,8 +477,21 @@ export class TransactionQueryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const transactionRepository = getContainer().getTransactionRepository(
       context.prisma
@@ -439,7 +504,7 @@ export class TransactionQueryResolver extends BaseResolver {
         await transactionRepository.groupBy(
           ['accountId', 'payeeId', 'categoryId'],
           {
-            account: { workspaceId },
+            account: { workspaceId: finalWorkspaceId },
             value: amount, // Exact amount match
             date: {
               gte: startDate,

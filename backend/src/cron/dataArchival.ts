@@ -107,13 +107,14 @@ export async function runDataArchival(): Promise<void> {
 
 /**
  * Start data archival cron job
- * Runs daily at 2 AM in production, or every hour in development
+ * Runs daily at 2 AM by default, or every hour when hourly/minutely schedules are enabled
  */
 export function startDataArchivalCron(): void {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const enableHourlyMinutely =
+    process.env.ENABLE_HOURLY_MINUTELY_SCHEDULES === 'true';
 
-  // Run daily at 2 AM in production, every hour in development
-  const cronExpression = isProduction ? '0 2 * * *' : '0 * * * *';
+  // Run daily at 2 AM by default, every hour when hourly/minutely schedules are enabled
+  const cronExpression = enableHourlyMinutely ? '0 * * * *' : '0 2 * * *';
 
   cron.schedule(cronExpression, async () => {
     try {
@@ -132,6 +133,6 @@ export function startDataArchivalCron(): void {
   logInfo('Data archival cron job scheduled', {
     event: 'data_archival_cron_scheduled',
     cronExpression,
-    isProduction,
+    enableHourlyMinutely,
   });
 }

@@ -9,7 +9,7 @@ import { TransactionResolver } from './TransactionResolver';
 import { UserResolver } from './UserResolver';
 import { CategoryResolver } from './CategoryResolver';
 import { PayeeResolver } from './PayeeResolver';
-import { PreferencesResolver } from './PreferencesResolver';
+import { SettingsResolver } from './SettingsResolver';
 import { RecurringTransactionResolver } from './RecurringTransactionResolver';
 import { ReportResolver } from './ReportResolver';
 import { ExportResolver } from './ExportResolver';
@@ -43,7 +43,7 @@ const accountResolver = new AccountResolver();
 const transactionResolver = new TransactionResolver();
 const categoryResolver = new CategoryResolver();
 const payeeResolver = new PayeeResolver();
-const preferencesResolver = new PreferencesResolver();
+const settingsResolver = new SettingsResolver();
 const recurringTransactionResolver = new RecurringTransactionResolver();
 const reportResolver = new ReportResolver();
 const exportResolver = new ExportResolver();
@@ -132,9 +132,9 @@ export const resolvers = {
     payee: (parent: unknown, args: unknown, context: GraphQLContext) =>
       payeeResolver.payee(parent, args as { id: string }, context),
 
-    // Preferences queries
-    preferences: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      preferencesResolver.preferences(parent, args, context),
+    // Settings queries
+    settings: (parent: unknown, args: unknown, context: GraphQLContext) =>
+      settingsResolver.settings(parent, args, context),
 
     // Recurring transaction queries
     recurringTransactions: (
@@ -334,13 +334,13 @@ export const resolvers = {
     deletePayee: (parent: unknown, args: unknown, context: GraphQLContext) =>
       payeeResolver.deletePayee(parent, args as { id: string }, context),
 
-    // Preferences mutations
-    updatePreferences: (
+    // Settings mutations
+    updateSettings: (
       parent: unknown,
       args: unknown,
       context: GraphQLContext
     ) =>
-      preferencesResolver.updatePreferences(
+      settingsResolver.updateSettings(
         parent,
         args as {
           input: {

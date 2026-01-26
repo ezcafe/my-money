@@ -51,8 +51,8 @@ export const CACHE_TTL = {
   CATEGORIES_QUERY: 10 * 60 * 1000, // 10 minutes
   /** Payees query cache TTL */
   PAYEES_QUERY: 10 * 60 * 1000, // 10 minutes
-  /** Preferences query cache TTL */
-  PREFERENCES_QUERY: 10 * 60 * 1000, // 10 minutes
+  /** Settings query cache TTL */
+  SETTINGS_QUERY: 10 * 60 * 1000, // 10 minutes
   /** Report transactions query cache TTL */
   REPORT_TRANSACTIONS_QUERY: 5 * 60 * 1000, // 5 minutes
 } as const;

@@ -5,9 +5,9 @@
  */
 
 import React, { memo } from 'react';
-import { List, ListItemButton, ListItemText, Divider } from '@mui/material';
+import { List, ListItemButton, ListItemText, Divider, Chip, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router';
-import { Person } from '@mui/icons-material';
+import { Person, Star } from '@mui/icons-material';
 import { usePayees } from '../hooks/usePayees';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
@@ -88,11 +88,29 @@ const PayeesPageComponent = (): React.JSX.Element => {
                   }}
                 >
                   <ListItemText
-                    primary={payee.name}
-                    primaryTypographyProps={{
-                      variant: 'body1',
-                      fontWeight: 500,
-                    }}
+                    primary={
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="body1" fontWeight={500}>
+                          {payee.name}
+                        </Typography>
+                        {payee.isDefault ? (
+                          <Chip
+                            icon={<Star fontSize="inherit" />}
+                            label="Default"
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            sx={{
+                              height: 20,
+                              fontSize: '0.65rem',
+                              '& .MuiChip-icon': {
+                                fontSize: '0.75rem',
+                              },
+                            }}
+                          />
+                        ) : null}
+                      </Stack>
+                    }
                   />
                 </ListItemButton>
               </React.Fragment>

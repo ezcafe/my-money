@@ -125,9 +125,9 @@ type Query {
   payee(id: ID!): Payee
 
   """
-  Get user preferences
+  Get user settings
   """
-  preferences: UserPreferences
+  settings: UserSettings
 
   """
   Get recurring transactions
@@ -294,9 +294,9 @@ type Mutation {
   deletePayee(id: ID!): Boolean!
 
   """
-  Update user preferences
+  Update user settings
   """
-  updatePreferences(input: UpdatePreferencesInput!): UserPreferences!
+  updateSettings(input: UpdateSettingsInput!): UserSettings!
 
   """
   Create recurring transaction
@@ -582,7 +582,7 @@ type Payee {
   updatedAt: DateTime!
 }
 
-type UserPreferences {
+type UserSettings {
   id: ID!
   userId: ID!
   currency: String!
@@ -672,7 +672,7 @@ type ExportData {
   payees: [Payee!]!
   transactions: [Transaction!]!
   recurringTransactions: [RecurringTransaction!]!
-  preferences: UserPreferences
+  settings: UserSettings
   budgets: [Budget!]!
   importMatchRules: [ImportMatchRule!]!
 }
@@ -782,7 +782,7 @@ input UpdatePayeeInput {
   expectedVersion: Int
 }
 
-input UpdatePreferencesInput {
+input UpdateSettingsInput {
   currency: String
   useThousandSeparator: Boolean
   colorScheme: String

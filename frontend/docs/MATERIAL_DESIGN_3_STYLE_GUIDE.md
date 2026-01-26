@@ -336,7 +336,7 @@ export function DetailPage(): React.JSX.Element {
 }
 ```
 
-### Complex Page Pattern (Report, Import, Preferences)
+### Complex Page Pattern (Report, Import, Settings)
 
 ```typescript
 export function ComplexPage(): React.JSX.Element {

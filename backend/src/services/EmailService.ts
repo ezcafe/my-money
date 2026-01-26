@@ -51,7 +51,6 @@ export function sendInvitationEmail(
  * @internal - Used in commented-out email sending code
  */
 // @ts-expect-error - Function is reserved for future use when email sending is implemented
-
 function _generateInvitationEmailHtml(
   invitationUrl: string,
   workspaceName: string,
@@ -84,7 +83,6 @@ function _generateInvitationEmailHtml(
  * @internal - Used in commented-out email sending code
  */
 // @ts-expect-error - Function is reserved for future use when email sending is implemented
-
 function _generateInvitationEmailText(
   invitationUrl: string,
   workspaceName: string,

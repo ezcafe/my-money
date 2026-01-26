@@ -1,5 +1,5 @@
 /**
- * Preferences Page
+ * Settings Page
  * Allows user to change currency, toggle 000/decimal, manage categories, payees, schedule, and logout
  */
 
@@ -17,11 +17,12 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import type { InMemoryCache } from '@apollo/client';
 import { Card } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
 import { logout } from '../utils/oidc';
 import {
-  GET_PREFERENCES,
+  GET_SETTINGS,
   EXPORT_DATA,
   GET_ACCOUNTS,
   GET_CATEGORIES,
@@ -96,7 +97,7 @@ interface ExportData {
     note: string | null;
     nextRunDate: string;
   }>;
-  preferences: {
+  settings: {
     id: string;
     currency: string;
     useThousandSeparator: boolean;
@@ -147,9 +148,9 @@ interface ImportCSVResult {
 }
 
 /**
- * Preferences Page Component
+ * Settings Page Component
  */
-export function PreferencesPage(): React.JSX.Element {
+export function SettingsPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { showSuccessNotification, showErrorNotification } = useNotifications();
@@ -214,7 +215,7 @@ export function PreferencesPage(): React.JSX.Element {
       { query: GET_RECURRING_TRANSACTIONS },
       { query: GET_BUDGETS },
       { query: GET_BUDGET_NOTIFICATIONS },
-      { query: GET_PREFERENCES },
+      { query: GET_SETTINGS },
     ],
   });
   const [resetDataMutation, { loading: resetting }] = useMutation(RESET_DATA, {
@@ -224,15 +225,14 @@ export function PreferencesPage(): React.JSX.Element {
       { query: GET_PAYEES },
       { query: GET_RECENT_TRANSACTIONS },
       { query: GET_RECURRING_TRANSACTIONS },
-      { query: GET_PREFERENCES },
+      { query: GET_SETTINGS },
       { query: GET_BUDGETS },
       { query: GET_BUDGET_NOTIFICATIONS },
       { query: GET_TRANSACTIONS },
       { query: GET_REPORT_TRANSACTIONS },
     ],
     awaitRefetchQueries: true,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    update: (cache: any) => {
+    update: (cache: InMemoryCache) => {
       // Explicitly clear recentTransactions cache for all variable combinations
       // This ensures the home page shows empty data immediately
       try {
@@ -467,13 +467,13 @@ export function PreferencesPage(): React.JSX.Element {
         downloadCSV(recurringCSV, 'my_money_recurringTransactions.csv');
       }
 
-      // Export preferences
-      if (exportData.preferences) {
-        const preferencesCSV = convertToCSV(
-          [exportData.preferences],
+      // Export settings
+      if (exportData.settings) {
+        const settingsCSV = convertToCSV(
+          [exportData.settings],
           ['id', 'currency', 'useThousandSeparator', 'colorScheme', 'colorSchemeValue']
         );
-        downloadCSV(preferencesCSV, 'my_money_preferences.csv');
+        downloadCSV(settingsCSV, 'my_money_settings.csv');
       }
 
       // Export budgets
@@ -550,8 +550,8 @@ export function PreferencesPage(): React.JSX.Element {
       entityType = 'recurringTransactions';
     } else if (filename.includes('transaction')) {
       entityType = 'transactions';
-    } else if (filename.includes('preference')) {
-      entityType = 'preferences';
+    } else if (filename.includes('setting') || filename.includes('preference')) {
+      entityType = 'settings';
     } else if (filename.includes('budget')) {
       entityType = 'budgets';
     } else if (filename.includes('importmatch') || filename.includes('import_match')) {
@@ -762,12 +762,12 @@ export function PreferencesPage(): React.JSX.Element {
         </List>
       </Card>
 
-      {/* Display Preferences Navigation */}
+      {/* Display Settings Navigation */}
       <Card sx={{ mb: 3 }}>
         <List disablePadding>
           <ListItemButton
             onClick={() => {
-              void navigate('/preferences/display');
+              void navigate('/settings/display');
             }}
             sx={{
               py: 1.5,
@@ -780,7 +780,7 @@ export function PreferencesPage(): React.JSX.Element {
           >
             <Settings sx={{ mr: 2, color: 'primary.main' }} />
             <ListItemText
-              primary="Display Preferences"
+              primary="Display Settings"
               secondary="Customize currency, date format, color scheme, and calculator keypad layout"
             />
           </ListItemButton>

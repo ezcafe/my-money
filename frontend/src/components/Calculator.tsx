@@ -9,7 +9,7 @@ import Grid from '@mui/material/Grid2';
 import { useQuery } from '@apollo/client/react';
 import { useNavigate, useLocation } from 'react-router';
 import { HistoryList } from './HistoryList';
-import { GET_PREFERENCES } from '../graphql/queries';
+import { GET_SETTINGS } from '../graphql/queries';
 import { useRecentTransactions } from '../hooks/useTransactions';
 import { useAccounts } from '../hooks/useAccounts';
 import { useCategories } from '../hooks/useCategories';
@@ -40,17 +40,17 @@ export function Calculator(): React.JSX.Element {
     refetch: refetchRecentTransactions,
   } = useRecentTransactions(MAX_RECENT_TRANSACTIONS, { field: 'date', direction: 'desc' });
   const { topUsedValues } = useTopUsedValues(90);
-  const { data: preferencesData } = useQuery<{
-    preferences?: {
+  const { data: settingsData } = useQuery<{
+    settings?: {
       currency: string;
       useThousandSeparator: boolean;
       keypadLayout: string | null;
     };
-  }>(GET_PREFERENCES);
-  const currency = preferencesData?.preferences?.currency ?? 'USD';
-  const useThousandSeparator = preferencesData?.preferences?.useThousandSeparator ?? true;
+  }>(GET_SETTINGS);
+  const currency = settingsData?.settings?.currency ?? 'USD';
+  const useThousandSeparator = settingsData?.settings?.useThousandSeparator ?? true;
   const keypadLayout: KeypadLayout =
-    (preferencesData?.preferences?.keypadLayout as KeypadLayout) ?? 'layout1';
+    (settingsData?.settings?.keypadLayout as KeypadLayout) ?? 'layout1';
 
   // Calculator state management
   const {

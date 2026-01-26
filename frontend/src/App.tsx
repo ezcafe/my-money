@@ -64,11 +64,11 @@ const WorkspaceSettingsPage = lazy(() =>
 const WorkspaceLoaderPage = lazy(() =>
   import('./pages/WorkspaceLoaderPage').then((m) => ({ default: m.WorkspaceLoaderPage }))
 );
-const PreferencesPage = lazy(() =>
-  import('./pages/PreferencesPage').then((m) => ({ default: m.PreferencesPage }))
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
-const DisplayPreferencesPage = lazy(() =>
-  import('./pages/DisplayPreferencesPage').then((m) => ({ default: m.DisplayPreferencesPage }))
+const DisplaySettingsPage = lazy(() =>
+  import('./pages/DisplaySettingsPage').then((m) => ({ default: m.DisplaySettingsPage }))
 );
 const BudgetAddPage = lazy(() =>
   import('./pages/BudgetAddPage').then((m) => ({ default: m.BudgetAddPage }))
@@ -343,21 +343,21 @@ function App(): React.JSX.Element {
                           }
                         />
                         <Route
-                          path="/preferences"
+                          path="/settings"
                           element={
                             <ProtectedRouteWithErrorBoundary>
-                              <Layout title="Preferences" hideSearch>
-                                <PreferencesPage />
+                              <Layout title="Settings" hideSearch>
+                                <SettingsPage />
                               </Layout>
                             </ProtectedRouteWithErrorBoundary>
                           }
                         />
                         <Route
-                          path="/preferences/display"
+                          path="/settings/display"
                           element={
                             <ProtectedRouteWithErrorBoundary>
-                              <Layout title="Display Preferences" hideSearch>
-                                <DisplayPreferencesPage />
+                              <Layout title="Display Settings" hideSearch>
+                                <DisplaySettingsPage />
                               </Layout>
                             </ProtectedRouteWithErrorBoundary>
                           }

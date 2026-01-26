@@ -5,9 +5,9 @@
  */
 
 import React, { memo, useTransition } from 'react';
-import { Typography, List, ListItemButton, ListItemText, Divider } from '@mui/material';
+import { Typography, List, ListItemButton, ListItemText, Divider, Chip, Stack } from '@mui/material';
 import { useNavigate } from 'react-router';
-import { AccountBalance } from '@mui/icons-material';
+import { AccountBalance, Star } from '@mui/icons-material';
 import { useAccounts } from '../hooks/useAccounts';
 import { formatCurrencyPreserveDecimals } from '../utils/formatting';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
@@ -84,11 +84,29 @@ const AccountsPageComponent = (): React.JSX.Element => {
                   }}
                 >
                   <ListItemText
-                    primary={account.name}
-                    primaryTypographyProps={{
-                      variant: 'body1',
-                      fontWeight: 500,
-                    }}
+                    primary={
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="body1" fontWeight={500}>
+                          {account.name}
+                        </Typography>
+                        {account.isDefault ? (
+                          <Chip
+                            icon={<Star fontSize="inherit" />}
+                            label="Default"
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            sx={{
+                              height: 20,
+                              fontSize: '0.65rem',
+                              '& .MuiChip-icon': {
+                                fontSize: '0.75rem',
+                              },
+                            }}
+                          />
+                        ) : null}
+                      </Stack>
+                    }
                   />
                   <Typography variant="body1" fontWeight={500} color="text.primary">
                     {formatCurrencyPreserveDecimals(account.balance)}

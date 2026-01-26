@@ -45,18 +45,31 @@ export class CategoryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Ensure default categories exist before querying
-    await this.ensureDefaultCategories(context, workspaceId);
+    await this.ensureDefaultCategories(context, finalWorkspaceId);
 
     const categoryRepository = getContainer().getCategoryRepository(
       context.prisma
     );
     const categories = await withPrismaErrorHandling(
       async () => {
-        const categoriesList = await categoryRepository.findMany(workspaceId);
+        const categoriesList = await categoryRepository.findMany(finalWorkspaceId);
         // Get transaction counts for each category
         const categoriesWithCounts = await Promise.all(
           categoriesList.map(async (category) => {
@@ -105,13 +118,26 @@ export class CategoryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const categoryRepository = getContainer().getCategoryRepository(
       context.prisma
     );
-    return await categoryRepository.findById(id, workspaceId);
+    return await categoryRepository.findById(id, finalWorkspaceId);
   }
 
   /**
@@ -138,15 +164,28 @@ export class CategoryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const categoryRepository = getContainer().getCategoryRepository(
       context.prisma
     );
 
     // Check if category with same name already exists in this workspace
-    const existingCategory = await categoryRepository.findMany(workspaceId);
+    const existingCategory = await categoryRepository.findMany(finalWorkspaceId);
     const nameExists = existingCategory.some(
       (cat) => cat.name === validatedInput.name
     );
@@ -161,7 +200,7 @@ export class CategoryResolver extends BaseResolver {
           name: sanitizeUserInput(validatedInput.name),
           categoryType: validatedInput.categoryType,
           isDefault: false,
-          workspaceId,
+          workspaceId: finalWorkspaceId,
           createdBy: context.userId,
           lastEditedBy: context.userId,
         }),
@@ -200,14 +239,27 @@ export class CategoryResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Verify category belongs to workspace
     const categoryRepository = getContainer().getCategoryRepository(
       context.prisma
     );
-    const existingCategory = await categoryRepository.findById(id, workspaceId);
+    const existingCategory = await categoryRepository.findById(id, finalWorkspaceId);
 
     if (!existingCategory) {
       throw new NotFoundError('Category');
@@ -238,12 +290,12 @@ export class CategoryResolver extends BaseResolver {
       validatedInput.expectedVersion,
       existingCategory as unknown as Record<string, unknown>,
       newCategoryData as unknown as Record<string, unknown>,
-      workspaceId
+      finalWorkspaceId
     );
 
     // Check name uniqueness if name is being updated
     if (validatedInput.name && validatedInput.name !== existingCategory.name) {
-      const existingCategories = await categoryRepository.findMany(workspaceId);
+      const existingCategories = await categoryRepository.findMany(finalWorkspaceId);
       const nameExists = existingCategories.some(
         (cat) => cat.id !== id && cat.name === validatedInput.name
       );
@@ -288,7 +340,7 @@ export class CategoryResolver extends BaseResolver {
     });
 
     // Fetch updated category
-    const updatedCategory = await categoryRepository.findById(id, workspaceId);
+    const updatedCategory = await categoryRepository.findById(id, finalWorkspaceId);
 
     if (!updatedCategory) {
       throw new NotFoundError('Category');

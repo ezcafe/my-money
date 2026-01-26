@@ -95,9 +95,9 @@ export const GET_MOST_USED_TRANSACTION_DETAILS = gql`
   }
 `;
 
-export const GET_PREFERENCES = gql`
-  query GetPreferences {
-    preferences {
+export const GET_SETTINGS = gql`
+  query GetSettings {
+    settings {
       id
       currency
       useThousandSeparator
@@ -250,7 +250,7 @@ export const EXPORT_DATA = gql`
         note
         nextRunDate
       }
-      preferences {
+      settings {
         id
         currency
         useThousandSeparator

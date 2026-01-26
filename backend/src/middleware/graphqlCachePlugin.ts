@@ -28,7 +28,7 @@ const QUERY_CACHE_TTL: Record<string, number> = {
   accounts: 10 * 60 * 1000, // 10 minutes
   categories: 10 * 60 * 1000, // 10 minutes
   payees: 10 * 60 * 1000, // 10 minutes
-  preferences: 10 * 60 * 1000, // 10 minutes
+  settings: 10 * 60 * 1000, // 10 minutes
   // Transaction queries - cache shorter
   transactions: 2 * 60 * 1000, // 2 minutes
   recentTransactions: 1 * 60 * 1000, // 1 minute
@@ -125,8 +125,8 @@ function getCacheTTL(query: string): number {
   if (query.includes('payees') && !query.includes('transactions')) {
     return QUERY_CACHE_TTL.payees ?? 60;
   }
-  if (query.includes('preferences')) {
-    return QUERY_CACHE_TTL.preferences ?? 60;
+  if (query.includes('settings')) {
+    return QUERY_CACHE_TTL.settings ?? 60;
   }
   if (query.includes('reportTransactions')) {
     return QUERY_CACHE_TTL.reportTransactions ?? 60;

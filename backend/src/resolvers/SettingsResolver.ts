@@ -1,15 +1,15 @@
 /**
- * Preferences Resolver
- * Handles user preferences GraphQL operations
+ * Settings Resolver
+ * Handles user settings GraphQL operations
  */
 
 import type { GraphQLContext } from '../middleware/context';
-import type { UserPreferences } from '@prisma/client';
+import type { UserSettings } from '@prisma/client';
 import { z } from 'zod';
 import { validate } from '../utils/validation';
 import { withPrismaErrorHandling } from '../utils/prismaErrors';
 
-const UpdatePreferencesInputSchema = z.object({
+const UpdateSettingsInputSchema = z.object({
   currency: z.string().length(3).optional(),
   useThousandSeparator: z.boolean().optional(),
   colorScheme: z.string().nullable().optional(),
@@ -18,23 +18,23 @@ const UpdatePreferencesInputSchema = z.object({
   keypadLayout: z.string().optional(),
 });
 
-export class PreferencesResolver {
+export class SettingsResolver {
   /**
-   * Get user preferences
+   * Get user settings
    */
-  async preferences(
+  async settings(
     _: unknown,
     __: unknown,
     context: GraphQLContext
-  ): Promise<UserPreferences> {
+  ): Promise<UserSettings> {
     return await withPrismaErrorHandling(
       async () => {
-        let preferences = await context.prisma.userPreferences.findUnique({
+        let settings = await context.prisma.userSettings.findUnique({
           where: { userId: context.userId },
         });
 
-        // Create default preferences if they don't exist
-        preferences ??= await context.prisma.userPreferences.create({
+        // Create default settings if they don't exist
+        settings ??= await context.prisma.userSettings.create({
           data: {
             userId: context.userId,
             currency: 'USD',
@@ -43,16 +43,16 @@ export class PreferencesResolver {
           },
         });
 
-        return preferences;
+        return settings;
       },
-      { resource: 'Preferences', operation: 'read' }
+      { resource: 'Settings', operation: 'read' }
     );
   }
 
   /**
-   * Update user preferences
+   * Update user settings
    */
-  async updatePreferences(
+  async updateSettings(
     _: unknown,
     {
       input,
@@ -67,13 +67,13 @@ export class PreferencesResolver {
       };
     },
     context: GraphQLContext
-  ): Promise<UserPreferences> {
-    const validatedInput = validate(UpdatePreferencesInputSchema, input);
+  ): Promise<UserSettings> {
+    const validatedInput = validate(UpdateSettingsInputSchema, input);
 
     return await withPrismaErrorHandling(
       async () => {
-        // Upsert preferences
-        const preferences = await context.prisma.userPreferences.upsert({
+        // Upsert settings
+        const settings = await context.prisma.userSettings.upsert({
           where: { userId: context.userId },
           update: {
             ...(validatedInput.currency !== undefined && {
@@ -106,9 +106,9 @@ export class PreferencesResolver {
           },
         });
 
-        return preferences;
+        return settings;
       },
-      { resource: 'Preferences', operation: 'update' }
+      { resource: 'Settings', operation: 'update' }
     );
   }
 }

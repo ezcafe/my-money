@@ -192,7 +192,7 @@ export class SubscriptionResolver {
         // Note: This is checked in the resolver, but we log here for metrics
         return pubsub.asyncIterator('ACCOUNT_UPDATED');
       },
-      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
+      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but createFilter handles it safely
       createFilter<{ accountUpdated: Account }>(
         (payload, variables, context) => {
           // Rate limiting check
@@ -241,7 +241,7 @@ export class SubscriptionResolver {
   categoryUpdated = {
     subscribe: withFilter(
       () => pubsub.asyncIterator('CATEGORY_UPDATED'),
-      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
+      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but createFilter handles it safely
       createFilter<{ categoryUpdated: Category }>(
         (payload, variables, context) => {
           // Verify user has access to the workspace
@@ -263,7 +263,7 @@ export class SubscriptionResolver {
   payeeUpdated = {
     subscribe: withFilter(
       () => pubsub.asyncIterator('PAYEE_UPDATED'),
-      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
+      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but createFilter handles it safely
       createFilter<{ payeeUpdated: Payee }>((payload, variables, context) => {
         // Verify user has access to the workspace
         if (!context.userWorkspaces.includes(variables.workspaceId)) {
@@ -283,7 +283,7 @@ export class SubscriptionResolver {
   transactionUpdated = {
     subscribe: withFilter(
       () => pubsub.asyncIterator('TRANSACTION_UPDATED'),
-      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
+      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but createFilter handles it safely
       createFilter<{ transactionUpdated: Transaction }>(
         (_payload, variables, context) => {
           // Verify user has access to the workspace
@@ -308,7 +308,7 @@ export class SubscriptionResolver {
   budgetUpdated = {
     subscribe: withFilter(
       () => pubsub.asyncIterator('BUDGET_UPDATED'),
-      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
+      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but createFilter handles it safely
       createFilter<{ budgetUpdated: Budget }>((payload, variables, context) => {
         // Verify user has access to the workspace
         if (!context.userWorkspaces.includes(variables.workspaceId)) {
@@ -328,7 +328,7 @@ export class SubscriptionResolver {
   entityConflictDetected = {
     subscribe: withFilter(
       () => pubsub.asyncIterator('ENTITY_CONFLICT_DETECTED'),
-      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but we handle it safely
+      // @ts-expect-error - withFilter's FilterFn type doesn't allow undefined payload, but createFilter handles it safely
       createFilter<{ entityConflictDetected: EntityConflict }>(
         (payload, variables, context) => {
           // Verify user has access to the workspace

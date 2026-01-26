@@ -94,8 +94,24 @@ export function RequireWorkspaceAccess(
           (await getUserDefaultWorkspace(context.userId));
       }
 
-      // Check workspace access
-      await requireWorkspaceAccess(workspaceId, context.userId, context);
+      // Check workspace access - fallback to default workspace if current workspace doesn't exist
+      try {
+        await requireWorkspaceAccess(workspaceId, context.userId, context);
+      } catch (error) {
+        // If workspace doesn't exist and we're using context.currentWorkspaceId, fall back to default
+        if (
+          error instanceof Error &&
+          error.message.includes('Workspace') &&
+          context.currentWorkspaceId === workspaceId
+        ) {
+          workspaceId = await getUserDefaultWorkspace(context.userId);
+          await requireWorkspaceAccess(workspaceId, context.userId, context);
+          // Update context so method body uses the correct workspace
+          context.currentWorkspaceId = workspaceId;
+        } else {
+          throw error;
+        }
+      }
 
       // Execute original method
       return originalMethod.call(this, parent, args, context);

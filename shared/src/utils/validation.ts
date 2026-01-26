@@ -96,7 +96,7 @@ const ALLOWED_RETURN_PATHS = [
   '/budgets/add',
   '/reports',
   '/import',
-  '/preferences',
+  '/settings',
   '/calculator',
 ] as const;
 

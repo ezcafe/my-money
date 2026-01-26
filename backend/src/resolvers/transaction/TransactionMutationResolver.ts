@@ -63,12 +63,30 @@ export class TransactionMutationResolver extends BaseResolver {
     const validatedInput = validate(CreateTransactionInputSchema, input);
 
     // Get workspace ID from context (default to user's default workspace)
-    const workspaceId =
+    let workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access with fallback to default workspace
+    // If the workspace from context doesn't exist or user doesn't have access,
+    // fall back to the user's default workspace
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace check failed and we're using context.currentWorkspaceId,
+      // fall back to default workspace
+      if (
+        error instanceof NotFoundError &&
+        context.currentWorkspaceId === workspaceId
+      ) {
+        workspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(workspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = workspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Verify account belongs to workspace
     const accountRepository = getContainer().getAccountRepository(
@@ -120,8 +138,21 @@ export class TransactionMutationResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const transactionRepository = getContainer().getTransactionRepository(
       context.prisma
@@ -136,7 +167,7 @@ export class TransactionMutationResolver extends BaseResolver {
     // Verify transaction belongs to workspace and fetch with category
     const existingTransactionRaw = await transactionRepository.findById(
       id,
-      workspaceId,
+      finalWorkspaceId,
       undefined,
       {
         category: true,
@@ -187,14 +218,14 @@ export class TransactionMutationResolver extends BaseResolver {
       validatedInput.expectedVersion,
       existingTransaction as unknown as Record<string, unknown>,
       newTransactionData as unknown as Record<string, unknown>,
-      workspaceId
+      finalWorkspaceId
     );
 
     // Verify account if changed
     if (validatedInput.accountId) {
       const account = await accountRepository.findById(
         validatedInput.accountId,
-        workspaceId,
+        finalWorkspaceId,
         { id: true }
       );
 
@@ -209,7 +240,7 @@ export class TransactionMutationResolver extends BaseResolver {
       if (validatedInput.categoryId) {
         const foundCategory = await categoryRepository.findById(
           validatedInput.categoryId,
-          workspaceId,
+          finalWorkspaceId,
           { id: true, categoryType: true }
         );
 
@@ -250,7 +281,7 @@ export class TransactionMutationResolver extends BaseResolver {
         },
         newCategory,
         context.userId,
-        workspaceId,
+        finalWorkspaceId,
         tx
       );
 
@@ -285,8 +316,21 @@ export class TransactionMutationResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const transactionRepository = getContainer().getTransactionRepository(
       context.prisma
@@ -295,7 +339,7 @@ export class TransactionMutationResolver extends BaseResolver {
     // Verify transaction belongs to workspace and fetch with category
     const transactionRaw = await transactionRepository.findById(
       id,
-      workspaceId,
+      finalWorkspaceId,
       undefined,
       {
         category: true,

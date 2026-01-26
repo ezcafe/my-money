@@ -202,7 +202,7 @@ export function CalculatorKeypad({
           fullWidth
           variant="outlined"
           onClick={onSettingsClick}
-          aria-label="Preferences"
+          aria-label="Settings"
           sx={{ height: buttonHeight }}
         >
           <MoreIcon />
@@ -389,7 +389,7 @@ export function CalculatorKeypad({
           fullWidth
           variant="outlined"
           onClick={onSettingsClick}
-          aria-label="Preferences"
+          aria-label="Settings"
           sx={{ height: buttonHeight }}
         >
           <MoreIcon />
@@ -587,7 +587,7 @@ export function CalculatorKeypad({
           fullWidth
           variant="outlined"
           onClick={onSettingsClick}
-          aria-label="Preferences"
+          aria-label="Settings"
           sx={{ height: buttonHeight }}
         >
           <MoreIcon />

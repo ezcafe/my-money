@@ -10,12 +10,13 @@ import type {
   Payee,
   Transaction,
   RecurringTransaction,
-  UserPreferences,
+  UserSettings,
   Budget,
   ImportMatchRule,
   Prisma,
 } from '@prisma/client';
 import { withPrismaErrorHandling } from '../utils/prismaErrors';
+import { NotFoundError } from '../utils/errors';
 import {
   checkWorkspaceAccess,
   getUserDefaultWorkspace,
@@ -29,7 +30,7 @@ export class ExportResolver {
   /**
    * Export user data for CSV generation
    * Fetches user data including accounts, categories, payees, transactions,
-   * recurringTransactions, preferences, budgets, and importMatchRules
+   * recurringTransactions, settings, budgets, and importMatchRules
    * Supports filtering by date range and other criteria
    * @param _ - Parent resolver (unused)
    * @param args - Export arguments with optional filters
@@ -56,7 +57,7 @@ export class ExportResolver {
     payees: Payee[];
     transactions: Transaction[];
     recurringTransactions: RecurringTransaction[];
-    preferences: UserPreferences | null;
+    settings: UserSettings | null;
     budgets: Budget[];
     importMatchRules: ImportMatchRule[];
   }> {
@@ -65,8 +66,21 @@ export class ExportResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     return await withPrismaErrorHandling(
       async () => {
@@ -213,7 +227,7 @@ export class ExportResolver {
           payees,
           transactions,
           recurringTransactions,
-          preferences,
+          settings,
           budgets,
           importMatchRules,
         ] = await Promise.all([
@@ -246,8 +260,8 @@ export class ExportResolver {
                 orderBy: { createdAt: 'asc' },
               })
             : Promise.resolve([]),
-          // Preferences (always included)
-          context.prisma.userPreferences.findUnique({
+          // Settings (always included)
+          context.prisma.userSettings.findUnique({
             where: { userId: context.userId },
           }),
           // Budgets (filtered if includeBudgets is true)
@@ -270,7 +284,7 @@ export class ExportResolver {
           payees,
           transactions,
           recurringTransactions,
-          preferences,
+          settings,
           budgets,
           importMatchRules,
         };

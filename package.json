@@ -1,7 +1,7 @@
 {
   "name": "my-money",
   "version": "1.0.0",
-  "description": "Expense management application with passkey authentication",
+  "description": "Transaction management application with passkey authentication",
   "private": true,
   "workspaces": [
     "frontend",

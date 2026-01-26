@@ -22,7 +22,7 @@ interface CalculatorControlsProps {
 const menuItems: MenuItemConfig[] = [
   { path: '/report', label: 'Report', icon: <Assessment /> },
   { path: '/import', label: 'Import Statement', icon: <Upload /> },
-  { path: '/preferences', label: 'Preferences', icon: <Settings /> },
+  { path: '/settings', label: 'Settings', icon: <Settings /> },
 ];
 
 /**

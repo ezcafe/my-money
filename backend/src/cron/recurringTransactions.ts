@@ -1,6 +1,6 @@
 /**
  * Cron Job for Recurring Transactions
- * Runs daily at midnight in production, or every minute in development mode
+ * Runs daily at midnight by default, or every minute when hourly/minutely schedules are enabled
  * Includes retry logic, structured logging, and error tracking
  */
 
@@ -194,10 +194,11 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
   successful: number;
   failed: number;
 }> {
-  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const enableHourlyMinutely =
+    process.env.ENABLE_HOURLY_MINUTELY_SCHEDULES === 'true';
   const now = targetDate ?? new Date();
-  // In development (minutely), use current time; in production (daily), use start of day
-  const cutoffTime = isDevelopment
+  // When hourly/minutely schedules are enabled, use current time; otherwise use start of day
+  const cutoffTime = enableHourlyMinutely
     ? now
     : new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -309,15 +310,16 @@ export async function processRecurringTransactions(targetDate?: Date): Promise<{
 }
 
 /**
- * Start cron job to run daily at midnight (or minutely in development)
+ * Start cron job to run daily at midnight (or minutely when hourly/minutely schedules enabled)
  * Includes error handling for the cron job itself and missed run catch-up
  */
 export function startRecurringTransactionsCron(): void {
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  // In development, run every minute; in production, run daily at midnight
-  const cronSchedule = isDevelopment ? '* * * * *' : '0 0 * * *';
-  const scheduleDescription = isDevelopment
-    ? 'Every minute (development mode)'
+  const enableHourlyMinutely =
+    process.env.ENABLE_HOURLY_MINUTELY_SCHEDULES === 'true';
+  // When hourly/minutely schedules are enabled, run every minute; otherwise run daily at midnight
+  const cronSchedule = enableHourlyMinutely ? '* * * * *' : '0 0 * * *';
+  const scheduleDescription = enableHourlyMinutely
+    ? 'Every minute (hourly/minutely schedules enabled)'
     : 'Daily at midnight';
 
   cron.schedule(cronSchedule, async (): Promise<void> => {
@@ -326,7 +328,9 @@ export function startRecurringTransactionsCron(): void {
       logInfo('Recurring transactions - started');
 
       const now = new Date();
-      // In development, use current time; in production, use start of day for missed run detection
+      // When hourly/minutely schedules are enabled, use current time; otherwise use start of day for missed run detection
+      const enableHourlyMinutely =
+        process.env.ENABLE_HOURLY_MINUTELY_SCHEDULES === 'true';
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       // Check for missed runs (both development and production)
@@ -355,7 +359,7 @@ export function startRecurringTransactionsCron(): void {
               ? transaction.nextRunDate
               : lastRunDate;
 
-          const cutoffTime = isDevelopment ? now : today;
+          const cutoffTime = enableHourlyMinutely ? now : today;
           const missedRuns = getMissedRunsByInterval(
             transaction.cronExpression,
             startDate,
@@ -381,7 +385,7 @@ export function startRecurringTransactionsCron(): void {
             {
               jobName,
               lastRunDate: lastRunDate.toISOString(),
-              currentDate: isDevelopment
+              currentDate: enableHourlyMinutely
                 ? now.toISOString()
                 : today.toISOString(),
               totalMissedRuns,
@@ -429,8 +433,8 @@ export function startRecurringTransactionsCron(): void {
       const stats = await processRecurringTransactions(now);
 
       // Update last run date after successful completion
-      // In development, use current time with minute precision; in production, use start of day
-      const lastRunDateToStore = isDevelopment ? now : today;
+      // When hourly/minutely schedules are enabled, use current time with minute precision; otherwise use start of day
+      const lastRunDateToStore = enableHourlyMinutely ? now : today;
       await updateLastRunDate(jobName, lastRunDateToStore);
 
       logInfo('Recurring transactions - completed', stats);

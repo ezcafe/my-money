@@ -79,6 +79,68 @@ interface NetworkError extends Error {
 }
 
 /**
+ * Storage key for active workspace ID
+ */
+const WORKSPACE_STORAGE_KEY = 'active_workspace_id';
+
+/**
+ * Type guard to check if path is an array of strings/numbers
+ * @param path - Path value to check
+ * @returns true if path is an array
+ */
+function isPathArray(path: unknown): path is Array<string | number> {
+  return Array.isArray(path) && path.length > 0;
+}
+
+/**
+ * Check if an error is workspace-related
+ * @param message - Error message
+ * @param code - Error code
+ * @returns true if the error is workspace-related
+ */
+function isWorkspaceError(message: string, code: string | undefined): boolean {
+  const messageLower = message.toLowerCase();
+  return (
+    code === 'NOT_FOUND' &&
+    (messageLower.includes('workspace') || messageLower.includes('workspace not found'))
+  );
+}
+
+/**
+ * Clear invalid workspace ID from storage and cache
+ * This allows the backend to fall back to the user's default workspace
+ * Uses lazy import to avoid circular dependency with client.ts
+ */
+function clearInvalidWorkspace(): void {
+  try {
+    // Remove invalid workspace ID from localStorage
+    localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+
+    // Clear Apollo cache to ensure fresh data with the correct workspace
+    // Use dynamic import to avoid circular dependency
+    void import('./client').then(({ client }) => {
+      try {
+        void client.cache.reset();
+      } catch (error) {
+        console.warn('Failed to reset Apollo cache:', error);
+      }
+    });
+
+    // Dispatch custom event for WorkspaceContext to handle
+    // This ensures the context state is updated
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('workspace-cleared'));
+    }
+
+    // Log for debugging
+    console.warn('Cleared invalid workspace ID. The app will use your default workspace.');
+  } catch (error) {
+    // Silently handle errors (e.g., localStorage not available)
+    console.warn('Failed to clear invalid workspace:', error);
+  }
+}
+
+/**
  * Handle authentication errors (401, UNAUTHORIZED)
  * Attempts to refresh the token before requiring re-authentication
  */
@@ -182,20 +244,29 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
         retryable = false;
         break;
       case 'NOT_FOUND': {
-        // Provide context-specific help based on the resource type
-        const resourceType = message.toLowerCase().includes('account')
-          ? 'account'
-          : message.toLowerCase().includes('category')
-            ? 'category'
-            : message.toLowerCase().includes('payee')
-              ? 'payee'
-              : message.toLowerCase().includes('transaction')
-                ? 'transaction'
-                : message.toLowerCase().includes('budget')
-                  ? 'budget'
-                  : 'resource';
-        userMessage = `The ${resourceType} you're looking for doesn't exist or has been deleted. Please check your selection or navigate back to the list.`;
-        retryable = false;
+        // Check if this is a workspace-related error
+        if (isWorkspaceError(message, code)) {
+          // Clear invalid workspace ID and let backend use default workspace
+          clearInvalidWorkspace();
+          userMessage =
+            'The selected workspace is no longer available. Your default workspace will be used instead.';
+          retryable = true;
+        } else {
+          // Provide context-specific help based on the resource type
+          const resourceType = message.toLowerCase().includes('account')
+            ? 'account'
+            : message.toLowerCase().includes('category')
+              ? 'category'
+              : message.toLowerCase().includes('payee')
+                ? 'payee'
+                : message.toLowerCase().includes('transaction')
+                  ? 'transaction'
+                  : message.toLowerCase().includes('budget')
+                    ? 'budget'
+                    : 'resource';
+          userMessage = `The ${resourceType} you're looking for doesn't exist or has been deleted. Please check your selection or navigate back to the list.`;
+          retryable = false;
+        }
         break;
       }
       case 'FORBIDDEN':
@@ -203,11 +274,52 @@ export function handleGraphQLErrors(graphQLErrors: GraphQLError[]): void {
           "You don't have permission to perform this action. If you believe this is an error, please contact support.";
         retryable = false;
         break;
-      case 'INTERNAL_SERVER_ERROR':
-        userMessage =
-          'An unexpected error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page or contact support.';
+      case 'INTERNAL_SERVER_ERROR': {
+        // Check if this might be a workspace-related error
+        // The backend now handles workspace fallback, but we should still clear
+        // invalid workspace IDs to prevent future errors
+        const messageLower = message.toLowerCase();
+        const pathIsArray = isPathArray(path);
+        if (messageLower.includes('workspace') || pathIsArray) {
+          // Check if this error occurred during a mutation that requires workspace
+          let mutationPath: string | null = null;
+          if (pathIsArray) {
+            const firstPathElement = path[0];
+            if (typeof firstPathElement === 'string') {
+              mutationPath = firstPathElement;
+            }
+          }
+          const workspaceRelatedMutations = [
+            'createTransaction',
+            'updateTransaction',
+            'createAccount',
+            'updateAccount',
+            'createCategory',
+            'updateCategory',
+            'createPayee',
+            'updatePayee',
+            'createBudget',
+            'updateBudget',
+          ];
+          if (
+            mutationPath !== null &&
+            workspaceRelatedMutations.some((m) => mutationPath.includes(m))
+          ) {
+            // This might be workspace-related, clear invalid workspace as a precaution
+            clearInvalidWorkspace();
+            userMessage =
+              'An error occurred. If the problem persists, try refreshing the page. Your default workspace will be used.';
+          } else {
+            userMessage =
+              'An unexpected error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page or contact support.';
+          }
+        } else {
+          userMessage =
+            'An unexpected error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page or contact support.';
+        }
         retryable = true;
         break;
+      }
       case 'DATABASE_ERROR':
         userMessage =
           'A database error occurred. Your data is safe. Please try again in a moment. If the problem persists, refresh the page.';
@@ -342,6 +454,9 @@ export function handleNetworkError(networkError: NetworkError): void {
       userMessage =
         'Request timed out. The server took too long to respond. Please try again with a simpler request or refresh the page.';
     } else if (networkStatusCode === 500) {
+      // For 500 errors, clear invalid workspace as a precaution
+      // The backend will handle fallback, but clearing here prevents future issues
+      clearInvalidWorkspace();
       userMessage =
         'Server error occurred. Your data is safe. Please try again in a moment. If the problem persists, contact support.';
     }

@@ -70,7 +70,7 @@ export interface RecurringTransaction {
   updatedAt: Date;
 }
 
-export interface UserPreferences {
+export interface UserSettings {
   id: string;
   userId: string;
   currency: string;

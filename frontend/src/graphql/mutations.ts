@@ -63,9 +63,9 @@ export const CREATE_ACCOUNT = gql`
   ${ACCOUNT_FIELDS}
 `;
 
-export const UPDATE_PREFERENCES = gql`
-  mutation UpdatePreferences($input: UpdatePreferencesInput!) {
-    updatePreferences(input: $input) {
+export const UPDATE_SETTINGS = gql`
+  mutation UpdateSettings($input: UpdateSettingsInput!) {
+    updateSettings(input: $input) {
       id
       currency
       useThousandSeparator

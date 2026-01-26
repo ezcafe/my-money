@@ -1,6 +1,6 @@
 # My Money - User Guide
 
-Welcome to My Money! This guide will help you get started and make the most of your expense management application.
+Welcome to My Money! This guide will help you get started and make the most of your transaction management application.
 
 > 📖 **Back to Documentation**: See the [README.md](../README.md) for setup and technical information.
 
@@ -16,7 +16,7 @@ Welcome to My Money! This guide will help you get started and make the most of y
 8. [Reports & Analytics](#reports--analytics)
 9. [Importing Data](#importing-data)
 10. [Workspaces & Collaboration](#workspaces--collaboration)
-11. [Preferences & Settings](#preferences--settings)
+11. [Settings](#settings)
 12. [Tips & Tricks](#tips--tricks)
 
 ---
@@ -363,7 +363,7 @@ Import transactions from PDF statements or CSV files to save time.
 
 ### Importing from CSV
 
-1. Go to **Preferences** → **Data Management**
+1. Go to **Settings** → **Data Management**
 2. Select **Import CSV**
 3. Choose your CSV file
 4. Map CSV columns to My Money fields
@@ -387,7 +387,7 @@ Workspaces allow you to collaborate with family members, roommates, or team memb
 
 1. Navigate to **Workspaces** from the main menu
 2. Tap **Create Workspace**
-3. Enter a workspace name (e.g., "Family Budget", "Roommate Expenses")
+3. Enter a workspace name (e.g., "Family Budget", "Roommate Transactions")
 4. Tap **Create**
 
 You automatically become the **Owner** of the workspace you create.
@@ -431,20 +431,20 @@ The user will receive an email with an invitation link. They can accept the invi
 
 ### Tips
 
-- 💡 **Clear Naming**: Use descriptive workspace names (e.g., "2024 Family Budget", "Apartment Expenses")
+- 💡 **Clear Naming**: Use descriptive workspace names (e.g., "2024 Family Budget", "Apartment Transactions")
 - 💡 **Role Management**: Only give Admin or Owner roles to trusted members
 - 💡 **Regular Communication**: Coordinate with workspace members to avoid duplicate entries
-- 💡 **Separate Workspaces**: Create separate workspaces for different purposes (personal, business, shared expenses)
+- 💡 **Separate Workspaces**: Create separate workspaces for different purposes (personal, business, shared transactions)
 
 ---
 
-## Preferences & Settings
+## Settings
 
-Customize your My Money experience to match your preferences.
+Customize your My Money experience to match your settings.
 
-### Accessing Preferences
+### Accessing Settings
 
-Navigate to **Preferences** from the main menu (usually in the sidebar or user menu).
+Navigate to **Settings** from the main menu (usually in the sidebar or user menu).
 
 ### Available Settings
 

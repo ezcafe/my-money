@@ -70,6 +70,29 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps): React.J
     }
   }, []);
 
+  /**
+   * Listen for workspace-cleared events from error handling
+   * This ensures the context state is updated when an invalid workspace is cleared
+   */
+  useEffect(() => {
+    const handleWorkspaceCleared = (): void => {
+      // Update state to reflect that workspace was cleared
+      setActiveWorkspaceIdState(null);
+    };
+
+    if (typeof window === 'undefined') {
+      // No-op cleanup for SSR
+      return () => {
+        // No cleanup needed in SSR environment
+      };
+    }
+
+    window.addEventListener('workspace-cleared', handleWorkspaceCleared);
+    return () => {
+      window.removeEventListener('workspace-cleared', handleWorkspaceCleared);
+    };
+  }, []);
+
   return (
     <WorkspaceContext.Provider
       value={{

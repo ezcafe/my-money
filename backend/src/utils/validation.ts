@@ -166,7 +166,7 @@ export const inputSchemas = {
     payeeId: schemas.optionalUuid,
     note: schemas.userInputString.optional(),
   }),
-  updatePreferences: z.object({
+  updateSettings: z.object({
     currency: z
       .string()
       .max(10, 'Currency code must be at most 10 characters')
@@ -315,8 +315,8 @@ export type CreateRecurringTransactionInput = z.infer<
 export type UpdateRecurringTransactionInput = z.infer<
   typeof inputSchemas.updateRecurringTransaction
 >;
-export type UpdatePreferencesInput = z.infer<
-  typeof inputSchemas.updatePreferences
+export type UpdateSettingsInput = z.infer<
+  typeof inputSchemas.updateSettings
 >;
 export type CreateBudgetInput = z.infer<typeof inputSchemas.createBudget>;
 export type UpdateBudgetInput = z.infer<typeof inputSchemas.updateBudget>;

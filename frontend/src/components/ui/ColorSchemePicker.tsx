@@ -9,7 +9,7 @@ import Grid from '@mui/material/Grid2';
 import { CheckCircle } from '@mui/icons-material';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useMutation } from '@apollo/client/react';
-import { UPDATE_PREFERENCES } from '../../graphql/mutations';
+import { UPDATE_SETTINGS } from '../../graphql/mutations';
 import {
   getStaticColorSchemeNames,
   getColorPalette,
@@ -126,8 +126,8 @@ function ColorSchemePreview({
  */
 export function ColorSchemePicker(): React.JSX.Element {
   const { colorScheme, updateColorScheme, mode } = useTheme();
-  const [updatePreferences] = useMutation(UPDATE_PREFERENCES, {
-    refetchQueries: ['GetPreferences'],
+  const [updateSettings] = useMutation(UPDATE_SETTINGS, {
+    refetchQueries: ['GetSettings'],
   });
 
   const [schemeType, setSchemeType] = useState<ColorSchemeType>(colorScheme?.type ?? null);
@@ -182,7 +182,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         value: newType === 'dynamic' ? dynamicColor : staticScheme,
       };
       updateColorScheme(newScheme);
-      void updatePreferences({
+      void updateSettings({
         variables: {
           input: {
             colorScheme: newType,
@@ -191,7 +191,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         },
       });
     },
-    [dynamicColor, staticScheme, updateColorScheme, updatePreferences]
+    [dynamicColor, staticScheme, updateColorScheme, updateSettings]
   );
 
   /**
@@ -206,7 +206,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         value: newColor,
       };
       updateColorScheme(newScheme);
-      void updatePreferences({
+      void updateSettings({
         variables: {
           input: {
             colorScheme: 'dynamic',
@@ -215,7 +215,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         },
       });
     },
-    [updateColorScheme, updatePreferences]
+    [updateColorScheme, updateSettings]
   );
 
   /**
@@ -229,7 +229,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         value: scheme,
       };
       updateColorScheme(newScheme);
-      void updatePreferences({
+      void updateSettings({
         variables: {
           input: {
             colorScheme: 'static',
@@ -238,7 +238,7 @@ export function ColorSchemePicker(): React.JSX.Element {
         },
       });
     },
-    [updateColorScheme, updatePreferences]
+    [updateColorScheme, updateSettings]
   );
 
   const staticSchemes = getStaticColorSchemeNames();

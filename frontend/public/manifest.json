@@ -1,7 +1,7 @@
 {
   "short_name": "My Money",
-  "name": "My Money - Expense Manager",
-  "description": "Expense management application with passkey authentication",
+  "name": "My Money - Transaction Manager",
+  "description": "Transaction management application with passkey authentication",
   "icons": [
     {
       "src": "icons/icon-192x192.png",

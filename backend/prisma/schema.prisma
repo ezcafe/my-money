@@ -34,7 +34,7 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  preferences            UserPreferences?
+  settings            UserSettings?
   workspaceMembers       WorkspaceMember[]
   workspaceInvitations   WorkspaceInvitation[]
   createdAccounts        Account[]             @relation("AccountCreator")
@@ -57,7 +57,7 @@ model User {
   @@index([email])
 }
 
-model UserPreferences {
+model UserSettings {
   id                   String   @id @default(uuid())
   userId               String   @unique
   currency             String   @default("USD")

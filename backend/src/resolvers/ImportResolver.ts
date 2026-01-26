@@ -1683,7 +1683,7 @@ export async function importCSV(
     'payees',
     'transactions',
     'recurringTransactions',
-    'preferences',
+    'settings',
     'budgets',
     'importMatchRules',
   ];
@@ -1901,13 +1901,13 @@ export async function importCSV(
             } else {
               created++;
             }
-          } else if (entityType === 'preferences') {
-            // Preferences are always upserted (one per user)
-            const existing = await tx.userPreferences.findUnique({
+          } else if (entityType === 'settings') {
+            // Settings are always upserted (one per user)
+            const existing = await tx.userSettings.findUnique({
               where: { userId: context.userId },
             });
             wasUpdated = existing !== null;
-            await importPreferences(row, tx, context.userId);
+            await importSettings(row, tx, context.userId);
             if (wasUpdated) {
               updated++;
             } else {
@@ -2286,9 +2286,9 @@ async function importRecurringTransaction(
 }
 
 /**
- * Import preferences from CSV row
+ * Import settings from CSV row
  */
-async function importPreferences(
+async function importSettings(
   row: Record<string, string>,
   tx: Omit<
     PrismaClient,
@@ -2305,8 +2305,8 @@ async function importPreferences(
     userId,
   };
 
-  // Preferences are unique per user, so we upsert
-  await tx.userPreferences.upsert({
+  // Settings are unique per user, so we upsert
+  await tx.userSettings.upsert({
     where: { userId },
     update: data,
     create: data,

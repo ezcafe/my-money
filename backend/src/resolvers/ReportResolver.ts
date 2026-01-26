@@ -76,8 +76,21 @@ export class ReportResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     return await withPrismaErrorHandling(
       async () => {

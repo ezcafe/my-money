@@ -90,7 +90,7 @@ const mutationInputSchemaMap: Record<string, keyof typeof inputSchemas> = {
   updateTransaction: 'updateTransaction',
   createRecurringTransaction: 'createRecurringTransaction',
   updateRecurringTransaction: 'updateRecurringTransaction',
-  updatePreferences: 'updatePreferences',
+  updateSettings: 'updateSettings',
   createBudget: 'createBudget',
   updateBudget: 'updateBudget',
   createWorkspace: 'createWorkspace',

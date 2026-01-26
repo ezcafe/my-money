@@ -1,6 +1,6 @@
-# My Money - Expense Management Application
+# My Money - Transaction Management Application
 
-A full-stack expense management application with passkey authentication, calculator UI, transaction management, multi-user workspaces, budgets, and advanced collaboration features.
+A full-stack transaction management application with passkey authentication, calculator UI, transaction management, multi-user workspaces, budgets, and advanced collaboration features.
 
 ## Features
 

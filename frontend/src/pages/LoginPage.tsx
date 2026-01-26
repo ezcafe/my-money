@@ -68,7 +68,7 @@ export function LoginPage(): React.JSX.Element {
             </Typography>
 
             <Typography variant="body1" align="center" color="text.secondary">
-              Sign in to manage your expenses
+              Sign in to manage your transactions
             </Typography>
 
             {error ? (

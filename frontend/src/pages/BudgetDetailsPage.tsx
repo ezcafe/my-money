@@ -14,7 +14,7 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { DELETE_TRANSACTION } from '../graphql/mutations';
 import {
-  GET_PREFERENCES,
+  GET_SETTINGS,
   GET_REPORT_TRANSACTIONS,
   GET_TRANSACTIONS,
   GET_RECENT_TRANSACTIONS,
@@ -49,11 +49,11 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
   // Title state
   const { setTitle } = useHeader();
 
-  // Get currency preference
-  const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
-    GET_PREFERENCES
+  // Get currency setting
+  const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(
+    GET_SETTINGS
   );
-  const currency = preferencesData?.preferences?.currency ?? 'USD';
+  const currency = settingsData?.settings?.currency ?? 'USD';
 
   const {
     budget,

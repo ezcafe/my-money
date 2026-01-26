@@ -119,7 +119,21 @@ export class BatchResolver extends BaseResolver {
     const workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
@@ -154,7 +168,7 @@ export class BatchResolver extends BaseResolver {
                 name: sanitizedName,
                 initBalance: data.initBalance ?? 0,
                 accountType: data.accountType ?? 'Cash',
-                workspaceId: data.workspaceId ?? workspaceId,
+                workspaceId: data.workspaceId ?? finalWorkspaceId,
                 createdBy: context.userId,
                 lastEditedBy: context.userId,
                 isDefault: false,
@@ -175,7 +189,7 @@ export class BatchResolver extends BaseResolver {
     });
 
     // Invalidate cache for all accounts in workspace
-    await postgresCache.invalidateByTags([CACHE_TAGS.ACCOUNTS(workspaceId)]);
+    await postgresCache.invalidateByTags([CACHE_TAGS.ACCOUNTS(finalWorkspaceId)]);
 
     return result;
   }
@@ -196,7 +210,21 @@ export class BatchResolver extends BaseResolver {
     const workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
@@ -224,7 +252,7 @@ export class BatchResolver extends BaseResolver {
           // Verify account exists and belongs to workspace
           const existing = await accountRepository.findById(
             data.id,
-            workspaceId,
+            finalWorkspaceId,
             { id: true }
           );
           if (!existing) {
@@ -271,7 +299,7 @@ export class BatchResolver extends BaseResolver {
     });
 
     // Invalidate cache for all accounts in workspace
-    await postgresCache.invalidateByTags([CACHE_TAGS.ACCOUNTS(workspaceId)]);
+    await postgresCache.invalidateByTags([CACHE_TAGS.ACCOUNTS(finalWorkspaceId)]);
 
     return result;
   }
@@ -292,7 +320,21 @@ export class BatchResolver extends BaseResolver {
     const workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
@@ -326,7 +368,7 @@ export class BatchResolver extends BaseResolver {
               return await categoryRepository.create({
                 name: sanitizedName,
                 categoryType: data.categoryType,
-                workspaceId: data.workspaceId ?? workspaceId,
+                workspaceId: data.workspaceId ?? finalWorkspaceId,
                 createdBy: context.userId,
                 lastEditedBy: context.userId,
                 isDefault: false,
@@ -365,7 +407,21 @@ export class BatchResolver extends BaseResolver {
     const workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
@@ -393,7 +449,7 @@ export class BatchResolver extends BaseResolver {
           // Verify category exists and belongs to workspace
           const existing = await categoryRepository.findById(
             data.id,
-            workspaceId,
+            finalWorkspaceId,
             { id: true }
           );
           if (!existing) {
@@ -454,7 +510,21 @@ export class BatchResolver extends BaseResolver {
     const workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
@@ -487,7 +557,7 @@ export class BatchResolver extends BaseResolver {
             async () => {
               return await payeeRepository.create({
                 name: sanitizedName,
-                workspaceId: data.workspaceId ?? workspaceId,
+                workspaceId: data.workspaceId ?? finalWorkspaceId,
                 createdBy: context.userId,
                 lastEditedBy: context.userId,
                 isDefault: false,
@@ -526,7 +596,21 @@ export class BatchResolver extends BaseResolver {
     const workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
@@ -554,7 +638,7 @@ export class BatchResolver extends BaseResolver {
           // Verify payee exists and belongs to workspace
           const existing = await payeeRepository.findById(
             data.id,
-            workspaceId,
+            finalWorkspaceId,
             { id: true }
           );
           if (!existing) {
@@ -608,7 +692,21 @@ export class BatchResolver extends BaseResolver {
     const workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
@@ -642,7 +740,7 @@ export class BatchResolver extends BaseResolver {
         accountIds.map(async (accountId) => {
           const account = await accountRepository.findById(
             accountId,
-            workspaceId,
+            finalWorkspaceId,
             { id: true }
           );
           if (!account) {
@@ -667,7 +765,7 @@ export class BatchResolver extends BaseResolver {
                   note: data.note ? sanitizeUserInput(data.note) : null,
                 },
                 context.userId,
-                workspaceId,
+                finalWorkspaceId,
                 uow.getTransaction()
               );
             },
@@ -704,7 +802,21 @@ export class BatchResolver extends BaseResolver {
     const workspaceId =
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Validate all inputs
     const validatedInputs = inputs.map((input, index) => {
@@ -736,7 +848,7 @@ export class BatchResolver extends BaseResolver {
           // Verify transaction exists and belongs to workspace
           const existing = await transactionRepository.findById(
             data.id,
-            workspaceId,
+            finalWorkspaceId,
             { id: true }
           );
           if (!existing) {

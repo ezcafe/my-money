@@ -63,14 +63,27 @@ export class BudgetResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const budgetRepository = getContainer().getBudgetRepository(context.prisma);
     return await withPrismaErrorHandling(
       async () => {
         const budgets = await budgetRepository.findMany(
-          workspaceId,
+          finalWorkspaceId,
           undefined,
           {
             account: true,
@@ -103,15 +116,28 @@ export class BudgetResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const budgetRepository = getContainer().getBudgetRepository(context.prisma);
     return await withPrismaErrorHandling(
       async () => {
         const budget = await budgetRepository.findById(
           id,
-          workspaceId,
+          finalWorkspaceId,
           undefined,
           {
             account: true,
@@ -176,8 +202,21 @@ export class BudgetResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const container = getContainer();
     const accountRepository = container.getAccountRepository(context.prisma);
@@ -189,7 +228,7 @@ export class BudgetResolver {
     if (validatedInput.accountId) {
       const account = await accountRepository.findById(
         validatedInput.accountId,
-        workspaceId,
+        finalWorkspaceId,
         { id: true }
       );
       if (!account) {
@@ -200,7 +239,7 @@ export class BudgetResolver {
     if (validatedInput.categoryId) {
       const category = await categoryRepository.findById(
         validatedInput.categoryId,
-        workspaceId,
+        finalWorkspaceId,
         { id: true }
       );
       if (!category) {
@@ -211,7 +250,7 @@ export class BudgetResolver {
     if (validatedInput.payeeId) {
       const payee = await payeeRepository.findById(
         validatedInput.payeeId,
-        workspaceId,
+        finalWorkspaceId,
         { id: true }
       );
       if (!payee) {
@@ -222,7 +261,7 @@ export class BudgetResolver {
     // Check if budget already exists
     const existingBudget = await budgetRepository.findFirst(
       {
-        workspaceId,
+        workspaceId: finalWorkspaceId,
         accountId: validatedInput.accountId ?? null,
         categoryId: validatedInput.categoryId ?? null,
         payeeId: validatedInput.payeeId ?? null,
@@ -237,7 +276,7 @@ export class BudgetResolver {
     }
 
     const budget = await budgetRepository.create({
-      workspaceId,
+      workspaceId: finalWorkspaceId,
       amount: validatedInput.amount,
       accountId: validatedInput.accountId ?? null,
       categoryId: validatedInput.categoryId ?? null,
@@ -281,13 +320,26 @@ export class BudgetResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const budgetRepository = getContainer().getBudgetRepository(context.prisma);
 
     // Verify budget belongs to workspace
-    const existingBudget = await budgetRepository.findById(id, workspaceId);
+    const existingBudget = await budgetRepository.findById(id, finalWorkspaceId);
 
     if (!existingBudget) {
       throw new NotFoundError('Budget');
@@ -313,7 +365,7 @@ export class BudgetResolver {
       validatedInput.expectedVersion,
       existingBudget as unknown as Record<string, unknown>,
       newBudgetData as unknown as Record<string, unknown>,
-      workspaceId
+      finalWorkspaceId
     );
 
     // Update budget, create version snapshot
@@ -377,13 +429,26 @@ export class BudgetResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const budgetRepository = getContainer().getBudgetRepository(context.prisma);
 
     // Verify budget belongs to workspace
-    const budget = await budgetRepository.findById(id, workspaceId);
+    const budget = await budgetRepository.findById(id, finalWorkspaceId);
 
     if (!budget) {
       throw new NotFoundError('Budget');

@@ -1,11 +1,11 @@
 /**
  * Date Format Context
- * Provides date format preference throughout the application
+ * Provides date format setting throughout the application
  */
 
 import React, { createContext, useContext, useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
-import { GET_PREFERENCES } from '../graphql/queries';
+import { GET_SETTINGS } from '../graphql/queries';
 
 /**
  * Available date format options
@@ -29,13 +29,13 @@ const DateFormatContext = createContext<DateFormatContextType | undefined>(undef
  */
 export function DateFormatProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { data, loading } = useQuery<{
-    preferences?: { dateFormat: string | null };
-  }>(GET_PREFERENCES, {
+    settings?: { dateFormat: string | null };
+  }>(GET_SETTINGS, {
     fetchPolicy: 'cache-and-network',
   });
 
   const dateFormat = useMemo<DateFormat>(() => {
-    const rawFormat = data?.preferences?.dateFormat;
+    const rawFormat = data?.settings?.dateFormat;
     if (!rawFormat) {
       return DEFAULT_DATE_FORMAT;
     }
@@ -53,7 +53,7 @@ export function DateFormatProvider({ children }: { children: React.ReactNode }):
       return format as DateFormat;
     }
     return DEFAULT_DATE_FORMAT;
-  }, [data?.preferences?.dateFormat]);
+  }, [data?.settings?.dateFormat]);
 
   return (
     <DateFormatContext.Provider value={{ dateFormat, loading }}>

@@ -12,7 +12,7 @@ import {
   shouldUpdateTheme,
   type ColorSchemeConfig,
 } from './index';
-import { GET_PREFERENCES } from '../graphql/queries';
+import { GET_SETTINGS } from '../graphql/queries';
 import type { Theme } from '@mui/material/styles';
 
 interface ThemeContextType {
@@ -43,33 +43,33 @@ interface ThemeProviderProps {
 
 /**
  * Theme Provider Component
- * Loads color scheme from preferences and applies M3 theme
+ * Loads color scheme from settings and applies M3 theme
  */
 export function ThemeProvider({ children }: ThemeProviderProps): React.JSX.Element {
   const [mode, setMode] = useState<'dark' | 'light'>(getInitialTheme());
   const [colorScheme, setColorScheme] = useState<ColorSchemeConfig | undefined>(undefined);
   const [theme, setThemeState] = useState<Theme>(createAppTheme(mode));
 
-  // Load preferences to get color scheme
-  const { data: preferencesData } = useQuery<{
-    preferences?: {
+  // Load settings to get color scheme
+  const { data: settingsData } = useQuery<{
+    settings?: {
       colorScheme: string | null;
       colorSchemeValue: string | null;
     };
-  }>(GET_PREFERENCES, {
+  }>(GET_SETTINGS, {
     fetchPolicy: 'cache-and-network',
   });
 
-  // Update color scheme from preferences
+  // Update color scheme from settings
   useEffect(() => {
-    if (preferencesData?.preferences) {
+    if (settingsData?.settings) {
       const scheme: ColorSchemeConfig = {
-        type: (preferencesData.preferences.colorScheme as 'dynamic' | 'static' | null) ?? null,
-        value: preferencesData.preferences.colorSchemeValue ?? null,
+        type: (settingsData.settings.colorScheme as 'dynamic' | 'static' | null) ?? null,
+        value: settingsData.settings.colorSchemeValue ?? null,
       };
       setColorScheme(scheme);
     }
-  }, [preferencesData]);
+  }, [settingsData]);
 
   // Update theme when mode or color scheme changes
   useEffect(() => {

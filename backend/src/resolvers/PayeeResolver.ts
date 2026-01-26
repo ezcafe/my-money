@@ -43,16 +43,29 @@ export class PayeeResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Ensure default payees exist before querying
-    await this.ensureDefaultPayees(context, workspaceId);
+    await this.ensureDefaultPayees(context, finalWorkspaceId);
 
     const payeeRepository = getContainer().getPayeeRepository(context.prisma);
     const payees = await withPrismaErrorHandling(
       async () => {
-        const payeesList = await payeeRepository.findMany(workspaceId);
+        const payeesList = await payeeRepository.findMany(finalWorkspaceId);
         // Get transaction counts for each payee
         const payeesWithCounts = await Promise.all(
           payeesList.map(async (payee) => {
@@ -101,11 +114,24 @@ export class PayeeResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const payeeRepository = getContainer().getPayeeRepository(context.prisma);
-    return await payeeRepository.findById(id, workspaceId);
+    return await payeeRepository.findById(id, finalWorkspaceId);
   }
 
   /**
@@ -124,13 +150,26 @@ export class PayeeResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     const payeeRepository = getContainer().getPayeeRepository(context.prisma);
 
     // Check if payee with same name already exists in this workspace
-    const existingPayees = await payeeRepository.findMany(workspaceId);
+    const existingPayees = await payeeRepository.findMany(finalWorkspaceId);
     const nameExists = existingPayees.some(
       (payee) => payee.name === validatedInput.name
     );
@@ -144,7 +183,7 @@ export class PayeeResolver extends BaseResolver {
         await payeeRepository.create({
           name: sanitizeUserInput(validatedInput.name),
           isDefault: false,
-          workspaceId,
+          workspaceId: finalWorkspaceId,
           createdBy: context.userId,
           lastEditedBy: context.userId,
         }),
@@ -176,12 +215,25 @@ export class PayeeResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Verify payee belongs to workspace
     const payeeRepository = getContainer().getPayeeRepository(context.prisma);
-    const existingPayee = await payeeRepository.findById(id, workspaceId);
+    const existingPayee = await payeeRepository.findById(id, finalWorkspaceId);
 
     if (!existingPayee) {
       throw new NotFoundError('Payee');
@@ -209,12 +261,12 @@ export class PayeeResolver extends BaseResolver {
       validatedInput.expectedVersion,
       existingPayee as unknown as Record<string, unknown>,
       newPayeeData as unknown as Record<string, unknown>,
-      workspaceId
+      finalWorkspaceId
     );
 
     // Check name uniqueness if name is being updated
     if (validatedInput.name && validatedInput.name !== existingPayee.name) {
-      const existingPayees = await payeeRepository.findMany(workspaceId);
+      const existingPayees = await payeeRepository.findMany(finalWorkspaceId);
       const nameExists = existingPayees.some(
         (payee) => payee.id !== id && payee.name === validatedInput.name
       );
@@ -256,7 +308,7 @@ export class PayeeResolver extends BaseResolver {
     });
 
     // Fetch updated payee
-    const updatedPayee = await payeeRepository.findById(id, workspaceId);
+    const updatedPayee = await payeeRepository.findById(id, finalWorkspaceId);
 
     if (!updatedPayee) {
       throw new NotFoundError('Payee');
@@ -282,12 +334,25 @@ export class PayeeResolver extends BaseResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
-    // Verify workspace access
-    await checkWorkspaceAccess(workspaceId, context.userId);
+    // Verify workspace access - fallback to default workspace if current workspace doesn't exist
+    let finalWorkspaceId = workspaceId;
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch (error) {
+      // If workspace doesn't exist, fall back to user's default workspace
+      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+        finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
+        await checkWorkspaceAccess(finalWorkspaceId, context.userId);
+        // Update context so subsequent operations use the correct workspace
+        context.currentWorkspaceId = finalWorkspaceId;
+      } else {
+        throw error;
+      }
+    }
 
     // Verify payee belongs to workspace
     const payeeRepository = getContainer().getPayeeRepository(context.prisma);
-    const payee = await payeeRepository.findById(id, workspaceId);
+    const payee = await payeeRepository.findById(id, finalWorkspaceId);
 
     if (!payee) {
       throw new NotFoundError('Payee');
