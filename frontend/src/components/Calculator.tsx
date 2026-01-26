@@ -21,7 +21,8 @@ import { useCalculatorTransaction } from '../hooks/useCalculatorTransaction';
 import { useCalculatorKeyboard } from '../hooks/useCalculatorKeyboard';
 import { MAX_RECENT_TRANSACTIONS } from '../constants';
 import { CalculatorDisplay } from './calculator/CalculatorDisplay';
-import { CalculatorKeypad } from './calculator/CalculatorKeypad';
+import { CalculatorKeypad, type KeypadLayout } from './calculator/CalculatorKeypad';
+import { CalculatorPickers } from './calculator/CalculatorPickers';
 import { CalculatorControls } from './calculator/CalculatorControls';
 import { Card } from './ui/Card';
 
@@ -40,10 +41,16 @@ export function Calculator(): React.JSX.Element {
   } = useRecentTransactions(MAX_RECENT_TRANSACTIONS, { field: 'date', direction: 'desc' });
   const { topUsedValues } = useTopUsedValues(90);
   const { data: preferencesData } = useQuery<{
-    preferences?: { currency: string; useThousandSeparator: boolean };
+    preferences?: {
+      currency: string;
+      useThousandSeparator: boolean;
+      keypadLayout: string | null;
+    };
   }>(GET_PREFERENCES);
   const currency = preferencesData?.preferences?.currency ?? 'USD';
   const useThousandSeparator = preferencesData?.preferences?.useThousandSeparator ?? true;
+  const keypadLayout: KeypadLayout =
+    (preferencesData?.preferences?.keypadLayout as KeypadLayout) ?? 'layout1';
 
   // Calculator state management
   const {
@@ -321,23 +328,27 @@ export function Calculator(): React.JSX.Element {
             onTopUsedValueClick={handleTopUsedValueClick}
           />
 
+          <CalculatorPickers
+            selectedPayeeId={selectedPayeeId}
+            selectedAccountId={selectedAccountId}
+            selectedCategoryId={selectedCategoryId}
+            payees={payees}
+            accounts={accounts}
+            categories={categories}
+            onPayeeChange={handlePayeeChange}
+            onAccountChange={handleAccountChange}
+            onCategoryChange={handleCategoryChange}
+          />
+
           <Grid container spacing={1} sx={{ width: '100%' }}>
             <CalculatorKeypad
-              selectedPayeeId={selectedPayeeId}
-              selectedAccountId={selectedAccountId}
-              selectedCategoryId={selectedCategoryId}
-              payees={payees}
-              accounts={accounts}
-              categories={categories}
+              keypadLayout={keypadLayout}
               useThousandSeparator={useThousandSeparator}
               creatingTransaction={creatingTransaction}
               canSubmit={!(state.display === '0' && state.previousValue === null)}
               onNumberClick={handleNumber}
               onOperationClick={handleOperation}
               onEqualsClick={handleEquals}
-              onPayeeChange={handlePayeeChange}
-              onAccountChange={handleAccountChange}
-              onCategoryChange={handleCategoryChange}
               onSettingsClick={handleSettingsClick}
             />
             <CalculatorControls

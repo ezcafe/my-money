@@ -72,6 +72,7 @@ export const UPDATE_PREFERENCES = gql`
       colorScheme
       colorSchemeValue
       dateFormat
+      keypadLayout
     }
   }
 `;

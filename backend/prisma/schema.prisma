@@ -65,6 +65,7 @@ model UserPreferences {
   colorScheme          String?
   colorSchemeValue     String?
   dateFormat           String?
+  keypadLayout         String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

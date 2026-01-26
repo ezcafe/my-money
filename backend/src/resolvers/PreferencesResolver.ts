@@ -15,6 +15,7 @@ const UpdatePreferencesInputSchema = z.object({
   colorScheme: z.string().nullable().optional(),
   colorSchemeValue: z.string().nullable().optional(),
   dateFormat: z.string().optional(),
+  keypadLayout: z.string().optional(),
 });
 
 export class PreferencesResolver {
@@ -62,6 +63,7 @@ export class PreferencesResolver {
         colorScheme?: string | null;
         colorSchemeValue?: string | null;
         dateFormat?: string | null;
+        keypadLayout?: string | null;
       };
     },
     context: GraphQLContext
@@ -89,6 +91,9 @@ export class PreferencesResolver {
             ...(validatedInput.dateFormat !== undefined && {
               dateFormat: validatedInput.dateFormat,
             }),
+            ...(validatedInput.keypadLayout !== undefined && {
+              keypadLayout: validatedInput.keypadLayout,
+            }),
           },
           create: {
             userId: context.userId,
@@ -97,6 +102,7 @@ export class PreferencesResolver {
             colorScheme: validatedInput.colorScheme ?? null,
             colorSchemeValue: validatedInput.colorSchemeValue ?? null,
             dateFormat: validatedInput.dateFormat ?? 'MM/DD/YYYY',
+            keypadLayout: validatedInput.keypadLayout ?? null,
           },
         });
 

@@ -104,6 +104,7 @@ export const GET_PREFERENCES = gql`
       colorScheme
       colorSchemeValue
       dateFormat
+      keypadLayout
     }
   }
 `;

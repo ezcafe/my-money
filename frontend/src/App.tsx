@@ -67,6 +67,9 @@ const WorkspaceLoaderPage = lazy(() =>
 const PreferencesPage = lazy(() =>
   import('./pages/PreferencesPage').then((m) => ({ default: m.PreferencesPage }))
 );
+const DisplayPreferencesPage = lazy(() =>
+  import('./pages/DisplayPreferencesPage').then((m) => ({ default: m.DisplayPreferencesPage }))
+);
 const BudgetAddPage = lazy(() =>
   import('./pages/BudgetAddPage').then((m) => ({ default: m.BudgetAddPage }))
 );
@@ -345,6 +348,16 @@ function App(): React.JSX.Element {
                             <ProtectedRouteWithErrorBoundary>
                               <Layout title="Preferences" hideSearch>
                                 <PreferencesPage />
+                              </Layout>
+                            </ProtectedRouteWithErrorBoundary>
+                          }
+                        />
+                        <Route
+                          path="/preferences/display"
+                          element={
+                            <ProtectedRouteWithErrorBoundary>
+                              <Layout title="Display Preferences" hideSearch>
+                                <DisplayPreferencesPage />
                               </Layout>
                             </ProtectedRouteWithErrorBoundary>
                           }

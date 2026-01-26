@@ -590,6 +590,7 @@ type UserPreferences {
   colorScheme: String
   colorSchemeValue: String
   dateFormat: String
+  keypadLayout: String
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -787,6 +788,7 @@ input UpdatePreferencesInput {
   colorScheme: String
   colorSchemeValue: String
   dateFormat: String
+  keypadLayout: String
 }
 
 input CreateRecurringTransactionInput {
