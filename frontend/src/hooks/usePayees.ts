@@ -4,7 +4,9 @@
  */
 
 import { useQuery } from '@apollo/client/react';
+import { useEffect } from 'react';
 import { GET_PAYEES } from '../graphql/queries';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 
 /**
  * Payee type from GraphQL query
@@ -34,10 +36,21 @@ interface GetPayeesData {
 }
 
 export function usePayees(): UsePayeesResult {
+  const { activeWorkspaceId } = useWorkspace();
   const { data, loading, error, refetch } = useQuery<GetPayeesData>(GET_PAYEES, {
     errorPolicy: 'all',
     fetchPolicy: 'network-only',
   });
+
+  /**
+   * Refetch payees when workspace changes
+   * The cache is cleared in WorkspaceContext, but we explicitly refetch to ensure fresh data
+   */
+  useEffect(() => {
+    if (activeWorkspaceId !== null) {
+      void refetch();
+    }
+  }, [activeWorkspaceId, refetch]);
 
   let errorResult: Error | undefined;
   if (error) {

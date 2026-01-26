@@ -35,6 +35,7 @@ import type { MultiSelectOption } from '../components/ui/MultiSelect';
 import { ReportSummary, type SummaryStats } from '../components/report/ReportSummary';
 import { ReportFilters } from '../components/report/ReportFilters';
 import { ReportCharts } from '../components/report/ReportCharts';
+import { useWorkspaceRefetch } from '../hooks';
 
 /**
  * Report data type
@@ -62,13 +63,13 @@ export function ReportPage(): React.JSX.Element {
 
   const { accounts } = useAccounts();
   const { dateFormat } = useDateFormat();
-  const { data: categoriesData } = useQuery<{ categories?: Array<{ id: string; name: string }> }>(
-    GET_CATEGORIES
-  );
-  const { data: payeesData } = useQuery<{ payees?: Array<{ id: string; name: string }> }>(
-    GET_PAYEES
-  );
-  const { data: budgetsData } = useQuery<{
+  const { data: categoriesData, refetch: refetchCategories } = useQuery<{
+    categories?: Array<{ id: string; name: string }>;
+  }>(GET_CATEGORIES);
+  const { data: payeesData, refetch: refetchPayees } = useQuery<{
+    payees?: Array<{ id: string; name: string }>;
+  }>(GET_PAYEES);
+  const { data: budgetsData, refetch: refetchBudgets } = useQuery<{
     budgets?: Array<{
       id: string;
       amount: string;
@@ -77,6 +78,14 @@ export function ReportPage(): React.JSX.Element {
       category: { id: string; name: string } | null;
     }>;
   }>(GET_BUDGETS);
+
+  /**
+   * Refetch categories, payees, and budgets when workspace changes
+   * The cache is cleared in WorkspaceContext, but we explicitly refetch to ensure fresh data
+   */
+  useWorkspaceRefetch({
+    refetchFunctions: [refetchCategories, refetchPayees, refetchBudgets],
+  });
 
   // Get workspaces and members
   const { data: workspacesData } = useQuery<{

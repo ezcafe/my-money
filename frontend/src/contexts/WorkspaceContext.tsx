@@ -3,7 +3,8 @@
  * Manages the global active workspace state
  */
 
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { client } from '../graphql/client';
 
 /**
  * Workspace context interface
@@ -39,6 +40,23 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps): React.J
     }
     return null;
   });
+
+  /**
+   * Clear Apollo cache when workspace changes
+   * This ensures all queries refetch with the new workspace context
+   */
+  useEffect(() => {
+    if (activeWorkspaceId !== null) {
+      // Clear all cached queries to force refetch with new workspace
+      try {
+        // cache.reset() is synchronous and returns void
+        void client.cache.reset();
+      } catch (error) {
+        // Silently handle cache reset errors
+        console.warn('Failed to reset Apollo cache on workspace change:', error);
+      }
+    }
+  }, [activeWorkspaceId]);
 
   /**
    * Set active workspace ID and persist to local storage

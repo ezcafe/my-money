@@ -4,7 +4,7 @@
  * Features search, visual indicators, and improved UX
  */
 
-import React, { memo, useMemo, useEffect, useTransition } from 'react';
+import React, { memo, useMemo } from 'react';
 import {
   Box,
   List,
@@ -16,42 +16,39 @@ import {
   Stack,
 } from '@mui/material';
 import { TrendingUp, TrendingDown, Star, Category } from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useCategories } from '../hooks/useCategories';
-import { useSearch } from '../contexts/SearchContext';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { EmptyState } from '../components/common/EmptyState';
 import { Card } from '../components/ui/Card';
 import { PageContainer } from '../components/common/PageContainer';
+import { useLocationRefetch, useSearchFilter } from '../hooks';
 
 /**
  * Categories Page Component
  */
 const CategoriesPageComponent = (): React.JSX.Element => {
-  const location = useLocation();
   const { categories, loading, error, refetch } = useCategories();
-  const { searchQuery } = useSearch();
   const navigate = useNavigate();
-  const [_isPending, _startTransition] = useTransition();
 
   // Refetch when returning from create page
-  useEffect(() => {
-    if (location.pathname === '/categories') {
-      void refetch();
-    }
-  }, [location.pathname, refetch]);
+  useLocationRefetch({
+    refetchFunctions: [refetch],
+    watchPathname: '/categories',
+  });
 
   /**
    * Filter categories based on search query (non-urgent update)
    */
-  const filteredCategories = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return categories;
-    }
-    const query = searchQuery.toLowerCase().trim();
-    return categories.filter((cat) => cat.name.toLowerCase().includes(query));
-  }, [categories, searchQuery]);
+  const {
+    filteredItems: filteredCategories,
+    hasNoSearchResults,
+    searchQuery,
+  } = useSearchFilter({
+    items: categories,
+    getSearchableText: (cat) => cat.name,
+  });
 
   /**
    * Group categories by type, with Income first
@@ -105,9 +102,6 @@ const CategoriesPageComponent = (): React.JSX.Element => {
     );
   }
 
-  const hasSearchResults = filteredCategories.length > 0;
-  const hasNoSearchResults = searchQuery.trim() && !hasSearchResults;
-
   return (
     <PageContainer>
       {/* No Search Results */}
@@ -116,7 +110,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
       ) : null}
 
       {/* Categories List */}
-      {hasSearchResults ? (
+      {filteredCategories.length > 0 ? (
         <Card>
           <List disablePadding>
             {groupedCategories.map((group, groupIndex) => {

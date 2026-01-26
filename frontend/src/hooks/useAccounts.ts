@@ -4,7 +4,9 @@
  */
 
 import { useQuery } from '@apollo/client/react';
+import { useEffect } from 'react';
 import { GET_ACCOUNTS } from '../graphql/queries';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 
 /**
  * Account type from GraphQL query
@@ -37,11 +39,22 @@ interface GetAccountsData {
 }
 
 export function useAccounts(): UseAccountsResult {
+  const { activeWorkspaceId } = useWorkspace();
   const { data, loading, error, refetch } = useQuery<GetAccountsData>(GET_ACCOUNTS, {
     errorPolicy: 'all',
     fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
   });
+
+  /**
+   * Refetch accounts when workspace changes
+   * The cache is cleared in WorkspaceContext, but we explicitly refetch to ensure fresh data
+   */
+  useEffect(() => {
+    if (activeWorkspaceId !== null) {
+      void refetch();
+    }
+  }, [activeWorkspaceId, refetch]);
 
   let errorResult: Error | undefined;
   if (error) {

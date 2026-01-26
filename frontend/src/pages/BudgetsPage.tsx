@@ -36,13 +36,13 @@ import {
   getCategoryTypeLabel,
   GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
+import { useWorkspaceRefetch, useDialog } from '../hooks';
 
 /**
  * Budgets Page Component
  */
 export function BudgetsPage(): React.JSX.Element {
   const navigate = useNavigate();
-  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<{
     id: string;
     amount: number;
@@ -58,6 +58,7 @@ export function BudgetsPage(): React.JSX.Element {
     data: budgetsData,
     loading: budgetsLoading,
     error: budgetsError,
+    refetch: refetchBudgets,
   } = useQuery<{
     budgets: Array<{
       id: string;
@@ -75,15 +76,23 @@ export function BudgetsPage(): React.JSX.Element {
     fetchPolicy: 'cache-and-network',
   });
 
-  const { data: accountsData } = useQuery<{
+  const { data: accountsData, refetch: refetchAccounts } = useQuery<{
     accounts: Array<{ id: string; name: string; accountType: string }>;
   }>(GET_ACCOUNTS);
-  const { data: categoriesData } = useQuery<{
+  const { data: categoriesData, refetch: refetchCategories } = useQuery<{
     categories: Array<{ id: string; name: string; categoryType: string }>;
   }>(GET_CATEGORIES);
-  const { data: payeesData } = useQuery<{ payees: Array<{ id: string; name: string }> }>(
-    GET_PAYEES
-  );
+  const { data: payeesData, refetch: refetchPayees } = useQuery<{
+    payees: Array<{ id: string; name: string }>;
+  }>(GET_PAYEES);
+
+  /**
+   * Refetch all data when workspace changes
+   * The cache is cleared in WorkspaceContext, but we explicitly refetch to ensure fresh data
+   */
+  useWorkspaceRefetch({
+    refetchFunctions: [refetchBudgets, refetchAccounts, refetchCategories, refetchPayees],
+  });
 
   const [createBudget] = useMutation(CREATE_BUDGET, {
     refetchQueries: ['GetBudgets'],
@@ -94,8 +103,22 @@ export function BudgetsPage(): React.JSX.Element {
   const [deleteBudget] = useMutation(DELETE_BUDGET, {
     refetchQueries: ['GetBudgets'],
   });
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
+
+  // Dialog state management
+  const budgetDialog = useDialog({
+    onClose: () => {
+      setEditingBudget(null);
+      setSelectedEntityId('');
+      setAmount('');
+    },
+  });
+
+  const deleteDialog = useDialog({
+    onClose: () => {
+      setBudgetToDelete(null);
+    },
+  });
 
   const accounts = accountsData?.accounts ?? [];
   const categories = (categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense');
@@ -105,8 +128,7 @@ export function BudgetsPage(): React.JSX.Element {
     if (budgetToDelete) {
       try {
         await deleteBudget({ variables: { id: budgetToDelete } });
-        setDeleteDialogOpen(false);
-        setBudgetToDelete(null);
+        deleteDialog.closeDialog();
       } catch {
         // Error handled by mutation
       }
@@ -148,10 +170,7 @@ export function BudgetsPage(): React.JSX.Element {
 
         await createBudget({ variables: { input } });
       }
-      setBudgetDialogOpen(false);
-      setEditingBudget(null);
-      setSelectedEntityId('');
-      setAmount('');
+      budgetDialog.closeDialog();
     } catch (error) {
       console.error('Failed to save budget:', error);
     }
@@ -290,25 +309,12 @@ export function BudgetsPage(): React.JSX.Element {
         </List>
 
         <Dialog
-          open={budgetDialogOpen}
-          onClose={() => {
-            setBudgetDialogOpen(false);
-            setEditingBudget(null);
-            setSelectedEntityId('');
-            setAmount('');
-          }}
+          open={budgetDialog.isOpen}
+          onClose={budgetDialog.closeDialog}
           title={editingBudget ? 'Edit Budget' : 'Create Budget'}
           actions={
             <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Button
-                onClick={() => {
-                  setBudgetDialogOpen(false);
-                  setEditingBudget(null);
-                  setSelectedEntityId('');
-                  setAmount('');
-                }}
-                variant="outlined"
-              >
+              <Button onClick={budgetDialog.closeDialog} variant="outlined">
                 Cancel
               </Button>
               <Button
@@ -419,21 +425,12 @@ export function BudgetsPage(): React.JSX.Element {
         </Dialog>
 
         <Dialog
-          open={deleteDialogOpen}
-          onClose={() => {
-            setDeleteDialogOpen(false);
-            setBudgetToDelete(null);
-          }}
+          open={deleteDialog.isOpen}
+          onClose={deleteDialog.closeDialog}
           title="Delete Budget"
           actions={
             <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Button
-                onClick={() => {
-                  setDeleteDialogOpen(false);
-                  setBudgetToDelete(null);
-                }}
-                variant="outlined"
-              >
+              <Button onClick={deleteDialog.closeDialog} variant="outlined">
                 Cancel
               </Button>
               <Button

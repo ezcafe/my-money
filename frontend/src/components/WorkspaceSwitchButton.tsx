@@ -43,7 +43,7 @@ export function WorkspaceSwitchButton(): React.JSX.Element | null {
   });
 
   // Fetch budgets for current workspace
-  const { data: budgetsData, loading: budgetsLoading } = useQuery<{
+  const { data: budgetsData, loading: budgetsLoading, refetch: refetchBudgets } = useQuery<{
     budgets: Array<{
       amount: string;
       currentSpent: string;
@@ -52,6 +52,16 @@ export function WorkspaceSwitchButton(): React.JSX.Element | null {
     fetchPolicy: 'cache-and-network',
     skip: !activeWorkspaceId,
   });
+
+  /**
+   * Refetch budgets when workspace changes
+   * The cache is cleared in WorkspaceContext, but we explicitly refetch to ensure fresh data
+   */
+  React.useEffect(() => {
+    if (activeWorkspaceId) {
+      void refetchBudgets();
+    }
+  }, [activeWorkspaceId, refetchBudgets]);
 
   const workspaces = workspacesData?.workspaces ?? [];
   const budgets = useMemo(() => budgetsData?.budgets ?? [], [budgetsData?.budgets]);
@@ -102,8 +112,8 @@ export function WorkspaceSwitchButton(): React.JSX.Element | null {
     (workspaceId: string) => {
       setActiveWorkspaceId(workspaceId || null);
       handleMenuClose();
-      // Refresh the page to load new workspace data
-      window.location.reload();
+      // Cache is automatically cleared in WorkspaceContext when activeWorkspaceId changes
+      // All queries will refetch with the new workspace ID via X-Workspace-Id header
     },
     [setActiveWorkspaceId, handleMenuClose]
   );

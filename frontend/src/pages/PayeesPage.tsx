@@ -4,44 +4,38 @@
  * Follows Material Design 3 patterns
  */
 
-import React, { memo, useEffect, useMemo } from 'react';
+import React, { memo } from 'react';
 import { List, ListItemButton, ListItemText, Divider } from '@mui/material';
-import { useNavigate, useLocation } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Person } from '@mui/icons-material';
 import { usePayees } from '../hooks/usePayees';
-import { useSearch } from '../contexts/SearchContext';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { EmptyState } from '../components/common/EmptyState';
 import { Card } from '../components/ui/Card';
 import { PageContainer } from '../components/common/PageContainer';
+import { useLocationRefetch, useSearchFilter } from '../hooks';
 
 /**
  * Payees Page Component
  */
 const PayeesPageComponent = (): React.JSX.Element => {
-  const location = useLocation();
   const { payees, loading, error, refetch } = usePayees();
-  const { searchQuery } = useSearch();
   const navigate = useNavigate();
 
   // Refetch when returning from create page
-  useEffect(() => {
-    if (location.pathname === '/payees') {
-      void refetch();
-    }
-  }, [location.pathname, refetch]);
+  useLocationRefetch({
+    refetchFunctions: [refetch],
+    watchPathname: '/payees',
+  });
 
   /**
    * Filter payees based on search query
    */
-  const filteredPayees = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return payees;
-    }
-    const query = searchQuery.toLowerCase().trim();
-    return payees.filter((payee) => payee.name.toLowerCase().includes(query));
-  }, [payees, searchQuery]);
+  const { filteredItems: filteredPayees, hasNoSearchResults } = useSearchFilter({
+    items: payees,
+    getSearchableText: (payee) => payee.name,
+  });
 
   if (loading) {
     return <LoadingSpinner useSkeleton skeletonVariant="list" skeletonCount={5} />;
@@ -69,15 +63,12 @@ const PayeesPageComponent = (): React.JSX.Element => {
     );
   }
 
-  const hasSearchResults = filteredPayees.length > 0;
-  const hasNoSearchResults = searchQuery.trim() && !hasSearchResults;
-
   return (
     <PageContainer>
       {hasNoSearchResults ? (
         <EmptyState title="No payees found" description="Try adjusting your search query" />
       ) : null}
-      {hasSearchResults ? (
+      {filteredPayees.length > 0 ? (
         <Card>
           <List disablePadding>
             {filteredPayees.map((payee, index) => (

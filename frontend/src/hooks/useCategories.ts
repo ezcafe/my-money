@@ -4,7 +4,9 @@
  */
 
 import { useQuery } from '@apollo/client/react';
+import { useEffect } from 'react';
 import { GET_CATEGORIES } from '../graphql/queries';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 
 /**
  * Category type from GraphQL query
@@ -35,10 +37,21 @@ interface GetCategoriesData {
 }
 
 export function useCategories(): UseCategoriesResult {
+  const { activeWorkspaceId } = useWorkspace();
   const { data, loading, error, refetch } = useQuery<GetCategoriesData>(GET_CATEGORIES, {
     errorPolicy: 'all',
     fetchPolicy: 'network-only',
   });
+
+  /**
+   * Refetch categories when workspace changes
+   * The cache is cleared in WorkspaceContext, but we explicitly refetch to ensure fresh data
+   */
+  useEffect(() => {
+    if (activeWorkspaceId !== null) {
+      void refetch();
+    }
+  }, [activeWorkspaceId, refetch]);
 
   let errorResult: Error | undefined;
   if (error) {

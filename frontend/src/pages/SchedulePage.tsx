@@ -4,8 +4,7 @@
  * Follows Material Design 3 patterns
  */
 
-import React, { useEffect } from 'react';
-import { useLocation } from 'react-router';
+import React from 'react';
 import { Typography, List, ListItem, Chip, Stack, Divider } from '@mui/material';
 import { Schedule } from '@mui/icons-material';
 import { useQuery } from '@apollo/client/react';
@@ -18,6 +17,7 @@ import { formatCurrencyPreserveDecimals, formatDateShort } from '../utils/format
 import { getRecurringTypeOptions, type RecurringType } from '../utils/recurringTypes';
 import { useDateFormat } from '../hooks/useDateFormat';
 import { PageContainer } from '../components/common/PageContainer';
+import { useWorkspaceRefetch, useLocationRefetch } from '../hooks';
 
 /**
  * Recurring transaction type from GraphQL
@@ -76,13 +76,21 @@ function getRecurringTypeFromCron(cronExpression: string): RecurringType | null 
  * Schedule Page Component
  */
 export function SchedulePage(): React.JSX.Element {
-  const location = useLocation();
   const { data, loading, error, refetch } = useQuery<RecurringTransactionsData>(
     GET_RECURRING_TRANSACTIONS,
     {
       fetchPolicy: 'cache-and-network',
     }
   );
+
+  /**
+   * Refetch recurring transactions when workspace changes
+   * The cache is cleared in WorkspaceContext, but we explicitly refetch to ensure fresh data
+   */
+  useWorkspaceRefetch({
+    refetchFunctions: [refetch],
+  });
+
   const { data: preferencesData } = useQuery<{ preferences?: { currency: string } }>(
     GET_PREFERENCES
   );
@@ -90,11 +98,10 @@ export function SchedulePage(): React.JSX.Element {
   const { dateFormat } = useDateFormat();
 
   // Refetch when returning from add page
-  useEffect(() => {
-    if (location.pathname === '/schedule') {
-      void refetch();
-    }
-  }, [location.pathname, refetch]);
+  useLocationRefetch({
+    refetchFunctions: [refetch],
+    watchPathname: '/schedule',
+  });
 
   if (loading) {
     return <LoadingSpinner message="Loading recurring transactions..." />;
