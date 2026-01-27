@@ -76,6 +76,7 @@ export function MultiSelect({
   return (
     <Autocomplete
       multiple
+      size="small"
       options={options}
       getOptionLabel={(option) => option.name}
       value={selectedOptions}

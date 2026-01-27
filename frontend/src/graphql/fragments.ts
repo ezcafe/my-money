@@ -74,7 +74,6 @@ export const TRANSACTION_FIELDS = gql`
 export const BUDGET_FIELDS = gql`
   fragment BudgetFields on Budget {
     id
-    userId
     amount
     currentSpent
     accountId

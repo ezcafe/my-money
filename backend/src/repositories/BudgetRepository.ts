@@ -52,6 +52,7 @@ export class BudgetRepository extends BaseRepository {
    * @param workspaceId - Workspace ID
    * @param filters - Optional filters (accountId, categoryId, payeeId)
    * @param select - Optional select clause
+   * @param include - Optional include clause
    * @returns Array of budgets
    */
   async findMany(
@@ -61,7 +62,8 @@ export class BudgetRepository extends BaseRepository {
       categoryId?: string;
       payeeId?: string;
     },
-    select?: Record<string, boolean>
+    select?: Record<string, boolean>,
+    include?: Record<string, boolean>
   ): Promise<Budget[]> {
     const where: {
       workspaceId: string;
@@ -83,10 +85,13 @@ export class BudgetRepository extends BaseRepository {
     const queryOptions: {
       where: typeof where;
       select?: Record<string, boolean>;
+      include?: Record<string, boolean>;
     } = { where };
 
     if (select) {
       queryOptions.select = select;
+    } else if (include) {
+      queryOptions.include = include;
     }
 
     return this.prisma.budget.findMany(queryOptions);

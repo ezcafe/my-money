@@ -20,6 +20,8 @@ import {
   Tooltip,
   IconButton,
   Popover,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import { HelpOutline } from '@mui/icons-material';
 import { useQuery, useMutation } from '@apollo/client/react';
@@ -34,6 +36,7 @@ import type { DateFormat } from '../contexts/DateFormatContext';
 import { DEFAULT_DATE_FORMAT } from '../contexts/DateFormatContext';
 import { PageContainer } from '../components/common/PageContainer';
 import type { KeypadLayout } from '../components/calculator/CalculatorKeypad';
+import { MobileSelect } from '../components/ui/MobileSelect';
 
 /**
  * Help Icon Component
@@ -107,6 +110,8 @@ function HelpIcon({ helpText }: { helpText: string }): React.JSX.Element {
  */
 export function DisplaySettingsPage(): React.JSX.Element {
   const { showSuccessNotification, showErrorNotification } = useNotifications();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { data: settingsData, loading: settingsLoading } = useQuery<{
     settings?: {
       currency: string;
@@ -349,35 +354,53 @@ export function DisplaySettingsPage(): React.JSX.Element {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 Select your preferred currency for displaying amounts
               </Typography>
-              <Autocomplete
-                options={CURRENCIES}
-                getOptionLabel={(option) => `${option.code} - ${option.name}`}
-                value={CURRENCIES.find((c) => c.code === currency) ?? null}
-                onChange={(_event, newValue: Currency | null) => {
-                  if (newValue) {
-                    handleCurrencyChange(newValue.code);
-                  }
-                }}
-                filterOptions={(options, { inputValue }) => {
-                  const searchValue = inputValue.toLowerCase();
-                  return options.filter(
-                    (option) =>
-                      option.code.toLowerCase().includes(searchValue) ||
-                      option.name.toLowerCase().includes(searchValue)
-                  );
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Select Currency"
-                    placeholder="Search by code or name..."
-                    fullWidth
-                    helperText={updating ? 'Saving...' : undefined}
-                  />
-                )}
-                disabled={settingsLoading || updating}
-                fullWidth
-              />
+              {isMobile ? (
+                <MobileSelect<Currency>
+                  value={CURRENCIES.find((c) => c.code === currency) ?? null}
+                  options={CURRENCIES}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      handleCurrencyChange(newValue.code);
+                    }
+                  }}
+                  getOptionLabel={(option) => `${option.code} - ${option.name}`}
+                  getOptionId={(option) => option.code}
+                  label="Select Currency"
+                  placeholder="Search by code or name..."
+                  disabled={settingsLoading || updating}
+                  fullWidth
+                />
+              ) : (
+                <Autocomplete
+                  options={CURRENCIES}
+                  getOptionLabel={(option) => `${option.code} - ${option.name}`}
+                  value={CURRENCIES.find((c) => c.code === currency) ?? null}
+                  onChange={(_event, newValue: Currency | null) => {
+                    if (newValue) {
+                      handleCurrencyChange(newValue.code);
+                    }
+                  }}
+                  filterOptions={(options, { inputValue }) => {
+                    const searchValue = inputValue.toLowerCase();
+                    return options.filter(
+                      (option) =>
+                        option.code.toLowerCase().includes(searchValue) ||
+                        option.name.toLowerCase().includes(searchValue)
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select Currency"
+                      placeholder="Search by code or name..."
+                      fullWidth
+                      helperText={updating ? 'Saving...' : undefined}
+                    />
+                  )}
+                  disabled={settingsLoading || updating}
+                  fullWidth
+                />
+              )}
             </Box>
 
             {/* Date Format Setting */}
@@ -391,30 +414,52 @@ export function DisplaySettingsPage(): React.JSX.Element {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 Choose how dates are displayed throughout the application
               </Typography>
-              <FormControl fullWidth disabled={settingsLoading || updating}>
-                <InputLabel>Date Format</InputLabel>
-                <Select
+              {isMobile ? (
+                <MobileSelect<DateFormat>
                   value={dateFormat}
-                  label="Date Format"
-                  onChange={(e) => {
-                    handleDateFormatChange(e.target.value as DateFormat);
+                  options={[
+                    'DD/MM/YYYY',
+                    'MM/DD/YYYY',
+                    'YYYY-MM-DD',
+                    'DD-MM-YYYY',
+                    'MM-DD-YYYY',
+                  ]}
+                  onChange={(newFormat) => {
+                    if (newFormat) {
+                      handleDateFormatChange(newFormat);
+                    }
                   }}
-                >
-                  <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
-                  <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
-                  <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
-                  <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
-                  <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
-                </Select>
-                {updating ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                    <CircularProgress size={16} />
-                    <Typography variant="caption" color="text.secondary">
-                      Saving...
-                    </Typography>
-                  </Box>
-                ) : null}
-              </FormControl>
+                  getOptionLabel={(option) => option}
+                  label="Date Format"
+                  disabled={settingsLoading || updating}
+                  fullWidth
+                />
+              ) : (
+                <FormControl fullWidth disabled={settingsLoading || updating}>
+                  <InputLabel>Date Format</InputLabel>
+                  <Select
+                    value={dateFormat}
+                    label="Date Format"
+                    onChange={(e) => {
+                      handleDateFormatChange(e.target.value as DateFormat);
+                    }}
+                  >
+                    <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
+                    <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
+                    <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
+                    <MenuItem value="DD-MM-YYYY">DD-MM-YYYY</MenuItem>
+                    <MenuItem value="MM-DD-YYYY">MM-DD-YYYY</MenuItem>
+                  </Select>
+                  {updating ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                      <CircularProgress size={16} />
+                      <Typography variant="caption" color="text.secondary">
+                        Saving...
+                      </Typography>
+                    </Box>
+                  ) : null}
+                </FormControl>
+              )}
             </Box>
 
             {/* Color Scheme Setting */}

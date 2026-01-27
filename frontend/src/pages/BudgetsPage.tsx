@@ -12,7 +12,6 @@ import {
   ListItemButton,
   ListItemText,
   Divider,
-  Autocomplete,
   Button,
   LinearProgress,
   Chip,
@@ -34,9 +33,9 @@ import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
-  GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
 import { useWorkspaceRefetch, useDialog } from '../hooks';
+import { MobileSelect } from '../components/ui/MobileSelect';
 
 /**
  * Budgets Page Component
@@ -354,59 +353,58 @@ export function BudgetsPage(): React.JSX.Element {
             )}
 
             {budgetType === 'account' && (
-              <Autocomplete<{ id: string; name: string; accountType: string }, false, false, false>
+              <MobileSelect<{ id: string; name: string; accountType: string }>
+                value={accounts.find((a) => a.id === selectedEntityId) ?? null}
                 options={accounts}
+                onChange={(account) => {
+                  setSelectedEntityId(account?.id ?? '');
+                }}
                 getOptionLabel={(option) => option.name}
+                getOptionId={(option) => option.id}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
                 groupBy={(option) =>
                   getAccountTypeLabel(
                     option.accountType as 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans'
                   )
                 }
-                value={accounts.find((a) => a.id === selectedEntityId) ?? null}
-                onChange={(_, value) => {
-                  setSelectedEntityId(value?.id ?? '');
-                }}
+                label="Account"
+                required
                 disabled={!!editingBudget}
-                componentsProps={{
-                  popper: {
-                    sx: GROUP_HEADER_STYLES,
-                  },
-                }}
-                renderInput={(params) => <TextField {...params} label="Account" required />}
               />
             )}
 
             {budgetType === 'category' && (
-              <Autocomplete<{ id: string; name: string; categoryType: string }, false, false, false>
+              <MobileSelect<{ id: string; name: string; categoryType: string }>
+                value={categories.find((c) => c.id === selectedEntityId) ?? null}
                 options={categories}
+                onChange={(category) => {
+                  setSelectedEntityId(category?.id ?? '');
+                }}
                 getOptionLabel={(option) => option.name}
+                getOptionId={(option) => option.id}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
                 groupBy={(option) =>
                   getCategoryTypeLabel(option.categoryType as 'Income' | 'Expense')
                 }
-                value={categories.find((c) => c.id === selectedEntityId) ?? null}
-                onChange={(_, value) => {
-                  setSelectedEntityId(value?.id ?? '');
-                }}
+                label="Category"
+                required
                 disabled={!!editingBudget}
-                componentsProps={{
-                  popper: {
-                    sx: GROUP_HEADER_STYLES,
-                  },
-                }}
-                renderInput={(params) => <TextField {...params} label="Category" required />}
               />
             )}
 
             {budgetType === 'payee' && (
-              <Autocomplete<{ id: string; name: string }, false, false, false>
-                options={payees}
-                getOptionLabel={(option) => option.name}
+              <MobileSelect<{ id: string; name: string }>
                 value={payees.find((p) => p.id === selectedEntityId) ?? null}
-                onChange={(_, value) => {
-                  setSelectedEntityId(value?.id ?? '');
+                options={payees}
+                onChange={(payee) => {
+                  setSelectedEntityId(payee?.id ?? '');
                 }}
+                getOptionLabel={(option) => option.name}
+                getOptionId={(option) => option.id}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                label="Payee"
+                required
                 disabled={!!editingBudget}
-                renderInput={(params) => <TextField {...params} label="Payee" required />}
               />
             )}
 

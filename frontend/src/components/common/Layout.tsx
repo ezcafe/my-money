@@ -6,13 +6,10 @@
 import React, { useState, useCallback, memo } from 'react';
 import { Box, AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Stack } from '@mui/material';
 import { ArrowBack, Search as SearchIcon, MoreVert, Edit, Delete } from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router';
 import { useSearch } from '../../contexts/SearchContext';
 import { useHeader, type ActionButton, type ContextMenu } from '../../contexts/HeaderContext';
 import { FloatingSearchBox } from '../FloatingSearchBox';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
-import { WorkspaceSelector } from '../WorkspaceSelector';
-import { WorkspaceSwitchButton } from '../WorkspaceSwitchButton';
 
 export interface LayoutProps {
   children: React.ReactNode;
@@ -33,9 +30,7 @@ function LayoutComponent({
   actionButton,
   contextMenu,
 }: LayoutProps): React.JSX.Element {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isHomePage = location.pathname === '/';
+  const isHomePage = window.location.pathname === '/';
   const { openSearch, closeSearch, isSearchOpen } = useSearch();
   const { title: contextTitle, actionButton: contextActionButton, contextMenu: contextContextMenu } = useHeader();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
@@ -76,7 +71,7 @@ function LayoutComponent({
    * Handle back button click - navigates to previous page
    */
   const handleBack = (): void => {
-    void navigate(-1);
+    window.history.back();
   };
 
   /**
@@ -149,11 +144,9 @@ function LayoutComponent({
               <Typography variant="h6" component="h1" sx={{ flexGrow: 1 }}>
                 {displayTitle}
               </Typography>
-            ) : null}
-            {!displayTitle && <Box sx={{ flexGrow: 1 }} />}
-            <Box sx={{ minWidth: 200, mr: 2, display: { xs: 'none', md: 'block' } }}>
-              <WorkspaceSelector />
-            </Box>
+            ) : (
+              <Box sx={{ flexGrow: 1 }} />
+            )}
             {!hideSearch && (
               <IconButton
                 edge="end"
@@ -239,7 +232,6 @@ function LayoutComponent({
         {children}
       </Box>
       <FloatingSearchBox />
-      {isHomePage ? <WorkspaceSwitchButton /> : null}
     </Stack>
   );
 }

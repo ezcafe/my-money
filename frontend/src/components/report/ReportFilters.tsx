@@ -3,7 +3,7 @@
  * Handles filter UI including date presets, multi-select filters, and active filter chips
  */
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Box, Typography, IconButton, Popover, Collapse, Chip } from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import { Clear, CalendarToday, ExpandMore, ExpandLess } from '@mui/icons-material';
@@ -95,6 +95,15 @@ const ReportFiltersComponent = ({
 }: ReportFiltersProps): React.JSX.Element => {
   const datePresets = getDatePresets();
 
+  // Filter out member chips when there are less than 2 workspaces
+  const filteredActiveFilters = useMemo(() => {
+    if (workspaces.length >= 2) {
+      return activeFilters;
+    }
+    // Exclude member filter chips (they start with "Member: ")
+    return activeFilters.filter((filter) => !filter.label.startsWith('Member: '));
+  }, [activeFilters, workspaces.length]);
+
   return (
     <>
       {/* Filters Section */}
@@ -138,6 +147,26 @@ const ReportFiltersComponent = ({
               </Box>
             ) : null}
 
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
+              {/* Workspace Selector - only show when there are multiple workspaces */}
+              {workspaces.length >= 2 ? (
+                <WorkspaceSelector value={selectedWorkspaceId} onChange={onWorkspaceChange} />
+              ) : null}
+
+              {/* Member Filter - only show when there are multiple workspaces */}
+              {workspaces.length >= 2 && selectedWorkspaceId && members.length > 0 ? (
+                <MultiSelect
+                  label="Filter by Members"
+                  options={members.map((m) => ({
+                    id: m.userId,
+                    name: m.user.email,
+                  }))}
+                  value={filters.memberIds}
+                  onChange={(value) => handleFilterChange('memberIds', value)}
+                />
+              ) : null}
+            </Box>
+
             {/* Quick Date Presets */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
@@ -170,24 +199,6 @@ const ReportFiltersComponent = ({
             </Box>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {/* Workspace Selector */}
-              {workspaces.length > 0 ? (
-                <WorkspaceSelector value={selectedWorkspaceId} onChange={onWorkspaceChange} />
-              ) : null}
-
-              {/* Member Filter */}
-              {selectedWorkspaceId && members.length > 0 ? (
-                <MultiSelect
-                  label="Filter by Members"
-                  options={members.map((m) => ({
-                    id: m.userId,
-                    name: m.user.email,
-                  }))}
-                  value={filters.memberIds}
-                  onChange={(value) => handleFilterChange('memberIds', value)}
-                />
-              ) : null}
-
               {/* Date Range - Two Separate Buttons */}
               {showDatePickers ? (
                 <Grid container spacing={2}>
@@ -260,13 +271,13 @@ const ReportFiltersComponent = ({
       </Card>
 
       {/* Active Filters */}
-      {activeFilters.length > 0 && (
+      {filteredActiveFilters.length > 0 && (
         <Card sx={{ p: 3, mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="subtitle2" sx={{ mr: 1, color: 'text.secondary' }}>
               Active Filters:
             </Typography>
-            {activeFilters.map((filter, index) => (
+            {filteredActiveFilters.map((filter, index) => (
               <Chip
                 key={index}
                 label={filter.label}

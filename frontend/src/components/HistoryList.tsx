@@ -104,7 +104,6 @@ const HistoryListComponent = ({
                     <ListItemButton
                       onClick={() => onTransactionClick?.(transaction)}
                       sx={{
-                        py: 1.5,
                         px: 3,
                         display: 'flex',
                         justifyContent: 'space-between',

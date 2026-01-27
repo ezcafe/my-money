@@ -24,6 +24,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { TextField } from '../ui/TextField';
+import { MobileSelect } from '../ui/MobileSelect';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
@@ -182,116 +183,44 @@ const ImportMappingTableComponent = ({
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <FormControl fullWidth>
-                    <InputLabel>Payee</InputLabel>
-                    <Select
-                      value={mapping.payeeId}
-                      label="Payee"
-                      onChange={(e): void => {
-                        onMappingChange(desc, 'payeeId', e.target.value);
-                      }}
-                      renderValue={(value) => {
-                        const selectedPayee = payees.find((p) => p.id === value);
-                        const displayText = selectedPayee?.name ?? '';
-                        return (
-                          <Tooltip title={displayText} placement="top">
-                            <Box
-                              sx={{
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '100%',
-                              }}
-                            >
-                              {displayText}
-                            </Box>
-                          </Tooltip>
-                        );
-                      }}
-                      MenuProps={{
-                        PaperProps: {
-                          sx: {
-                            maxHeight: 300,
-                            '& .MuiMenuItem-root': {
-                              whiteSpace: 'normal',
-                              wordBreak: 'break-word',
-                            },
-                          },
-                        },
-                      }}
-                    >
-                      {payees.map((payee) => (
-                        <MenuItem key={payee.id} value={payee.id}>
-                          {payee.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <Autocomplete<Category, false, false, false>
-                    options={categories}
+                  <MobileSelect<{ id: string; name: string }>
+                    value={payees.find((p) => p.id === mapping.payeeId) ?? null}
+                    options={payees}
+                    onChange={(payee) => {
+                      onMappingChange(desc, 'payeeId', payee?.id ?? '');
+                    }}
                     getOptionLabel={(option) => option.name}
-                    groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+                    getOptionId={(option) => option.id}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    label="Payee"
+                    fullWidth
+                  />
+                  <MobileSelect<Category>
                     value={categories.find((cat) => cat.id === mapping.categoryId) ?? null}
-                    onChange={(_, value): void => {
+                    options={categories}
+                    onChange={(value) => {
                       onMappingChange(desc, 'categoryId', value?.id ?? '');
                     }}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    componentsProps={{
-                      popper: {
-                        sx: GROUP_HEADER_STYLES,
-                      },
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Category"
-                        sx={{
-                          '& .MuiInputBase-input': {
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          },
-                        }}
-                        inputProps={{
-                          ...params.inputProps,
-                          title:
-                            categories.find((cat) => cat.id === mapping.categoryId)?.name ?? '',
-                        }}
-                      />
-                    )}
-                  />
-                  <Autocomplete<Account, false, false, false>
-                    options={accounts}
                     getOptionLabel={(option) => option.name}
-                    groupBy={(option) => getAccountTypeLabel(option.accountType)}
+                    getOptionId={(option) => option.id}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+                    label="Category"
+                    fullWidth
+                  />
+                  <MobileSelect<Account>
                     value={accounts.find((acc) => acc.id === mapping.accountId) ?? null}
-                    onChange={(_, value): void => {
+                    options={accounts}
+                    onChange={(value) => {
                       onMappingChange(desc, 'accountId', value?.id ?? '');
                     }}
+                    getOptionLabel={(option) => option.name}
+                    getOptionId={(option) => option.id}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
-                    componentsProps={{
-                      popper: {
-                        sx: GROUP_HEADER_STYLES,
-                      },
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Account *"
-                        required
-                        sx={{
-                          '& .MuiInputBase-input': {
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          },
-                        }}
-                        inputProps={{
-                          ...params.inputProps,
-                          title: accounts.find((acc) => acc.id === mapping.accountId)?.name ?? '',
-                        }}
-                      />
-                    )}
+                    groupBy={(option) => getAccountTypeLabel(option.accountType)}
+                    label="Account *"
+                    required
+                    fullWidth
                   />
                 </Box>
               </Box>

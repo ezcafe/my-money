@@ -20,6 +20,7 @@ import { GET_WORKSPACES } from '../graphql/workspaceOperations';
 import { GET_BUDGETS } from '../graphql/queries';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
 /**
  * Workspace Switch Button Component
@@ -29,7 +30,12 @@ export function WorkspaceSwitchButton(): React.JSX.Element | null {
   const theme = useTheme();
   const { activeWorkspaceId, setActiveWorkspaceId } = useWorkspace();
   const { isAuthenticated } = useAuth();
+  const { errorOpen, errorMessage } = useNotifications();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+
+  // Adjust top position when error notification is shown
+  // Error notification is approximately 48-56px tall, add spacing
+  const topPosition = errorOpen && errorMessage ? 88 : 16;
 
   // Fetch workspaces
   const { data: workspacesData, loading: workspacesLoading } = useQuery<{
@@ -134,12 +140,13 @@ export function WorkspaceSwitchButton(): React.JSX.Element | null {
         onClick={handleButtonClick}
         sx={{
           position: 'fixed',
-          top: 16,
+          top: topPosition,
           right: 16,
           zIndex: theme.zIndex.appBar + 1,
           width: 56,
           height: 56,
           boxShadow: theme.shadows[4],
+          transition: 'top 0.2s ease',
           '&:hover': {
             boxShadow: theme.shadows[8],
           },

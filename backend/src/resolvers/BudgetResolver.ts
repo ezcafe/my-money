@@ -85,6 +85,7 @@ export class BudgetResolver {
         const budgets = await budgetRepository.findMany(
           finalWorkspaceId,
           undefined,
+          undefined,
           {
             account: true,
             category: true,
@@ -93,7 +94,9 @@ export class BudgetResolver {
         );
 
         // Sort by createdAt desc
-        budgets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        budgets.sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        );
 
         return budgets;
       },

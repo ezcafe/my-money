@@ -7,17 +7,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
   Box,
-  TextField,
   Typography,
   Switch,
   FormControlLabel,
   Popover,
   Checkbox,
-  Autocomplete,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import { CalendarToday } from '@mui/icons-material';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
@@ -27,6 +21,8 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { TextField } from '../components/ui/TextField';
+import { MobileSelect } from '../components/ui/MobileSelect';
 import { CREATE_TRANSACTION, CREATE_RECURRING_TRANSACTION } from '../graphql/mutations';
 import {
   GET_CATEGORIES_AND_PAYEES,
@@ -47,7 +43,6 @@ import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
-  GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
 import type { Account } from '../hooks/useAccounts';
 import type { Category } from '../hooks/useCategories';
@@ -368,13 +363,11 @@ export function TransactionAddPage(): React.JSX.Element {
             inputProps={{ step: '0.01' }}
           />
 
-          <Autocomplete<Account, false, false, false>
-            options={accounts}
-            getOptionLabel={(option) => option.name}
-            groupBy={(option) => getAccountTypeLabel(option.accountType)}
+          <MobileSelect<Account>
             value={selectedAccount}
-            onChange={(_, value) => {
-              const newAccountId = value?.id ?? '';
+            options={accounts}
+            onChange={(account) => {
+              const newAccountId = account?.id ?? '';
               setAccountId(newAccountId);
               // Real-time validation
               if (!newAccountId) {
@@ -387,50 +380,53 @@ export function TransactionAddPage(): React.JSX.Element {
                 setError(null);
               }
             }}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            componentsProps={{
-              popper: {
-                sx: GROUP_HEADER_STYLES,
-              },
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Account"
-                required
-                error={Boolean(accountError)}
-                helperText={accountError}
-              />
-            )}
-          />
-
-          <Autocomplete<Category, false, false, false>
-            options={categories}
             getOptionLabel={(option) => option.name}
-            groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
-            value={selectedCategory}
-            onChange={(_, value) => {
-              setCategoryId(value?.id ?? '');
-            }}
+            getOptionId={(option) => option.id}
             isOptionEqualToValue={(option, value) => option.id === value.id}
-            componentsProps={{
-              popper: {
-                sx: GROUP_HEADER_STYLES,
-              },
+            groupBy={(option) => getAccountTypeLabel(option.accountType)}
+            label="Account"
+            required
+            sx={
+              accountError
+                ? {
+                    '& .MuiOutlinedInput-root': {
+                      '&.Mui-error': {
+                        borderColor: 'error.main',
+                      },
+                    },
+                  }
+                : undefined
+            }
+          />
+          {accountError ? (
+            <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+              {accountError}
+            </Typography>
+          ) : null}
+
+          <MobileSelect<Category>
+            value={selectedCategory}
+            options={categories}
+            onChange={(category) => {
+              setCategoryId(category?.id ?? '');
             }}
-            renderInput={(params) => <TextField {...params} label="Category" />}
+            getOptionLabel={(option) => option.name}
+            getOptionId={(option) => option.id}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+            label="Category"
           />
 
-          <FormControl fullWidth>
-            <InputLabel>Payee</InputLabel>
-            <Select value={payeeId} onChange={(e) => setPayeeId(e.target.value)} label="Payee">
-              {payees.map((payee) => (
-                <MenuItem key={payee.id} value={payee.id}>
-                  {payee.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <MobileSelect<{ id: string; name: string }>
+            value={payees.find((p) => p.id === payeeId) ?? null}
+            options={payees}
+            onChange={(payee) => {
+              setPayeeId(payee?.id ?? '');
+            }}
+            getOptionLabel={(option) => option.name}
+            getOptionId={(option) => option.id}
+            label="Payee"
+          />
 
           <TextField
             label="Note"
@@ -450,26 +446,22 @@ export function TransactionAddPage(): React.JSX.Element {
 
           {isRecurring ? (
             <>
-              <FormControl fullWidth>
-                <InputLabel>Recurring Type</InputLabel>
-                <Select
-                  value={recurringType}
-                  onChange={(e) => {
-                    const newType = e.target.value as RecurringType;
+              <MobileSelect<{ value: RecurringType; label: string }>
+                value={recurringTypeOptions.find((opt) => opt.value === recurringType) ?? null}
+                options={recurringTypeOptions}
+                onChange={(option) => {
+                  if (option) {
+                    const newType = option.value;
                     setRecurringType(newType);
                     if (newType === 'minutely') {
                       setNextRunDate(dayjs().add(1, 'minute'));
                     }
-                  }}
-                  label="Recurring Type"
-                >
-                  {recurringTypeOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  }
+                }}
+                getOptionLabel={(option) => option.label}
+                getOptionId={(option) => option.value}
+                label="Recurring Type"
+              />
 
               <Box>
                 <Button

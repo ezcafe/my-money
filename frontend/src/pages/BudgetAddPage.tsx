@@ -5,14 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import {
-  Box,
-  TextField,
-  Typography,
-  ToggleButtonGroup,
-  ToggleButton,
-  Autocomplete,
-} from '@mui/material';
+import { Box, TextField, Typography, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -23,10 +16,10 @@ import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
-  GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
 import type { Account } from '../hooks/useAccounts';
 import type { Category } from '../hooks/useCategories';
+import { MobileSelect } from '../components/ui/MobileSelect';
 
 /**
  * Budget Add Page Component
@@ -208,53 +201,49 @@ export function BudgetAddPage(): React.JSX.Element {
           </ToggleButtonGroup>
 
           {budgetType === 'account' && (
-            <Autocomplete<Account, false, false, false>
-              options={accounts}
-              getOptionLabel={(option) => option.name}
-              groupBy={(option) => getAccountTypeLabel(option.accountType)}
+            <MobileSelect<Account>
               value={selectedAccount}
-              onChange={(_, value) => {
-                setSelectedEntityId(value?.id ?? '');
+              options={accounts}
+              onChange={(account) => {
+                setSelectedEntityId(account?.id ?? '');
               }}
+              getOptionLabel={(option) => option.name}
+              getOptionId={(option) => option.id}
               isOptionEqualToValue={(option, value) => option.id === value.id}
-              componentsProps={{
-                popper: {
-                  sx: GROUP_HEADER_STYLES,
-                },
-              }}
-              renderInput={(params) => <TextField {...params} label="Account" required />}
+              groupBy={(option) => getAccountTypeLabel(option.accountType)}
+              label="Account"
+              required
             />
           )}
 
           {budgetType === 'category' && (
-            <Autocomplete<Category, false, false, false>
-              options={categories}
-              getOptionLabel={(option) => option.name}
-              groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+            <MobileSelect<Category>
               value={selectedCategory}
-              onChange={(_, value) => {
-                setSelectedEntityId(value?.id ?? '');
+              options={categories}
+              onChange={(category) => {
+                setSelectedEntityId(category?.id ?? '');
               }}
+              getOptionLabel={(option) => option.name}
+              getOptionId={(option) => option.id}
               isOptionEqualToValue={(option, value) => option.id === value.id}
-              componentsProps={{
-                popper: {
-                  sx: GROUP_HEADER_STYLES,
-                },
-              }}
-              renderInput={(params) => <TextField {...params} label="Category" required />}
+              groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+              label="Category"
+              required
             />
           )}
 
           {budgetType === 'payee' && (
-            <Autocomplete<{ id: string; name: string }, false, false, false>
-              options={payees}
-              getOptionLabel={(option) => option.name}
+            <MobileSelect<{ id: string; name: string }>
               value={selectedPayee}
-              onChange={(_, value) => {
-                setSelectedEntityId(value?.id ?? '');
+              options={payees}
+              onChange={(payee) => {
+                setSelectedEntityId(payee?.id ?? '');
               }}
+              getOptionLabel={(option) => option.name}
+              getOptionId={(option) => option.id}
               isOptionEqualToValue={(option, value) => option.id === value.id}
-              renderInput={(params) => <TextField {...params} label="Payee" required />}
+              label="Payee"
+              required
             />
           )}
 

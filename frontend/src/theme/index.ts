@@ -164,6 +164,7 @@ export function createAppTheme(
           root: {
             '& .MuiOutlinedInput-root': {
               borderRadius: parseFloat(m3Shape.small), // 8px for text fields
+              minHeight: `${MIN_TOUCH_TARGET_SIZE}px`, // Ensure minimum touch target size for text and select fields
               '& fieldset': {
                 borderColor: palette.outline,
               },
@@ -173,6 +174,22 @@ export function createAppTheme(
               '&.Mui-focused fieldset': {
                 borderColor: palette.primary,
               },
+            },
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            minHeight: `${MIN_TOUCH_TARGET_SIZE}px`, // Consistent touch target for all outlined inputs (including selects)
+          },
+        },
+      },
+      MuiAutocomplete: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              minHeight: `${MIN_TOUCH_TARGET_SIZE}px`,
             },
           },
         },
@@ -199,6 +216,7 @@ export function createAppTheme(
             borderRadius: parseFloat(m3Shape.small), // 8px for list items
             paddingLeft: '12px',
             paddingRight: '12px',
+            minHeight: `${MIN_TOUCH_TARGET_SIZE}px`, // Ensure minimum touch target size for list items
             transition: 'background-color 0.2s ease, transform 0.1s ease',
             '&:hover': {
               backgroundColor: palette.surfaceVariant,
@@ -207,6 +225,13 @@ export function createAppTheme(
             '&:active': {
               transform: 'translateX(0)',
             },
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            minHeight: `${MIN_TOUCH_TARGET_SIZE}px`, // Ensure menus are phone friendly
           },
         },
       },

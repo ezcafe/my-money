@@ -5,6 +5,7 @@
  */
 
 import React, { memo } from 'react';
+import { Box, Alert } from '@mui/material';
 import { Calculator } from '../components/Calculator';
 import { PageContainer } from '../components/common/PageContainer';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
@@ -13,6 +14,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { AccountBalance } from '@mui/icons-material';
 import { useAccounts } from '../hooks/useAccounts';
 import { useCategories } from '../hooks/useCategories';
+import { useNotifications } from '../contexts/NotificationContext';
 
 /**
  * Home Page Component
@@ -25,6 +27,7 @@ const HomePageComponent = (): React.JSX.Element => {
     loading: categoriesLoading,
     error: categoriesError,
   } = useCategories();
+  const { errorMessage, errorOpen, handleErrorClose } = useNotifications();
 
   // Loading state
   if (accountsLoading || categoriesLoading) {
@@ -62,6 +65,31 @@ const HomePageComponent = (): React.JSX.Element => {
   // Main content
   return (
     <PageContainer>
+      {/* Error notification positioned above workspace switcher button */}
+      {errorOpen && errorMessage ? (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 16,
+            right: 16,
+            zIndex: (theme) => theme.zIndex.appBar + 2,
+            maxWidth: { xs: 'calc(100vw - 32px)', sm: '400px' },
+            // Position above workspace switcher (button is 56px + 16px top = 72px from top)
+            // Add some spacing, so error appears clearly above
+            mb: 2,
+          }}
+        >
+          <Alert
+            severity="error"
+            onClose={handleErrorClose}
+            sx={{
+              boxShadow: 3,
+            }}
+          >
+            {errorMessage}
+          </Alert>
+        </Box>
+      ) : null}
       <Calculator />
     </PageContainer>
   );

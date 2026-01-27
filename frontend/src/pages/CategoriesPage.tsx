@@ -10,12 +10,13 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  ListItemIcon,
   Typography,
   Divider,
   Chip,
   Stack,
 } from '@mui/material';
-import { TrendingUp, TrendingDown, Star, Category } from '@mui/icons-material';
+import { TrendingUp, TrendingDown, Star, Category, ChevronRight } from '@mui/icons-material';
 import { useNavigate } from 'react-router';
 import { useCategories } from '../hooks/useCategories';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
@@ -201,6 +202,9 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                             </Stack>
                           }
                         />
+                        <ListItemIcon sx={{ minWidth: 'auto' }}>
+                          <ChevronRight color="action" />
+                        </ListItemIcon>
                       </ListItemButton>
                     </React.Fragment>
                   ))}

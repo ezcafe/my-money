@@ -35,7 +35,13 @@ export function CalculatorKeypad({
   onEqualsClick,
   onSettingsClick,
 }: CalculatorKeypadProps): React.JSX.Element {
-  const buttonHeight = '40px';
+  const buttonSx = {
+    width: '100%',
+    minHeight: {
+      xs: 56,
+      sm: 64,
+    },
+  } as const;
 
   /**
    * Render Layout 1 (default): 4x4 grid with operations on right
@@ -54,7 +60,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('7');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           7
         </Button>
@@ -66,7 +72,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('8');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           8
         </Button>
@@ -78,7 +84,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('9');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           9
         </Button>
@@ -90,7 +96,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onOperationClick('*');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           ×
         </Button>
@@ -104,7 +110,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('4');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           4
         </Button>
@@ -116,7 +122,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('5');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           5
         </Button>
@@ -128,7 +134,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('6');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           6
         </Button>
@@ -140,7 +146,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onOperationClick('-');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           −
         </Button>
@@ -154,7 +160,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('1');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           1
         </Button>
@@ -166,7 +172,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('2');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           2
         </Button>
@@ -178,7 +184,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('3');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           3
         </Button>
@@ -190,7 +196,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onOperationClick('+');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           +
         </Button>
@@ -203,7 +209,7 @@ export function CalculatorKeypad({
           variant="outlined"
           onClick={onSettingsClick}
           aria-label="Settings"
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           <MoreIcon />
         </Button>
@@ -215,7 +221,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('0');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           0
         </Button>
@@ -228,7 +234,7 @@ export function CalculatorKeypad({
             onClick={() => {
               onNumberClick('000');
             }}
-            sx={{ height: buttonHeight }}
+            sx={buttonSx}
           >
             000
           </Button>
@@ -239,7 +245,7 @@ export function CalculatorKeypad({
             onClick={() => {
               onNumberClick('.');
             }}
-            sx={{ height: buttonHeight }}
+            sx={buttonSx}
           >
             .
           </Button>
@@ -252,7 +258,7 @@ export function CalculatorKeypad({
           color="primary"
           onClick={onEqualsClick}
           disabled={creatingTransaction || !canSubmit}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           {creatingTransaction ? '...' : <GoIcon />}
         </Button>
@@ -277,7 +283,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('7');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           7
         </Button>
@@ -289,7 +295,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('8');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           8
         </Button>
@@ -301,7 +307,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('9');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           9
         </Button>
@@ -315,7 +321,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('4');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           4
         </Button>
@@ -327,7 +333,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('5');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           5
         </Button>
@@ -339,7 +345,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('6');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           6
         </Button>
@@ -353,7 +359,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('1');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           1
         </Button>
@@ -365,7 +371,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('2');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           2
         </Button>
@@ -377,7 +383,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('3');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           3
         </Button>
@@ -390,7 +396,7 @@ export function CalculatorKeypad({
           variant="outlined"
           onClick={onSettingsClick}
           aria-label="Settings"
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           <MoreIcon />
         </Button>
@@ -402,7 +408,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('0');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           0
         </Button>
@@ -414,7 +420,7 @@ export function CalculatorKeypad({
           color="primary"
           onClick={onEqualsClick}
           disabled={creatingTransaction || !canSubmit}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           {creatingTransaction ? '...' : <GoIcon />}
         </Button>
@@ -439,7 +445,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onOperationClick('+');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           +
         </Button>
@@ -451,7 +457,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('7');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           7
         </Button>
@@ -463,7 +469,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('8');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           8
         </Button>
@@ -475,7 +481,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('9');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           9
         </Button>
@@ -489,7 +495,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onOperationClick('-');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           −
         </Button>
@@ -501,7 +507,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('4');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           4
         </Button>
@@ -513,7 +519,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('5');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           5
         </Button>
@@ -525,7 +531,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('6');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           6
         </Button>
@@ -539,7 +545,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onOperationClick('*');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           ×
         </Button>
@@ -551,7 +557,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('1');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           1
         </Button>
@@ -563,7 +569,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('2');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           2
         </Button>
@@ -575,7 +581,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('3');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           3
         </Button>
@@ -588,7 +594,7 @@ export function CalculatorKeypad({
           variant="outlined"
           onClick={onSettingsClick}
           aria-label="Settings"
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           <MoreIcon />
         </Button>
@@ -600,7 +606,7 @@ export function CalculatorKeypad({
           onClick={() => {
             onNumberClick('0');
           }}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           0
         </Button>
@@ -613,7 +619,7 @@ export function CalculatorKeypad({
             onClick={() => {
               onNumberClick('000');
             }}
-            sx={{ height: buttonHeight }}
+            sx={buttonSx}
           >
             000
           </Button>
@@ -624,7 +630,7 @@ export function CalculatorKeypad({
             onClick={() => {
               onNumberClick('.');
             }}
-            sx={{ height: buttonHeight }}
+            sx={buttonSx}
           >
             .
           </Button>
@@ -637,7 +643,7 @@ export function CalculatorKeypad({
           color="primary"
           onClick={onEqualsClick}
           disabled={creatingTransaction || !canSubmit}
-          sx={{ height: buttonHeight }}
+          sx={buttonSx}
         >
           {creatingTransaction ? '...' : <GoIcon />}
         </Button>
@@ -646,7 +652,13 @@ export function CalculatorKeypad({
   );
 
   return (
-    <Grid container spacing={1}>
+    <Grid
+      container
+      spacing={1}
+      sx={{
+        width: '100%',
+      }}
+    >
       {keypadLayout === 'layout1' && renderLayout1()}
       {keypadLayout === 'layout2' && renderLayout2()}
       {keypadLayout === 'layout3' && renderLayout3()}

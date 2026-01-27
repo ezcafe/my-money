@@ -3,11 +3,10 @@
  * Dropdown to switch active workspace
  */
 
-import React from 'react';
-import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import React, { useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { GET_WORKSPACES } from '../graphql/workspaceOperations';
-
+import { MobileSelect } from './ui/MobileSelect';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -37,36 +36,39 @@ export function WorkspaceSelector({
     skip: isAuthenticated !== true, // Skip query if not authenticated
   });
 
-  const workspaces = data?.workspaces ?? [];
-
   // Use provided value or active workspace from context
   const selectedValue = value ?? activeWorkspaceId ?? '';
 
+  // Memoize workspaces to prevent unnecessary re-renders
+  const workspaces = useMemo(() => data?.workspaces ?? [], [data?.workspaces]);
+
+  // Create options array (without "None (Personal)" option)
+  const options = useMemo(() => {
+    return workspaces.map((w) => ({ id: w.id, name: w.name }));
+  }, [workspaces]);
+
+  // Find selected workspace
+  const selectedWorkspace = useMemo(() => {
+    return options.find((opt) => opt.id === selectedValue) ?? null;
+  }, [options, selectedValue]);
+
   return (
-    <FormControl fullWidth size="small" disabled={disabled || loading}>
-      <InputLabel>Workspace</InputLabel>
-      <Select
-        value={selectedValue}
-        label="Workspace"
-        onChange={(e) => {
-          const newValue = e.target.value;
-          if (onChange) {
-            onChange(newValue);
-          } else {
-            setActiveWorkspaceId(newValue || null);
-          }
-        }}
-        disabled={disabled || loading}
-      >
-        <MenuItem value="">
-          <em>None (Personal)</em>
-        </MenuItem>
-        {workspaces.map((workspace) => (
-          <MenuItem key={workspace.id} value={workspace.id}>
-            {workspace.name}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <MobileSelect<{ id: string; name: string }>
+      value={selectedWorkspace}
+      options={options}
+      onChange={(workspace) => {
+        const newValue = workspace?.id ?? '';
+        if (onChange) {
+          onChange(newValue);
+        } else {
+          setActiveWorkspaceId(newValue || null);
+        }
+      }}
+      getOptionLabel={(option) => option.name}
+      getOptionId={(option) => option.id}
+      label="Workspace"
+      disabled={disabled || loading}
+      size="small"
+    />
   );
 }

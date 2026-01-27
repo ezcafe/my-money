@@ -17,10 +17,12 @@ import {
   GET_REPORT_TRANSACTIONS,
   GET_RECENT_TRANSACTIONS,
   GET_BUDGETS,
+  GET_ME,
 } from '../graphql/queries';
 import { GET_WORKSPACES, GET_WORKSPACE_MEMBERS } from '../graphql/workspaceOperations';
 import { DELETE_TRANSACTION } from '../graphql/mutations';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDateFormat } from '../hooks/useDateFormat';
 import { useReportFilters } from '../hooks/useReportFilters';
@@ -56,6 +58,7 @@ interface ReportData {
 export function ReportPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { activeWorkspaceId } = useWorkspace();
   const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(
     GET_SETTINGS
   );
@@ -63,6 +66,13 @@ export function ReportPage(): React.JSX.Element {
 
   const { accounts } = useAccounts();
   const { dateFormat } = useDateFormat();
+
+  // Get current user information
+  const { data: meData } = useQuery(GET_ME, {
+    fetchPolicy: 'cache-and-network',
+    skip: isAuthenticated !== true,
+  });
+  const currentUserId = (meData as { me?: { id: string; email: string } } | undefined)?.me?.id;
   const { data: categoriesData, refetch: refetchCategories } = useQuery<{
     categories?: Array<{ id: string; name: string }>;
   }>(GET_CATEGORIES);
@@ -101,15 +111,19 @@ export function ReportPage(): React.JSX.Element {
   const workspaces = useMemo(() => workspacesData?.workspaces ?? [], [workspacesData?.workspaces]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
 
-  // Auto-select first workspace if available
+  // Auto-select active workspace or first workspace if available
   React.useEffect(() => {
     if (workspaces.length > 0 && !selectedWorkspaceId) {
-      const firstWorkspace = workspaces[0];
-      if (firstWorkspace) {
-        setSelectedWorkspaceId(firstWorkspace.id);
+      // Prefer active workspace from context, otherwise use first workspace
+      const workspaceToSelect =
+        activeWorkspaceId && workspaces.find((w) => w.id === activeWorkspaceId)
+          ? activeWorkspaceId
+          : workspaces[0]?.id;
+      if (workspaceToSelect) {
+        setSelectedWorkspaceId(workspaceToSelect);
       }
     }
-  }, [workspaces, selectedWorkspaceId]);
+  }, [workspaces, selectedWorkspaceId, activeWorkspaceId]);
 
   const { data: membersData } = useQuery<{
     workspaceMembers: Array<{
@@ -137,6 +151,35 @@ export function ReportPage(): React.JSX.Element {
 
   // Use report filters hook
   const filterHook = useReportFilters(dateFormat, accounts, categories, payees, members);
+
+  // Auto-select current user in member filter when workspace and members are available
+  React.useEffect(() => {
+    if (
+      selectedWorkspaceId &&
+      currentUserId &&
+      members.length > 0 &&
+      filterHook.filters.memberIds.length === 0 &&
+      filterHook.appliedFilters.memberIds.length === 0
+    ) {
+      // Find the member that matches the current user
+      const currentUserMember = members.find((m) => m.userId === currentUserId);
+      if (currentUserMember) {
+        filterHook.handleFilterChange('memberIds', [currentUserMember.userId]);
+        // Auto-apply the filter if no other filters are applied
+        if (!filterHook.hasFilters) {
+          filterHook.handleApplyFilters();
+        }
+      }
+    }
+  }, [
+    selectedWorkspaceId,
+    currentUserId,
+    members,
+    filterHook.filters.memberIds.length,
+    filterHook.appliedFilters.memberIds.length,
+    filterHook.hasFilters,
+    filterHook,
+  ]);
 
   // Sorting state
   const [sortField, setSortField] = useState<TransactionOrderByField>('date');
@@ -258,6 +301,7 @@ export function ReportPage(): React.JSX.Element {
     (workspaceId: string) => {
       setSelectedWorkspaceId(workspaceId);
       // Clear member filter when workspace changes
+      // The effect below will set the current user as default after members are loaded
       filterHook.handleFilterChange('memberIds', []);
       filterHook.setAppliedFilters((prev) => ({ ...prev, memberIds: [] }));
     },

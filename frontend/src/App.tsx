@@ -4,7 +4,7 @@
  */
 
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { Routes, Route, Navigate } from 'react-router';
 import { ApolloProvider } from '@apollo/client/react';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -96,7 +96,6 @@ function App(): React.JSX.Element {
               <SearchProvider>
                   <WorkspaceProvider>
                     <HeaderProvider>
-                      <BrowserRouter>
                     <Suspense fallback={<LoadingSpinner message="Loading..." />}>
                       <Routes>
                         {/* Public routes - no authentication required */}
@@ -366,7 +365,6 @@ function App(): React.JSX.Element {
                       </Routes>
                       </Suspense>
                       <OfflineIndicator />
-                    </BrowserRouter>
                   </HeaderProvider>
                 </WorkspaceProvider>
               </SearchProvider>

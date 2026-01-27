@@ -259,7 +259,6 @@ export const EXPORT_DATA = gql`
       }
       budgets {
         id
-        userId
         amount
         currentSpent
         accountId
@@ -328,6 +327,18 @@ export const GET_BUDGET_NOTIFICATIONS = gql`
       threshold
       message
       createdAt
+    }
+  }
+`;
+
+export const GET_ME = gql`
+  query GetMe {
+    me {
+      id
+      email
+      oidcSubject
+      createdAt
+      updatedAt
     }
   }
 `;

@@ -11,7 +11,6 @@ import { GET_BUDGET } from '../graphql/queries';
  */
 export interface Budget {
   id: string;
-  userId: string;
   amount: string;
   currentSpent: string;
   accountId: string | null;

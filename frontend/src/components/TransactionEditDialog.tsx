@@ -8,11 +8,6 @@ import {
   Box,
   TextField,
   Typography,
-  Autocomplete,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { Dialog } from './ui/Dialog';
@@ -29,10 +24,10 @@ import type { Transaction } from '../hooks/useTransactions';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
-  GROUP_HEADER_STYLES,
 } from '../utils/groupSelectOptions';
 import type { Account } from '../hooks/useAccounts';
 import type { Category } from '../hooks/useCategories';
+import { MobileSelect } from './ui/MobileSelect';
 
 /**
  * Transaction edit dialog props
@@ -212,50 +207,43 @@ export function TransactionEditDialog({
           InputLabelProps={{ shrink: true }}
         />
 
-        <Autocomplete<Account, false, false, false>
-          options={accounts}
-          getOptionLabel={(option) => option.name}
-          groupBy={(option) => getAccountTypeLabel(option.accountType)}
+        <MobileSelect<Account>
           value={selectedAccount}
-          onChange={(_, value) => {
-            setAccountId(value?.id ?? '');
+          options={accounts}
+          onChange={(account) => {
+            setAccountId(account?.id ?? '');
           }}
-          isOptionEqualToValue={(option, value) => option.id === value.id}
-          componentsProps={{
-            popper: {
-              sx: GROUP_HEADER_STYLES,
-            },
-          }}
-          renderInput={(params) => <TextField {...params} label="Account" />}
-        />
-
-        <Autocomplete<Category, false, false, false>
-          options={categories}
           getOptionLabel={(option) => option.name}
-          groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
-          value={selectedCategory}
-          onChange={(_, value) => {
-            setCategoryId(value?.id ?? '');
-          }}
+          getOptionId={(option) => option.id}
           isOptionEqualToValue={(option, value) => option.id === value.id}
-          componentsProps={{
-            popper: {
-              sx: GROUP_HEADER_STYLES,
-            },
-          }}
-          renderInput={(params) => <TextField {...params} label="Category" />}
+          groupBy={(option) => getAccountTypeLabel(option.accountType)}
+          label="Account"
         />
 
-        <FormControl fullWidth>
-          <InputLabel>Payee</InputLabel>
-          <Select value={payeeId} onChange={(e) => setPayeeId(e.target.value)} label="Payee">
-            {payees.map((payee) => (
-              <MenuItem key={payee.id} value={payee.id}>
-                {payee.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <MobileSelect<Category>
+          value={selectedCategory}
+          options={categories}
+          onChange={(category) => {
+            setCategoryId(category?.id ?? '');
+          }}
+          getOptionLabel={(option) => option.name}
+          getOptionId={(option) => option.id}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+          label="Category"
+        />
+
+        <MobileSelect<{ id: string; name: string }>
+          value={payees.find((p) => p.id === payeeId) ?? null}
+          options={payees}
+          onChange={(payee) => {
+            setPayeeId(payee?.id ?? '');
+          }}
+          getOptionLabel={(option) => option.name}
+          getOptionId={(option) => option.id}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          label="Payee"
+        />
 
         <TextField
           label="Note"

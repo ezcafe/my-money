@@ -11,6 +11,7 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  ListItemIcon,
   Divider,
   TextField,
   Button,
@@ -51,6 +52,7 @@ import {
   Settings,
   DataObject,
   Security,
+  ChevronRight,
 } from '@mui/icons-material';
 import { useNotifications } from '../contexts/NotificationContext';
 import { PageContainer } from '../components/common/PageContainer';
@@ -677,6 +679,9 @@ export function SettingsPage(): React.JSX.Element {
               >
                 {item.icon}
                 <ListItemText primary={item.primary} secondary={item.secondary} />
+                <ListItemIcon sx={{ minWidth: 'auto' }}>
+                  <ChevronRight color="action" />
+                </ListItemIcon>
               </ListItemButton>
             </React.Fragment>
           ))}
@@ -783,6 +788,9 @@ export function SettingsPage(): React.JSX.Element {
               primary="Display Settings"
               secondary="Customize currency, date format, color scheme, and calculator keypad layout"
             />
+            <ListItemIcon sx={{ minWidth: 'auto' }}>
+              <ChevronRight color="action" />
+            </ListItemIcon>
           </ListItemButton>
         </List>
       </Card>

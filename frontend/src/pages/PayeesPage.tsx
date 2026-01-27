@@ -5,9 +5,9 @@
  */
 
 import React, { memo } from 'react';
-import { List, ListItemButton, ListItemText, Divider, Chip, Stack, Typography } from '@mui/material';
+import { List, ListItemButton, ListItemText, ListItemIcon, Divider, Chip, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router';
-import { Person, Star } from '@mui/icons-material';
+import { Person, Star, ChevronRight } from '@mui/icons-material';
 import { usePayees } from '../hooks/usePayees';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
@@ -112,6 +112,9 @@ const PayeesPageComponent = (): React.JSX.Element => {
                       </Stack>
                     }
                   />
+                  <ListItemIcon sx={{ minWidth: 'auto' }}>
+                    <ChevronRight color="action" />
+                  </ListItemIcon>
                 </ListItemButton>
               </React.Fragment>
             ))}

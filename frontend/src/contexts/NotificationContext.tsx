@@ -12,6 +12,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
+import { useLocation } from 'react-router';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { Snackbar, Alert } from '@mui/material';
 import { GET_BUDGET_NOTIFICATIONS } from '../graphql/queries';
@@ -43,6 +44,9 @@ interface NotificationContextType {
   markAsRead: (id: string) => Promise<void>;
   showSuccessNotification: (message: string) => void;
   showErrorNotification: (message: string) => void;
+  errorMessage: string | null;
+  errorOpen: boolean;
+  handleErrorClose: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -55,6 +59,8 @@ export function NotificationProvider({
 }: {
   children: React.ReactNode;
 }): React.JSX.Element {
+  const location = useLocation();
+  const isHomePage = location.pathname === '/';
   const [currentNotification, setCurrentNotification] = useState<BudgetNotification | null>(null);
   const [open, setOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -180,6 +186,11 @@ export function NotificationProvider({
     []
   );
 
+  const handleErrorCloseExposed = useCallback((): void => {
+    setErrorOpen(false);
+    setErrorMessage(null);
+  }, []);
+
   const showSuccessNotification = useCallback((message: string): void => {
     setSuccessMessage(message);
     setSuccessOpen(true);
@@ -225,6 +236,9 @@ export function NotificationProvider({
         markAsRead,
         showSuccessNotification,
         showErrorNotification,
+        errorMessage,
+        errorOpen,
+        handleErrorClose: handleErrorCloseExposed,
       }}
     >
       {children}
@@ -238,29 +252,32 @@ export function NotificationProvider({
           {currentNotification?.message}
         </Alert>
       </Snackbar>
-      <Snackbar
-        open={errorOpen}
-        autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
-        onClose={handleErrorClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        sx={{
-          // Ensure notifications don't overlap
-          zIndex: (theme) => theme.zIndex.snackbar,
-        }}
-      >
-        <Alert
+      {/* Only show error Snackbar if not on homepage (homepage will show it inline) */}
+      {!isHomePage ? (
+        <Snackbar
+          open={errorOpen}
+          autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}
           onClose={handleErrorClose}
-          severity="error"
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
           sx={{
-            width: '100%',
-            maxWidth: { xs: '90vw', sm: '400px' },
-            // Add elevation for better visibility
-            boxShadow: 3,
+            // Ensure notifications don't overlap
+            zIndex: (theme) => theme.zIndex.snackbar,
           }}
         >
-          {errorMessage}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={handleErrorClose}
+            severity="error"
+            sx={{
+              width: '100%',
+              maxWidth: { xs: '90vw', sm: '400px' },
+              // Add elevation for better visibility
+              boxShadow: 3,
+            }}
+          >
+            {errorMessage}
+          </Alert>
+        </Snackbar>
+      ) : null}
       <Snackbar
         open={successOpen}
         autoHideDuration={NOTIFICATION_AUTO_DISMISS_MS}

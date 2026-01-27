@@ -4,13 +4,11 @@
  */
 
 import React from 'react';
-import { FormControl, Select, MenuItem, Autocomplete } from '@mui/material';
 import Grid from '@mui/material/Grid2';
-import { TextField } from '../ui/TextField';
+import { MobileSelect } from '../ui/MobileSelect';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
-  GROUP_HEADER_STYLES,
 } from '../../utils/groupSelectOptions';
 import type { Account } from '../../hooks/useAccounts';
 import type { Category } from '../../hooks/useCategories';
@@ -51,85 +49,65 @@ export function CalculatorPickers({
     <Grid container spacing={1} sx={{ mb: 1 }}>
       {/* Payee Picker */}
       <Grid size={{ xs: 4 }}>
-        <FormControl
-          fullWidth
+        <MobileSelect<{ id: string; name: string }>
+          value={payees.find((p) => p.id === selectedPayeeId) ?? null}
+          options={payees}
+          onChange={(payee) => {
+            onPayeeChange(payee?.id ?? '');
+          }}
+          getOptionLabel={(option) => option.name}
+          getOptionId={(option) => option.id}
+          placeholder="Payee"
+          size="small"
           sx={{
             '& .MuiOutlinedInput-root': {
               height: selectHeight,
             },
           }}
-        >
-          <Select
-            value={selectedPayeeId || ''}
-            onChange={(e) => {
-              onPayeeChange(e.target.value);
-            }}
-            displayEmpty
-          >
-            {payees.map((payee) => (
-              <MenuItem key={payee.id} value={payee.id}>
-                {payee.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        />
       </Grid>
 
       {/* Account Picker */}
       <Grid size={{ xs: 4 }}>
-        <Autocomplete<Account, false, false, false>
-          options={accounts}
-          getOptionLabel={(option) => option.name}
-          groupBy={(option) => getAccountTypeLabel(option.accountType)}
+        <MobileSelect<Account>
           value={selectedAccount}
-          onChange={(_, value) => {
-            onAccountChange(value?.id ?? '');
+          options={accounts}
+          onChange={(account) => {
+            onAccountChange(account?.id ?? '');
           }}
+          getOptionLabel={(option) => option.name}
+          getOptionId={(option) => option.id}
           isOptionEqualToValue={(option, value) => option.id === value.id}
-          componentsProps={{
-            popper: {
-              sx: GROUP_HEADER_STYLES,
+          groupBy={(option) => getAccountTypeLabel(option.accountType)}
+          placeholder="Account"
+          size="small"
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              height: selectHeight,
             },
           }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  height: selectHeight,
-                },
-              }}
-            />
-          )}
         />
       </Grid>
 
       {/* Category Picker */}
       <Grid size={{ xs: 4 }}>
-        <Autocomplete<Category, false, false, false>
-          options={categories}
-          getOptionLabel={(option) => option.name}
-          groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+        <MobileSelect<Category>
           value={selectedCategory}
-          onChange={(_, value) => {
-            onCategoryChange(value?.id ?? '');
+          options={categories}
+          onChange={(category) => {
+            onCategoryChange(category?.id ?? '');
           }}
+          getOptionLabel={(option) => option.name}
+          getOptionId={(option) => option.id}
           isOptionEqualToValue={(option, value) => option.id === value.id}
-          componentsProps={{
-            popper: {
-              sx: GROUP_HEADER_STYLES,
+          groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
+          placeholder="Category"
+          size="small"
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              height: selectHeight,
             },
           }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  height: selectHeight,
-                },
-              }}
-            />
-          )}
         />
       </Grid>
     </Grid>

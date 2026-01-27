@@ -5,9 +5,9 @@
  */
 
 import React, { memo, useTransition } from 'react';
-import { Typography, List, ListItemButton, ListItemText, Divider, Chip, Stack } from '@mui/material';
+import { Typography, List, ListItemButton, ListItemText, ListItemIcon, Divider, Chip, Stack } from '@mui/material';
 import { useNavigate } from 'react-router';
-import { AccountBalance, Star } from '@mui/icons-material';
+import { AccountBalance, Star, ChevronRight } from '@mui/icons-material';
 import { useAccounts } from '../hooks/useAccounts';
 import { formatCurrencyPreserveDecimals } from '../utils/formatting';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
@@ -108,9 +108,14 @@ const AccountsPageComponent = (): React.JSX.Element => {
                       </Stack>
                     }
                   />
-                  <Typography variant="body1" fontWeight={500} color="text.primary">
-                    {formatCurrencyPreserveDecimals(account.balance)}
-                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="body1" fontWeight={500} color="text.primary">
+                      {formatCurrencyPreserveDecimals(account.balance)}
+                    </Typography>
+                    <ListItemIcon sx={{ minWidth: 'auto' }}>
+                      <ChevronRight color="action" />
+                    </ListItemIcon>
+                  </Stack>
                 </ListItemButton>
               </React.Fragment>
             ))}
