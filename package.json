@@ -25,12 +25,12 @@
     "type-check:backend": "npm run type-check --workspace=backend",
     "validate": "npm run lint && npm run type-check && npm run format:check",
     "clean": "rm -rf dist build coverage .turbo .eslintcache backend/dist frontend/dist shared/dist",
-    "docker:up": "docker-compose -f docker/docker-compose.yml --env-file .env up -d",
-    "docker:down": "docker-compose -f docker/docker-compose.yml --env-file .env down",
-    "docker:build": "bash scripts/docker-prepare-images.sh && DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker/docker-compose.yml --env-file .env build --parallel --no-cache",
-    "docker:build:pull": "DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker/docker-compose.yml --env-file .env build --pull=always --parallel --no-cache",
-    "docker:logs": "docker-compose -f docker/docker-compose.yml logs -f",
-    "docker:clean": "docker-compose -f docker/docker-compose.yml --env-file .env down -v",
+    "docker:up": "docker compose -f docker/docker-compose.yml --env-file .env up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml --env-file .env down",
+    "docker:build": "bash scripts/docker-prepare-images.sh && DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose -f docker/docker-compose.yml --env-file .env build --parallel --no-cache",
+    "docker:build:pull": "DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose -f docker/docker-compose.yml --env-file .env build --pull=always --parallel --no-cache",
+    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
+    "docker:clean": "docker compose -f docker/docker-compose.yml --env-file .env down -v",
     "docker:prune": "bash scripts/docker-prune.sh"
   },
   "engines": {

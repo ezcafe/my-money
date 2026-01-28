@@ -94,7 +94,7 @@ A full-stack transaction management application with passkey authentication, cal
 
 - Node.js >= 25.2.1 (use `.nvmrc` file with `nvm use` to ensure correct version)
 - npm >= 10.0.0
-- Docker and Docker Compose
+- Docker and Docker Compose (v2: `docker compose` CLI)
 - PostgreSQL 18 (or use Docker)
 
 ### Node Version Management
@@ -216,10 +216,10 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mymoney
 Start only the PostgreSQL service:
 
 ```bash
-docker-compose -f docker/docker-compose.yml --env-file .env up -d postgres
+docker compose -f docker/docker-compose.yml --env-file .env up -d postgres
 ```
 
-**Important:** The `--env-file .env` flag is required when using `-f docker/docker-compose.yml` because docker-compose needs to read the `.env` file from the project root for variable substitution (e.g., `${POSTGRES_USER}`) in the compose file. The docker-compose.yml also has `env_file: - ../.env` which loads variables into the container at runtime.
+**Important:** The `--env-file .env` flag is required when using `-f docker/docker-compose.yml` because Docker Compose needs to read the `.env` file from the project root for variable substitution (e.g., `${POSTGRES_USER}`) in the compose file. The docker-compose.yml also has `env_file: - ../.env` which loads variables into the container at runtime.
 
 **If you see warnings about missing environment variables:**
 
@@ -227,10 +227,10 @@ The container may have been created before the .env file was configured. Recreat
 
 ```bash
 # Stop and remove the container (data is preserved in volume)
-docker-compose -f docker/docker-compose.yml --env-file .env down postgres
+docker compose -f docker/docker-compose.yml --env-file .env down postgres
 
 # Start again with the updated .env file
-docker-compose -f docker/docker-compose.yml --env-file .env up -d postgres
+docker compose -f docker/docker-compose.yml --env-file .env up -d postgres
 ```
 
 #### Verify PostgreSQL is Running
@@ -239,7 +239,7 @@ docker-compose -f docker/docker-compose.yml --env-file .env up -d postgres
 
 ```bash
 # Using docker exec (include --env-file to avoid warnings)
-docker-compose -f docker/docker-compose.yml --env-file .env exec postgres psql -U postgres -d mymoney
+docker compose -f docker/docker-compose.yml --env-file .env exec postgres psql -U postgres -d mymoney
 
 # Or using psql from your host (if installed)
 psql postgresql://postgres:postgres@localhost:5432/mymoney
@@ -251,22 +251,22 @@ psql postgresql://postgres:postgres@localhost:5432/mymoney
 
 ```bash
 # Stop the container
-docker-compose -f docker/docker-compose.yml --env-file .env stop postgres
+docker compose -f docker/docker-compose.yml --env-file .env stop postgres
 ```
 
 **To stop and remove the container (data is preserved in volume):**
 
 ```bash
-docker-compose -f docker/docker-compose.yml --env-file .env down postgres
+docker compose -f docker/docker-compose.yml --env-file .env down postgres
 ```
 
 **To remove container and data volume (⚠️ deletes all data):**
 
 ```bash
-docker-compose -f docker/docker-compose.yml --env-file .env down -v postgres
+docker compose -f docker/docker-compose.yml --env-file .env down -v postgres
 ```
 
-**Note:** Include `--env-file .env` in all docker-compose commands that use `-f docker/docker-compose.yml` to avoid warnings about missing environment variables.
+**Note:** Include `--env-file .env` in all `docker compose` commands that use `-f docker/docker-compose.yml` to avoid warnings about missing environment variables.
 
 #### Alternative: Local PostgreSQL Installation
 

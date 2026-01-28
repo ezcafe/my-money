@@ -64,12 +64,12 @@ for container in "${CONTAINERS[@]}"; do
   fi
 done
 
-# Also remove via docker-compose
-echo "  Stopping via docker-compose..."
+# Also remove via Docker Compose v2
+echo "  Stopping via Docker Compose..."
 if [ -f "$ENV_FILE" ]; then
-  docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
 else
-  docker-compose -f "$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
+  docker compose -f "$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
 fi
 
 echo -e "${GREEN}✓ Containers removed${NC}"
@@ -83,11 +83,11 @@ for volume in "${VOLUMES[@]}"; do
   fi
 done
 
-# Also remove via docker-compose
+# Also remove via Docker Compose v2
 if [ -f "$ENV_FILE" ]; then
-  docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down -v 2>/dev/null || true
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down -v 2>/dev/null || true
 else
-  docker-compose -f "$COMPOSE_FILE" down -v 2>/dev/null || true
+  docker compose -f "$COMPOSE_FILE" down -v 2>/dev/null || true
 fi
 
 echo -e "${GREEN}✓ Volumes removed${NC}"
@@ -118,11 +118,11 @@ for pattern in "${IMAGE_PATTERNS[@]}"; do
   fi
 done
 
-# Also try to remove via docker-compose
+# Also try to remove via Docker Compose v2
 if [ -f "$ENV_FILE" ]; then
-  docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --rmi all 2>/dev/null || true
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --rmi all 2>/dev/null || true
 else
-  docker-compose -f "$COMPOSE_FILE" down --rmi all 2>/dev/null || true
+  docker compose -f "$COMPOSE_FILE" down --rmi all 2>/dev/null || true
 fi
 
 echo -e "${GREEN}✓ Images removed${NC}"
