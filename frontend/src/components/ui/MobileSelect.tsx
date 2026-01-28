@@ -6,6 +6,7 @@
 import React, { useId } from 'react';
 import { FormControl, InputLabel, Select, MenuItem, Autocomplete } from '@mui/material';
 import { TextField } from './TextField';
+import { GROUP_HEADER_STYLES } from '../../utils/groupSelectOptions';
 
 export interface MobileSelectOption<T = unknown> {
   id: string;
@@ -108,6 +109,11 @@ export function MobileSelect<T = unknown>({
           }}
           isOptionEqualToValue={isOptionEqualToValue ?? isEqual}
           groupBy={groupBy}
+          componentsProps={{
+            popper: {
+              sx: GROUP_HEADER_STYLES,
+            },
+          }}
           disabled={disabled}
           fullWidth={fullWidth}
           size={size}

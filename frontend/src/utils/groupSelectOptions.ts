@@ -55,9 +55,10 @@ const ACCOUNT_TYPE_ORDER: Account['accountType'][] = [
 ];
 
 /**
- * Category type order for consistent grouping
+ * Category type order for consistent grouping.
+ * Expense categories are shown before Income categories.
  */
-const CATEGORY_TYPE_ORDER: Category['categoryType'][] = ['Income', 'Expense'];
+const CATEGORY_TYPE_ORDER: Category['categoryType'][] = ['Expense', 'Income'];
 
 /**
  * Shared styling for Autocomplete group headers
@@ -145,4 +146,16 @@ export function groupCategoriesByType(categories: Category[]): GroupedCategory[]
       items: items.sort((a, b) => a.name.localeCompare(b.name)),
     };
   }).filter((group) => group.items.length > 0);
+}
+
+/**
+ * Sorts categories by type and name.
+ * Categories are ordered by the predefined CATEGORY_TYPE_ORDER and then
+ * alphabetically within each type.
+ *
+ * @param categories - Array of categories to sort
+ * @returns Flattened array of categories sorted by type and name
+ */
+export function sortCategoriesByTypeAndName(categories: Category[]): Category[] {
+  return groupCategoriesByType(categories).flatMap((group) => group.items);
 }

@@ -38,6 +38,8 @@ import { ReportSummary, type SummaryStats } from '../components/report/ReportSum
 import { ReportFilters } from '../components/report/ReportFilters';
 import { ReportCharts } from '../components/report/ReportCharts';
 import { useWorkspaceRefetch } from '../hooks';
+import { sortCategoriesByTypeAndName } from '../utils/groupSelectOptions';
+import type { Category } from '../hooks/useCategories';
 
 /**
  * Report data type
@@ -74,7 +76,7 @@ export function ReportPage(): React.JSX.Element {
   });
   const currentUserId = (meData as { me?: { id: string; email: string } } | undefined)?.me?.id;
   const { data: categoriesData, refetch: refetchCategories } = useQuery<{
-    categories?: Array<{ id: string; name: string }>;
+    categories?: Category[];
   }>(GET_CATEGORIES);
   const { data: payeesData, refetch: refetchPayees } = useQuery<{
     payees?: Array<{ id: string; name: string }>;
@@ -145,7 +147,10 @@ export function ReportPage(): React.JSX.Element {
     [membersData?.workspaceMembers]
   );
 
-  const categories = useMemo(() => categoriesData?.categories ?? [], [categoriesData?.categories]);
+  const categories = useMemo(
+    () => sortCategoriesByTypeAndName((categoriesData?.categories ?? []) as Category[]),
+    [categoriesData?.categories]
+  );
   const payees = useMemo(() => payeesData?.payees ?? [], [payeesData?.payees]);
   const budgets = useMemo(() => budgetsData?.budgets ?? [], [budgetsData?.budgets]);
 
@@ -400,12 +405,30 @@ export function ReportPage(): React.JSX.Element {
   }, [filterHook]);
 
   // Prepare multi-select options
-  const accountOptions: MultiSelectOption[] = useMemo(
-    () => accounts.map((a) => ({ id: a.id, name: a.name })),
+  type AccountMultiSelectOption = MultiSelectOption & {
+    accountType: 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
+  };
+
+  const accountOptions: AccountMultiSelectOption[] = useMemo(
+    () =>
+      accounts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        accountType: a.accountType as AccountMultiSelectOption['accountType'],
+      })),
     [accounts]
   );
-  const categoryOptions: MultiSelectOption[] = useMemo(
-    () => categories.map((c) => ({ id: c.id, name: c.name })),
+  type CategoryMultiSelectOption = MultiSelectOption & {
+    categoryType: 'Income' | 'Expense';
+  };
+
+  const categoryOptions: CategoryMultiSelectOption[] = useMemo(
+    () =>
+      categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        categoryType: c.categoryType,
+      })),
     [categories]
   );
   const payeeOptions: MultiSelectOption[] = useMemo(

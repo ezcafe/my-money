@@ -31,6 +31,7 @@ import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
+  sortCategoriesByTypeAndName,
 } from '../utils/groupSelectOptions';
 import type { Account } from '../hooks/useAccounts';
 import type { Category } from '../hooks/useCategories';
@@ -71,7 +72,7 @@ export function TransactionEditPage(): React.JSX.Element {
   });
 
   const categories = useMemo(
-    () => (categoriesData?.categories ?? []) as Category[],
+    () => sortCategoriesByTypeAndName((categoriesData?.categories ?? []) as Category[]),
     [categoriesData?.categories]
   );
   const payees = payeesData?.payees ?? [];

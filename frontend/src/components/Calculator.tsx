@@ -25,6 +25,7 @@ import { CalculatorKeypad, type KeypadLayout } from './calculator/CalculatorKeyp
 import { CalculatorPickers } from './calculator/CalculatorPickers';
 import { CalculatorControls } from './calculator/CalculatorControls';
 import { Card } from './ui/Card';
+import { sortCategoriesByTypeAndName } from '../utils/groupSelectOptions';
 
 /**
  * Calculator component
@@ -101,6 +102,11 @@ export function Calculator(): React.JSX.Element {
   const { accounts } = useAccounts();
   const { categories } = useCategories();
   const { payees } = usePayees();
+
+  const sortedCategories = useMemo(
+    () => sortCategoriesByTypeAndName(categories),
+    [categories]
+  );
 
   // Measure calculator height dynamically
   useEffect(() => {
@@ -334,7 +340,7 @@ export function Calculator(): React.JSX.Element {
             selectedCategoryId={selectedCategoryId}
             payees={payees}
             accounts={accounts}
-            categories={categories}
+            categories={sortedCategories}
             onPayeeChange={handlePayeeChange}
             onAccountChange={handleAccountChange}
             onCategoryChange={handleCategoryChange}

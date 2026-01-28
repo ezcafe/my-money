@@ -16,6 +16,7 @@ import { PageContainer } from '../components/common/PageContainer';
 import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
+  sortCategoriesByTypeAndName,
 } from '../utils/groupSelectOptions';
 import type { Account } from '../hooks/useAccounts';
 import type { Category } from '../hooks/useCategories';
@@ -46,7 +47,11 @@ export function BudgetAddPage(): React.JSX.Element {
   );
   const categories = useMemo(
     () =>
-      (categoriesData?.categories ?? []).filter((c) => c.categoryType === 'Expense') as Category[],
+      sortCategoriesByTypeAndName(
+        ((categoriesData?.categories ?? []).filter(
+          (c) => c.categoryType === 'Expense'
+        ) as Category[]) ?? []
+      ),
     [categoriesData?.categories]
   );
   const payees = useMemo(() => payeesData?.payees ?? [], [payeesData?.payees]);

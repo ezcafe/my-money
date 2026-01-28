@@ -29,6 +29,7 @@ import {
   getAccountTypeLabel,
   getCategoryTypeLabel,
   GROUP_HEADER_STYLES,
+  sortCategoriesByTypeAndName,
 } from '../../utils/groupSelectOptions';
 import type { Account } from '../../hooks/useAccounts';
 import type { Category } from '../../hooks/useCategories';
@@ -80,6 +81,8 @@ const ImportMappingTableComponent = ({
 
   // Find selected account object for Autocomplete
   const selectedCardAccount = accounts.find((acc) => acc.id === cardAccountId) ?? null;
+
+  const sortedCategories = sortCategoriesByTypeAndName(categories);
 
   return (
     <>
@@ -196,8 +199,8 @@ const ImportMappingTableComponent = ({
                     fullWidth
                   />
                   <MobileSelect<Category>
-                    value={categories.find((cat) => cat.id === mapping.categoryId) ?? null}
-                    options={categories}
+                    value={sortedCategories.find((cat) => cat.id === mapping.categoryId) ?? null}
+                    options={sortedCategories}
                     onChange={(value) => {
                       onMappingChange(desc, 'categoryId', value?.id ?? '');
                     }}
@@ -335,10 +338,10 @@ const ImportMappingTableComponent = ({
                     <TableCell sx={{ minWidth: 300 }}>
                       <Autocomplete<Category, false, false, false>
                         size="small"
-                        options={categories}
+                        options={sortedCategories}
                         getOptionLabel={(option) => option.name}
                         groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
-                        value={categories.find((cat) => cat.id === mapping.categoryId) ?? null}
+                        value={sortedCategories.find((cat) => cat.id === mapping.categoryId) ?? null}
                         onChange={(_, value): void => {
                           onMappingChange(desc, 'categoryId', value?.id ?? '');
                         }}
@@ -363,7 +366,8 @@ const ImportMappingTableComponent = ({
                             inputProps={{
                               ...params.inputProps,
                               title:
-                                categories.find((cat) => cat.id === mapping.categoryId)?.name ?? '',
+                                sortedCategories.find((cat) => cat.id === mapping.categoryId)
+                                  ?.name ?? '',
                             }}
                           />
                         )}

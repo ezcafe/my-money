@@ -6,13 +6,8 @@
 
 import { execSync, spawn } from 'child_process';
 import { join, resolve } from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import { logError, logInfo, logWarn } from './logger';
 import { adjustDatabaseConnectionString } from '../config';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Configuration from environment variables (same as entrypoint script)
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES ?? '5', 10);
@@ -168,12 +163,18 @@ async function runDbPushWithConditionalAccept(
     PRISMA_SCHEMA_PATH: join(backendPath, 'prisma/schema.prisma'),
   };
 
+  const workspaceRoot = resolve(backendPath, '..');
+
   // First, run with output capture to check for data loss warnings
   // Use node directly with Prisma module path since Prisma is hoisted to root in npm workspaces
-  // Use absolute path to avoid any path resolution issues
-  // In Docker, backend is at /app/backend, so Prisma is at /app/node_modules/prisma/build/index.js
-  const prismaCliPath = '/app/node_modules/prisma/build/index.js';
-  // Schema is at /app/backend/prisma/schema.prisma (not in dist directory)
+  // Resolve Prisma from the workspace root so it works in Docker and local dev
+  const prismaCliPath = resolve(
+    workspaceRoot,
+    'node_modules',
+    'prisma',
+    'build',
+    'index.js'
+  );
   const schemaPath = resolve(backendPath, 'prisma', 'schema.prisma');
   const { stdout, stderr, exitCode } = await new Promise<{
     stdout: string;
@@ -245,9 +246,14 @@ async function runDbPushWithConditionalAccept(
       });
 
       // Run again with --accept-data-loss flag and show output
-      // Use absolute path to avoid any path resolution issues
-      // In Docker, backend is at /app/backend, so Prisma is at /app/node_modules/prisma/build/index.js
-      const prismaCliPath = '/app/node_modules/prisma/build/index.js';
+      const workspaceRoot = resolve(backendPath, '..');
+      const prismaCliPath = resolve(
+        workspaceRoot,
+        'node_modules',
+        'prisma',
+        'build',
+        'index.js'
+      );
       const schemaPath = resolve(backendPath, 'prisma', 'schema.prisma');
       execSync(
         `node "${prismaCliPath}" db push --schema "${schemaPath}" --accept-data-loss`,
@@ -292,10 +298,9 @@ export async function runMigrations(
   retryDelayMs: number = RETRY_DELAY,
   timeoutMs: number = MIGRATION_TIMEOUT
 ): Promise<void> {
-  // __dirname is /app/backend/dist/src/utils, so ../.. gives /app/backend/dist
-  // But we need /app/backend (source directory) where prisma/schema.prisma is located
-  // Go up one more level to get from dist to backend root
-  const backendPath = resolve(__dirname, '../..', '..');
+  // Use the current working directory as backend root so this works
+  // both in Docker (WORKDIR=/app/backend) and local dev (workspace backend)
+  const backendPath = process.cwd();
 
   // Always use Prisma db push to keep database schema in sync with prisma/schema.prisma
   // This project has consolidated schema changes into the main schema and no longer

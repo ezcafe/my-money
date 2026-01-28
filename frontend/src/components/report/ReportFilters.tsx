@@ -15,6 +15,8 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { TextField } from '../ui/TextField';
 import { MultiSelect, type MultiSelectOption } from '../ui/MultiSelect';
+import { getAccountTypeLabel, getCategoryTypeLabel } from '../../utils/groupSelectOptions';
+import type { Category } from '../../hooks/useCategories';
 import { WorkspaceSelector } from '../WorkspaceSelector';
 import type {
   UseReportFiltersReturn,
@@ -48,8 +50,12 @@ interface ReportFiltersProps {
   handleClearFilters: () => void;
   setFilterPanelExpanded: (expanded: boolean) => void;
   // Data for filters
-  accountOptions: MultiSelectOption[];
-  categoryOptions: MultiSelectOption[];
+  accountOptions: Array<
+    MultiSelectOption & {
+      accountType: 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
+    }
+  >;
+  categoryOptions: Array<MultiSelectOption & Pick<Category, 'categoryType'>>;
   payeeOptions: MultiSelectOption[];
   workspaces: Array<{ id: string; name: string }>;
   selectedWorkspaceId: string;
@@ -229,22 +235,28 @@ const ReportFiltersComponent = ({
 
               {/* Multi-select Filters */}
               <MultiSelect
-                label="Account"
-                options={accountOptions}
-                value={filters.accountIds}
-                onChange={(value) => handleFilterChange('accountIds', value)}
-              />
-              <MultiSelect
                 label="Payee"
                 options={payeeOptions}
                 value={filters.payeeIds}
                 onChange={(value) => handleFilterChange('payeeIds', value)}
               />
-              <MultiSelect
+              <MultiSelect<
+                MultiSelectOption & {
+                  accountType: 'Cash' | 'CreditCard' | 'Bank' | 'Saving' | 'Loans';
+                }
+              >
+                label="Account"
+                options={accountOptions}
+                value={filters.accountIds}
+                onChange={(value) => handleFilterChange('accountIds', value)}
+                groupBy={(option) => getAccountTypeLabel(option.accountType)}
+              />
+              <MultiSelect<MultiSelectOption & Pick<Category, 'categoryType'>>
                 label="Category"
                 options={categoryOptions}
                 value={filters.categoryIds}
                 onChange={(value) => handleFilterChange('categoryIds', value)}
+                groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
               />
 
               {/* Note Search */}
