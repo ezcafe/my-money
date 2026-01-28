@@ -63,8 +63,11 @@ FROM node:${NODE_VERSION}-alpine AS builder
 WORKDIR /app
 
 # Copy dependencies from deps stage
-# In npm workspaces, dependencies are hoisted to root node_modules
+# In npm workspaces, dependencies may be hoisted to the root or kept in per-workspace node_modules.
+# To ensure all frontend-specific dependencies (like @mui/icons-material) are available during the build,
+# copy both the root node_modules and the frontend workspace node_modules folders.
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
 
 # Copy config files first (change less frequently than source code)
 COPY tsconfig.json ./tsconfig.json
