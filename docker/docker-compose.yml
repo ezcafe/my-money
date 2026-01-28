@@ -97,6 +97,9 @@ services:
       POSTGRES_HOST: "postgres"
       PORT: 4000
       NODE_ENV: production
+      # Cookie configuration for Docker HTTP (not HTTPS)
+      # Set USE_HTTPS=false to allow cookies over HTTP in Docker
+      USE_HTTPS: ${USE_HTTPS:-false}
       # Node.js memory limit (768MB out of 1GB limit, leaving room for other processes)
       NODE_OPTIONS: "--max-old-space-size=768"
       # Database connection pool settings

@@ -8,14 +8,40 @@ import { setCookie, deleteCookie } from 'hono/cookie';
 
 /**
  * Cookie security configuration
+ * In Docker, we may be using HTTP (not HTTPS), so secure cookies won't work
+ * Use COOKIE_SECURE env var to override, or detect HTTPS from request
  */
+const isSecureConnection = (): boolean => {
+  // Allow environment variable override (explicit control)
+  if (process.env.COOKIE_SECURE !== undefined) {
+    return process.env.COOKIE_SECURE === 'true';
+  }
+  // If USE_HTTPS is explicitly set, use that
+  if (process.env.USE_HTTPS !== undefined) {
+    return process.env.USE_HTTPS === 'true';
+  }
+  // In production without explicit HTTPS setting, default to secure
+  // But in Docker with HTTP, this will cause issues, so set USE_HTTPS=false
+  return process.env.NODE_ENV === 'production';
+};
+
+const getSameSite = (): 'strict' | 'lax' | 'none' => {
+  // Allow environment variable override
+  if (process.env.COOKIE_SAME_SITE) {
+    const value = process.env.COOKIE_SAME_SITE.toLowerCase();
+    if (value === 'strict' || value === 'lax' || value === 'none') {
+      return value;
+    }
+  }
+  // Use strict only when using HTTPS, otherwise use lax for cross-origin support
+  const usingHttps = isSecureConnection();
+  return usingHttps ? ('strict' as const) : ('lax' as const);
+};
+
 export const COOKIE_CONFIG = {
   httpOnly: true, // Prevents JavaScript access (XSS protection)
-  secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-  sameSite:
-    process.env.NODE_ENV === 'production'
-      ? ('strict' as const)
-      : ('lax' as const), // CSRF protection
+  secure: isSecureConnection(), // HTTPS only when actually using HTTPS
+  sameSite: getSameSite(), // CSRF protection, lax for Docker HTTP
   path: '/', // Available to all paths
   // maxAge will be set per cookie based on token expiration
 };

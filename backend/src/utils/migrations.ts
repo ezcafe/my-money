@@ -5,7 +5,7 @@
  */
 
 import { execSync, spawn } from 'child_process';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { logError, logInfo, logWarn } from './logger';
@@ -169,12 +169,18 @@ async function runDbPushWithConditionalAccept(
   };
 
   // First, run with output capture to check for data loss warnings
+  // Use node directly with Prisma module path since Prisma is hoisted to root in npm workspaces
+  // Use absolute path to avoid any path resolution issues
+  // In Docker, backend is at /app/backend, so Prisma is at /app/node_modules/prisma/build/index.js
+  const prismaCliPath = '/app/node_modules/prisma/build/index.js';
+  // Schema is at /app/backend/prisma/schema.prisma (not in dist directory)
+  const schemaPath = resolve(backendPath, 'prisma', 'schema.prisma');
   const { stdout, stderr, exitCode } = await new Promise<{
     stdout: string;
     stderr: string;
     exitCode: number;
-  }>((resolve, reject) => {
-    const child = spawn('npx', ['prisma', 'db', 'push'], {
+  }>((promiseResolve, reject) => {
+    const child = spawn('node', [prismaCliPath, 'db', 'push', '--schema', schemaPath], {
       cwd: backendPath,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -203,7 +209,7 @@ async function runDbPushWithConditionalAccept(
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-      resolve({ stdout: stdoutData, stderr: stderrData, exitCode: code ?? 1 });
+      promiseResolve({ stdout: stdoutData, stderr: stderrData, exitCode: code ?? 1 });
     });
 
     child.on('error', (err) => {
@@ -239,12 +245,20 @@ async function runDbPushWithConditionalAccept(
       });
 
       // Run again with --accept-data-loss flag and show output
-      execSync('npx prisma db push --accept-data-loss', {
-        cwd: backendPath,
-        stdio: 'inherit',
-        timeout: timeoutMs,
-        env,
-      });
+      // Use absolute path to avoid any path resolution issues
+      // In Docker, backend is at /app/backend, so Prisma is at /app/node_modules/prisma/build/index.js
+      const prismaCliPath = '/app/node_modules/prisma/build/index.js';
+      const schemaPath = resolve(backendPath, 'prisma', 'schema.prisma');
+      execSync(
+        `node "${prismaCliPath}" db push --schema "${schemaPath}" --accept-data-loss`,
+        {
+          cwd: backendPath,
+          stdio: 'inherit',
+          timeout: timeoutMs,
+          env,
+          encoding: 'utf8',
+        }
+      );
       return;
     } else if (droppedTables.length > 0) {
       // Other tables will be dropped - show error and don't auto-accept
@@ -278,156 +292,78 @@ export async function runMigrations(
   retryDelayMs: number = RETRY_DELAY,
   timeoutMs: number = MIGRATION_TIMEOUT
 ): Promise<void> {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const backendPath = join(__dirname, '../..');
+  // __dirname is /app/backend/dist/src/utils, so ../.. gives /app/backend/dist
+  // But we need /app/backend (source directory) where prisma/schema.prisma is located
+  // Go up one more level to get from dist to backend root
+  const backendPath = resolve(__dirname, '../..', '..');
 
-  if (isProduction) {
-    logInfo('Running database migrations (production mode)', {
-      event: 'migration_production_start',
-      databaseUrlSet: process.env.DATABASE_URL ? 'yes' : 'no',
+  // Always use Prisma db push to keep database schema in sync with prisma/schema.prisma
+  // This project has consolidated schema changes into the main schema and no longer
+  // relies on explicit migration files, so db push is the single source of truth
+  logInfo('Syncing database schema with Prisma db push', {
+    event: 'schema_sync_start',
+    databaseUrlSet: process.env.DATABASE_URL ? 'yes' : 'no',
+    nodeEnv: process.env.NODE_ENV ?? 'unknown',
+  });
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    logInfo('Schema sync attempt', {
+      event: 'schema_sync_attempt',
+      attempt,
+      maxRetries,
     });
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      logInfo('Migration deploy attempt', {
-        event: 'migration_deploy_attempt',
+    try {
+      // Use Prisma db push in all environments
+      // This syncs the schema directly without requiring migrations
+      // Auto-accepts data loss only if cache and rate_limit tables are affected
+      await runDbPushWithConditionalAccept(backendPath, timeoutMs);
+
+      logInfo('Schema sync completed successfully', {
+        event: 'schema_sync_success',
+        attempt,
+      });
+      return;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const exitCode =
+        error && typeof error === 'object' && 'status' in error
+          ? (error.status as number | string)
+          : 1;
+      const exitCodeNumber =
+        typeof exitCode === 'string'
+          ? Number.parseInt(exitCode, 10)
+          : exitCode;
+
+      logWarn('Schema sync attempt failed', {
+        event: 'schema_sync_attempt_failed',
         attempt,
         maxRetries,
+        exitCode: exitCodeNumber,
+        error: errorMessage,
       });
 
-      try {
-        // Adjust DATABASE_URL for the current environment before passing to Prisma CLI
-        const databaseUrl = process.env.DATABASE_URL;
-        const adjustedDatabaseUrl = databaseUrl
-          ? adjustDatabaseConnectionString(databaseUrl)
-          : undefined;
-
-        // Use prisma migrate deploy in production
-        // This applies pending migrations safely
-        execSync('npx prisma migrate deploy', {
-          cwd: backendPath,
-          stdio: 'inherit',
-          timeout: timeoutMs,
-          env: {
-            ...process.env,
-            ...(adjustedDatabaseUrl && { DATABASE_URL: adjustedDatabaseUrl }),
-            PRISMA_SCHEMA_PATH: join(backendPath, 'prisma/schema.prisma'),
+      if (attempt < maxRetries) {
+        logInfo('Waiting before retry', {
+          event: 'schema_sync_retry_wait',
+          attempt,
+          retryDelaySeconds: retryDelayMs / 1000,
+        });
+        await sleep(retryDelayMs);
+      } else {
+        logError(
+          'Schema sync failed after all retries',
+          {
+            event: 'schema_sync_failed',
+            attempts: maxRetries,
+            exitCode: exitCodeNumber,
           },
-        });
-
-        logInfo('Migrations deployed successfully', {
-          event: 'migration_deploy_success',
-          attempt,
-        });
-        return;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        const exitCode =
-          error && typeof error === 'object' && 'status' in error
-            ? (error.status as number | string)
-            : 1;
-        const exitCodeNumber =
-          typeof exitCode === 'string'
-            ? Number.parseInt(exitCode, 10)
-            : exitCode;
-
-        logWarn('Migration deploy attempt failed', {
-          event: 'migration_deploy_attempt_failed',
-          attempt,
-          maxRetries,
-          exitCode: exitCodeNumber,
-          error: errorMessage,
-        });
-
-        if (attempt < maxRetries) {
-          logInfo('Waiting before retry', {
-            event: 'migration_deploy_retry_wait',
-            attempt,
-            retryDelaySeconds: retryDelayMs / 1000,
-          });
-          await sleep(retryDelayMs);
-        } else {
-          logError(
-            'Migration deploy failed after all retries',
-            {
-              event: 'migration_deploy_failed',
-              attempts: maxRetries,
-              exitCode: exitCodeNumber,
-            },
-            error instanceof Error ? error : new Error(errorMessage)
-          );
-          throw new Error(
-            `Migration deploy failed after ${maxRetries} attempts: ${errorMessage}`
-          );
-        }
-      }
-    }
-  } else {
-    // Development: use db push for faster iteration
-    logInfo('Syncing database schema (development mode)', {
-      event: 'migration_development_start',
-      databaseUrlSet: process.env.DATABASE_URL ? 'yes' : 'no',
-    });
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      logInfo('Schema sync attempt', {
-        event: 'schema_sync_attempt',
-        attempt,
-        maxRetries,
-      });
-
-      try {
-        // Use Prisma db push in development
-        // This syncs the schema directly without requiring migrations
-        // Auto-accepts data loss only if cache and rate_limit tables are affected
-        await runDbPushWithConditionalAccept(backendPath, timeoutMs);
-
-        logInfo('Schema sync completed successfully', {
-          event: 'schema_sync_success',
-          attempt,
-        });
-        return;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        const exitCode =
-          error && typeof error === 'object' && 'status' in error
-            ? (error.status as number | string)
-            : 1;
-        const exitCodeNumber =
-          typeof exitCode === 'string'
-            ? Number.parseInt(exitCode, 10)
-            : exitCode;
-
-        logWarn('Schema sync attempt failed', {
-          event: 'schema_sync_attempt_failed',
-          attempt,
-          maxRetries,
-          exitCode: exitCodeNumber,
-          error: errorMessage,
-        });
-
-        if (attempt < maxRetries) {
-          logInfo('Waiting before retry', {
-            event: 'schema_sync_retry_wait',
-            attempt,
-            retryDelaySeconds: retryDelayMs / 1000,
-          });
-          await sleep(retryDelayMs);
-        } else {
-          logError(
-            'Schema sync failed after all retries',
-            {
-              event: 'schema_sync_failed',
-              attempts: maxRetries,
-              exitCode: exitCodeNumber,
-            },
-            error instanceof Error ? error : new Error(errorMessage)
-          );
-          throw new Error(
-            `Schema sync failed after ${maxRetries} attempts: ${errorMessage}`
-          );
-        }
+          error instanceof Error ? error : new Error(errorMessage)
+        );
+        throw new Error(
+          `Schema sync failed after ${maxRetries} attempts: ${errorMessage}`
+        );
       }
     }
   }
