@@ -5,6 +5,10 @@
 # Usage:
 #   cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
 #   docker-compose -f docker/docker-compose.yml up
+#
+# Note: Port mappings are inherited from base docker-compose.yml
+# The exposed host ports are controlled by BACKEND_PORT and FRONTEND_PORT environment variables
+# in your .env file. Defaults are 4000 for backend and 3000 for frontend.
 
 services:
   backend:
@@ -27,6 +31,10 @@ services:
     # Note: This requires the dev script to be available
     # Uncomment if you want to use the container's dev server
     # command: npm run dev --workspace=backend
+    # Port Configuration:
+    # Port mapping is inherited from base docker-compose.yml: "${BACKEND_PORT:-4000}:4000"
+    # To change the exposed port, set BACKEND_PORT in your .env file (e.g., BACKEND_PORT=4567)
+    # The container always listens on port 4000 internally
 
   frontend:
     # Mount frontend source for hot-reload
@@ -37,8 +45,12 @@ services:
       NODE_ENV: development
     # Uncomment to use development server in container
     # command: npm run dev --workspace=frontend
+    # Port Configuration:
+    # Port mapping is inherited from base docker-compose.yml: "${FRONTEND_PORT:-3000}:80"
+    # To change the exposed port, set FRONTEND_PORT in your .env file (e.g., FRONTEND_PORT=3456)
+    # The container always listens on port 80 internally (nginx)
 
   # Optional: Expose additional ports for development tools
   # postgres:
   #   ports:
-  #     - "5432:5432"  # Already exposed, but can add more if needed
+  #     - "5432:5432"  # Already exposed in base docker-compose.yml, but can add more if needed

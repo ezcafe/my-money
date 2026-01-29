@@ -9,7 +9,9 @@ This guide provides step-by-step instructions for deploying the My Money applica
 - Docker and Docker Compose (for containerized deployment)
 - PostgreSQL 18 database
 - OIDC provider (e.g., Pocket ID) configured and accessible
-- SSL/TLS certificates for HTTPS (production)
+- Linux server with Docker installed
+- Cloudflare account (for Cloudflare Tunnel deployment)
+- SSL/TLS certificates for HTTPS (production) - or use Cloudflare Tunnel (recommended)
 
 ## Environment Setup
 
@@ -24,7 +26,7 @@ cp .env.example .env
 **Required Backend Variables:**
 
 - `DATABASE_URL` - PostgreSQL connection string with connection pooling parameters
-- `PORT` - Server port (default: 4000)
+- `PORT` - Server port (default: 4000) - internal container port
 - `NODE_ENV` - Set to `production`
 - `OPENID_CLIENT_ID` - OIDC client ID
 - `OPENID_CLIENT_SECRET` - OIDC client secret
@@ -35,6 +37,22 @@ cp .env.example .env
 - `REACT_APP_GRAPHQL_URL` - GraphQL API endpoint URL (must match backend)
 - `REACT_APP_OPENID_CLIENT_ID` - OIDC client ID (must match backend)
 - `REACT_APP_OPENID_DISCOVERY_URL` - OIDC discovery endpoint URL
+
+**Docker Port Configuration (Optional):**
+
+- `BACKEND_PORT` - Host port for backend (default: 4000). Controls exposed port via docker-compose.
+- `FRONTEND_PORT` - Host port for frontend (default: 3000). Controls exposed port via docker-compose.
+- **Note:** These ports control Docker port mappings. If you change these, also update:
+  - `BACKEND_URL` to match `BACKEND_PORT`
+  - `FRONTEND_URL` to match `FRONTEND_PORT`
+  - `REACT_APP_GRAPHQL_URL` to match `BACKEND_PORT`
+  - `CORS_ORIGIN` to match `FRONTEND_PORT`
+
+**Required URL Configuration (for OAuth callbacks):**
+
+- `BACKEND_URL` - Full backend URL (e.g., `https://api.example.com` or `http://localhost:4000` for local)
+- `FRONTEND_URL` - Full frontend URL (e.g., `https://app.example.com` or `http://localhost:3000` for local)
+- **Important:** These must match your actual production domain URLs for OAuth to work correctly.
 
 **Optional Backend Variables:**
 
@@ -77,6 +95,12 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    npm run docker:up
    ```
 
+   Or for production with production overrides:
+
+   ```bash
+   docker-compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up -d
+   ```
+
 3. **Verify migrations:**
    Migrations run automatically on startup if `RUN_MIGRATIONS=true` or `NODE_ENV=production`.
 
@@ -87,10 +111,10 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    ```
 
 4. **Verify deployment:**
-   - Frontend: http://localhost:3000 (or your configured domain)
-   - Backend GraphQL: http://localhost:4000/graphql
-   - Health check: http://localhost:4000/health
-   - WebSocket: ws://localhost:4000/graphql-ws (for subscriptions)
+   - Frontend: http://localhost:${FRONTEND_PORT:-3000} (or your configured domain)
+   - Backend GraphQL: http://localhost:${BACKEND_PORT:-4000}/graphql
+   - Health check: http://localhost:${BACKEND_PORT:-4000}/health
+   - WebSocket: ws://localhost:${BACKEND_PORT:-4000}/graphql-ws (for subscriptions)
 
 5. **Check logs:**
    ```bash
@@ -140,6 +164,176 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    - Configure auto-restart on failure
    - Set up log rotation
 
+### Option 3: Docker Compose with Cloudflare Tunnel (Recommended for Production)
+
+Cloudflare Tunnel provides secure, zero-trust access to your application without exposing ports to the internet. This is ideal for production deployments.
+
+#### Prerequisites
+
+- Cloudflare account with a domain
+- Access to Cloudflare Zero Trust dashboard
+- Linux server with Docker installed
+
+#### Step 1: Set Up Cloudflare Tunnel
+
+1. **Install Cloudflared on your Linux server:**
+
+   ```bash
+   # For Ubuntu/Debian
+   curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
+   chmod +x /usr/local/bin/cloudflared
+
+   # Or use Docker
+   docker pull cloudflare/cloudflared:latest
+   ```
+
+2. **Authenticate Cloudflared:**
+
+   ```bash
+   cloudflared tunnel login
+   # This will open a browser window for authentication
+   ```
+
+3. **Create a tunnel:**
+
+   ```bash
+   cloudflared tunnel create my-money-tunnel
+   ```
+
+4. **Create tunnel configuration file:**
+
+   Create `/etc/cloudflared/config.yml`:
+
+   ```yaml
+   tunnel: <your-tunnel-id>
+   credentials-file: /etc/cloudflared/<tunnel-id>.json
+
+   ingress:
+     # Frontend service
+     - hostname: app.example.com
+       service: http://localhost:3000
+     # Backend GraphQL API
+     - hostname: api.example.com
+       service: http://localhost:4000
+       originRequest:
+         noHappyEyeballs: true
+     # WebSocket support for GraphQL subscriptions
+     - hostname: api.example.com
+       service: ws://localhost:4000
+       path: /graphql-ws
+     # Catch-all rule (must be last)
+     - service: http_status:404
+   ```
+
+   **Note:** Replace `app.example.com` and `api.example.com` with your actual domains. Adjust ports if you've changed `FRONTEND_PORT` or `BACKEND_PORT`.
+
+5. **Create DNS records in Cloudflare:**
+
+   - Go to Cloudflare Dashboard → DNS → Records
+   - Add CNAME record for `app.example.com` pointing to `<your-tunnel-id>.cfargotunnel.com`
+   - Add CNAME record for `api.example.com` pointing to `<your-tunnel-id>.cfargotunnel.com`
+
+6. **Start Cloudflare Tunnel:**
+
+   ```bash
+   # As a systemd service
+   sudo cloudflared service install
+   sudo systemctl start cloudflared
+   sudo systemctl enable cloudflared
+   ```
+
+   Or run manually:
+
+   ```bash
+   cloudflared tunnel --config /etc/cloudflared/config.yml run
+   ```
+
+#### Step 2: Configure Application Environment Variables
+
+Update your `.env` file with production URLs:
+
+```bash
+# Backend and Frontend URLs (must match your Cloudflare domain)
+BACKEND_URL=https://api.example.com
+FRONTEND_URL=https://app.example.com
+
+# CORS and CSRF origins (must match your frontend domain)
+CORS_ORIGIN=https://app.example.com
+ALLOWED_ORIGINS=https://app.example.com
+
+# Frontend GraphQL URL (must match your backend domain)
+REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
+
+# OIDC redirect URIs must be configured to use these URLs
+# Update your OIDC provider (e.g., Pocket ID) with:
+# - Redirect URI: https://app.example.com/auth/callback
+# - Backend callback URL: https://api.example.com/auth/callback
+```
+
+#### Step 3: Deploy Application with Docker Compose
+
+1. **Build and start services:**
+
+   ```bash
+   docker-compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml build
+   docker-compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up -d
+   ```
+
+2. **Verify Cloudflare Tunnel is running:**
+
+   ```bash
+   sudo systemctl status cloudflared
+   # Or check logs
+   sudo journalctl -u cloudflared -f
+   ```
+
+3. **Verify application is accessible:**
+
+   - Frontend: https://app.example.com
+   - Backend GraphQL: https://api.example.com/graphql
+   - Health check: https://api.example.com/health
+
+#### Step 4: Configure Cloudflare Security Settings
+
+1. **Enable SSL/TLS:**
+   - Go to Cloudflare Dashboard → SSL/TLS
+   - Set encryption mode to "Full (strict)"
+
+2. **Configure Security Headers:**
+   - Go to Cloudflare Dashboard → Rules → Transform Rules
+   - Add rules to set security headers (or use Page Rules)
+
+3. **Enable Bot Fight Mode (optional):**
+   - Go to Cloudflare Dashboard → Security → Bots
+   - Enable Bot Fight Mode for additional protection
+
+#### Troubleshooting Cloudflare Tunnel
+
+- **Check tunnel status:**
+  ```bash
+  cloudflared tunnel info <tunnel-name>
+  ```
+
+- **View tunnel logs:**
+  ```bash
+  sudo journalctl -u cloudflared -f
+  ```
+
+- **Test tunnel connectivity:**
+  ```bash
+  curl -H "Host: app.example.com" http://localhost:3000
+  ```
+
+- **Verify DNS records:**
+  ```bash
+  dig app.example.com CNAME
+  ```
+
+- **Common issues:**
+  - Ensure ports in `config.yml` match `FRONTEND_PORT` and `BACKEND_PORT` from `.env`
+  - Verify OIDC redirect URIs match your Cloudflare domain URLs
+  - Check that CORS_ORIGIN matches your frontend domain exactly
+
 ## Production Checklist
 
 ### Environment & Configuration
@@ -149,7 +343,10 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 - [ ] OIDC provider configured and tested
 - [ ] CORS origins configured for production domain(s)
 - [ ] ALLOWED_ORIGINS configured for CSRF protection
-- [ ] SSL/TLS certificates configured (HTTPS required for PWA)
+- [ ] BACKEND_URL and FRONTEND_URL match production domains
+- [ ] REACT_APP_GRAPHQL_URL matches backend domain
+- [ ] BACKEND_PORT and FRONTEND_PORT configured (if using Docker)
+- [ ] SSL/TLS certificates configured (HTTPS required for PWA) or Cloudflare Tunnel enabled
 - [ ] Rate limiting configured appropriately
 
 ### Database
@@ -177,6 +374,7 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 - [ ] Input validation and sanitization working
 - [ ] SQL injection prevention verified
 - [ ] OIDC token validation working
+- [ ] Cloudflare Tunnel configured (if using)
 
 ### Monitoring & Operations
 
@@ -332,6 +530,7 @@ See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues and solutions.
 - Set `ALLOWED_ORIGINS` for CSRF protection
 - Review security headers (configured via Helmet)
 - Regularly update dependencies (`npm audit`)
+- Use Cloudflare Tunnel for zero-trust access (recommended)
 
 ## Backup and Recovery
 

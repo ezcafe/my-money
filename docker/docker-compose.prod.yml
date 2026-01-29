@@ -38,6 +38,11 @@ services:
         reservations:
           cpus: '1'
           memory: 1G
+    # Port Configuration for Production
+    # Port mapping is inherited from base docker-compose.yml: "${BACKEND_PORT:-4000}:4000"
+    # The exposed host port is controlled by the BACKEND_PORT environment variable.
+    # Set BACKEND_PORT in your .env file to change the exposed port (e.g., BACKEND_PORT=4567).
+    # The container always listens on port 4000 internally.
     # Ensure backend waits for postgres (if using local postgres)
     # If using external database, remove this depends_on section
     depends_on:
@@ -61,6 +66,11 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+    # Port Configuration for Production
+    # Port mapping is inherited from base docker-compose.yml: "${FRONTEND_PORT:-3000}:80"
+    # The exposed host port is controlled by the FRONTEND_PORT environment variable.
+    # Set FRONTEND_PORT in your .env file to change the exposed port (e.g., FRONTEND_PORT=3456).
+    # The container always listens on port 80 internally (nginx).
 
 # Production volume configuration
 # Consider using named volumes with specific drivers for production
