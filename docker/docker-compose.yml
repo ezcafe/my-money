@@ -225,8 +225,10 @@ networks:
     labels:
       - "com.docker.compose.network=my-money-network"
       - "com.docker.compose.project=my-money"
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+    # Subnet is not specified - Docker will auto-assign a non-conflicting subnet
+    # If you need a specific subnet, uncomment and set the subnet below:
+    # ipam:
+    #   config:
+    #     - subnet: 172.20.0.0/16
 
 

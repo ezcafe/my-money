@@ -87,6 +87,47 @@ echo -e "${BLUE}My Money - Production Deployment${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
+# Clean up any existing services and networks to avoid conflicts
+echo -e "${YELLOW}→${NC} Cleaning up any existing services and networks..."
+docker compose \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.prod.yml \
+  --env-file .env \
+  down --remove-orphans 2>/dev/null || true
+
+# Remove any existing networks that might conflict
+# Docker Compose creates networks with format: <project>_<network-name>
+# Find all networks containing "my-money-network" and remove them
+echo -e "${YELLOW}→${NC} Checking for conflicting networks..."
+EXISTING_NETWORKS=$(docker network ls --format '{{.Name}}' | grep "my-money-network" || true)
+if [ -n "$EXISTING_NETWORKS" ]; then
+  while IFS= read -r network_name; do
+    if [ -n "$network_name" ]; then
+      echo -e "${YELLOW}  Removing network: ${network_name}...${NC}"
+      # Try to remove the network, ignore errors if it's in use
+      docker network rm "$network_name" 2>/dev/null || {
+        # If network is in use, try to disconnect containers first
+        CONTAINERS=$(docker network inspect "$network_name" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null || true)
+        if [ -n "$CONTAINERS" ]; then
+          echo -e "${YELLOW}    Disconnecting containers from network...${NC}"
+          for container in $CONTAINERS; do
+            docker network disconnect -f "$network_name" "$container" 2>/dev/null || true
+          done
+          # Try removing again after disconnecting
+          docker network rm "$network_name" 2>/dev/null || true
+        fi
+      }
+    fi
+  done <<< "$EXISTING_NETWORKS"
+fi
+
+# Small delay to ensure Docker releases network resources
+if [ -n "$EXISTING_NETWORKS" ]; then
+  sleep 2
+fi
+
+echo ""
+
 # Build images if requested
 if [ "$BUILD" = true ]; then
   echo -e "${YELLOW}→${NC} Preparing Docker images..."
