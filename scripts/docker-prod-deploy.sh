@@ -67,6 +67,12 @@ if [ ! -f ".env" ]; then
   exit 1
 fi
 
+# Source .env file to make variables available for Docker Compose variable substitution
+# This ensures ${POSTGRES_USER}, ${POSTGRES_PASSWORD}, etc. are resolved correctly
+set -a  # Automatically export all variables
+source .env
+set +a  # Disable automatic export
+
 # Check if docker-compose files exist
 if [ ! -f "docker/docker-compose.yml" ]; then
   echo -e "${RED}Error:${NC} docker/docker-compose.yml not found"
