@@ -31,7 +31,13 @@
     "docker:build:pull": "DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose -f docker/docker-compose.yml --env-file .env build --pull=always --parallel --no-cache",
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
     "docker:clean": "docker compose -f docker/docker-compose.yml --env-file .env down -v",
-    "docker:prune": "bash scripts/docker-prune.sh"
+    "docker:prune": "bash scripts/docker-prune.sh",
+    "docker:prod:deploy": "bash scripts/docker-prod-deploy.sh",
+    "docker:prod:deploy:no-build": "bash scripts/docker-prod-deploy.sh --no-build",
+    "docker:prod:up": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env up -d",
+    "docker:prod:down": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env down",
+    "docker:prod:logs": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml logs -f",
+    "docker:prod:ps": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml ps"
   },
   "engines": {
     "node": ">=25.2.1",

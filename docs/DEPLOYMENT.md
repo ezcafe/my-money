@@ -95,10 +95,37 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    npm run docker:up
    ```
 
-   Or for production with production overrides:
+   **For production deployment (recommended):**
+
+   Use the production deployment script which handles building and starting with production overrides:
 
    ```bash
-   docker-compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up -d
+   npm run docker:prod:deploy
+   ```
+
+   Or run the script directly:
+
+   ```bash
+   ./scripts/docker-prod-deploy.sh
+   ```
+
+   The script will:
+   - Check for required files (`.env`, docker-compose files)
+   - Prepare Docker images
+   - Build images with production overrides
+   - Start services in detached mode
+   - Show service status
+
+   **Options:**
+   - `--no-build`: Skip building, only start existing images
+   - `--help`: Show usage information
+
+   **Manual production deployment (alternative):**
+
+   If you prefer to run commands manually:
+
+   ```bash
+   docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env up -d
    ```
 
 3. **Verify migrations:**
@@ -116,9 +143,23 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    - Health check: http://localhost:${BACKEND_PORT:-4000}/health
    - WebSocket: ws://localhost:${BACKEND_PORT:-4000}/graphql-ws (for subscriptions)
 
-5. **Check logs:**
+5. **Useful production commands:**
+
    ```bash
-   npm run docker:logs
+   # View logs
+   npm run docker:prod:logs
+   # Or: docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env logs -f
+
+   # Check service status
+   npm run docker:prod:ps
+   # Or: docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml ps
+
+   # Stop services
+   npm run docker:prod:down
+   # Or: docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env down
+
+   # Restart services (without rebuilding)
+   npm run docker:prod:deploy:no-build
    ```
 
 ### Option 2: Manual Deployment
@@ -274,10 +315,30 @@ REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
 
 1. **Build and start services:**
 
+   **Recommended: Use the production deployment script:**
+
+   From the project root directory:
+
    ```bash
-   docker-compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml build
-   docker-compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up -d
+   npm run docker:prod:deploy
    ```
+
+   Or run the script directly:
+
+   ```bash
+   ./scripts/docker-prod-deploy.sh
+   ```
+
+   **Alternative: Manual deployment:**
+
+   If you prefer to run commands manually:
+
+   ```bash
+   docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env build
+   docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env up -d
+   ```
+
+   **Note:** The `.env` file must be in the root directory. Docker Compose will read it automatically, and the `docker-compose.yml` file also references it via `env_file: - ../.env`.
 
 2. **Verify Cloudflare Tunnel is running:**
 
