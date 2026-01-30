@@ -292,25 +292,27 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
       {/* Budget Summary Card */}
       <BudgetSummary budget={budget} currency={currency} />
 
-      <TransactionList
-        transactions={transactions}
-        loading={transactionsLoading}
-        error={transactionsError}
-        currency={currency}
-        page={page}
-        onPageChange={setPage}
-        sortField={sortField}
-        sortDirection={sortDirection}
-        onSortChange={handleSortChange}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        isSearchMode={isSearchMode}
-        onClearSearch={clearSearch}
-        showAccountColumn={showAccountColumn}
-        showCategoryColumn={showCategoryColumn}
-        showPayeeColumn={showPayeeColumn}
-        sortableFields={sortableFields}
-      />
+      <Box sx={id ? { mb: 3 } : undefined}>
+        <TransactionList
+          transactions={transactions}
+          loading={transactionsLoading}
+          error={transactionsError}
+          currency={currency}
+          page={page}
+          onPageChange={setPage}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          isSearchMode={isSearchMode}
+          onClearSearch={clearSearch}
+          showAccountColumn={showAccountColumn}
+          showCategoryColumn={showCategoryColumn}
+          showPayeeColumn={showPayeeColumn}
+          sortableFields={sortableFields}
+        />
+      </Box>
 
       {/* Version History Section */}
       {id ? <VersionHistoryPanel entityType="Budget" entityId={id} /> : null}

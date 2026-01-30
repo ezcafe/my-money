@@ -171,22 +171,9 @@ export function BudgetEditPage(): React.JSX.Element {
     budget.account?.name ?? budget.category?.name ?? budget.payee?.name ?? 'Budget';
 
   return (
-    <PageContainer
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Card
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          p: 3,
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+    <PageContainer>
+      <Card sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography variant="h6" component="h2">
             Edit Budget
           </Typography>
@@ -212,7 +199,7 @@ export function BudgetEditPage(): React.JSX.Element {
             helperText="Enter the monthly budget amount"
           />
 
-          <Box sx={{ display: 'flex', gap: 2, mt: 'auto', pt: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, pt: 2 }}>
             <Button
               variant="outlined"
               onClick={() => {

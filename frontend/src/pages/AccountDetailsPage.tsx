@@ -5,7 +5,7 @@
 
 import React, { useState, memo, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router';
-import Typography from '@mui/material/Typography';
+import { Box, Typography } from '@mui/material';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useAccount } from '../hooks/useAccount';
 import {
@@ -231,26 +231,28 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
         </Typography>
       </Card>
 
-      <TransactionList
-        transactions={transactions}
-        loading={transactionsLoading}
-        error={transactionsError}
-        currency={currency}
-        page={page}
-        onPageChange={setPage}
-        sortField={sortField}
-        sortDirection={sortDirection}
-        onSortChange={handleSortChange}
-        onRowClick={handleRowClick}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        isSearchMode={isSearchMode}
-        onClearSearch={clearSearch}
-        showAccountColumn={false}
-        showCategoryColumn={true}
-        showPayeeColumn={true}
-        sortableFields={['date', 'value', 'category', 'payee']}
-      />
+      <Box sx={id ? { mb: 3 } : undefined}>
+        <TransactionList
+          transactions={transactions}
+          loading={transactionsLoading}
+          error={transactionsError}
+          currency={currency}
+          page={page}
+          onPageChange={setPage}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          onRowClick={handleRowClick}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          isSearchMode={isSearchMode}
+          onClearSearch={clearSearch}
+          showAccountColumn={false}
+          showCategoryColumn={true}
+          showPayeeColumn={true}
+          sortableFields={['date', 'value', 'category', 'payee']}
+        />
+      </Box>
 
       {/* Version History Section */}
       {id ? <VersionHistoryPanel entityType="Account" entityId={id} /> : null}

@@ -312,22 +312,9 @@ export function TransactionAddPage(): React.JSX.Element {
   const recurringTypeOptions = getRecurringTypeOptions();
 
   return (
-    <PageContainer
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Card
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          p: 3,
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+    <PageContainer>
+      <Card sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error ? (
             <Typography color="error" variant="body2">
               {error}
@@ -487,7 +474,7 @@ export function TransactionAddPage(): React.JSX.Element {
             </>
           ) : null}
 
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto' }}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
             <Button
               onClick={() => {
                 const validReturnUrl = validateReturnUrl(returnTo);

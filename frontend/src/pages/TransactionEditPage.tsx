@@ -36,6 +36,7 @@ import {
 import type { Account } from '../hooks/useAccounts';
 import type { Category } from '../hooks/useCategories';
 import { MobileSelect } from '../components/ui/MobileSelect';
+import { VersionHistoryPanel } from '../components/VersionHistoryPanel';
 
 /**
  * Transaction data from GraphQL query
@@ -243,22 +244,9 @@ export function TransactionEditPage(): React.JSX.Element {
   }
 
   return (
-    <PageContainer
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Card
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          p: 3,
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+    <PageContainer>
+      <Card sx={{ mb: 3, p: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error ? (
             <Typography color="error" variant="body2">
               {error}
@@ -332,7 +320,7 @@ export function TransactionEditPage(): React.JSX.Element {
             rows={3}
           />
 
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto' }}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
             <Button
               onClick={() => {
                 const validReturnUrl = getValidReturnUrl(returnTo);
@@ -348,6 +336,9 @@ export function TransactionEditPage(): React.JSX.Element {
           </Box>
         </Box>
       </Card>
+
+      {/* Version History Section */}
+      {id ? <VersionHistoryPanel entityType="Transaction" entityId={id} /> : null}
     </PageContainer>
   );
 }

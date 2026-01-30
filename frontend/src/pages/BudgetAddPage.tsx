@@ -164,22 +164,9 @@ export function BudgetAddPage(): React.JSX.Element {
   const loading = creating;
 
   return (
-    <PageContainer
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Card
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          p: 3,
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+    <PageContainer>
+      <Card sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error ? (
             <Typography color="error" variant="body2">
               {error}
@@ -263,7 +250,7 @@ export function BudgetAddPage(): React.JSX.Element {
             helperText="Enter the monthly budget amount"
           />
 
-          <Box sx={{ display: 'flex', gap: 2, mt: 'auto', pt: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, pt: 2 }}>
             <Button
               variant="outlined"
               onClick={() => {

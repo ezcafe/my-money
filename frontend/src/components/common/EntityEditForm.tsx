@@ -354,25 +354,12 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
   }
 
   return (
-    <PageContainer
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Card
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          p: 3,
-        }}
-      >
+    <PageContainer>
+      <Card sx={{ p: 3 }}>
         <Box
           component="form"
           onSubmit={handleFormSubmit(onSubmit)}
-          sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
         >
           {errors.root ? (
             <Typography color="error" variant="body2">
@@ -444,7 +431,7 @@ export function EntityEditForm<TData = unknown, TInput = unknown>({
             );
           })}
 
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto' }}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
             <Button
               type="button"
               onClick={() => {
