@@ -24,6 +24,8 @@ import {
   acceptInvitation,
   cancelInvitation,
   getWorkspaceInvitations,
+  getMyPendingInvitations,
+  hasPendingInvitationToWorkspace,
 } from '../services/InvitationService';
 import { sendInvitationEmail } from '../services/EmailService';
 import { sanitizeUserInput } from '../utils/sanitization';
@@ -67,15 +69,13 @@ export class WorkspaceResolver {
 
   /**
    * Get workspace by ID
+   * Allows access for members or for users with a pending invitation (so invitees can see workspace name)
    */
   async workspace(
     _: unknown,
     { id }: { id: string },
     context: GraphQLContext
   ): Promise<Workspace> {
-    // Verify user has access
-    await checkWorkspaceAccess(id, context.userId);
-
     const workspace = await withPrismaErrorHandling(
       async () =>
         await context.prisma.workspace.findUnique({
@@ -94,6 +94,18 @@ export class WorkspaceResolver {
 
     if (!workspace) {
       throw new NotFoundError('Workspace');
+    }
+
+    try {
+      await checkWorkspaceAccess(id, context.userId);
+    } catch {
+      const hasPending = await hasPendingInvitationToWorkspace(
+        id,
+        context.userId
+      );
+      if (!hasPending) {
+        throw new NotFoundError('Workspace');
+      }
     }
 
     return workspace;
@@ -130,6 +142,17 @@ export class WorkspaceResolver {
     _context: GraphQLContext
   ): Promise<WorkspaceInvitation | null> {
     return getInvitationByToken(token);
+  }
+
+  /**
+   * Get pending workspace invitations for the current user (invitee)
+   */
+  async myPendingInvitations(
+    _: unknown,
+    __: unknown,
+    context: GraphQLContext
+  ): Promise<WorkspaceInvitation[]> {
+    return getMyPendingInvitations(context.userId);
   }
 
   /**

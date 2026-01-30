@@ -229,6 +229,12 @@ export const resolvers = {
         args as { token: string },
         context
       ),
+    myPendingInvitations: (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext
+    ) =>
+      workspaceResolver.myPendingInvitations(parent, args, context),
 
     // Conflict queries
     entityConflicts: (

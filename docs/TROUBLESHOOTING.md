@@ -343,6 +343,7 @@ npx tsc --noEmit
 2. Request a new invitation from workspace owner
 3. Verify invitation token is correct
 4. Check invitation hasn't already been accepted
+5. If you're already logged in, go to **Workspaces** and check the **"Pending invitations for you"** section; you can accept pending invitations from there without using the email link
 
 ## Budget Issues
 

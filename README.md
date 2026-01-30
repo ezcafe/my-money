@@ -433,7 +433,7 @@ my-money/
 - `npm run docker:build` - Build Docker images
 - `npm run docker:logs` - View Docker logs
 - `npm run docker:clean` - Stop and remove Docker containers and volumes
-- `npm run docker:prune` - Clean up Docker resources
+- `npm run docker:prune` - Remove unused Docker resources (containers, images, networks, volumes, build cache)
 
 ### Frontend
 

@@ -217,6 +217,11 @@ type Query {
   invitationByToken(token: String!): WorkspaceInvitation
 
   """
+  Get pending workspace invitations for the current user (invitee)
+  """
+  myPendingInvitations: [WorkspaceInvitation!]!
+
+  """
   Get unresolved conflicts for a workspace
   """
   entityConflicts(workspaceId: ID!): [EntityConflict!]!

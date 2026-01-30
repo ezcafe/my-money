@@ -96,11 +96,9 @@ export function MobileSelect<T = unknown>({
     return getId(option) === getId(val);
   };
 
-  return (
-    <>
-      {groupBy ? (
-        // Use Autocomplete for grouped options
-        <Autocomplete<T, false, false, false>
+  return groupBy ? (
+    // Use Autocomplete for grouped options
+    <Autocomplete<T, false, false, false>
           options={options}
           getOptionLabel={getOptionLabel}
           value={value}
@@ -127,28 +125,26 @@ export function MobileSelect<T = unknown>({
             />
           )}
         />
-      ) : (
-        // Use Select for simple options
-        <FormControl fullWidth={fullWidth} size={size} disabled={disabled} required={required} sx={sx}>
-          {label ? <InputLabel id={labelId}>{label}</InputLabel> : null}
-          <Select
-            labelId={label ? labelId : undefined}
-            value={value ? getId(value) : ''}
-            label={label}
-            onChange={(e) => {
-              const selectedOption = options.find((opt) => getId(opt) === e.target.value);
-              onChange(selectedOption ?? null);
-            }}
-            disabled={disabled}
-          >
-            {options.map((option) => (
-              <MenuItem key={getId(option)} value={getId(option)}>
-                {getOptionLabel(option)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      )}
-    </>
+  ) : (
+    // Use Select for simple options
+    <FormControl fullWidth={fullWidth} size={size} disabled={disabled} required={required} sx={sx}>
+      {label ? <InputLabel id={labelId}>{label}</InputLabel> : null}
+      <Select
+        labelId={label ? labelId : undefined}
+        value={value ? getId(value) : ''}
+        label={label}
+        onChange={(e) => {
+          const selectedOption = options.find((opt) => getId(opt) === e.target.value);
+          onChange(selectedOption ?? null);
+        }}
+        disabled={disabled}
+      >
+        {options.map((option) => (
+          <MenuItem key={getId(option)} value={getId(option)}>
+            {getOptionLabel(option)}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   );
 }

@@ -310,3 +310,75 @@ export async function getWorkspaceInvitations(
     },
   });
 }
+
+/**
+ * Check if the current user has a pending invitation to a workspace
+ * Used to allow invitees to load workspace name for their pending invitations
+ * @param workspaceId - Workspace ID
+ * @param userId - User ID (current user)
+ * @returns True if user has a pending invitation to this workspace
+ */
+export async function hasPendingInvitationToWorkspace(
+  workspaceId: string,
+  userId: string
+): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (!user?.email) {
+    return false;
+  }
+  const invitation = await prisma.workspaceInvitation.findFirst({
+    where: {
+      workspaceId,
+      email: user.email,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+  return !!invitation;
+}
+
+/**
+ * Get pending workspace invitations for the current user (invitee)
+ * Returns invitations where email matches current user and not yet accepted
+ * @param userId - User ID (current user)
+ * @returns Array of pending invitations for this user
+ */
+export async function getMyPendingInvitations(
+  userId: string
+): Promise<WorkspaceInvitation[]> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (!user?.email) {
+    return [];
+  }
+  return prisma.workspaceInvitation.findMany({
+    where: {
+      email: user.email,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      inviter: {
+        select: {
+          id: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+}

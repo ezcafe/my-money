@@ -1,11 +1,12 @@
 /**
  * Workspaces Page
- * Lists all workspaces the user belongs to and allows creating new ones
+ * Lists all workspaces the user belongs to, pending invitations, and allows creating new workspaces
  */
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
+  Box,
   List,
   ListItemButton,
   ListItemText,
@@ -13,10 +14,17 @@ import {
   Chip,
   Stack,
   IconButton,
+  Typography,
+  CircularProgress,
 } from '@mui/material';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { Workspaces, Add, People, Login } from '@mui/icons-material';
-import { GET_WORKSPACES, DELETE_WORKSPACE } from '../graphql/workspaceOperations';
+import { Workspaces, Add, People, Login, MailOutline, PersonAdd } from '@mui/icons-material';
+import {
+  GET_WORKSPACES,
+  GET_MY_PENDING_INVITATIONS,
+  DELETE_WORKSPACE,
+  ACCEPT_WORKSPACE_INVITATION,
+} from '../graphql/workspaceOperations';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { EmptyState } from '../components/common/EmptyState';
@@ -25,6 +33,19 @@ import { PageContainer } from '../components/common/PageContainer';
 import { DeleteConfirmDialog } from '../components/common/DeleteConfirmDialog';
 import { useHeader } from '../contexts/HeaderContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import { useDateFormat } from '../hooks/useDateFormat';
+import { formatDateShort } from '../utils/formatting';
+
+/** Pending invitation shape from GetMyPendingInvitations */
+interface PendingInvitation {
+  id: string;
+  token: string;
+  role: string;
+  expiresAt: string;
+  workspace: { id: string; name: string };
+  inviter: { id: string; email: string };
+}
 
 /**
  * Workspaces Page Component
@@ -33,8 +54,11 @@ export function WorkspacesPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { setTitle, setActionButton } = useHeader();
   const { isAuthenticated } = useAuth();
+  const { showSuccessNotification, showErrorNotification } = useNotifications();
+  const { dateFormat } = useDateFormat();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
+  const [acceptingInvitationId, setAcceptingInvitationId] = useState<string | null>(null);
 
   useEffect(() => {
     setTitle('Workspaces');
@@ -63,7 +87,39 @@ export function WorkspacesPage(): React.JSX.Element {
     }>;
   }>(GET_WORKSPACES, {
     fetchPolicy: 'cache-and-network',
-    skip: isAuthenticated !== true, // Skip query if not authenticated
+    skip: isAuthenticated !== true,
+  });
+
+  const {
+    data: invitationsData,
+    loading: invitationsLoading,
+  } = useQuery<{ myPendingInvitations: PendingInvitation[] }>(
+    GET_MY_PENDING_INVITATIONS,
+    {
+      fetchPolicy: 'cache-and-network',
+      skip: isAuthenticated !== true,
+    }
+  );
+
+  const [acceptInvitation] = useMutation(ACCEPT_WORKSPACE_INVITATION, {
+    refetchQueries: [
+      { query: GET_MY_PENDING_INVITATIONS },
+      { query: GET_WORKSPACES },
+    ],
+    onCompleted: (data: unknown) => {
+      const result = data as {
+        acceptWorkspaceInvitation?: { workspace?: { name?: string } };
+      };
+      const name = result?.acceptWorkspaceInvitation?.workspace?.name;
+      if (name) {
+        showSuccessNotification(`You joined ${name}`);
+      }
+      setAcceptingInvitationId(null);
+    },
+    onError: (err) => {
+      showErrorNotification(err.message);
+      setAcceptingInvitationId(null);
+    },
   });
 
   const [deleteWorkspace, { loading: deleting }] = useMutation(DELETE_WORKSPACE, {
@@ -75,6 +131,18 @@ export function WorkspacesPage(): React.JSX.Element {
   });
 
   const workspaces = data?.workspaces ?? [];
+  const pendingInvitations = invitationsData?.myPendingInvitations ?? [];
+
+  const handleAcceptInvitation = async (invitation: PendingInvitation): Promise<void> => {
+    setAcceptingInvitationId(invitation.id);
+    try {
+      await acceptInvitation({
+        variables: { token: invitation.token },
+      });
+    } catch {
+      // Error handled in onError
+    }
+  };
 
   const handleDeleteWorkspace = async (): Promise<void> => {
     if (workspaceToDelete) {
@@ -108,6 +176,83 @@ export function WorkspacesPage(): React.JSX.Element {
 
   return (
     <PageContainer>
+      {/* Pending invitations for the current user */}
+      {pendingInvitations.length > 0 && (
+        <Card sx={{ mb: 3 }}>
+          <Box sx={{ p: 3, pb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <MailOutline fontSize="small" color="primary" />
+              <Typography variant="h6" component="h2">
+                Pending invitations for you
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              You&apos;ve been invited to these workspaces. Click to join.
+            </Typography>
+          </Box>
+          {invitationsLoading ? (
+            <Box sx={{ px: 3, pb: 3, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : (
+            <Box sx={{ px: 3, pb: 3 }}>
+              <List disablePadding>
+                {pendingInvitations.map((invitation, index) => {
+                  const isAccepting = acceptingInvitationId === invitation.id;
+                  return (
+                    <React.Fragment key={invitation.id}>
+                      {index > 0 && <Divider />}
+                      <ListItemButton
+                        onClick={() => {
+                          void handleAcceptInvitation(invitation);
+                        }}
+                        disabled={isAccepting}
+                        aria-label={`Accept invitation to ${invitation.workspace.name}`}
+                        sx={{
+                          py: 1.5,
+                          px: 3,
+                          transition: 'background-color 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                          },
+                        }}
+                      >
+                        <ListItemText
+                          primary={
+                            <Typography variant="body1" fontWeight={500}>
+                              {invitation.workspace.name}
+                            </Typography>
+                          }
+                          secondary={
+                            <Typography variant="body2" color="text.secondary">
+                              Invited by {invitation.inviter.email} • Role:{' '}
+                              {invitation.role} • Expires{' '}
+                              {formatDateShort(invitation.expiresAt, dateFormat)}
+                            </Typography>
+                          }
+                        />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Chip
+                            icon={<PersonAdd />}
+                            label="Join"
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                          {isAccepting ? (
+                            <CircularProgress size={20} sx={{ ml: 0.5 }} />
+                          ) : null}
+                        </Stack>
+                      </ListItemButton>
+                    </React.Fragment>
+                  );
+                })}
+              </List>
+            </Box>
+          )}
+        </Card>
+      )}
+
       {workspaces.length === 0 ? (
         <EmptyState
           icon={<Workspaces />}

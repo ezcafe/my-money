@@ -159,6 +159,18 @@ export const GET_INVITATION_BY_TOKEN = gql`
 `;
 
 /**
+ * Get pending workspace invitations for the current user (invitee)
+ */
+export const GET_MY_PENDING_INVITATIONS = gql`
+  query GetMyPendingInvitations {
+    myPendingInvitations {
+      ...WorkspaceInvitationFields
+    }
+  }
+  ${WORKSPACE_INVITATION_FIELDS}
+`;
+
+/**
  * Create a new workspace
  */
 export const CREATE_WORKSPACE = gql`

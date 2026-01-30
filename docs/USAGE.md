@@ -406,14 +406,23 @@ You automatically become the **Owner** of the workspace you create.
 4. Select their role (Member, Admin, or Owner)
 5. Tap **Send Invitation**
 
-The user will receive an email with an invitation link. They can accept the invitation by clicking the link.
+The user will receive an email with an invitation link. They can accept the invitation by clicking the link or from the **Workspaces** page when logged in (see Accepting an Invitation).
 
 ### Accepting an Invitation
+
+**From the email link:**
 
 1. Check your email for the invitation
 2. Click the invitation link
 3. You'll be redirected to the application
 4. The workspace will be added to your workspace list
+
+**From the Workspaces page:**
+
+1. Go to **Workspaces** in the app
+2. If you have pending invitations, a **"Pending invitations for you"** section appears above your workspace list
+3. Click an invitation to accept it and join the workspace
+4. The workspace is added to your list; you can open its settings or load it from there
 
 ### Managing Workspace Members
 

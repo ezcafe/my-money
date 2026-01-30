@@ -148,7 +148,7 @@ export function ReportPage(): React.JSX.Element {
   );
 
   const categories = useMemo(
-    () => sortCategoriesByTypeAndName((categoriesData?.categories ?? []) as Category[]),
+    () => sortCategoriesByTypeAndName(categoriesData?.categories ?? []),
     [categoriesData?.categories]
   );
   const payees = useMemo(() => payeesData?.payees ?? [], [payeesData?.payees]);
@@ -414,7 +414,7 @@ export function ReportPage(): React.JSX.Element {
       accounts.map((a) => ({
         id: a.id,
         name: a.name,
-        accountType: a.accountType as AccountMultiSelectOption['accountType'],
+        accountType: a.accountType,
       })),
     [accounts]
   );
