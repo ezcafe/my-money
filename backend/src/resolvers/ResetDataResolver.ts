@@ -1,18 +1,23 @@
 /**
  * Reset Data Resolver
- * Handles resetting all user data except default entities
+ * Handles resetting all workspace data except default entities
+ * Only workspace Owner or Admin can reset; Member role cannot reset.
  */
 
 import type { GraphQLContext } from '../middleware/context';
 import { withPrismaErrorHandling } from '../utils/prismaErrors';
-import { getUserDefaultWorkspace } from '../services/WorkspaceService';
+import {
+  getUserDefaultWorkspace,
+  checkWorkspacePermission,
+} from '../services/WorkspaceService';
 
 export class ResetDataResolver {
   /**
-   * Reset all user data except default account, category, and payee
+   * Reset all workspace data except default account, category, and payee.
+   * Only Owner or Admin can reset; Member cannot.
    * Deletes all transactions, recurring transactions, imported transactions,
-   * import match rules, budgets, budget notifications, and non-default accounts/categories/payees
-   * Resets default account balance to initBalance
+   * import match rules, budgets, budget notifications, and non-default accounts/categories/payees.
+   * Resets default account balance to initBalance.
    * @param _ - Parent resolver (unused)
    * @param __ - Arguments (unused)
    * @param context - GraphQL context with user and database access
@@ -27,45 +32,52 @@ export class ResetDataResolver {
       context.currentWorkspaceId ??
       (await getUserDefaultWorkspace(context.userId));
 
+    // Only Owner or Admin can reset data; Member cannot
+    await checkWorkspacePermission(workspaceId, context.userId, 'Admin');
+
     await withPrismaErrorHandling(
       async () =>
         await context.prisma.$transaction(async (tx) => {
-          // Delete all transactions for the user (through account relation)
+          // Delete all transactions for the workspace (through account relation)
           await tx.transaction.deleteMany({
             where: {
               account: {
-                createdBy: context.userId,
+                workspaceId,
               },
             },
           });
 
-          // Delete all recurring transactions for the user (through account relation)
+          // Delete all recurring transactions for the workspace (through account relation)
           await tx.recurringTransaction.deleteMany({
             where: {
               account: {
-                createdBy: context.userId,
+                workspaceId,
               },
             },
           });
 
-          // Delete all imported transactions for the user
+          // Delete all imported transactions for the workspace
           await tx.importedTransaction.deleteMany({
             where: {
-              userId: context.userId,
+              workspaceId,
             },
           });
 
-          // Delete all import match rules for the user
+          // Delete all import match rules for accounts in this workspace
           await tx.importMatchRule.deleteMany({
             where: {
-              userId: context.userId,
+              account: {
+                workspaceId,
+              },
             },
           });
 
-          // Delete all budget notifications for the user
+          // Delete all budget notifications for budgets in this workspace
           await tx.budgetNotification.deleteMany({
             where: {
-              userId: context.userId,
+              budget: {
+                workspaceId,
+              },
             },
           });
 

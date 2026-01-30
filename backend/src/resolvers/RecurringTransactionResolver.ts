@@ -1,6 +1,7 @@
 /**
  * Recurring Transaction Resolver
  * Handles recurring transaction-related GraphQL operations
+ * Scopes by current workspace (account.workspaceId), not by account creator.
  */
 
 import type { GraphQLContext } from '../middleware/context';
@@ -12,6 +13,10 @@ import cronValidator from 'cron-validator';
 import { withPrismaErrorHandling } from '../utils/prismaErrors';
 import { validateContext } from '../utils/baseResolver';
 import { BaseResolver } from './BaseResolver';
+import {
+  checkWorkspaceAccess,
+  getUserDefaultWorkspace,
+} from '../services/WorkspaceService';
 
 /**
  * Validate cron expression
@@ -57,7 +62,7 @@ const UpdateRecurringTransactionInputSchema = z.object({
 
 export class RecurringTransactionResolver extends BaseResolver {
   /**
-   * Get all recurring transactions for current user
+   * Get all recurring transactions for current workspace
    */
   async recurringTransactions(
     _: unknown,
@@ -67,11 +72,23 @@ export class RecurringTransactionResolver extends BaseResolver {
     validateContext(context);
     return await withPrismaErrorHandling(
       async () => {
+        let workspaceId =
+          context.currentWorkspaceId ??
+          (await getUserDefaultWorkspace(context.userId));
+        try {
+          await checkWorkspaceAccess(workspaceId, context.userId);
+        } catch {
+          workspaceId = await getUserDefaultWorkspace(context.userId);
+          await checkWorkspaceAccess(workspaceId, context.userId);
+          context.currentWorkspaceId = workspaceId;
+        }
+        const finalWorkspaceId = workspaceId;
+
         const recurringTransactions =
           await context.prisma.recurringTransaction.findMany({
             where: {
               account: {
-                createdBy: context.userId,
+                workspaceId: finalWorkspaceId,
               },
             },
             include: {
@@ -118,11 +135,23 @@ export class RecurringTransactionResolver extends BaseResolver {
       input
     );
 
-    // Verify account belongs to user
+    let workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch {
+      workspaceId = await getUserDefaultWorkspace(context.userId);
+      await checkWorkspaceAccess(workspaceId, context.userId);
+      context.currentWorkspaceId = workspaceId;
+    }
+    const finalWorkspaceId = workspaceId;
+
+    // Verify account is in current workspace
     const account = await context.prisma.account.findFirst({
       where: {
         id: validatedInput.accountId,
-        createdBy: context.userId,
+        workspaceId: finalWorkspaceId,
       },
       select: { id: true, workspaceId: true },
     });
@@ -131,14 +160,12 @@ export class RecurringTransactionResolver extends BaseResolver {
       throw new NotFoundError('Account');
     }
 
-    const workspaceId = account.workspaceId;
-
     // Verify category if provided
     if (validatedInput.categoryId) {
       const category = await context.prisma.category.findFirst({
         where: {
           id: validatedInput.categoryId,
-          workspaceId,
+          workspaceId: finalWorkspaceId,
         },
         select: { id: true },
       });
@@ -153,7 +180,7 @@ export class RecurringTransactionResolver extends BaseResolver {
       const payee = await context.prisma.payee.findFirst({
         where: {
           id: validatedInput.payeeId,
-          workspaceId,
+          workspaceId: finalWorkspaceId,
         },
         select: { id: true },
       });
@@ -216,12 +243,24 @@ export class RecurringTransactionResolver extends BaseResolver {
       input
     );
 
-    // Verify recurring transaction belongs to user
+    let workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch {
+      workspaceId = await getUserDefaultWorkspace(context.userId);
+      await checkWorkspaceAccess(workspaceId, context.userId);
+      context.currentWorkspaceId = workspaceId;
+    }
+    const finalWorkspaceId = workspaceId;
+
+    // Verify recurring transaction is in current workspace
     const existing = await context.prisma.recurringTransaction.findFirst({
       where: {
         id,
         account: {
-          createdBy: context.userId,
+          workspaceId: finalWorkspaceId,
         },
       },
       select: { id: true },
@@ -231,12 +270,12 @@ export class RecurringTransactionResolver extends BaseResolver {
       throw new NotFoundError('RecurringTransaction');
     }
 
-    // Verify account if changed
+    // Verify account if changed (must be in same workspace)
     if (validatedInput.accountId) {
       const account = await context.prisma.account.findFirst({
         where: {
           id: validatedInput.accountId,
-          createdBy: context.userId,
+          workspaceId: finalWorkspaceId,
         },
         select: { id: true },
       });
@@ -290,12 +329,24 @@ export class RecurringTransactionResolver extends BaseResolver {
     { id }: { id: string },
     context: GraphQLContext
   ): Promise<boolean> {
+    let workspaceId =
+      context.currentWorkspaceId ??
+      (await getUserDefaultWorkspace(context.userId));
+    try {
+      await checkWorkspaceAccess(workspaceId, context.userId);
+    } catch {
+      workspaceId = await getUserDefaultWorkspace(context.userId);
+      await checkWorkspaceAccess(workspaceId, context.userId);
+      context.currentWorkspaceId = workspaceId;
+    }
+    const finalWorkspaceId = workspaceId;
+
     const recurringTransaction =
       await context.prisma.recurringTransaction.findFirst({
         where: {
           id,
           account: {
-            createdBy: context.userId,
+            workspaceId: finalWorkspaceId,
           },
         },
         select: { id: true },

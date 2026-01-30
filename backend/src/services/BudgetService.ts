@@ -177,6 +177,7 @@ export async function recalculateBudgetBalance(
       id: budgetId,
     },
     {
+      workspaceId: true,
       accountId: true,
       categoryId: true,
       payeeId: true,
@@ -218,11 +219,11 @@ export async function recalculateBudgetBalance(
   }
 
   // Get all matching transactions with their categories
-  // Filter by: user (via account), date range, category type EXPENSE, and budget criteria
+  // Filter by: workspace (via account), date range, category type EXPENSE, and budget criteria
   const transactions = await transactionRepository.findMany(
     {
       account: {
-        createdBy: userId,
+        workspaceId: budget.workspaceId,
       },
       date: {
         gte: monthStart,

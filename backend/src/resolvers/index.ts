@@ -513,8 +513,12 @@ export const resolvers = {
 
     // Budget mutations
     createBudget: wrapResolver(
-      (parent: unknown, args: unknown, context: GraphQLContext) =>
-        budgetResolver.createBudget(parent, args as { input: unknown }, context)
+      (parent: unknown, args: unknown, context: unknown) =>
+        budgetResolver.createBudget(
+          parent,
+          args as { input: unknown },
+          context as GraphQLContext
+        )
     ),
     updateBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
       budgetResolver.updateBudget(

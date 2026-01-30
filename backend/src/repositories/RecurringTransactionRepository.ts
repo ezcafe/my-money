@@ -17,25 +17,25 @@ type PrismaTransaction = Omit<
  */
 export class RecurringTransactionRepository extends BaseRepository {
   /**
-   * Find recurring transaction by ID with ownership check
+   * Find recurring transaction by ID in workspace
    * @param id - Recurring transaction ID
-   * @param userId - User ID
+   * @param workspaceId - Workspace ID (recurring transactions scoped by account.workspaceId)
    * @param select - Optional select clause
    * @param include - Optional include clause
    * @returns Recurring transaction if found, null otherwise
    */
   async findById(
     id: string,
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
     include?: Record<string, boolean>
   ): Promise<RecurringTransaction | null> {
     const queryOptions: {
-      where: { id: string; account: { createdBy: string } };
+      where: { id: string; account: { workspaceId: string } };
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
     } = {
-      where: { id, account: { createdBy: userId } },
+      where: { id, account: { workspaceId } },
     };
 
     if (select) {
@@ -48,23 +48,23 @@ export class RecurringTransactionRepository extends BaseRepository {
   }
 
   /**
-   * Find all recurring transactions for a user
-   * @param userId - User ID
+   * Find all recurring transactions for a workspace
+   * @param workspaceId - Workspace ID
    * @param select - Optional select clause
    * @param include - Optional include clause
    * @returns Array of recurring transactions
    */
   async findMany(
-    userId: string,
+    workspaceId: string,
     select?: Record<string, boolean>,
     include?: Record<string, boolean>
   ): Promise<RecurringTransaction[]> {
     const queryOptions: {
-      where: { account: { createdBy: string } };
+      where: { account: { workspaceId: string } };
       select?: Record<string, boolean>;
       include?: Record<string, boolean>;
     } = {
-      where: { account: { createdBy: userId } },
+      where: { account: { workspaceId } },
     };
 
     if (select) {
@@ -171,15 +171,15 @@ export class RecurringTransactionRepository extends BaseRepository {
   }
 
   /**
-   * Count recurring transactions for a user
-   * @param userId - User ID
+   * Count recurring transactions for a workspace
+   * @param workspaceId - Workspace ID
    * @returns Count of recurring transactions
    */
-  async count(userId: string): Promise<number> {
+  async count(workspaceId: string): Promise<number> {
     return this.prisma.recurringTransaction.count({
       where: {
         account: {
-          createdBy: userId,
+          workspaceId,
         },
       },
     });

@@ -11,6 +11,7 @@ import { sanitizeUserInput } from '../utils/sanitization';
 import type { GraphQLContext } from '../middleware/context';
 import { withPrismaErrorHandling } from '../utils/prismaErrors';
 import { getContainer } from '../utils/container';
+import { getUserDefaultWorkspace } from '../services/WorkspaceService';
 
 type PrismaTransaction = Omit<
   PrismaClient,
@@ -24,13 +25,14 @@ type PrismaTransaction = Omit<
  */
 export abstract class BaseResolver {
   /**
-   * Verify entity belongs to user
+   * Verify entity belongs to user (or workspace for workspace-scoped entities)
    * Uses repository pattern for data access
    * @param prisma - Prisma client or transaction
    * @param model - Prisma model name (e.g., 'account', 'category')
    * @param id - Entity ID
    * @param userId - User ID
    * @param select - Optional select clause for optimization
+   * @param workspaceId - Optional workspace ID for workspace-scoped entities (e.g. recurringTransaction)
    * @returns Entity if found, null otherwise
    */
   protected async verifyEntityOwnership<T>(
@@ -44,7 +46,8 @@ export abstract class BaseResolver {
       | 'budget',
     id: string,
     userId: string,
-    select?: Record<string, boolean>
+    select?: Record<string, boolean>,
+    workspaceId?: string
   ): Promise<T | null> {
     const container = getContainer();
     switch (model) {
@@ -66,7 +69,9 @@ export abstract class BaseResolver {
       }
       case 'recurringTransaction': {
         const repository = container.getRecurringTransactionRepository(prisma);
-        return (await repository.findById(id, userId, select)) as T | null;
+        const wsId =
+          workspaceId ?? (await getUserDefaultWorkspace(userId));
+        return (await repository.findById(id, wsId, select)) as T | null;
       }
       case 'budget': {
         const repository = container.getBudgetRepository(prisma);
@@ -78,13 +83,14 @@ export abstract class BaseResolver {
   }
 
   /**
-   * Verify entity exists and belongs to user, throw error if not
+   * Verify entity exists and belongs to user (or workspace), throw error if not
    * Uses repository pattern for data access
    * @param prisma - Prisma client or transaction
    * @param model - Prisma model name
    * @param id - Entity ID
    * @param userId - User ID
    * @param select - Optional select clause for optimization
+   * @param workspaceId - Optional workspace ID for workspace-scoped entities (e.g. recurringTransaction)
    * @returns Entity
    * @throws NotFoundError if entity not found
    */
@@ -99,14 +105,16 @@ export abstract class BaseResolver {
       | 'budget',
     id: string,
     userId: string,
-    select?: Record<string, boolean>
+    select?: Record<string, boolean>,
+    workspaceId?: string
   ): Promise<T> {
     const entity = await this.verifyEntityOwnership<T>(
       prisma,
       model,
       id,
       userId,
-      select
+      select,
+      workspaceId
     );
     if (!entity) {
       throw new NotFoundError(model.charAt(0).toUpperCase() + model.slice(1));
