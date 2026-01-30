@@ -118,13 +118,18 @@ cd my-money
 
 ### 2. Configure environment variables
 
-Copy `.env.example` to `.env` and fill in the values:
+Create `.env` files. For Docker you need the root `.env`; for local development create `.env` in root, `backend/`, and `frontend/`:
 
 ```bash
+# Root (required for Docker Compose)
 cp .env.example .env
+
+# Backend and frontend (required when running apps without Docker)
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
 
-Edit `.env` with your configuration
+Edit each `.env` with your configuration (see `.env.example` in each directory for variables).
 
 ### 3. Start services with Docker Compose
 
@@ -281,7 +286,22 @@ Then update your `DATABASE_URL` in `.env` to point to your local PostgreSQL inst
 
 ### 3. Configure environment variables
 
-Create `.env` files in root, `frontend/`, and `backend/` directories with appropriate values.
+Create `.env` in the project root, `backend/`, and `frontend/` so each app has its own config when run directly:
+
+```bash
+# From project root
+cp .env.example .env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+Edit each file with your values. Keep these in sync where they overlap:
+
+- **Root & backend:** `DATABASE_URL`, `OPENID_*`, `CORS_ORIGIN`, `BACKEND_URL`, `FRONTEND_URL`
+- **Root & frontend:** `REACT_APP_GRAPHQL_URL`, `REACT_APP_OPENID_*`
+- **Backend & frontend:** OIDC client ID and discovery URL must match
+
+Example for local development: in `backend/.env` set `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mymoney` (host `localhost` when DB runs in Docker); in `frontend/.env` set `REACT_APP_GRAPHQL_URL=http://localhost:4000/graphql`.
 
 ### 4. Set up database schema
 
@@ -467,7 +487,7 @@ npm run test:coverage
 
 ## Environment Variables
 
-See `.env.example` for all available environment variables.
+See `.env.example` (root), `backend/.env.example`, and `frontend/.env.example` for all available variables. Create `.env` in each of those directories when running backend or frontend outside Docker (see [Configure environment variables](#2-configure-environment-variables) for examples).
 
 ## Documentation
 

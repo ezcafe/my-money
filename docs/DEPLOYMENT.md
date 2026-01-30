@@ -17,11 +17,27 @@ This guide provides step-by-step instructions for deploying the My Money applica
 
 ### 1. Environment Variables
 
-Copy `.env.example` to `.env` and configure all required variables:
+Create `.env` files in **three locations**: project root, `backend/`, and `frontend/`. Each app reads its own `.env` when run directly; Docker Compose uses the root `.env` for container builds and runtime.
+
+**Create .env files (all three):**
 
 ```bash
+# Root .env — used by Docker Compose and as reference for URLs/ports
 cp .env.example .env
+
+# Backend .env — used when running backend directly (e.g. npm run dev in backend/)
+cp backend/.env.example backend/.env
+
+# Frontend .env — used when running frontend directly (e.g. npm run dev in frontend/)
+cp frontend/.env.example frontend/.env
 ```
+
+Then edit each `.env` with your values. Keep `DATABASE_URL`, `OPENID_*`, `CORS_ORIGIN`, and URL-related variables consistent across root and backend; keep `REACT_APP_*` consistent between root and frontend.
+
+**When to use which:**
+
+- **Docker / production deploy:** Root `.env` is required. Backend and frontend `.env` are optional for Docker (containers get env from root).
+- **Local development (no Docker):** All three `.env` files are required so `backend` and `frontend` can be started separately with correct config.
 
 **Required Backend Variables:**
 
@@ -86,9 +102,13 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
 
 1. **Configure environment variables:**
 
+   Create `.env` at project root (required for Docker). Optionally create `backend/.env` and `frontend/.env` if you run those apps outside Docker.
+
    ```bash
    cp .env.example .env
-   # Edit .env with production values
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
+   # Edit each .env with production values
    ```
 
 2. **Build and start services:**
@@ -166,6 +186,8 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    ```
 
 ### Option 2: Manual Deployment
+
+For manual deployment (no Docker), ensure `.env` exists in **root**, **backend/**, and **frontend/** (see [Environment Setup](#1-environment-variables) for creation examples). The backend and frontend processes read from their own directories.
 
 1. **Install dependencies:**
 
@@ -262,7 +284,7 @@ Cloudflare Tunnel provides secure, zero-trust access to your application without
      - service: http_status:404
    ```
 
-   Use `FRONTEND_PORT` (e.g. 3000) for the service port if you changed it. In `.env`: set `BACKEND_URL` and `FRONTEND_URL` both to `https://app.example.com`; `REACT_APP_GRAPHQL_URL` to `https://app.example.com/graphql`; `CORS_ORIGIN` and `ALLOWED_ORIGINS` to `https://app.example.com`. OIDC redirect URI: **one** — `https://app.example.com/auth/callback` (used for both browser redirect and token exchange).
+   Use `FRONTEND_PORT` (e.g. 3000) for the service port if you changed it. In `.env`: set `BACKEND_URL` and `FRONTEND_URL` both to `https://app.example.com`; `REACT_APP_GRAPHQL_URL` to `https://app.example.com/graphql`; `CORS_ORIGIN` and `ALLOWED_ORIGINS` to `https://app.example.com`. OIDC redirect URI: **one** — `https://auth.example.com/auth/callback` (used for both browser redirect and token exchange).
 
    **Option B: Two hostnames (app + api)**
 
@@ -323,7 +345,7 @@ REACT_APP_GRAPHQL_URL=https://app.example.com/graphql
 # Optional: REACT_APP_WS_GRAPHQL_URL=wss://app.example.com/graphql-ws
 
 # OIDC: register one redirect URI in your provider (e.g., Pocket ID):
-# https://app.example.com/auth/callback
+# https://auth.example.com/auth/callback
 ```
 
 **Option B (split domain):**
@@ -366,7 +388,7 @@ REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
    docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env up -d
    ```
 
-   **Note:** The `.env` file must be in the root directory. Docker Compose will read it automatically, and the `docker-compose.yml` file also references it via `env_file: - ../.env`.
+   **Note:** For Docker, the root `.env` is required; Docker Compose reads it via `env_file: - ../.env`. For local development (running backend/frontend without Docker), create `.env` in `backend/` and `frontend/` as well (see [Environment Setup](#1-environment-variables) for examples).
 
 2. **Verify Cloudflare Tunnel is running:**
 
@@ -426,6 +448,7 @@ REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
 
 ### Environment & Configuration
 
+- [ ] `.env` created at root (required for Docker); for manual/local runs, also create `backend/.env` and `frontend/.env` from their `.env.example` files
 - [ ] All environment variables configured and validated
 - [ ] Database connection string includes pooling parameters
 - [ ] OIDC provider configured and tested

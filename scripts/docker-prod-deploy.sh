@@ -59,18 +59,22 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Check if .env file exists
-if [ ! -f ".env" ]; then
-  echo -e "${RED}Error:${NC} .env file not found in project root"
+# Root .env file (required for Docker Compose)
+ENV_FILE="${PROJECT_ROOT}/.env"
+
+# Check if .env file exists at project root
+if [ ! -f "$ENV_FILE" ]; then
+  echo -e "${RED}Error:${NC} .env file not found in project root (${ENV_FILE})"
   echo "Please create .env file from .env.example:"
   echo "  cp .env.example .env"
   exit 1
 fi
 
-# Source .env file to make variables available for Docker Compose variable substitution
-# This ensures ${POSTGRES_USER}, ${POSTGRES_PASSWORD}, etc. are resolved correctly
+# Source root .env so variables are available for Docker Compose substitution
+# (e.g. ${POSTGRES_USER}, ${POSTGRES_PASSWORD})
 set -a  # Automatically export all variables
-source .env
+# shellcheck source=/dev/null
+source "$ENV_FILE"
 set +a  # Disable automatic export
 
 # Check if docker-compose files exist
@@ -98,7 +102,7 @@ echo -e "${YELLOW}→${NC} Cleaning up any existing services and networks..."
 docker compose \
   -f docker/docker-compose.yml \
   -f docker/docker-compose.prod.yml \
-  --env-file .env \
+  --env-file "$ENV_FILE" \
   down --remove-orphans 2>/dev/null || true
 
 # Remove any existing networks that might conflict
@@ -144,7 +148,7 @@ if [ "$BUILD" = true ]; then
   docker compose \
     -f docker/docker-compose.yml \
     -f docker/docker-compose.prod.yml \
-    --env-file .env \
+    --env-file "$ENV_FILE" \
     build \
     --parallel \
     --no-cache
@@ -158,7 +162,7 @@ echo -e "${YELLOW}→${NC} Starting services with production overrides..."
 docker compose \
   -f docker/docker-compose.yml \
   -f docker/docker-compose.prod.yml \
-  --env-file .env \
+  --env-file "$ENV_FILE" \
   up -d
 
 echo ""
@@ -182,8 +186,8 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}Deployment Complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo "Useful commands:"
-echo "  View logs:        docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml logs -f"
-echo "  Stop services:    docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml down"
-echo "  View status:     docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml ps"
+echo "Useful commands (run from project root; use --env-file .env for compose):"
+echo "  View logs:        docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env logs -f"
+echo "  Stop services:    docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml --env-file .env down"
+echo "  View status:      docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml ps"
 echo ""

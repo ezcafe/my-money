@@ -1,8 +1,22 @@
 #!/bin/bash
 # Script to prepare Docker images locally to avoid rate limiting during builds
 # Also enables BuildKit for better caching and parallel builds
+# Uses root .env for variables (e.g. NODE_VERSION) when present.
 
 set +e  # Don't exit on error - we want to continue even if pulls fail
+
+# Resolve project root (parent of scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load root .env so NODE_VERSION, NGINX_VERSION, POSTGRES_VERSION can be overridden
+ENV_FILE="${PROJECT_ROOT}/.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$ENV_FILE"
+  set +a
+fi
 
 # Enable BuildKit for better caching and performance
 export DOCKER_BUILDKIT=1
