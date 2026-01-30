@@ -300,6 +300,8 @@ export function BudgetsPage(): React.JSX.Element {
                           />
                         </Box>
                       }
+                      primaryTypographyProps={{ component: 'div' }}
+                      secondaryTypographyProps={{ component: 'div' }}
                     />
                 </ListItemButton>
               </React.Fragment>

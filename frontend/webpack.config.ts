@@ -4,6 +4,7 @@ import HtmlWebpackPlugin from 'html-webpack-plugin';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
 import webpack from 'webpack';
 import type { Configuration } from 'webpack';
+import type { Configuration as DevServerConfiguration } from 'webpack-dev-server';
 import { config as dotenvConfig } from 'dotenv';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
@@ -13,7 +14,10 @@ dotenvConfig();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const config: Configuration = {
+/** Webpack config including devServer (typed via webpack-dev-server) */
+type WebpackConfig = Configuration & { devServer?: DevServerConfiguration };
+
+const config: WebpackConfig = {
   entry: './src/index.tsx',
   output: {
     path: path.resolve(__dirname, 'dist'),

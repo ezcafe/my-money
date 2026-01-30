@@ -201,6 +201,7 @@ const CategoriesPageComponent = (): React.JSX.Element => {
                               ) : null}
                             </Stack>
                           }
+                          primaryTypographyProps={{ component: 'div' }}
                         />
                         <ListItemIcon sx={{ minWidth: 'auto' }}>
                           <ChevronRight color="action" />

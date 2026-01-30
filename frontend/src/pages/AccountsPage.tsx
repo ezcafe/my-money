@@ -107,6 +107,7 @@ const AccountsPageComponent = (): React.JSX.Element => {
                         ) : null}
                       </Stack>
                     }
+                    primaryTypographyProps={{ component: 'div' }}
                   />
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="body1" fontWeight={500} color="text.primary">

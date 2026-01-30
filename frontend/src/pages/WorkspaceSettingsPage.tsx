@@ -292,7 +292,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                     Members
                   </Typography>
                 </Box>
-                {canManageMembers && (
+                {canManageMembers ? (
                   <Button
                     variant="contained"
                     size="medium"
@@ -303,7 +303,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                   >
                     Invite Member
                   </Button>
-                )}
+                ) : null}
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 {canManageMembers
@@ -361,6 +361,8 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                               Joined {formatDateShort(member.joinedAt, dateFormat)}
                             </Typography>
                           }
+                          primaryTypographyProps={{ component: 'div' }}
+                          secondaryTypographyProps={{ component: 'div' }}
                         />
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           {canManageMembers ? (
@@ -387,7 +389,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                               sx={{ fontWeight: 500 }}
                             />
                           )}
-                          {canManageMembers && (
+                          {canManageMembers ? (
                             <Tooltip
                               title={
                                 !canRemoveMembers
@@ -417,7 +419,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                                 </IconButton>
                               </span>
                             </Tooltip>
-                          )}
+                          ) : null}
                         </Stack>
                       </ListItem>
                     </React.Fragment>
@@ -469,6 +471,8 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                               {formatDateShort(invitation.expiresAt, dateFormat)}
                             </Typography>
                           }
+                          primaryTypographyProps={{ component: 'div' }}
+                          secondaryTypographyProps={{ component: 'div' }}
                         />
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           <Chip
@@ -479,7 +483,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                               fontWeight: 500,
                             }}
                           />
-                          {canManageMembers && (
+                          {canManageMembers ? (
                             <Tooltip title="Cancel invitation" arrow>
                               <IconButton
                                 size="small"
@@ -499,7 +503,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                                 <Cancel />
                               </IconButton>
                             </Tooltip>
-                          )}
+                          ) : null}
                         </Stack>
                       </ListItem>
                     </React.Fragment>

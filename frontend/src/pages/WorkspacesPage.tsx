@@ -230,6 +230,8 @@ export function WorkspacesPage(): React.JSX.Element {
                               {formatDateShort(invitation.expiresAt, dateFormat)}
                             </Typography>
                           }
+                          primaryTypographyProps={{ component: 'div' }}
+                          secondaryTypographyProps={{ component: 'div' }}
                         />
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Chip
@@ -299,6 +301,7 @@ export function WorkspacesPage(): React.JSX.Element {
                       variant: 'body1',
                       fontWeight: 500,
                     }}
+                    secondaryTypographyProps={{ component: 'div' }}
                   />
                   <Stack direction="row" spacing={1}>
                     <IconButton

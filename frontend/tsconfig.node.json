@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true
+  },
+  "include": ["webpack.config.ts", "jest.config.ts", "*.d.ts"],
+  "exclude": ["node_modules", "dist", "src"]
+}
