@@ -4,6 +4,8 @@
  */
 
 /* eslint-disable @typescript-eslint/explicit-function-return-type, @typescript-eslint/explicit-module-boundary-types */
+import { GraphQLError } from 'graphql';
+import { AppError } from '../utils/errors';
 import { AccountResolver } from './AccountResolver';
 import { TransactionResolver } from './TransactionResolver';
 import { UserResolver } from './UserResolver';
@@ -54,6 +56,28 @@ const subscriptionResolver = new SubscriptionResolver();
 const workspaceResolver = new WorkspaceResolver();
 const conflictResolver = new ConflictResolver();
 const batchResolver = new BatchResolver();
+
+/**
+ * Wraps a resolver so that AppError (ValidationError, NotFoundError, etc.) is
+ * rethrown as GraphQLError with extensions. Apollo Server 4 does not set
+ * originalError for resolver throws, so formatError only sees extensions.
+ */
+function wrapResolver<T>(
+  fn: (...args: unknown[]) => Promise<T>
+): (...args: unknown[]) => Promise<T> {
+  return async (...args: unknown[]): Promise<T> => {
+    try {
+      return await fn(...args);
+    } catch (e) {
+      if (e instanceof AppError) {
+        throw new GraphQLError(e.message, {
+          extensions: { code: e.code, statusCode: e.statusCode },
+        });
+      }
+      throw e;
+    }
+  };
+}
 
 export const resolvers = {
   Query: {
@@ -488,8 +512,10 @@ export const resolvers = {
       exampleDataResolver.addExampleData(parent, args, context),
 
     // Budget mutations
-    createBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
-      budgetResolver.createBudget(parent, args as { input: unknown }, context),
+    createBudget: wrapResolver(
+      (parent: unknown, args: unknown, context: GraphQLContext) =>
+        budgetResolver.createBudget(parent, args as { input: unknown }, context)
+    ),
     updateBudget: (parent: unknown, args: unknown, context: GraphQLContext) =>
       budgetResolver.updateBudget(
         parent,

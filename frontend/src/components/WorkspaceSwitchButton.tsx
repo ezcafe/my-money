@@ -129,6 +129,11 @@ export function WorkspaceSwitchButton(): React.JSX.Element | null {
     return null;
   }
 
+  // Only show when user has 2 or more workspaces
+  if (workspaces.length < 2) {
+    return null;
+  }
+
   const progressValue = budgetsLoading ? 0 : progress;
   const displayPercentage = budgets.length === 0 ? '' : `${Math.round(progressValue)}%`;
 

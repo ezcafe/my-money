@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { PersonAdd, Cancel, PersonRemove, People, MailOutline } from '@mui/icons-material';
+import { GET_ME } from '../graphql/queries';
 import {
   GET_WORKSPACE,
   GET_WORKSPACE_MEMBERS,
@@ -61,6 +62,12 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
   const [deleteWorkspaceDialogOpen, setDeleteWorkspaceDialogOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<{ id: string; email: string } | null>(null);
   const [invitationToCancel, setInvitationToCancel] = useState<string | null>(null);
+
+  const { data: meData } = useQuery<{ me: { id: string } }>(GET_ME, {
+    fetchPolicy: 'cache-first',
+  });
+
+  const currentUserId = meData?.me?.id;
 
   const {
     data: workspaceData,
@@ -155,19 +162,28 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
   const members = membersData?.workspaceMembers ?? [];
   const invitations = invitationsData?.workspaceInvitations ?? [];
 
+  const currentUserMember = members.find((m) => m.userId === currentUserId);
+  const currentUserRole = currentUserMember?.role;
+  const canManageMembers =
+    currentUserRole === 'Owner' || currentUserRole === 'Admin';
+
   useEffect(() => {
     if (workspace) {
       setTitle(`${workspace.name} Settings`);
-      setContextMenu({
-        onDelete: () => {
-          setDeleteWorkspaceDialogOpen(true);
-        },
-      });
+      setContextMenu(
+        currentUserRole === 'Owner'
+          ? {
+              onDelete: () => {
+                setDeleteWorkspaceDialogOpen(true);
+              },
+            }
+          : undefined
+      );
     }
     return () => {
       setContextMenu(undefined);
     };
-  }, [workspace, setTitle, setContextMenu]);
+  }, [workspace, currentUserRole, setTitle, setContextMenu]);
 
   const handleUpdateRole = async (memberId: string, newRole: WorkspaceRole): Promise<void> => {
     if (!id) {
@@ -276,20 +292,23 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                     Members
                   </Typography>
                 </Box>
-                <Button
-                  variant="contained"
-                  size="medium"
-                  startIcon={<PersonAdd />}
-                  onClick={() => {
-                    setInviteDialogOpen(true);
-                  }}
-                >
-                  Invite Member
-                </Button>
+                {canManageMembers && (
+                  <Button
+                    variant="contained"
+                    size="medium"
+                    startIcon={<PersonAdd />}
+                    onClick={() => {
+                      setInviteDialogOpen(true);
+                    }}
+                  >
+                    Invite Member
+                  </Button>
+                )}
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Manage workspace members and their roles. Members can collaborate on accounts,
-                transactions, and budgets.
+                {canManageMembers
+                  ? 'Manage workspace members and their roles. Members can collaborate on accounts, transactions, and budgets.'
+                  : 'Only owners and admins can invite members and change roles. You can view the member list and your role.'}
               </Typography>
             </Box>
 
@@ -300,15 +319,17 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                   title="No Members Yet"
                   description="Invite team members to collaborate on this workspace. Members can view and manage accounts, transactions, and budgets based on their role."
                   action={
-                    <Button
-                      variant="contained"
-                      startIcon={<PersonAdd />}
-                      onClick={() => {
-                        setInviteDialogOpen(true);
-                      }}
-                    >
-                      Invite Member
-                    </Button>
+                    canManageMembers ? (
+                      <Button
+                        variant="contained"
+                        startIcon={<PersonAdd />}
+                        onClick={() => {
+                          setInviteDialogOpen(true);
+                        }}
+                      >
+                        Invite Member
+                      </Button>
+                    ) : undefined
                   }
                 />
               </Box>
@@ -342,50 +363,61 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                           }
                         />
                         <Stack direction="row" spacing={1.5} alignItems="center">
-                          <FormControl size="small" sx={{ minWidth: 120 }}>
-                            <InputLabel>Role</InputLabel>
-                            <Select
-                              value={member.role}
-                              label="Role"
-                              onChange={(e) => {
-                                void handleUpdateRole(member.id, e.target.value as WorkspaceRole);
-                              }}
-                              disabled={updatingRole}
-                            >
-                              <MenuItem value="Member">Member</MenuItem>
-                              <MenuItem value="Admin">Admin</MenuItem>
-                              <MenuItem value="Owner">Owner</MenuItem>
-                            </Select>
-                          </FormControl>
-                          <Tooltip
-                            title={
-                              !canRemoveMembers
-                                ? 'Cannot remove the only member'
-                                : 'Remove member'
-                            }
-                            arrow
-                          >
-                            <span>
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => {
-                                  setMemberToRemove({ id: member.id, email: member.user.email });
-                                  setRemoveMemberDialogOpen(true);
+                          {canManageMembers ? (
+                            <FormControl size="small" sx={{ minWidth: 120 }}>
+                              <InputLabel>Role</InputLabel>
+                              <Select
+                                value={member.role}
+                                label="Role"
+                                onChange={(e) => {
+                                  void handleUpdateRole(member.id, e.target.value as WorkspaceRole);
                                 }}
-                                disabled={!canRemoveMembers}
-                                sx={{
-                                  transition: 'background-color 0.2s ease',
-                                  '&:hover': {
-                                    backgroundColor: 'error.light',
-                                    color: 'error.contrastText',
-                                  },
-                                }}
+                                disabled={updatingRole}
                               >
-                                <PersonRemove />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
+                                <MenuItem value="Member">Member</MenuItem>
+                                <MenuItem value="Admin">Admin</MenuItem>
+                                <MenuItem value="Owner">Owner</MenuItem>
+                              </Select>
+                            </FormControl>
+                          ) : (
+                            <Chip
+                              label={member.role}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontWeight: 500 }}
+                            />
+                          )}
+                          {canManageMembers && (
+                            <Tooltip
+                              title={
+                                !canRemoveMembers
+                                  ? 'Cannot remove the only member'
+                                  : 'Remove member'
+                              }
+                              arrow
+                            >
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => {
+                                    setMemberToRemove({ id: member.id, email: member.user.email });
+                                    setRemoveMemberDialogOpen(true);
+                                  }}
+                                  disabled={!canRemoveMembers}
+                                  sx={{
+                                    transition: 'background-color 0.2s ease',
+                                    '&:hover': {
+                                      backgroundColor: 'error.light',
+                                      color: 'error.contrastText',
+                                    },
+                                  }}
+                                >
+                                  <PersonRemove />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          )}
                         </Stack>
                       </ListItem>
                     </React.Fragment>
@@ -447,25 +479,27 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
                               fontWeight: 500,
                             }}
                           />
-                          <Tooltip title="Cancel invitation" arrow>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => {
-                                setInvitationToCancel(invitation.id);
-                                setCancelInvitationDialogOpen(true);
-                              }}
-                              sx={{
-                                transition: 'background-color 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: 'error.light',
-                                  color: 'error.contrastText',
-                                },
-                              }}
-                            >
-                              <Cancel />
-                            </IconButton>
-                          </Tooltip>
+                          {canManageMembers && (
+                            <Tooltip title="Cancel invitation" arrow>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => {
+                                  setInvitationToCancel(invitation.id);
+                                  setCancelInvitationDialogOpen(true);
+                                }}
+                                sx={{
+                                  transition: 'background-color 0.2s ease',
+                                  '&:hover': {
+                                    backgroundColor: 'error.light',
+                                    color: 'error.contrastText',
+                                  },
+                                }}
+                              >
+                                <Cancel />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </Stack>
                       </ListItem>
                     </React.Fragment>

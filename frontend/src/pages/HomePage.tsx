@@ -15,6 +15,7 @@ import { AccountBalance } from '@mui/icons-material';
 import { useAccounts } from '../hooks/useAccounts';
 import { useCategories } from '../hooks/useCategories';
 import { useNotifications } from '../contexts/NotificationContext';
+import { WorkspaceSwitchButton } from '../components/WorkspaceSwitchButton';
 
 /**
  * Home Page Component
@@ -90,6 +91,7 @@ const HomePageComponent = (): React.JSX.Element => {
           </Alert>
         </Box>
       ) : null}
+      <WorkspaceSwitchButton />
       <Calculator />
     </PageContainer>
   );

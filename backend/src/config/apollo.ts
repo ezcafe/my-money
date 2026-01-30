@@ -105,11 +105,9 @@ export function createApolloServer(
       },
     ],
     formatError: (error: unknown): GraphQLError => {
-      // Ultimate safety: return immediately without any processing
-      // This prevents all getter access, recursive errors, and crashes
-      // The error details are less important than system stability
+      // Preserve AppError-derived errors (ValidationError, NotFoundError, etc.)
+      // set by didEncounterErrors; otherwise return safe default for stability
       try {
-        // Only try to extract message from string errors - safest option
         if (typeof error === 'string') {
           return new GraphQLError(error.slice(0, 200), {
             extensions: {
@@ -119,8 +117,60 @@ export function createApolloServer(
           });
         }
 
-        // For all other errors, return immediately with safe default
-        // Don't try to access any properties - they might have getters
+        if (error && typeof error === 'object') {
+          let code: unknown;
+          let statusCode: unknown;
+          let ext: Record<string, unknown> | null = null;
+          const hasExt =
+            'extensions' in error &&
+            typeof (error as { extensions: unknown }).extensions === 'object' &&
+            (error as { extensions: unknown }).extensions !== null &&
+            !Array.isArray((error as { extensions: unknown }).extensions);
+          if (hasExt) {
+            ext = (error as { extensions: Record<string, unknown> }).extensions;
+            code = ext.code;
+            statusCode = ext.statusCode;
+          }
+          const hasOrig =
+            'originalError' in error &&
+            (error as { originalError: unknown }).originalError instanceof AppError;
+          if (
+            (code == null || statusCode == null) &&
+            hasOrig
+          ) {
+            const orig = (error as { originalError: AppError }).originalError;
+            code = orig.code;
+            statusCode = orig.statusCode;
+            ext = ext ?? { code, statusCode };
+          }
+          const knownAppCodes = [
+            'VALIDATION_ERROR',
+            'NOT_FOUND',
+            'BAD_USER_INPUT',
+            'CONFLICT',
+            'FORBIDDEN',
+            'UNAUTHORIZED',
+          ];
+          if (
+            typeof code === 'string' &&
+            typeof statusCode === 'number' &&
+            knownAppCodes.includes(code)
+          ) {
+            let msg = 'Error';
+            if (
+              'message' in error &&
+              typeof (error as { message: unknown }).message === 'string'
+            ) {
+              msg = (error as { message: string }).message;
+            } else if (ext && hasOrig) {
+              msg = (error as { originalError: AppError }).originalError.message;
+            }
+            return new GraphQLError(msg.slice(0, 500), {
+              extensions: { ...ext, code, statusCode },
+            });
+          }
+        }
+
         return new GraphQLError('Internal server error', {
           extensions: {
             code: 'INTERNAL_SERVER_ERROR',
@@ -128,8 +178,6 @@ export function createApolloServer(
           },
         });
       } catch {
-        // If even creating GraphQLError fails, return the absolute minimum
-        // This should never happen, but we need ultimate fallback
         return new GraphQLError('Error', {
           extensions: {
             code: 'INTERNAL_SERVER_ERROR',

@@ -291,12 +291,19 @@ export class BudgetResolver {
     // Recalculate budget balance for current period
     await recalculateBudgetBalance(budget.id, context.userId, context.prisma);
 
-    // Fetch updated budget with recalculated currentSpent
-    const updatedBudget = await budgetRepository.findUnique(budget.id, {
-      account: true,
-      category: true,
-      payee: true,
-    });
+    // Fetch updated budget with recalculated currentSpent (use findById with include
+    // so we get all scalar fields + relations; findUnique with select-only would
+    // return a partial object and break GraphQL serialization)
+    const updatedBudget = await budgetRepository.findById(
+      budget.id,
+      finalWorkspaceId,
+      undefined,
+      {
+        account: true,
+        category: true,
+        payee: true,
+      }
+    );
 
     if (!updatedBudget) {
       throw new Error('Budget not found after creation');
