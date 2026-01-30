@@ -124,27 +124,7 @@ Copy `.env.example` to `.env` and fill in the values:
 cp .env.example .env
 ```
 
-Edit `.env` with your configuration:
-
-```env
-# OIDC (Pocket ID)
-OPENID_CLIENT_ID=your-client-id
-OPENID_CLIENT_SECRET=your-client-secret
-OPENID_DISCOVERY_URL=http://localhost:8080/.well-known/openid-configuration
-
-# Database
-DATABASE_URL=postgresql://postgres:postgres@postgres:5432/mymoney
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=mymoney
-
-# Server
-PORT=4000
-NODE_ENV=production
-
-# Frontend
-REACT_APP_GRAPHQL_URL=http://localhost:4000/graphql
-```
+Edit `.env` with your configuration
 
 ### 3. Start services with Docker Compose
 

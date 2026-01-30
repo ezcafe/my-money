@@ -50,9 +50,12 @@ cp .env.example .env
 
 **Required URL Configuration (for OAuth callbacks):**
 
-- `BACKEND_URL` - Full backend URL (e.g., `https://api.example.com` or `http://localhost:4000` for local)
-- `FRONTEND_URL` - Full frontend URL (e.g., `https://app.example.com` or `http://localhost:3000` for local)
-- **Important:** These must match your actual production domain URLs for OAuth to work correctly.
+Two deployment styles are supported:
+
+- **Split-domain:** Use separate hostnames for app and API (e.g. `https://app.example.com`, `https://api.example.com`). Set `BACKEND_URL` to the API URL and `FRONTEND_URL` to the app URL. Set `REACT_APP_GRAPHQL_URL` to `https://api.example.com/graphql` (and optionally `REACT_APP_WS_GRAPHQL_URL` to `wss://api.example.com/graphql-ws`).
+- **Single-domain:** Use one hostname for both app and API (e.g. `https://app.example.com`). Set `BACKEND_URL` and `FRONTEND_URL` both to `https://app.example.com`. Set `REACT_APP_GRAPHQL_URL` to `https://app.example.com/graphql` (and optionally `REACT_APP_WS_GRAPHQL_URL` to `wss://app.example.com/graphql-ws`). Frontend nginx proxies `/graphql`, `/graphql-ws`, and `/auth/*` to the backend.
+
+- **Important:** These URLs must match your actual production domain(s) for OAuth to work correctly.
 
 **Optional Backend Variables:**
 
@@ -243,36 +246,52 @@ Cloudflare Tunnel provides secure, zero-trust access to your application without
 
 4. **Create tunnel configuration file:**
 
-   Create `/etc/cloudflared/config.yml`:
+   Create `/etc/cloudflared/config.yml`. Choose one of the following.
+
+   **Option A: Single domain (app only)**
+
+   One hostname for both app and API. Frontend nginx proxies `/graphql`, `/graphql-ws`, `/auth/callback`, `/auth/refresh`, and `/auth/logout` to the backend.
 
    ```yaml
    tunnel: <your-tunnel-id>
    credentials-file: /etc/cloudflared/<tunnel-id>.json
 
    ingress:
-     # Frontend service
      - hostname: app.example.com
        service: http://localhost:3000
-     # Backend GraphQL API
+     - service: http_status:404
+   ```
+
+   Use `FRONTEND_PORT` (e.g. 3000) for the service port if you changed it. In `.env`: set `BACKEND_URL` and `FRONTEND_URL` both to `https://app.example.com`; `REACT_APP_GRAPHQL_URL` to `https://app.example.com/graphql`; `CORS_ORIGIN` and `ALLOWED_ORIGINS` to `https://app.example.com`. OIDC redirect URI: **one** — `https://app.example.com/auth/callback` (used for both browser redirect and token exchange).
+
+   **Option B: Two hostnames (app + api)**
+
+   Separate hostnames for frontend and backend.
+
+   ```yaml
+   tunnel: <your-tunnel-id>
+   credentials-file: /etc/cloudflared/<tunnel-id>.json
+
+   ingress:
+     - hostname: app.example.com
+       service: http://localhost:3000
      - hostname: api.example.com
        service: http://localhost:4000
        originRequest:
          noHappyEyeballs: true
-     # WebSocket support for GraphQL subscriptions
      - hostname: api.example.com
        service: ws://localhost:4000
        path: /graphql-ws
-     # Catch-all rule (must be last)
      - service: http_status:404
    ```
 
-   **Note:** Replace `app.example.com` and `api.example.com` with your actual domains. Adjust ports if you've changed `FRONTEND_PORT` or `BACKEND_PORT`.
+   **Note:** Replace `app.example.com` and `api.example.com` with your actual domains. Adjust ports if you've changed `FRONTEND_PORT` or `BACKEND_PORT`. For split-domain, OIDC redirect URI is `https://api.example.com/auth/callback` (backend handles the callback).
 
 5. **Create DNS records in Cloudflare:**
 
    - Go to Cloudflare Dashboard → DNS → Records
-   - Add CNAME record for `app.example.com` pointing to `<your-tunnel-id>.cfargotunnel.com`
-   - Add CNAME record for `api.example.com` pointing to `<your-tunnel-id>.cfargotunnel.com`
+   - **Option A:** Add one CNAME record for `app.example.com` pointing to `<your-tunnel-id>.cfargotunnel.com`
+   - **Option B:** Add CNAME records for `app.example.com` and `api.example.com` pointing to `<your-tunnel-id>.cfargotunnel.com`
 
 6. **Start Cloudflare Tunnel:**
 
@@ -291,24 +310,33 @@ Cloudflare Tunnel provides secure, zero-trust access to your application without
 
 #### Step 2: Configure Application Environment Variables
 
-Update your `.env` file with production URLs:
+Update your `.env` file with production URLs.
+
+**Option A (single domain):**
 
 ```bash
-# Backend and Frontend URLs (must match your Cloudflare domain)
-BACKEND_URL=https://api.example.com
+BACKEND_URL=https://app.example.com
 FRONTEND_URL=https://app.example.com
-
-# CORS and CSRF origins (must match your frontend domain)
 CORS_ORIGIN=https://app.example.com
 ALLOWED_ORIGINS=https://app.example.com
+REACT_APP_GRAPHQL_URL=https://app.example.com/graphql
+# Optional: REACT_APP_WS_GRAPHQL_URL=wss://app.example.com/graphql-ws
 
-# Frontend GraphQL URL (must match your backend domain)
+# OIDC: register one redirect URI in your provider (e.g., Pocket ID):
+# https://app.example.com/auth/callback
+```
+
+**Option B (split domain):**
+
+```bash
+BACKEND_URL=https://api.example.com
+FRONTEND_URL=https://app.example.com
+CORS_ORIGIN=https://app.example.com
+ALLOWED_ORIGINS=https://app.example.com
 REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
 
-# OIDC redirect URIs must be configured to use these URLs
-# Update your OIDC provider (e.g., Pocket ID) with:
-# - Redirect URI: https://app.example.com/auth/callback
-# - Backend callback URL: https://api.example.com/auth/callback
+# OIDC: register redirect URI in your provider:
+# https://api.example.com/auth/callback
 ```
 
 #### Step 3: Deploy Application with Docker Compose
@@ -350,9 +378,8 @@ REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
 
 3. **Verify application is accessible:**
 
-   - Frontend: https://app.example.com
-   - Backend GraphQL: https://api.example.com/graphql
-   - Health check: https://api.example.com/health
+   - **Option A:** Frontend and API: https://app.example.com (GraphQL: https://app.example.com/graphql, health: https://app.example.com/health)
+   - **Option B:** Frontend: https://app.example.com; Backend GraphQL: https://api.example.com/graphql; Health: https://api.example.com/health
 
 #### Step 4: Configure Cloudflare Security Settings
 
@@ -406,6 +433,7 @@ REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
 - [ ] ALLOWED_ORIGINS configured for CSRF protection
 - [ ] BACKEND_URL and FRONTEND_URL match production domains
 - [ ] REACT_APP_GRAPHQL_URL matches backend domain
+- [ ] If using single-domain, only one hostname is needed; OIDC redirect URI is `https://<your-app-domain>/auth/callback`
 - [ ] BACKEND_PORT and FRONTEND_PORT configured (if using Docker)
 - [ ] SSL/TLS certificates configured (HTTPS required for PWA) or Cloudflare Tunnel enabled
 - [ ] Rate limiting configured appropriately
