@@ -340,9 +340,9 @@ All logs are structured JSON format:
 ### Prometheus Metrics Endpoint (Future Enhancement)
 
 ```typescript
-// Example: Add metrics endpoint
-fastify.get('/metrics', async () => {
-  return prometheusMetrics;
+// Example: Add metrics endpoint (Hono app)
+app.get('/metrics', async (c) => {
+  return c.json(prometheusMetrics);
 });
 ```
 

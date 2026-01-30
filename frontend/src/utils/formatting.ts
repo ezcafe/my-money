@@ -3,8 +3,12 @@
  * Shared formatting functions for currency, dates, and numbers
  */
 
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import type { DateFormat } from '../contexts/DateFormatContext';
 import { DEFAULT_DATE_FORMAT } from '../contexts/DateFormatContext';
+
+dayjs.extend(relativeTime);
 
 /**
  * Minimal transaction interface for date grouping
@@ -83,6 +87,41 @@ export function formatDateShort(
   dateFormat: DateFormat = DEFAULT_DATE_FORMAT
 ): string {
   return formatDateByPattern(date, dateFormat);
+}
+
+/**
+ * Format a date as relative time (e.g. "2 days ago", "Today at 3:42 PM")
+ * @param date - The date to format (Date object or string)
+ * @returns Human-readable relative time string
+ */
+export function formatRelativeTime(date: Date | string): string {
+  const d = dayjs(typeof date === 'string' ? date : date);
+  const now = dayjs();
+  if (d.isSame(now, 'day')) {
+    return `Today at ${d.format('h:mm A')}`;
+  }
+  if (d.isSame(now.subtract(1, 'day'), 'day')) {
+    return `Yesterday at ${d.format('h:mm A')}`;
+  }
+  if (d.isAfter(now.subtract(7, 'day'))) {
+    return d.format('dddd [at] h:mm A');
+  }
+  return d.fromNow();
+}
+
+/**
+ * Get time group label for grouping version history (Today, Yesterday, This week, etc.)
+ * @param date - The date to classify
+ * @returns Group label string
+ */
+export function getTimeGroupLabel(date: Date | string): string {
+  const d = dayjs(typeof date === 'string' ? date : date);
+  const now = dayjs();
+  if (d.isSame(now, 'day')) return 'Today';
+  if (d.isSame(now.subtract(1, 'day'), 'day')) return 'Yesterday';
+  if (d.isAfter(now.subtract(7, 'day'))) return 'This week';
+  if (d.isAfter(now.subtract(30, 'day'))) return 'This month';
+  return 'Older';
 }
 
 /**

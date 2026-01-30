@@ -237,8 +237,14 @@ const CategoryDetailsPageComponent = (): React.JSX.Element => {
         />
       </Box>
 
-      {/* Version History Section */}
-      {id ? <VersionHistoryPanel entityType="Category" entityId={id} /> : null}
+      {/* Version History Section - pass current category so only changed fields are shown */}
+      {id ? (
+        <VersionHistoryPanel
+          entityType="Category"
+          entityId={id}
+          currentData={category ? (category as unknown as Record<string, unknown>) : undefined}
+        />
+      ) : null}
     </PageContainer>
   );
 };

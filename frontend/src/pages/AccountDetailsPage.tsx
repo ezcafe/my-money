@@ -254,8 +254,14 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
         />
       </Box>
 
-      {/* Version History Section */}
-      {id ? <VersionHistoryPanel entityType="Account" entityId={id} /> : null}
+      {/* Version History Section - pass current account so only changed fields are shown */}
+      {id ? (
+        <VersionHistoryPanel
+          entityType="Account"
+          entityId={id}
+          currentData={account ? (account as unknown as Record<string, unknown>) : undefined}
+        />
+      ) : null}
     </PageContainer>
   );
 };

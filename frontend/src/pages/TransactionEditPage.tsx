@@ -337,8 +337,28 @@ export function TransactionEditPage(): React.JSX.Element {
         </Box>
       </Card>
 
-      {/* Version History Section */}
-      {id ? <VersionHistoryPanel entityType="Transaction" entityId={id} /> : null}
+      {/* Version History Section - pass current transaction so only changed fields are shown */}
+      {id ? (
+        <VersionHistoryPanel
+          entityType="Transaction"
+          entityId={id}
+          currentData={
+            transaction
+              ? {
+                  value: transaction.value,
+                  date:
+                    typeof transaction.date === 'string'
+                      ? transaction.date
+                      : new Date(transaction.date).toISOString(),
+                  accountId: transaction.account?.id ?? '',
+                  categoryId: transaction.category?.id ?? '',
+                  payeeId: transaction.payee?.id ?? '',
+                  note: transaction.note ?? '',
+                }
+              : undefined
+          }
+        />
+      ) : null}
     </PageContainer>
   );
 }

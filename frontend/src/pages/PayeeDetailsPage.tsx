@@ -231,8 +231,14 @@ const PayeeDetailsPageComponent = (): React.JSX.Element => {
         />
       </Box>
 
-      {/* Version History Section */}
-      {id ? <VersionHistoryPanel entityType="Payee" entityId={id} /> : null}
+      {/* Version History Section - pass current payee so only changed fields are shown */}
+      {id ? (
+        <VersionHistoryPanel
+          entityType="Payee"
+          entityId={id}
+          currentData={payee ? (payee as unknown as Record<string, unknown>) : undefined}
+        />
+      ) : null}
     </PageContainer>
   );
 };

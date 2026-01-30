@@ -20,11 +20,11 @@ export function Timeline({ children, ...props }: BoxProps): React.JSX.Element {
         '&::before': {
           content: '""',
           position: 'absolute',
-          left: '18px',
+          left: '15px',
           top: 0,
           bottom: 0,
           width: '2px',
-          backgroundColor: 'divider',
+          backgroundColor: 'grey.300',
         },
         ...props.sx,
       }}
@@ -87,7 +87,7 @@ export function TimelineConnector({ ...props }: BoxProps): React.JSX.Element {
       sx={{
         flex: 1,
         width: '2px',
-        backgroundColor: 'divider',
+        backgroundColor: 'grey.300',
         minHeight: '16px',
         ...props.sx,
       }}

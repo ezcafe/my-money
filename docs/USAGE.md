@@ -16,8 +16,9 @@ Welcome to My Money! This guide will help you get started and make the most of y
 8. [Reports & Analytics](#reports--analytics)
 9. [Importing Data](#importing-data)
 10. [Workspaces & Collaboration](#workspaces--collaboration)
-11. [Settings](#settings)
-12. [Tips & Tricks](#tips--tricks)
+11. [Version History](#version-history)
+12. [Settings](#settings)
+13. [Tips & Tricks](#tips--tricks)
 
 ---
 
@@ -444,6 +445,34 @@ The user will receive an email with an invitation link. They can accept the invi
 - 💡 **Role Management**: Only give Admin or Owner roles to trusted members
 - 💡 **Regular Communication**: Coordinate with workspace members to avoid duplicate entries
 - 💡 **Separate Workspaces**: Create separate workspaces for different purposes (personal, business, shared transactions)
+
+---
+
+## Version History
+
+Version history shows a timeline of changes for an entity (account, category, payee, budget, or transaction). Use it to see who changed what and when, and to understand changes when resolving conflicts.
+
+### Viewing Version History
+
+1. Open the **detail page** for the entity (Account, Category, Payee, Budget, or Transaction)
+2. Scroll to the **Version History** section at the bottom
+3. The timeline shows each version with:
+   - **Version number** and a "Current" badge for the latest
+   - **Date and time** of the change
+   - **Editor** (user email who made the change)
+   - **Previous values** for that version (e.g. name, balance, amount)
+
+### When Version History Helps
+
+- **After a conflict**: When the conflict resolution dialog appears, open the entity's detail page and check Version History to see what changed before choosing a version or merging
+- **Auditing**: See who updated an account, category, payee, budget, or transaction and when
+- **Collaboration**: In shared workspaces, review changes made by other members
+
+### Tips
+
+- 💡 **Detail page required**: Version history is only available on entity detail pages, not in list views
+- 💡 **Limit**: The panel shows up to 50 versions by default (newest first)
+- 💡 **Entity types**: Available for Accounts, Categories, Payees, Budgets, and Transactions
 
 ---
 

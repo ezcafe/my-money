@@ -384,7 +384,7 @@ my-money/
 │   │   ├── middleware/    # Auth, validation, caching middleware
 │   │   ├── utils/         # Utility functions
 │   │   ├── cron/          # Scheduled jobs
-│   │   ├── recurringTransactions.ts
+│   │   │   ├── recurringTransactions.ts
 │   │   │   ├── budgetReset.ts
 │   │   │   ├── balanceReconciliation.ts
 │   │   │   ├── backup.ts
@@ -404,6 +404,7 @@ my-money/
 │   ├── docker-prepare-images.sh
 │   └── docker-prune.sh
 ├── docs/                  # Documentation
+│   ├── USAGE.md
 │   ├── DEPLOYMENT.md
 │   ├── MONITORING.md
 │   └── TROUBLESHOOTING.md

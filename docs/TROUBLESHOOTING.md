@@ -332,7 +332,7 @@ npx tsc --noEmit
 
 1. This is expected behavior for concurrent edits
 2. Use conflict resolution dialog to choose version or merge
-3. Check version history to see what changed
+3. Open the entity's detail page and scroll to the **Version History** section to see what changed (see [User Guide - Version History](USAGE.md#version-history))
 4. Coordinate with team members to avoid simultaneous edits
 
 ### Error: "Invitation expired" or "Invalid invitation token"

@@ -314,8 +314,14 @@ const BudgetDetailsPageComponent = (): React.JSX.Element => {
         />
       </Box>
 
-      {/* Version History Section */}
-      {id ? <VersionHistoryPanel entityType="Budget" entityId={id} /> : null}
+      {/* Version History Section - pass current budget so only changed fields are shown */}
+      {id ? (
+        <VersionHistoryPanel
+          entityType="Budget"
+          entityId={id}
+          currentData={budget ? (budget as unknown as Record<string, unknown>) : undefined}
+        />
+      ) : null}
     </PageContainer>
   );
 };
