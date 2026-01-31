@@ -399,6 +399,16 @@ You automatically become the **Owner** of the workspace you create.
 - **Admin**: Can invite members, manage settings, edit all data
 - **Member**: Can view and edit transactions, accounts, categories, etc., but cannot manage members
 
+### Renaming a Workspace
+
+Owners and admins can rename a workspace from **Workspace Settings**:
+
+1. Go to **Workspaces** → Select your workspace → **Settings**
+2. At the top of the page, next to the workspace name, tap **Rename**
+3. Enter the new name and save
+
+Members do not see the Rename action; only owners and admins can change the workspace name.
+
 ### Inviting Users to a Workspace
 
 1. Go to **Workspaces** → Select your workspace → **Settings**

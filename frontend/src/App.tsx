@@ -324,6 +324,16 @@ function App(): React.JSX.Element {
                           }
                         />
                         <Route
+                          path="/workspaces/:id/edit"
+                          element={
+                            <ProtectedRouteWithErrorBoundary>
+                              <Layout hideSearch>
+                                <WorkspaceEditPage />
+                              </Layout>
+                            </ProtectedRouteWithErrorBoundary>
+                          }
+                        />
+                        <Route
                           path="/workspaces/:id"
                           element={
                             <ProtectedRouteWithErrorBoundary>

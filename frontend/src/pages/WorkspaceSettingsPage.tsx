@@ -23,7 +23,14 @@ import {
   Tooltip,
 } from '@mui/material';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { PersonAdd, Cancel, PersonRemove, People, MailOutline } from '@mui/icons-material';
+import {
+  PersonAdd,
+  Cancel,
+  PersonRemove,
+  People,
+  MailOutline,
+  DriveFileRenameOutline,
+} from '@mui/icons-material';
 import { GET_ME } from '../graphql/queries';
 import {
   GET_WORKSPACE,
@@ -275,6 +282,38 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
     <PageContainer>
       <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
         <Stack spacing={3}>
+          {/* Workspace details: name and Rename action */}
+          <Card sx={{ mb: 3 }}>
+            <Box sx={{ p: 3 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                }}
+              >
+                <Typography variant="h6" component="h2">
+                  {workspace.name}
+                </Typography>
+                {canManageMembers && id ? (
+                  <Button
+                    variant="outlined"
+                    size="medium"
+                    startIcon={<DriveFileRenameOutline />}
+                    onClick={() => {
+                      void navigate(`/workspaces/${id}/edit`);
+                    }}
+                    aria-label="Rename workspace"
+                  >
+                    Rename
+                  </Button>
+                ) : null}
+              </Box>
+            </Box>
+          </Card>
+
           {/* Members Section */}
           <Card sx={{ mb: 3 }}>
             <Box sx={{ p: 3, pb: 2 }}>

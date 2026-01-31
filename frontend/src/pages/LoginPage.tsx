@@ -3,20 +3,33 @@
  * Initiates OIDC authentication flow
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { Box, Typography, CardContent, Stack, Card } from '@mui/material';
 import { AccountBalance } from '@mui/icons-material';
 import { Button } from '../components/ui/Button';
 import { initiateLogin } from '../utils/oidc';
 import { ErrorAlert } from '../components/common/ErrorAlert';
+import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
 /**
  * Login Page Component
- * Displays login UI and initiates OIDC authentication flow
+ * Displays login UI and initiates OIDC authentication flow.
+ * Redirects to home if already authenticated so back button does not return to login.
  */
 export function LoginPage(): React.JSX.Element {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Redirect authenticated users to home with replace so back button does not return to login
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      void navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   /**
    * Handle login button click
@@ -35,6 +48,22 @@ export function LoginPage(): React.JSX.Element {
       setLoading(false);
     }
   };
+
+  // Show loading while checking auth or while redirecting after login
+  if (isAuthenticated === null || isAuthenticated === true) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <LoadingSpinner message={isAuthenticated === true ? 'Redirecting...' : 'Checking authentication...'} />
+      </Box>
+    );
+  }
 
   return (
     <Box
