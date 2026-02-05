@@ -280,6 +280,12 @@ export interface VersionHistoryPanelProps {
    * Current entity data (from parent). When provided, only changed fields are shown for the latest version.
    */
   currentData?: Record<string, unknown>;
+
+  /**
+   * When true, the panel is not rendered when there are no versions to show (no edit history).
+   * Default false: shows an empty state card when there are no versions.
+   */
+  hideWhenEmpty?: boolean;
 }
 
 /**
@@ -291,6 +297,7 @@ export function VersionHistoryPanel({
   entityId,
   limit = 50,
   currentData,
+  hideWhenEmpty = false,
 }: VersionHistoryPanelProps): React.JSX.Element | null {
   const { dateFormat } = useDateFormat();
   const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(GET_SETTINGS);
@@ -376,6 +383,9 @@ export function VersionHistoryPanel({
       : null;
 
   if (loading) {
+    if (hideWhenEmpty) {
+      return null;
+    }
     return (
       <Card sx={{ p: 3 }} component="section" aria-label="Version history">
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -398,6 +408,9 @@ export function VersionHistoryPanel({
   }
 
   if (error) {
+    if (hideWhenEmpty) {
+      return null;
+    }
     return (
       <Card sx={{ p: 3 }} component="section" aria-label="Version history">
         <ErrorAlert
@@ -409,6 +422,9 @@ export function VersionHistoryPanel({
   }
 
   if (sortedVersions.length === 0 || !hasAnyChangedValue) {
+    if (hideWhenEmpty) {
+      return null;
+    }
     return (
       <Card sx={{ p: 3 }} component="section" aria-label="Version history">
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>

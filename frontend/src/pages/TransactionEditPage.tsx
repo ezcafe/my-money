@@ -337,7 +337,7 @@ export function TransactionEditPage(): React.JSX.Element {
         </Box>
       </Card>
 
-      {/* Version History Section - pass current transaction so only changed fields are shown */}
+      {/* Version History Section - only shown when transaction has edit history */}
       {id ? (
         <VersionHistoryPanel
           entityType="Transaction"
@@ -357,6 +357,7 @@ export function TransactionEditPage(): React.JSX.Element {
                 }
               : undefined
           }
+          hideWhenEmpty
         />
       ) : null}
     </PageContainer>
