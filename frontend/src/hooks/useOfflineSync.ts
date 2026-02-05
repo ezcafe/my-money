@@ -107,6 +107,17 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): {
   }, []);
 
   /**
+   * Run sync when already online with a non-empty queue (e.g. mutation failed while online).
+   * Ensures the "Syncing..." message can complete and hide without requiring an 'online' event.
+   */
+  useEffect(() => {
+    if (!autoSync || !isOnline || queueSize <= 0) {
+      return;
+    }
+    void syncQueue();
+  }, [autoSync, isOnline, queueSize, syncQueue]);
+
+  /**
    * Clear the queue
    */
   const clearQueue = useCallback(async () => {
