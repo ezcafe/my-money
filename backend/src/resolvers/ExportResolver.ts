@@ -99,6 +99,9 @@ export class ExportResolver {
           memberIds,
         } = args;
 
+        // Use finalWorkspaceId so fallback to default workspace is applied to all queries
+        const effectiveWorkspaceId = finalWorkspaceId;
+
         // Build transaction where clause with filters
         const transactionWhere: {
           account: { workspaceId: string };
@@ -110,7 +113,7 @@ export class ExportResolver {
             { createdBy: { in: string[] } } | { lastEditedBy: { in: string[] } }
           >;
         } = {
-          account: { workspaceId },
+          account: { workspaceId: effectiveWorkspaceId },
         };
 
         // Filter by memberIds if provided (createdBy or lastEditedBy)
@@ -154,7 +157,7 @@ export class ExportResolver {
           categoryId?: { in: string[] } | null;
           payeeId?: { in: string[] } | null;
         } = {
-          account: { workspaceId },
+          account: { workspaceId: effectiveWorkspaceId },
         };
 
         if (accountIds && accountIds.length > 0) {
@@ -177,7 +180,7 @@ export class ExportResolver {
             { createdBy: { in: string[] } } | { lastEditedBy: { in: string[] } }
           >;
         } = {
-          workspaceId,
+          workspaceId: effectiveWorkspaceId,
         };
 
         // Filter by memberIds if provided (createdBy or lastEditedBy)
@@ -199,7 +202,9 @@ export class ExportResolver {
         }
 
         // Build where clauses for accounts, categories, payees with memberIds filtering
-        const accountWhere: Prisma.AccountWhereInput = { workspaceId };
+        const accountWhere: Prisma.AccountWhereInput = {
+          workspaceId: effectiveWorkspaceId,
+        };
         if (memberIds && memberIds.length > 0) {
           accountWhere.OR = [
             { createdBy: { in: memberIds } },
@@ -207,7 +212,9 @@ export class ExportResolver {
           ];
         }
 
-        const categoryWhere: Prisma.CategoryWhereInput = { workspaceId };
+        const categoryWhere: Prisma.CategoryWhereInput = {
+          workspaceId: effectiveWorkspaceId,
+        };
         if (memberIds && memberIds.length > 0) {
           categoryWhere.OR = [
             { createdBy: { in: memberIds } },
@@ -215,7 +222,9 @@ export class ExportResolver {
           ];
         }
 
-        const payeeWhere: Prisma.PayeeWhereInput = { workspaceId };
+        const payeeWhere: Prisma.PayeeWhereInput = {
+          workspaceId: effectiveWorkspaceId,
+        };
         if (memberIds && memberIds.length > 0) {
           payeeWhere.OR = [
             { createdBy: { in: memberIds } },
