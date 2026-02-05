@@ -132,16 +132,34 @@ export function useCalculatorState(): UseCalculatorStateReturn {
    */
   const handleBackspace = useCallback(() => {
     setState((prev) => {
-      // If waiting for new value or display is '0', don't do anything
-      if (prev.waitingForNewValue || prev.display === '0') {
-        return prev;
+      // Current operand is already empty and we have an operation: remove the operation and show previousValue (e.g. "0 +" -> "0")
+      if (
+        prev.display === '' &&
+        prev.previousValue !== null &&
+        prev.operation
+      ) {
+        return {
+          ...prev,
+          display: String(prev.previousValue),
+          previousValue: null,
+          operation: null,
+          waitingForNewValue: false,
+        };
       }
 
-      // Remove last character
+      // Remove last character from current operand
       const newDisplay = prev.display.slice(0, -1);
 
-      // If display becomes empty or only contains minus sign, set to '0'
+      // Result is empty or only minus
       if (newDisplay === '' || newDisplay === '-') {
+        // Mid-expression: keep amount visible, show "prev op " (empty current operand)
+        if (prev.previousValue !== null && prev.operation) {
+          return {
+            ...prev,
+            display: '',
+          };
+        }
+        // Single number: hide and reset to '0'
         setShowAmount(false);
         return {
           ...prev,
