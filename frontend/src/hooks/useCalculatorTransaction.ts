@@ -3,7 +3,7 @@
  * Handles transaction creation, auto-selection, and default values
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { CREATE_TRANSACTION } from '../graphql/mutations';
 import { GET_RECENT_TRANSACTIONS } from '../graphql/queries';
@@ -79,25 +79,39 @@ export function useCalculatorTransaction(
     categoryId: autoCategoryId,
   } = useMostUsedTransactionDetails(currentAmount, 90);
 
-  // Initialize selected values with defaults on first load
+  // Refs to apply defaults only when data first becomes available (not when user clears)
+  const hasAccountsDefaultAppliedRef = useRef(false);
+  const hasCategoriesDefaultAppliedRef = useRef(false);
+  const hasPayeesDefaultAppliedRef = useRef(false);
+
+  // Initialize selected values with defaults only when data first loads
   useEffect(() => {
-    // Set default account when accounts are loaded and no account is selected
+    if (hasAccountsDefaultAppliedRef.current) {
+      return;
+    }
     if (accounts.length > 0 && defaultAccountId && selectedAccountId === '') {
       setSelectedAccountId(defaultAccountId);
+      hasAccountsDefaultAppliedRef.current = true;
     }
   }, [accounts, defaultAccountId, selectedAccountId]);
 
   useEffect(() => {
-    // Set default category when categories are loaded and no category is selected
+    if (hasCategoriesDefaultAppliedRef.current) {
+      return;
+    }
     if (categories.length > 0 && defaultCategoryId && selectedCategoryId === '') {
       setSelectedCategoryId(defaultCategoryId);
+      hasCategoriesDefaultAppliedRef.current = true;
     }
   }, [categories, defaultCategoryId, selectedCategoryId]);
 
   useEffect(() => {
-    // Set default payee when payees are loaded and no payee is selected
+    if (hasPayeesDefaultAppliedRef.current) {
+      return;
+    }
     if (payees.length > 0 && defaultPayeeId && selectedPayeeId === '') {
       setSelectedPayeeId(defaultPayeeId);
+      hasPayeesDefaultAppliedRef.current = true;
     }
   }, [payees, defaultPayeeId, selectedPayeeId]);
 
