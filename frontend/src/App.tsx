@@ -30,6 +30,7 @@ import {
   PayeeDetailsPageWrapper,
   BudgetDetailsPageWrapper,
   TransactionEditPageWrapper,
+  TransactionAddPageWrapper,
 } from './components/routes/PageWrappers';
 
 // Lazy load page components for code splitting
@@ -42,9 +43,6 @@ const CategoryEditPage = lazy(() =>
 );
 const PayeeEditPage = lazy(() =>
   import('./pages/PayeeEditPage').then((m) => ({ default: m.PayeeEditPage }))
-);
-const TransactionAddPage = lazy(() =>
-  import('./pages/TransactionAddPage').then((m) => ({ default: m.TransactionAddPage }))
 );
 const ReportPage = lazy(() =>
   import('./pages/ReportPage').then((m) => ({ default: m.ReportPage }))
@@ -270,7 +268,7 @@ function App(): React.JSX.Element {
                           element={
                             <ProtectedRouteWithErrorBoundary>
                               <Layout hideSearch>
-                                <TransactionAddPage />
+                                <TransactionAddPageWrapper />
                               </Layout>
                             </ProtectedRouteWithErrorBoundary>
                           }

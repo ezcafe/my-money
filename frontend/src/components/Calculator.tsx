@@ -62,6 +62,7 @@ export function Calculator(): React.JSX.Element {
     handleBackspace,
     handleTopUsedValueClick,
     handleEquals: calculateResult,
+    getEffectiveAmount,
     reset,
   } = useCalculatorState();
 
@@ -165,6 +166,40 @@ export function Calculator(): React.JSX.Element {
       // Error handled by useCalculatorTransaction hook
     }
   }, [calculateResult, createTransaction]);
+
+  /**
+   * Handle display click - navigate to transaction add page with prefilled values.
+   * Uses getEffectiveAmount() so expressions (e.g. 10 + 5) are calculated before passing.
+   */
+  const handleDisplayClick = useCallback(() => {
+    const amount = getEffectiveAmount();
+    if (amount === null || !Number.isFinite(amount) || amount <= 0) {
+      return;
+    }
+    const state: {
+      amount: number;
+      returnTo: string;
+      accountId?: string;
+      categoryId?: string;
+      payeeId?: string;
+    } = { amount, returnTo: '/' };
+    if (selectedAccountId) {
+      state.accountId = selectedAccountId;
+    }
+    if (selectedCategoryId) {
+      state.categoryId = selectedCategoryId;
+    }
+    if (selectedPayeeId) {
+      state.payeeId = selectedPayeeId;
+    }
+    void navigate('/transactions/add', { state });
+  }, [
+    getEffectiveAmount,
+    navigate,
+    selectedAccountId,
+    selectedCategoryId,
+    selectedPayeeId,
+  ]);
 
   /**
    * Memoized callback for payee change
@@ -332,6 +367,9 @@ export function Calculator(): React.JSX.Element {
             currency={currency}
             onBackspace={handleBackspace}
             onTopUsedValueClick={handleTopUsedValueClick}
+            onDisplayClick={
+              getEffectiveAmount() !== null ? handleDisplayClick : undefined
+            }
           />
 
           <CalculatorPickers

@@ -4,9 +4,11 @@
  * Uses usePageWrapper hook to reduce code duplication
  */
 
-import React from 'react';
-import { useNavigate, useParams } from 'react-router';
+import React, { Suspense } from 'react';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router';
 import { Add } from '@mui/icons-material';
+import { validateReturnUrl } from '../../utils/validation';
+import { LoadingSpinner } from '../common/LoadingSpinner';
 import {
   DELETE_ACCOUNT,
   DELETE_CATEGORY,
@@ -50,6 +52,45 @@ const BudgetDetailsPage = React.lazy(() =>
 const TransactionEditPage = React.lazy(() =>
   import('../../pages/TransactionEditPage').then((m) => ({ default: m.TransactionEditPage }))
 );
+const TransactionAddPage = React.lazy(() =>
+  import('../../pages/TransactionAddPage').then((m) => ({ default: m.TransactionAddPage }))
+);
+
+/**
+ * Location state type for prefilled transaction add (from home keypad)
+ */
+interface TransactionAddLocationState {
+  amount?: number;
+  accountId?: string;
+  categoryId?: string;
+  payeeId?: string;
+  returnTo?: string;
+}
+
+/**
+ * Transaction Add Page Wrapper
+ * Reads location state and search params to pass prefilled props to TransactionAddPage.
+ * Prefilled values (amount, accountId, categoryId, payeeId) come from state only; returnTo from state or search params.
+ */
+export function TransactionAddPageWrapper(): React.JSX.Element {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const state = location.state as TransactionAddLocationState | undefined;
+  const returnTo =
+    state?.returnTo ?? validateReturnUrl(searchParams.get('returnTo'), '/');
+
+  return (
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <TransactionAddPage
+        prefilledAmount={state?.amount}
+        prefilledAccountId={state?.accountId}
+        prefilledCategoryId={state?.categoryId}
+        prefilledPayeeId={state?.payeeId}
+        returnTo={returnTo}
+      />
+    </Suspense>
+  );
+}
 
 /**
  * Schedule Page Wrapper

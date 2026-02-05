@@ -19,6 +19,8 @@ interface CalculatorDisplayProps {
   currency: string;
   onBackspace: () => void;
   onTopUsedValueClick: (value: number) => void;
+  /** Optional: when set and showAmount is true, the amount area is clickable */
+  onDisplayClick?: () => void;
 }
 
 /**
@@ -34,7 +36,25 @@ export function CalculatorDisplay({
   currency,
   onBackspace,
   onTopUsedValueClick,
+  onDisplayClick,
 }: CalculatorDisplayProps): React.JSX.Element {
+  const displayContent = showAmount ? (
+    <Typography
+      variant="h4"
+      component="div"
+      sx={{
+        textAlign: 'right',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+      }}
+    >
+      {previousValue !== null && operation
+        ? `${previousValue} ${operation} ${waitingForNewValue ? '' : display}`
+        : display}
+    </Typography>
+  ) : null;
+
   return (
     <Box
       sx={{
@@ -59,20 +79,31 @@ export function CalculatorDisplay({
         }}
       >
         {showAmount ? (
-          <Typography
-            variant="h4"
-            component="div"
-            sx={{
-              textAlign: 'right',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-            }}
-          >
-            {previousValue !== null && operation
-              ? `${previousValue} ${operation} ${waitingForNewValue ? '' : display}`
-              : display}
-          </Typography>
+          onDisplayClick ? (
+            <Box
+              component="button"
+              type="button"
+              role="button"
+              onClick={onDisplayClick}
+              sx={{
+                cursor: 'pointer',
+                border: 'none',
+                background: 'none',
+                padding: 0,
+                font: 'inherit',
+                color: 'inherit',
+                textAlign: 'right',
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+              }}
+            >
+              {displayContent}
+            </Box>
+          ) : (
+            displayContent
+          )
         ) : (
           topUsedValues.length > 0 && (
             <Stack

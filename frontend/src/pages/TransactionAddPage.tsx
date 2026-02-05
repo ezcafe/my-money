@@ -3,8 +3,8 @@
  * Page for adding new transactions with optional recurring transaction support
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router';
 import {
   Box,
   Typography,
@@ -49,13 +49,39 @@ import type { Account } from '../hooks/useAccounts';
 import type { Category } from '../hooks/useCategories';
 
 /**
- * Transaction Add Page Component
+ * Optional props passed by TransactionAddPageWrapper (from location state or search params).
+ * Prefilled values are not read from search params inside this page.
  */
-export function TransactionAddPage(): React.JSX.Element {
+export interface TransactionAddPageProps {
+  /** Prefilled amount (e.g. from home keypad display click) */
+  prefilledAmount?: number;
+  /** Prefilled account id */
+  prefilledAccountId?: string;
+  /** Prefilled category id */
+  prefilledCategoryId?: string;
+  /** Prefilled payee id */
+  prefilledPayeeId?: string;
+  /** Return URL after save (from wrapper: state or search param returnTo) */
+  returnTo?: string;
+}
+
+/**
+ * Transaction Add Page Component
+ * Accepts optional prefilled props from wrapper. Recurring section shown only when returnTo === '/schedule'.
+ */
+export function TransactionAddPage({
+  prefilledAmount,
+  prefilledAccountId,
+  prefilledCategoryId,
+  prefilledPayeeId,
+  returnTo: returnToProp,
+}: TransactionAddPageProps = {}): React.JSX.Element {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const returnTo = validateReturnUrl(searchParams.get('returnTo'), '/');
+  const returnTo = validateReturnUrl(returnToProp, '/');
   const { setTitle } = useHeader();
+
+  /** Show Recurring section only when navigated from schedule page */
+  const showRecurring = returnTo === '/schedule';
 
   const { accounts } = useAccounts();
   const { data: combinedData } = useQuery<{
@@ -67,7 +93,10 @@ export function TransactionAddPage(): React.JSX.Element {
     () => sortCategoriesByTypeAndName((combinedData?.categories ?? []) as Category[]),
     [combinedData?.categories]
   );
-  const payees = combinedData?.payees ?? [];
+  const payees = useMemo(
+    () => combinedData?.payees ?? [],
+    [combinedData?.payees]
+  );
 
   // State declarations must come before they are used
   const [value, setValue] = useState<string>('');
@@ -80,6 +109,7 @@ export function TransactionAddPage(): React.JSX.Element {
   const [payeeId, setPayeeId] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState<boolean>(true);
+  const prefilledAppliedRef = useRef<boolean>(false);
   const [recurringType, setRecurringType] = useState<RecurringType>('monthly');
   const [nextRunDate, setNextRunDate] = useState<Dayjs | null>(dayjs().add(1, 'day'));
   const [alsoCreateNow, setAlsoCreateNow] = useState<boolean>(false);
@@ -89,7 +119,52 @@ export function TransactionAddPage(): React.JSX.Element {
   const [valueError, setValueError] = useState<string | null>(null);
   const [accountError, setAccountError] = useState<string | null>(null);
 
-  // Set default account if available
+  // Apply prefilled props once when data is loaded (only set ids that exist in lists)
+  useEffect(() => {
+    if (prefilledAppliedRef.current) {
+      return;
+    }
+    const hasPrefilled =
+      prefilledAmount != null ||
+      prefilledAccountId != null ||
+      prefilledCategoryId != null ||
+      prefilledPayeeId != null;
+    if (!hasPrefilled) {
+      return;
+    }
+    if (prefilledAmount != null && Number.isFinite(prefilledAmount)) {
+      setValue(String(prefilledAmount));
+    }
+    if (
+      prefilledAccountId != null &&
+      accounts.some((acc) => acc.id === prefilledAccountId)
+    ) {
+      setAccountId(prefilledAccountId);
+    }
+    if (
+      prefilledCategoryId != null &&
+      categories.some((cat) => cat.id === prefilledCategoryId)
+    ) {
+      setCategoryId(prefilledCategoryId);
+    }
+    if (
+      prefilledPayeeId != null &&
+      payees.some((p) => p.id === prefilledPayeeId)
+    ) {
+      setPayeeId(prefilledPayeeId);
+    }
+    prefilledAppliedRef.current = true;
+  }, [
+    prefilledAmount,
+    prefilledAccountId,
+    prefilledCategoryId,
+    prefilledPayeeId,
+    accounts,
+    categories,
+    payees,
+  ]);
+
+  // Set default account if available (when no prefilled account)
   useEffect(() => {
     if (accounts.length > 0 && !accountId) {
       const defaultAccount = accounts.find((acc) => acc.isDefault) ?? accounts[0];
@@ -226,7 +301,8 @@ export function TransactionAddPage(): React.JSX.Element {
         return;
       }
 
-      if (isRecurring) {
+      // When not from schedule (showRecurring false), always create single transaction
+      if (showRecurring && isRecurring) {
         if (!nextRunDate) {
           setError('Next run date is required for recurring transactions');
           setIsSubmitting(false);
@@ -278,7 +354,7 @@ export function TransactionAddPage(): React.JSX.Element {
           console.error('Error creating recurring transaction:', err);
         }
       } else {
-        // Create regular transaction
+        // Single transaction (from home, direct URL, or recurring form set to one-time)
         try {
           const transactionInput = {
             value: numValue,
@@ -425,52 +501,61 @@ export function TransactionAddPage(): React.JSX.Element {
             rows={3}
           />
 
-          <FormControlLabel
-            control={
-              <Switch checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
-            }
-            label="Recurring Transaction"
-          />
-
-          {isRecurring ? (
+          {showRecurring ? (
             <>
-              <MobileSelect<{ value: RecurringType; label: string }>
-                value={recurringTypeOptions.find((opt) => opt.value === recurringType) ?? null}
-                options={recurringTypeOptions}
-                onChange={(option) => {
-                  if (option) {
-                    const newType = option.value;
-                    setRecurringType(newType);
-                    if (newType === 'minutely') {
-                      setNextRunDate(dayjs().add(1, 'minute'));
-                    }
-                  }
-                }}
-                getOptionLabel={(option) => option.label}
-                getOptionId={(option) => option.value}
-                label="Recurring Type"
-              />
-
-              <Box>
-                <Button
-                  variant="outlined"
-                  onClick={handleDatePickerOpen}
-                  startIcon={<CalendarToday />}
-                  sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
-                >
-                  {nextRunDateText}
-                </Button>
-              </Box>
-
               <FormControlLabel
                 control={
-                  <Checkbox
-                    checked={alsoCreateNow}
-                    onChange={(e) => setAlsoCreateNow(e.target.checked)}
+                  <Switch
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
                   />
                 }
-                label="Also create transaction now"
+                label="Recurring Transaction"
               />
+
+              {isRecurring ? (
+                <>
+                  <MobileSelect<{ value: RecurringType; label: string }>
+                    value={
+                      recurringTypeOptions.find((opt) => opt.value === recurringType) ?? null
+                    }
+                    options={recurringTypeOptions}
+                    onChange={(option) => {
+                      if (option) {
+                        const newType = option.value;
+                        setRecurringType(newType);
+                        if (newType === 'minutely') {
+                          setNextRunDate(dayjs().add(1, 'minute'));
+                        }
+                      }
+                    }}
+                    getOptionLabel={(option) => option.label}
+                    getOptionId={(option) => option.value}
+                    label="Recurring Type"
+                  />
+
+                  <Box>
+                    <Button
+                      variant="outlined"
+                      onClick={handleDatePickerOpen}
+                      startIcon={<CalendarToday />}
+                      sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+                    >
+                      {nextRunDateText}
+                    </Button>
+                  </Box>
+
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={alsoCreateNow}
+                        onChange={(e) => setAlsoCreateNow(e.target.checked)}
+                      />
+                    }
+                    label="Also create transaction now"
+                  />
+                </>
+              ) : null}
             </>
           ) : null}
 

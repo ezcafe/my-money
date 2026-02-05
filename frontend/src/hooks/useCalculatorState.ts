@@ -26,8 +26,41 @@ export interface UseCalculatorStateReturn {
   handleBackspace: () => void;
   handleTopUsedValueClick: (value: number) => void;
   handleEquals: () => number | null;
+  getEffectiveAmount: () => number | null;
   reset: () => void;
   setShowAmount: (show: boolean) => void;
+}
+
+/**
+ * Pure helper: compute result from calculator state without mutating.
+ * @param display - Current display string
+ * @param previousValue - Previous operand (if in expression)
+ * @param operation - Current operation (if in expression)
+ * @returns Computed result or null if invalid
+ */
+function computeResult(
+  display: string,
+  previousValue: number | null,
+  operation: string | null
+): number | null {
+  const currentValue = parseFloat(display);
+
+  if (previousValue !== null && operation) {
+    switch (operation) {
+      case '+':
+        return previousValue + currentValue;
+      case '-':
+        return previousValue - currentValue;
+      case '*':
+        return previousValue * currentValue;
+      case '/':
+        return previousValue / currentValue;
+      default:
+        return currentValue;
+    }
+  }
+
+  return currentValue;
 }
 
 /**
@@ -188,6 +221,28 @@ export function useCalculatorState(): UseCalculatorStateReturn {
   }, []);
 
   /**
+   * Get effective amount (calculated result) without mutating state.
+   * When display shows an operation (e.g. 10 + 5), returns the computed result (15).
+   * @returns Effective amount or null if invalid
+   */
+  const getEffectiveAmount = useCallback((): number | null => {
+    const result = computeResult(
+      state.display,
+      state.previousValue,
+      state.operation
+    );
+    if (
+      result === null ||
+      Number.isNaN(result) ||
+      !Number.isFinite(result) ||
+      result <= 0
+    ) {
+      return null;
+    }
+    return result;
+  }, [state.display, state.previousValue, state.operation]);
+
+  /**
    * Handle equals - calculates result and returns it
    * @returns Calculated result or null if invalid
    */
@@ -195,28 +250,7 @@ export function useCalculatorState(): UseCalculatorStateReturn {
     let result: number | null = null;
 
     setState((prev) => {
-      const currentValue = parseFloat(prev.display);
-
-      if (prev.previousValue !== null && prev.operation) {
-        switch (prev.operation) {
-          case '+':
-            result = prev.previousValue + currentValue;
-            break;
-          case '-':
-            result = prev.previousValue - currentValue;
-            break;
-          case '*':
-            result = prev.previousValue * currentValue;
-            break;
-          case '/':
-            result = prev.previousValue / currentValue;
-            break;
-          default:
-            result = currentValue;
-        }
-      } else {
-        result = currentValue;
-      }
+      result = computeResult(prev.display, prev.previousValue, prev.operation);
 
       if (result === null || Number.isNaN(result) || !Number.isFinite(result)) {
         return prev;
@@ -254,6 +288,7 @@ export function useCalculatorState(): UseCalculatorStateReturn {
     handleBackspace,
     handleTopUsedValueClick,
     handleEquals,
+    getEffectiveAmount,
     reset,
     setShowAmount,
   };
