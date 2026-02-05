@@ -5,14 +5,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import {
-  Box,
-  Typography,
-  Switch,
-  FormControlLabel,
-  Popover,
-  Checkbox,
-} from '@mui/material';
+import { Box, Typography, Switch, FormControlLabel, Popover, Checkbox } from '@mui/material';
 import { CalendarToday } from '@mui/icons-material';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -93,10 +86,7 @@ export function TransactionAddPage({
     () => sortCategoriesByTypeAndName((combinedData?.categories ?? []) as Category[]),
     [combinedData?.categories]
   );
-  const payees = useMemo(
-    () => combinedData?.payees ?? [],
-    [combinedData?.payees]
-  );
+  const payees = useMemo(() => combinedData?.payees ?? [], [combinedData?.payees]);
 
   // State declarations must come before they are used
   const [value, setValue] = useState<string>('');
@@ -135,22 +125,13 @@ export function TransactionAddPage({
     if (prefilledAmount != null && Number.isFinite(prefilledAmount)) {
       setValue(String(prefilledAmount));
     }
-    if (
-      prefilledAccountId != null &&
-      accounts.some((acc) => acc.id === prefilledAccountId)
-    ) {
+    if (prefilledAccountId != null && accounts.some((acc) => acc.id === prefilledAccountId)) {
       setAccountId(prefilledAccountId);
     }
-    if (
-      prefilledCategoryId != null &&
-      categories.some((cat) => cat.id === prefilledCategoryId)
-    ) {
+    if (prefilledCategoryId != null && categories.some((cat) => cat.id === prefilledCategoryId)) {
       setCategoryId(prefilledCategoryId);
     }
-    if (
-      prefilledPayeeId != null &&
-      payees.some((p) => p.id === prefilledPayeeId)
-    ) {
+    if (prefilledPayeeId != null && payees.some((p) => p.id === prefilledPayeeId)) {
       setPayeeId(prefilledPayeeId);
     }
     prefilledAppliedRef.current = true;
@@ -516,9 +497,7 @@ export function TransactionAddPage({
               {isRecurring ? (
                 <>
                   <MobileSelect<{ value: RecurringType; label: string }>
-                    value={
-                      recurringTypeOptions.find((opt) => opt.value === recurringType) ?? null
-                    }
+                    value={recurringTypeOptions.find((opt) => opt.value === recurringType) ?? null}
                     options={recurringTypeOptions}
                     onChange={(option) => {
                       if (option) {

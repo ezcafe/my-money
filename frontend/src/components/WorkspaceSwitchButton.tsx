@@ -49,7 +49,11 @@ export function WorkspaceSwitchButton(): React.JSX.Element | null {
   });
 
   // Fetch budgets for current workspace
-  const { data: budgetsData, loading: budgetsLoading, refetch: refetchBudgets } = useQuery<{
+  const {
+    data: budgetsData,
+    loading: budgetsLoading,
+    refetch: refetchBudgets,
+  } = useQuery<{
     budgets: Array<{
       amount: string;
       currentSpent: string;

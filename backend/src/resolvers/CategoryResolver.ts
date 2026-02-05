@@ -51,7 +51,10 @@ export class CategoryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -69,7 +72,8 @@ export class CategoryResolver extends BaseResolver {
     );
     const categories = await withPrismaErrorHandling(
       async () => {
-        const categoriesList = await categoryRepository.findMany(finalWorkspaceId);
+        const categoriesList =
+          await categoryRepository.findMany(finalWorkspaceId);
         // Get transaction counts for each category
         const categoriesWithCounts = await Promise.all(
           categoriesList.map(async (category) => {
@@ -124,7 +128,10 @@ export class CategoryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -170,7 +177,10 @@ export class CategoryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -185,7 +195,8 @@ export class CategoryResolver extends BaseResolver {
     );
 
     // Check if category with same name already exists in this workspace
-    const existingCategory = await categoryRepository.findMany(finalWorkspaceId);
+    const existingCategory =
+      await categoryRepository.findMany(finalWorkspaceId);
     const nameExists = existingCategory.some(
       (cat) => cat.name === validatedInput.name
     );
@@ -245,7 +256,10 @@ export class CategoryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -259,7 +273,10 @@ export class CategoryResolver extends BaseResolver {
     const categoryRepository = getContainer().getCategoryRepository(
       context.prisma
     );
-    const existingCategory = await categoryRepository.findById(id, finalWorkspaceId);
+    const existingCategory = await categoryRepository.findById(
+      id,
+      finalWorkspaceId
+    );
 
     if (!existingCategory) {
       throw new NotFoundError('Category');
@@ -295,7 +312,8 @@ export class CategoryResolver extends BaseResolver {
 
     // Check name uniqueness if name is being updated
     if (validatedInput.name && validatedInput.name !== existingCategory.name) {
-      const existingCategories = await categoryRepository.findMany(finalWorkspaceId);
+      const existingCategories =
+        await categoryRepository.findMany(finalWorkspaceId);
       const nameExists = existingCategories.some(
         (cat) => cat.id !== id && cat.name === validatedInput.name
       );
@@ -340,7 +358,10 @@ export class CategoryResolver extends BaseResolver {
     });
 
     // Fetch updated category
-    const updatedCategory = await categoryRepository.findById(id, finalWorkspaceId);
+    const updatedCategory = await categoryRepository.findById(
+      id,
+      finalWorkspaceId
+    );
 
     if (!updatedCategory) {
       throw new NotFoundError('Category');

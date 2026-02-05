@@ -341,7 +341,9 @@ const ImportMappingTableComponent = ({
                         options={sortedCategories}
                         getOptionLabel={(option) => option.name}
                         groupBy={(option) => getCategoryTypeLabel(option.categoryType)}
-                        value={sortedCategories.find((cat) => cat.id === mapping.categoryId) ?? null}
+                        value={
+                          sortedCategories.find((cat) => cat.id === mapping.categoryId) ?? null
+                        }
                         onChange={(_, value): void => {
                           onMappingChange(desc, 'categoryId', value?.id ?? '');
                         }}

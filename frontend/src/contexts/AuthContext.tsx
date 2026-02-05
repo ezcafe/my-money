@@ -3,7 +3,14 @@
  * Manages global authentication state to prevent unauthorized queries
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from 'react';
 import { isAuthenticated } from '../utils/oidc';
 
 /**

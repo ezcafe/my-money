@@ -133,11 +133,9 @@ export function createApolloServer(
           }
           const hasOrig =
             'originalError' in error &&
-            (error as { originalError: unknown }).originalError instanceof AppError;
-          if (
-            (code == null || statusCode == null) &&
-            hasOrig
-          ) {
+            (error as { originalError: unknown }).originalError instanceof
+              AppError;
+          if ((code == null || statusCode == null) && hasOrig) {
             const orig = (error as { originalError: AppError }).originalError;
             code = orig.code;
             statusCode = orig.statusCode;
@@ -163,7 +161,8 @@ export function createApolloServer(
             ) {
               msg = (error as { message: string }).message;
             } else if (ext && hasOrig) {
-              msg = (error as { originalError: AppError }).originalError.message;
+              msg = (error as { originalError: AppError }).originalError
+                .message;
             }
             return new GraphQLError(msg.slice(0, 500), {
               extensions: { ...ext, code, statusCode },

@@ -83,6 +83,15 @@ Two deployment styles are supported:
 - `MAX_FILE_SIZE` - Maximum file upload size in bytes (default: 10485760 for 10MB)
 - `SUBSCRIPTION_PATH` - WebSocket path for GraphQL subscriptions (default: `/graphql-ws`)
 
+**Optional Auth Rate Limiting (per IP):**
+
+- `AUTH_RATE_LIMIT_LOGIN` - Max login (GET /auth/callback) requests per window (default: 5 prod, 200 dev)
+- `AUTH_RATE_LIMIT_REFRESH` - Max refresh and logout requests per window (default: 30 prod, 500 dev)
+- `AUTH_RATE_LIMIT_WINDOW_MS` - Auth rate limit window in ms (default: 60000)
+- `AUTH_FAILED_MAX` - Failed login attempts before lockout (default: 5)
+- `AUTH_FAILED_WINDOW_MS` - Window for counting failed attempts in ms (default: 900000, 15 min)
+- `AUTH_LOCKOUT_MS` - Lockout duration in ms after AUTH_FAILED_MAX failures (default: 900000, 15 min)
+
 **Optional Frontend Variables:**
 
 - `REACT_APP_ENABLE_SERVICE_WORKER` - Enable PWA service worker (default: true)
@@ -310,7 +319,6 @@ Cloudflare Tunnel provides secure, zero-trust access to your application without
    **Note:** Replace `app.example.com` and `api.example.com` with your actual domains. Adjust ports if you've changed `FRONTEND_PORT` or `BACKEND_PORT`. For split-domain, OIDC redirect URI is `https://api.example.com/auth/callback` (backend handles the callback).
 
 5. **Create DNS records in Cloudflare:**
-
    - Go to Cloudflare Dashboard → DNS → Records
    - **Option A:** Add one CNAME record for `app.example.com` pointing to `<your-tunnel-id>.cfargotunnel.com`
    - **Option B:** Add CNAME records for `app.example.com` and `api.example.com` pointing to `<your-tunnel-id>.cfargotunnel.com`
@@ -399,7 +407,6 @@ REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
    ```
 
 3. **Verify application is accessible:**
-
    - **Option A:** Frontend and API: https://app.example.com (GraphQL: https://app.example.com/graphql, health: https://app.example.com/health)
    - **Option B:** Frontend: https://app.example.com; Backend GraphQL: https://api.example.com/graphql; Health: https://api.example.com/health
 
@@ -420,21 +427,25 @@ REACT_APP_GRAPHQL_URL=https://api.example.com/graphql
 #### Troubleshooting Cloudflare Tunnel
 
 - **Check tunnel status:**
+
   ```bash
   cloudflared tunnel info <tunnel-name>
   ```
 
 - **View tunnel logs:**
+
   ```bash
   sudo journalctl -u cloudflared -f
   ```
 
 - **Test tunnel connectivity:**
+
   ```bash
   curl -H "Host: app.example.com" http://localhost:3000
   ```
 
 - **Verify DNS records:**
+
   ```bash
   dig app.example.com CNAME
   ```

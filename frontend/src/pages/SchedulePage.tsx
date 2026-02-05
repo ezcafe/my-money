@@ -91,9 +91,7 @@ export function SchedulePage(): React.JSX.Element {
     refetchFunctions: [refetch],
   });
 
-  const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(
-    GET_SETTINGS
-  );
+  const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(GET_SETTINGS);
   const currency = settingsData?.settings?.currency ?? 'USD';
   const { dateFormat } = useDateFormat();
 

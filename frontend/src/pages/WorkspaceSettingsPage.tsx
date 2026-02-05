@@ -171,8 +171,7 @@ export function WorkspaceSettingsPage(): React.JSX.Element {
 
   const currentUserMember = members.find((m) => m.userId === currentUserId);
   const currentUserRole = currentUserMember?.role;
-  const canManageMembers =
-    currentUserRole === 'Owner' || currentUserRole === 'Admin';
+  const canManageMembers = currentUserRole === 'Owner' || currentUserRole === 'Admin';
 
   useEffect(() => {
     if (workspace) {

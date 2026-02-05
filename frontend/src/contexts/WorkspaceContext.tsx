@@ -3,7 +3,14 @@
  * Manages the global active workspace state
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  type ReactNode,
+} from 'react';
 import { client } from '../graphql/client';
 
 /**

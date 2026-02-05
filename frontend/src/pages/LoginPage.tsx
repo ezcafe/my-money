@@ -60,7 +60,9 @@ export function LoginPage(): React.JSX.Element {
           minHeight: '100vh',
         }}
       >
-        <LoadingSpinner message={isAuthenticated === true ? 'Redirecting...' : 'Checking authentication...'} />
+        <LoadingSpinner
+          message={isAuthenticated === true ? 'Redirecting...' : 'Checking authentication...'}
+        />
       </Box>
     );
   }

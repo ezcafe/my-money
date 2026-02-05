@@ -55,9 +55,7 @@ const AccountDetailsPageComponent = (): React.JSX.Element => {
   const { setTitle } = useHeader();
 
   // Get currency setting
-  const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(
-    GET_SETTINGS
-  );
+  const { data: settingsData } = useQuery<{ settings?: { currency: string } }>(GET_SETTINGS);
   const currency = settingsData?.settings?.currency ?? 'USD';
 
   // Build orderBy object

@@ -30,10 +30,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { Card } from '../components/ui/Card';
 import { TextField } from '../components/ui/TextField';
 import { PageContainer } from '../components/common/PageContainer';
-import {
-  getAccountTypeLabel,
-  getCategoryTypeLabel,
-} from '../utils/groupSelectOptions';
+import { getAccountTypeLabel, getCategoryTypeLabel } from '../utils/groupSelectOptions';
 import { useWorkspaceRefetch, useDialog } from '../hooks';
 import { MobileSelect } from '../components/ui/MobileSelect';
 
@@ -268,41 +265,41 @@ export function BudgetsPage(): React.JSX.Element {
                     },
                   }}
                 >
-                    <ListItemText
-                      primary={
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                          <AttachMoney fontSize="small" color="primary" />
-                          <Typography variant="body1" fontWeight={500}>
-                            {getBudgetName(safeBudget)}
+                  <ListItemText
+                    primary={
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                        <AttachMoney fontSize="small" color="primary" />
+                        <Typography variant="body1" fontWeight={500}>
+                          {getBudgetName(safeBudget)}
+                        </Typography>
+                        <Chip
+                          label={getBudgetTypeLabel(safeBudget)}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </Stack>
+                    }
+                    secondary={
+                      <Box>
+                        <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {spent.toFixed(2)} / {total.toFixed(2)}
                           </Typography>
-                          <Chip
-                            label={getBudgetTypeLabel(safeBudget)}
-                            size="small"
-                            variant="outlined"
-                          />
+                          <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                            {percentage.toFixed(1)}%
+                          </Typography>
                         </Stack>
-                      }
-                      secondary={
-                        <Box>
-                          <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary">
-                              {spent.toFixed(2)} / {total.toFixed(2)}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                              {percentage.toFixed(1)}%
-                            </Typography>
-                          </Stack>
-                          <LinearProgress
-                            variant="determinate"
-                            value={Math.min(percentage, 100)}
-                            color={getProgressColor(percentage)}
-                            sx={{ height: 8, borderRadius: 1 }}
-                          />
-                        </Box>
-                      }
-                      primaryTypographyProps={{ component: 'div' }}
-                      secondaryTypographyProps={{ component: 'div' }}
-                    />
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(percentage, 100)}
+                          color={getProgressColor(percentage)}
+                          sx={{ height: 8, borderRadius: 1 }}
+                        />
+                      </Box>
+                    }
+                    primaryTypographyProps={{ component: 'div' }}
+                    secondaryTypographyProps={{ component: 'div' }}
+                  />
                 </ListItemButton>
               </React.Fragment>
             );

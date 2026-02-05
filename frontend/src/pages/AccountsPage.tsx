@@ -5,7 +5,16 @@
  */
 
 import React, { memo, useTransition } from 'react';
-import { Typography, List, ListItemButton, ListItemText, ListItemIcon, Divider, Chip, Stack } from '@mui/material';
+import {
+  Typography,
+  List,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+  Chip,
+  Stack,
+} from '@mui/material';
 import { useNavigate } from 'react-router';
 import { AccountBalance, Star, ChevronRight } from '@mui/icons-material';
 import { useAccounts } from '../hooks/useAccounts';

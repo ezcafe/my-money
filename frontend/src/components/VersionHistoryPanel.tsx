@@ -72,7 +72,10 @@ function safeString(val: unknown): string {
   if (typeof val === 'string') return val;
   if (typeof val === 'number' || typeof val === 'boolean') return String(val);
   if (val instanceof Date) return val.toISOString();
-  if (typeof val === 'object' && typeof (val as { toString?: () => string }).toString === 'function')
+  if (
+    typeof val === 'object' &&
+    typeof (val as { toString?: () => string }).toString === 'function'
+  )
     return (val as { toString: () => string }).toString();
   return '[object]';
 }
@@ -117,10 +120,8 @@ function formatAfterValue(
 ): string {
   const { dateFormat } = options;
   if (rawAfter === undefined || rawAfter === null) return '';
-  if (key === 'accountType')
-    return getAccountTypeLabel(rawAfter as Account['accountType']);
-  if (key === 'categoryType')
-    return getCategoryTypeLabel(rawAfter as Category['categoryType']);
+  if (key === 'accountType') return getAccountTypeLabel(rawAfter as Account['accountType']);
+  if (key === 'categoryType') return getCategoryTypeLabel(rawAfter as Category['categoryType']);
   if (typeof rawAfter === 'boolean') return rawAfter ? 'Yes' : 'No';
   const str = safeString(rawAfter);
   if (label.toLowerCase().includes('date') || key === 'date' || key === 'lastResetDate')
@@ -163,7 +164,9 @@ function getVersionDataDisplayFields(
       afterData && rawAfter !== undefined && rawAfter !== null
         ? formatAfterValue(key, label, rawAfter, { dateFormat })
         : undefined;
-    rows.push(valueAfter !== undefined ? { label, value: display, valueAfter } : { label, value: display });
+    rows.push(
+      valueAfter !== undefined ? { label, value: display, valueAfter } : { label, value: display }
+    );
   };
 
   const addCurrency = (key: string, label: string, val: unknown): void => {
@@ -199,9 +202,7 @@ function getVersionDataDisplayFields(
     if (!shouldShowField(val, afterData, key)) return;
     if (val === undefined || val === null) return;
     const valueAfter =
-      afterData?.[key] !== undefined
-        ? truncateId(safeString(afterData[key]))
-        : undefined;
+      afterData?.[key] !== undefined ? truncateId(safeString(afterData[key])) : undefined;
     rows.push(
       valueAfter !== undefined
         ? { label, value: truncateId(safeString(val)), valueAfter }
@@ -337,8 +338,7 @@ export function VersionHistoryPanel({
     for (let i = 0; i < sortedVersions.length; i += 1) {
       const version = sortedVersions[i];
       if (!version) continue;
-      const afterData =
-        i === 0 ? currentData : sortedVersions[i - 1]?.data;
+      const afterData = i === 0 ? currentData : sortedVersions[i - 1]?.data;
       const fields = getVersionDataDisplayFields(
         entityType,
         version.data,
@@ -348,13 +348,7 @@ export function VersionHistoryPanel({
       if (fields.length > 0) return true;
     }
     return false;
-  }, [
-    sortedVersions,
-    entityType,
-    currency,
-    dateFormat,
-    currentData,
-  ]);
+  }, [sortedVersions, entityType, currency, dateFormat, currentData]);
 
   /** Group versions by time (Today, Yesterday, This week, etc.) */
   const versionsByGroup = useMemo(() => {
@@ -366,21 +360,14 @@ export function VersionHistoryPanel({
       else map.set(group, [v]);
     }
     const order = ['Today', 'Yesterday', 'This week', 'This month', 'Older'];
-    return order
-      .filter((g) => map.has(g))
-      .map((g) => ({ label: g, versions: map.get(g) ?? [] }));
+    return order.filter((g) => map.has(g)).map((g) => ({ label: g, versions: map.get(g) ?? [] }));
   }, [sortedVersions]);
 
   /** Flattened list for afterData lookup (newest first) */
-  const flatVersions = useMemo(
-    () => versionsByGroup.flatMap((g) => g.versions),
-    [versionsByGroup]
-  );
+  const flatVersions = useMemo(() => versionsByGroup.flatMap((g) => g.versions), [versionsByGroup]);
 
   const lastUpdated =
-    sortedVersions[0]?.editedAt != null
-      ? formatRelativeTime(sortedVersions[0].editedAt)
-      : null;
+    sortedVersions[0]?.editedAt != null ? formatRelativeTime(sortedVersions[0].editedAt) : null;
 
   if (loading) {
     if (hideWhenEmpty) {
@@ -413,10 +400,7 @@ export function VersionHistoryPanel({
     }
     return (
       <Card sx={{ p: 3 }} component="section" aria-label="Version history">
-        <ErrorAlert
-          title="Error Loading Version History"
-          message={getErrorMessage(error)}
-        />
+        <ErrorAlert title="Error Loading Version History" message={getErrorMessage(error)} />
       </Card>
     );
   }
@@ -499,8 +483,7 @@ export function VersionHistoryPanel({
                   .slice(0, groupIndex)
                   .reduce((acc, g) => acc + g.versions.length, 0) + index;
               const isCurrent = flatIndex === 0;
-              const afterData =
-                flatIndex === 0 ? currentData : flatVersions[flatIndex - 1]?.data;
+              const afterData = flatIndex === 0 ? currentData : flatVersions[flatIndex - 1]?.data;
               const fields = getVersionDataDisplayFields(
                 entityType,
                 version.data,
@@ -559,7 +542,10 @@ export function VersionHistoryPanel({
                         {version.editor.email}
                       </Typography>
                       {fields.length > 0 ? (
-                        <Box component="dl" sx={{ m: 0, mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                        <Box
+                          component="dl"
+                          sx={{ m: 0, mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}
+                        >
                           {fields.map(({ label, value, valueAfter }) => (
                             <Box
                               key={label}

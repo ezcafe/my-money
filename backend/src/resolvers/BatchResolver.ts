@@ -125,7 +125,10 @@ export class BatchResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -189,7 +192,9 @@ export class BatchResolver extends BaseResolver {
     });
 
     // Invalidate cache for all accounts in workspace
-    await postgresCache.invalidateByTags([CACHE_TAGS.ACCOUNTS(finalWorkspaceId)]);
+    await postgresCache.invalidateByTags([
+      CACHE_TAGS.ACCOUNTS(finalWorkspaceId),
+    ]);
 
     return result;
   }
@@ -216,7 +221,10 @@ export class BatchResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -299,7 +307,9 @@ export class BatchResolver extends BaseResolver {
     });
 
     // Invalidate cache for all accounts in workspace
-    await postgresCache.invalidateByTags([CACHE_TAGS.ACCOUNTS(finalWorkspaceId)]);
+    await postgresCache.invalidateByTags([
+      CACHE_TAGS.ACCOUNTS(finalWorkspaceId),
+    ]);
 
     return result;
   }
@@ -326,7 +336,10 @@ export class BatchResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -413,7 +426,10 @@ export class BatchResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -516,7 +532,10 @@ export class BatchResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -602,7 +621,10 @@ export class BatchResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -698,7 +720,10 @@ export class BatchResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -808,7 +833,10 @@ export class BatchResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace

@@ -76,8 +76,7 @@ export function TransactionAddPageWrapper(): React.JSX.Element {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const state = location.state as TransactionAddLocationState | undefined;
-  const returnTo =
-    state?.returnTo ?? validateReturnUrl(searchParams.get('returnTo'), '/');
+  const returnTo = state?.returnTo ?? validateReturnUrl(searchParams.get('returnTo'), '/');
 
   return (
     <Suspense fallback={<LoadingSpinner message="Loading..." />}>

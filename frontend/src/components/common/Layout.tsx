@@ -32,7 +32,11 @@ function LayoutComponent({
 }: LayoutProps): React.JSX.Element {
   const isHomePage = window.location.pathname === '/';
   const { openSearch, closeSearch, isSearchOpen } = useSearch();
-  const { title: contextTitle, actionButton: contextActionButton, contextMenu: contextContextMenu } = useHeader();
+  const {
+    title: contextTitle,
+    actionButton: contextActionButton,
+    contextMenu: contextContextMenu,
+  } = useHeader();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   // Use context values if available, otherwise fall back to prop values

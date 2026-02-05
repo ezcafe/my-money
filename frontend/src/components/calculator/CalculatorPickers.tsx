@@ -6,10 +6,7 @@
 import React from 'react';
 import Grid from '@mui/material/Grid2';
 import { MobileSelect } from '../ui/MobileSelect';
-import {
-  getAccountTypeLabel,
-  getCategoryTypeLabel,
-} from '../../utils/groupSelectOptions';
+import { getAccountTypeLabel, getCategoryTypeLabel } from '../../utils/groupSelectOptions';
 import type { Account } from '../../hooks/useAccounts';
 import type { Category } from '../../hooks/useCategories';
 

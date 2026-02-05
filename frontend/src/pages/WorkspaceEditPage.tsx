@@ -26,10 +26,7 @@ interface WorkspaceData {
 export function WorkspaceEditPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
 
-  const config: EntityEditFormConfig<
-    WorkspaceData,
-    { name: string }
-  > = {
+  const config: EntityEditFormConfig<WorkspaceData, { name: string }> = {
     entityType: 'Workspace',
     defaultReturnUrl: '/workspaces',
     getQuery: GET_WORKSPACE,

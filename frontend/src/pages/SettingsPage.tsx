@@ -257,8 +257,6 @@ export function SettingsPage(): React.JSX.Element {
     awaitRefetchQueries: true,
   });
 
-
-
   /**
    * Handle logout
    * Clears tokens and redirects to login page
@@ -319,7 +317,6 @@ export function SettingsPage(): React.JSX.Element {
       setResetConfirmationText('');
     }
   };
-
 
   /**
    * Convert array of objects to CSV string

@@ -417,13 +417,7 @@ export function DisplaySettingsPage(): React.JSX.Element {
               {isMobile ? (
                 <MobileSelect<DateFormat>
                   value={dateFormat}
-                  options={[
-                    'DD/MM/YYYY',
-                    'MM/DD/YYYY',
-                    'YYYY-MM-DD',
-                    'DD-MM-YYYY',
-                    'MM-DD-YYYY',
-                  ]}
+                  options={['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY', 'MM-DD-YYYY']}
                   onChange={(newFormat) => {
                     if (newFormat) {
                       handleDateFormatChange(newFormat);

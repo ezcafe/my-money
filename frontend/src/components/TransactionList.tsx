@@ -226,9 +226,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
         onClick={onRowClick ? (): void => onRowClick(transaction.id) : undefined}
       >
         <TableCell sx={{ py: 2, px: 4 }}>
-          <Typography variant="body1">
-            {formatDateShort(transaction.date, dateFormat)}
-          </Typography>
+          <Typography variant="body1">{formatDateShort(transaction.date, dateFormat)}</Typography>
         </TableCell>
         <TableCell sx={{ py: 2, px: 4 }}>
           <Typography variant="body1">

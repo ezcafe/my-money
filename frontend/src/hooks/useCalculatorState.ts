@@ -166,11 +166,7 @@ export function useCalculatorState(): UseCalculatorStateReturn {
   const handleBackspace = useCallback(() => {
     setState((prev) => {
       // Current operand is already empty and we have an operation: remove the operation and show previousValue (e.g. "0 +" -> "0")
-      if (
-        prev.display === '' &&
-        prev.previousValue !== null &&
-        prev.operation
-      ) {
+      if (prev.display === '' && prev.previousValue !== null && prev.operation) {
         return {
           ...prev,
           display: String(prev.previousValue),
@@ -226,17 +222,8 @@ export function useCalculatorState(): UseCalculatorStateReturn {
    * @returns Effective amount or null if invalid
    */
   const getEffectiveAmount = useCallback((): number | null => {
-    const result = computeResult(
-      state.display,
-      state.previousValue,
-      state.operation
-    );
-    if (
-      result === null ||
-      Number.isNaN(result) ||
-      !Number.isFinite(result) ||
-      result <= 0
-    ) {
+    const result = computeResult(state.display, state.previousValue, state.operation);
+    if (result === null || Number.isNaN(result) || !Number.isFinite(result) || result <= 0) {
       return null;
     }
     return result;

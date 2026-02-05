@@ -90,22 +90,15 @@ export function WorkspacesPage(): React.JSX.Element {
     skip: isAuthenticated !== true,
   });
 
-  const {
-    data: invitationsData,
-    loading: invitationsLoading,
-  } = useQuery<{ myPendingInvitations: PendingInvitation[] }>(
-    GET_MY_PENDING_INVITATIONS,
-    {
-      fetchPolicy: 'cache-and-network',
-      skip: isAuthenticated !== true,
-    }
-  );
+  const { data: invitationsData, loading: invitationsLoading } = useQuery<{
+    myPendingInvitations: PendingInvitation[];
+  }>(GET_MY_PENDING_INVITATIONS, {
+    fetchPolicy: 'cache-and-network',
+    skip: isAuthenticated !== true,
+  });
 
   const [acceptInvitation] = useMutation(ACCEPT_WORKSPACE_INVITATION, {
-    refetchQueries: [
-      { query: GET_MY_PENDING_INVITATIONS },
-      { query: GET_WORKSPACES },
-    ],
+    refetchQueries: [{ query: GET_MY_PENDING_INVITATIONS }, { query: GET_WORKSPACES }],
     onCompleted: (data: unknown) => {
       const result = data as {
         acceptWorkspaceInvitation?: { workspace?: { name?: string } };
@@ -225,9 +218,8 @@ export function WorkspacesPage(): React.JSX.Element {
                           }
                           secondary={
                             <Typography variant="body2" color="text.secondary">
-                              Invited by {invitation.inviter.email} • Role:{' '}
-                              {invitation.role} • Expires{' '}
-                              {formatDateShort(invitation.expiresAt, dateFormat)}
+                              Invited by {invitation.inviter.email} • Role: {invitation.role} •
+                              Expires {formatDateShort(invitation.expiresAt, dateFormat)}
                             </Typography>
                           }
                           primaryTypographyProps={{ component: 'div' }}
@@ -241,9 +233,7 @@ export function WorkspacesPage(): React.JSX.Element {
                             color="primary"
                             variant="outlined"
                           />
-                          {isAccepting ? (
-                            <CircularProgress size={20} sx={{ ml: 0.5 }} />
-                          ) : null}
+                          {isAccepting ? <CircularProgress size={20} sx={{ ml: 0.5 }} /> : null}
                         </Stack>
                       </ListItemButton>
                     </React.Fragment>

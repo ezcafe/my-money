@@ -53,8 +53,7 @@ export function getCronExpression(type: RecurringType): string {
  * @returns Array of recurring type options
  */
 export function getRecurringTypeOptions(): Array<{ value: RecurringType; label: string }> {
-  const enableHourlyMinutely =
-    process.env.REACT_APP_ENABLE_HOURLY_MINUTELY_SCHEDULES === 'true';
+  const enableHourlyMinutely = process.env.REACT_APP_ENABLE_HOURLY_MINUTELY_SCHEDULES === 'true';
   return Object.entries(RECURRING_TYPE_LABELS)
     .filter(([value]) => {
       // Only include 'minutely' and 'hourly' if enabled via environment variable

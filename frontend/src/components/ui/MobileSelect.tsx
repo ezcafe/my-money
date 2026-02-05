@@ -99,32 +99,32 @@ export function MobileSelect<T = unknown>({
   return groupBy ? (
     // Use Autocomplete for grouped options
     <Autocomplete<T, false, false, false>
-          options={options}
-          getOptionLabel={getOptionLabel}
-          value={value}
-          onChange={(_, newValue) => {
-            onChange(newValue);
-          }}
-          isOptionEqualToValue={isOptionEqualToValue ?? isEqual}
-          groupBy={groupBy}
-          componentsProps={{
-            popper: {
-              sx: GROUP_HEADER_STYLES,
-            },
-          }}
-          disabled={disabled}
-          fullWidth={fullWidth}
-          size={size}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={label}
-              placeholder={placeholder}
-              required={required}
-              sx={sx}
-            />
-          )}
+      options={options}
+      getOptionLabel={getOptionLabel}
+      value={value}
+      onChange={(_, newValue) => {
+        onChange(newValue);
+      }}
+      isOptionEqualToValue={isOptionEqualToValue ?? isEqual}
+      groupBy={groupBy}
+      componentsProps={{
+        popper: {
+          sx: GROUP_HEADER_STYLES,
+        },
+      }}
+      disabled={disabled}
+      fullWidth={fullWidth}
+      size={size}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label={label}
+          placeholder={placeholder}
+          required={required}
+          sx={sx}
         />
+      )}
+    />
   ) : (
     // Use Select for simple options
     <FormControl fullWidth={fullWidth} size={size} disabled={disabled} required={required} sx={sx}>

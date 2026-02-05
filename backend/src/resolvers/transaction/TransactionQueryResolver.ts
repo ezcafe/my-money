@@ -123,7 +123,10 @@ export class TransactionQueryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -156,9 +159,13 @@ export class TransactionQueryResolver extends BaseResolver {
 
     if (accountId) {
       // Verify account belongs to workspace
-      const account = await accountRepository.findById(accountId, finalWorkspaceId, {
-        id: true,
-      });
+      const account = await accountRepository.findById(
+        accountId,
+        finalWorkspaceId,
+        {
+          id: true,
+        }
+      );
       if (!account) {
         throw new NotFoundError('Account');
       }
@@ -302,7 +309,10 @@ export class TransactionQueryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -352,7 +362,10 @@ export class TransactionQueryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -404,7 +417,10 @@ export class TransactionQueryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -483,7 +499,10 @@ export class TransactionQueryResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace

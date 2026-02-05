@@ -315,9 +315,7 @@ export type CreateRecurringTransactionInput = z.infer<
 export type UpdateRecurringTransactionInput = z.infer<
   typeof inputSchemas.updateRecurringTransaction
 >;
-export type UpdateSettingsInput = z.infer<
-  typeof inputSchemas.updateSettings
->;
+export type UpdateSettingsInput = z.infer<typeof inputSchemas.updateSettings>;
 export type CreateBudgetInput = z.infer<typeof inputSchemas.createBudget>;
 export type UpdateBudgetInput = z.infer<typeof inputSchemas.updateBudget>;
 export type CreateWorkspaceInput = z.infer<typeof inputSchemas.createWorkspace>;

@@ -181,11 +181,15 @@ async function runDbPushWithConditionalAccept(
     stderr: string;
     exitCode: number;
   }>((promiseResolve, reject) => {
-    const child = spawn('node', [prismaCliPath, 'db', 'push', '--schema', schemaPath], {
-      cwd: backendPath,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(
+      'node',
+      [prismaCliPath, 'db', 'push', '--schema', schemaPath],
+      {
+        cwd: backendPath,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
 
     let stdoutData = '';
     let stderrData = '';
@@ -210,7 +214,11 @@ async function runDbPushWithConditionalAccept(
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-      promiseResolve({ stdout: stdoutData, stderr: stderrData, exitCode: code ?? 1 });
+      promiseResolve({
+        stdout: stdoutData,
+        stderr: stderrData,
+        exitCode: code ?? 1,
+      });
     });
 
     child.on('error', (err) => {
@@ -337,9 +345,7 @@ export async function runMigrations(
           ? (error.status as number | string)
           : 1;
       const exitCodeNumber =
-        typeof exitCode === 'string'
-          ? Number.parseInt(exitCode, 10)
-          : exitCode;
+        typeof exitCode === 'string' ? Number.parseInt(exitCode, 10) : exitCode;
 
       logWarn('Schema sync attempt failed', {
         event: 'schema_sync_attempt_failed',

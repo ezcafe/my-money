@@ -49,7 +49,10 @@ export class PayeeResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -120,7 +123,10 @@ export class PayeeResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -156,7 +162,10 @@ export class PayeeResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -221,7 +230,10 @@ export class PayeeResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -340,7 +352,10 @@ export class PayeeResolver extends BaseResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace

@@ -257,8 +257,7 @@ export const resolvers = {
       parent: unknown,
       args: unknown,
       context: GraphQLContext
-    ) =>
-      workspaceResolver.myPendingInvitations(parent, args, context),
+    ) => workspaceResolver.myPendingInvitations(parent, args, context),
 
     // Conflict queries
     entityConflicts: (
@@ -365,11 +364,7 @@ export const resolvers = {
       payeeResolver.deletePayee(parent, args as { id: string }, context),
 
     // Settings mutations
-    updateSettings: (
-      parent: unknown,
-      args: unknown,
-      context: GraphQLContext
-    ) =>
+    updateSettings: (parent: unknown, args: unknown, context: GraphQLContext) =>
       settingsResolver.updateSettings(
         parent,
         args as {

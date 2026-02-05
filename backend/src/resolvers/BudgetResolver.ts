@@ -69,7 +69,10 @@ export class BudgetResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -94,9 +97,7 @@ export class BudgetResolver {
         );
 
         // Sort by createdAt desc
-        budgets.sort(
-          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-        );
+        budgets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
         return budgets;
       },
@@ -125,7 +126,10 @@ export class BudgetResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -211,7 +215,10 @@ export class BudgetResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -336,7 +343,10 @@ export class BudgetResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace
@@ -349,7 +359,10 @@ export class BudgetResolver {
     const budgetRepository = getContainer().getBudgetRepository(context.prisma);
 
     // Verify budget belongs to workspace
-    const existingBudget = await budgetRepository.findById(id, finalWorkspaceId);
+    const existingBudget = await budgetRepository.findById(
+      id,
+      finalWorkspaceId
+    );
 
     if (!existingBudget) {
       throw new NotFoundError('Budget');
@@ -445,7 +458,10 @@ export class BudgetResolver {
       await checkWorkspaceAccess(workspaceId, context.userId);
     } catch (error) {
       // If workspace doesn't exist, fall back to user's default workspace
-      if (error instanceof NotFoundError && error.message.includes('Workspace')) {
+      if (
+        error instanceof NotFoundError &&
+        error.message.includes('Workspace')
+      ) {
         finalWorkspaceId = await getUserDefaultWorkspace(context.userId);
         await checkWorkspaceAccess(finalWorkspaceId, context.userId);
         // Update context so subsequent operations use the correct workspace

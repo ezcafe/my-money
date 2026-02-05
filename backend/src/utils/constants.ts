@@ -11,6 +11,19 @@
  */
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
+/** Default login attempts per window (GET /auth/callback): prod 5, dev 200 */
+const DEFAULT_AUTH_LOGIN = isDevelopment ? 200 : 5;
+/** Default refresh/logout requests per window: prod 30, dev 500 */
+const DEFAULT_AUTH_REFRESH = isDevelopment ? 500 : 30;
+/** Default auth rate limit window in ms (1 minute) */
+const DEFAULT_AUTH_WINDOW_MS = 60 * 1000;
+/** Default failed login attempts before lockout */
+const DEFAULT_AUTH_FAILED_MAX = 5;
+/** Default window for counting failed attempts (15 min) */
+const DEFAULT_AUTH_FAILED_WINDOW_MS = 15 * 60 * 1000;
+/** Default lockout duration in ms (15 min) */
+const DEFAULT_AUTH_LOCKOUT_MS = 15 * 60 * 1000;
+
 export const RATE_LIMITS = {
   /** General IP-based rate limit (requests per minute) */
   GENERAL_IP: isDevelopment ? 1000 : 100,
@@ -20,9 +33,24 @@ export const RATE_LIMITS = {
   MUTATIONS: isDevelopment ? 500 : 50,
   /** File upload rate limit (requests per minute) */
   UPLOADS: isDevelopment ? 100 : 10,
-  /** Authentication endpoint rate limit (requests per minute) */
-  AUTH: isDevelopment ? 200 : 5,
-  /** Rate limit window in milliseconds */
+  /** Login (GET /auth/callback) requests per window per IP */
+  AUTH_LOGIN: Number(process.env.AUTH_RATE_LIMIT_LOGIN) || DEFAULT_AUTH_LOGIN,
+  /** Refresh and logout (POST /auth/refresh, POST /auth/logout) requests per window per IP */
+  AUTH_REFRESH:
+    Number(process.env.AUTH_RATE_LIMIT_REFRESH) || DEFAULT_AUTH_REFRESH,
+  /** Auth rate limit window in milliseconds */
+  AUTH_WINDOW_MS:
+    Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || DEFAULT_AUTH_WINDOW_MS,
+  /** Failed login attempts before lockout (per IP) */
+  AUTH_FAILED_MAX:
+    Number(process.env.AUTH_FAILED_MAX) || DEFAULT_AUTH_FAILED_MAX,
+  /** Window for counting failed attempts in ms */
+  AUTH_FAILED_WINDOW_MS:
+    Number(process.env.AUTH_FAILED_WINDOW_MS) || DEFAULT_AUTH_FAILED_WINDOW_MS,
+  /** Lockout duration in ms after AUTH_FAILED_MAX failures */
+  AUTH_LOCKOUT_MS:
+    Number(process.env.AUTH_LOCKOUT_MS) || DEFAULT_AUTH_LOCKOUT_MS,
+  /** Rate limit window in milliseconds (general) */
   WINDOW_MS: 60 * 1000, // 1 minute
 } as const;
 

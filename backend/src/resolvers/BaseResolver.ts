@@ -69,8 +69,7 @@ export abstract class BaseResolver {
       }
       case 'recurringTransaction': {
         const repository = container.getRecurringTransactionRepository(prisma);
-        const wsId =
-          workspaceId ?? (await getUserDefaultWorkspace(userId));
+        const wsId = workspaceId ?? (await getUserDefaultWorkspace(userId));
         return (await repository.findById(id, wsId, select)) as T | null;
       }
       case 'budget': {

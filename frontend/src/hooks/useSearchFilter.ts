@@ -48,9 +48,7 @@ interface UseSearchFilterReturn<T> {
  * });
  * ```
  */
-export function useSearchFilter<T>(
-  options: UseSearchFilterOptions<T>
-): UseSearchFilterReturn<T> {
+export function useSearchFilter<T>(options: UseSearchFilterOptions<T>): UseSearchFilterReturn<T> {
   const { searchQuery: contextSearchQuery } = useSearch();
   const { items, getSearchableText, searchQuery: customSearchQuery } = options;
 

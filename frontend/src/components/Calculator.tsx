@@ -104,10 +104,7 @@ export function Calculator(): React.JSX.Element {
   const { categories } = useCategories();
   const { payees } = usePayees();
 
-  const sortedCategories = useMemo(
-    () => sortCategoriesByTypeAndName(categories),
-    [categories]
-  );
+  const sortedCategories = useMemo(() => sortCategoriesByTypeAndName(categories), [categories]);
 
   // Measure calculator height dynamically
   useEffect(() => {
@@ -193,13 +190,7 @@ export function Calculator(): React.JSX.Element {
       state.payeeId = selectedPayeeId;
     }
     void navigate('/transactions/add', { state });
-  }, [
-    getEffectiveAmount,
-    navigate,
-    selectedAccountId,
-    selectedCategoryId,
-    selectedPayeeId,
-  ]);
+  }, [getEffectiveAmount, navigate, selectedAccountId, selectedCategoryId, selectedPayeeId]);
 
   /**
    * Memoized callback for payee change
@@ -367,9 +358,7 @@ export function Calculator(): React.JSX.Element {
             currency={currency}
             onBackspace={handleBackspace}
             onTopUsedValueClick={handleTopUsedValueClick}
-            onDisplayClick={
-              getEffectiveAmount() !== null ? handleDisplayClick : undefined
-            }
+            onDisplayClick={getEffectiveAmount() !== null ? handleDisplayClick : undefined}
           />
 
           <CalculatorPickers

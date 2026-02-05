@@ -91,297 +91,297 @@ function App(): React.JSX.Element {
           <NotificationProvider>
             <DateFormatProvider>
               <AuthProvider>
-              <SearchProvider>
+                <SearchProvider>
                   <WorkspaceProvider>
                     <HeaderProvider>
-                    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-                      <Routes>
-                        {/* Public routes - no authentication required */}
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                      <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+                        <Routes>
+                          {/* Public routes - no authentication required */}
+                          <Route path="/login" element={<LoginPage />} />
+                          <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-                        {/* Protected routes - require authentication */}
-                        <Route
-                          path="/"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <HomePage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/accounts"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <AccountsPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/accounts/add"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <AccountEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/accounts/:id/edit"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <AccountEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/accounts/:id"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <AccountDetailsPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/categories"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <CategoriesPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/categories/add"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <CategoryEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/categories/:id/edit"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <CategoryEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/categories/:id"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <CategoryDetailsPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/payees"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <PayeesPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/payees/add"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <PayeeEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/payees/:id/edit"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <PayeeEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/payees/:id"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <PayeeDetailsPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/budgets"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <BudgetsPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/budgets/add"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <BudgetAddPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/budgets/:id"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <BudgetDetailsPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/budgets/:id/edit"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <BudgetEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/transactions/:id/edit"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <TransactionEditPageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/transactions/add"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <TransactionAddPageWrapper />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/report"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout title="Report" hideSearch>
-                                <ReportPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/import"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout title="Import Transactions" hideSearch>
-                                <ImportPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/schedule"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <SchedulePageWrapper />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/workspaces"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout title="Workspaces" hideSearch>
-                                <WorkspacesPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/workspaces/add"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <WorkspaceEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/workspaces/:id/edit"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout hideSearch>
-                                <WorkspaceEditPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/workspaces/:id"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <WorkspaceLoaderPage />
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/workspaces/:id/settings"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout title="Workspace Settings" hideSearch>
-                                <WorkspaceSettingsPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/settings"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout title="Settings" hideSearch>
-                                <SettingsPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route
-                          path="/settings/display"
-                          element={
-                            <ProtectedRouteWithErrorBoundary>
-                              <Layout title="Display Settings" hideSearch>
-                                <DisplaySettingsPage />
-                              </Layout>
-                            </ProtectedRouteWithErrorBoundary>
-                          }
-                        />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </Routes>
+                          {/* Protected routes - require authentication */}
+                          <Route
+                            path="/"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <HomePage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/accounts"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <AccountsPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/accounts/add"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <AccountEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/accounts/:id/edit"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <AccountEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/accounts/:id"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <AccountDetailsPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/categories"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <CategoriesPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/categories/add"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <CategoryEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/categories/:id/edit"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <CategoryEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/categories/:id"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <CategoryDetailsPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/payees"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <PayeesPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/payees/add"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <PayeeEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/payees/:id/edit"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <PayeeEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/payees/:id"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <PayeeDetailsPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/budgets"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <BudgetsPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/budgets/add"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <BudgetAddPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/budgets/:id"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <BudgetDetailsPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/budgets/:id/edit"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <BudgetEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/transactions/:id/edit"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <TransactionEditPageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/transactions/add"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <TransactionAddPageWrapper />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/report"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout title="Report" hideSearch>
+                                  <ReportPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/import"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout title="Import Transactions" hideSearch>
+                                  <ImportPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/schedule"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <SchedulePageWrapper />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/workspaces"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout title="Workspaces" hideSearch>
+                                  <WorkspacesPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/workspaces/add"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <WorkspaceEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/workspaces/:id/edit"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout hideSearch>
+                                  <WorkspaceEditPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/workspaces/:id"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <WorkspaceLoaderPage />
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/workspaces/:id/settings"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout title="Workspace Settings" hideSearch>
+                                  <WorkspaceSettingsPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/settings"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout title="Settings" hideSearch>
+                                  <SettingsPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/settings/display"
+                            element={
+                              <ProtectedRouteWithErrorBoundary>
+                                <Layout title="Display Settings" hideSearch>
+                                  <DisplaySettingsPage />
+                                </Layout>
+                              </ProtectedRouteWithErrorBoundary>
+                            }
+                          />
+                          <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
                       </Suspense>
                       <OfflineIndicator />
-                  </HeaderProvider>
-                </WorkspaceProvider>
-              </SearchProvider>
+                    </HeaderProvider>
+                  </WorkspaceProvider>
+                </SearchProvider>
               </AuthProvider>
             </DateFormatProvider>
           </NotificationProvider>
-      </ThemeProvider>
-    </ApolloProvider>
-  </ErrorBoundary>
+        </ThemeProvider>
+      </ApolloProvider>
+    </ErrorBoundary>
   );
 }
 

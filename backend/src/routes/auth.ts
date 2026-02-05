@@ -14,7 +14,12 @@ import {
   COOKIE_NAMES,
 } from '../middleware/cookies';
 import { logError } from '../utils/logger';
-import { checkRateLimit } from '../utils/postgresRateLimiter';
+import {
+  checkRateLimit,
+  isLockedOut,
+  setLockout,
+  getLockoutResetTime,
+} from '../utils/postgresRateLimiter';
 import { ErrorCode } from '../utils/errorCodes';
 import { RATE_LIMITS } from '../utils/constants';
 
@@ -40,28 +45,72 @@ const ongoingRefreshOperations = new Map<
 // const scheduledRevocations = new Map<string, number>();
 
 /**
- * Rate limiting middleware for authentication endpoints
- * Applies stricter rate limits to prevent brute force attacks
+ * Get client IP for rate limiting and lockout (same derivation for all auth keys).
  */
-function authRateLimiter() {
+function getClientIp(c: Context): string {
+  return (
+    c.req.header('x-forwarded-for') ??
+    c.req.header('x-real-ip') ??
+    c.req.header('cf-connecting-ip') ??
+    'unknown'
+  );
+}
+
+/**
+ * Rate limiter for login (GET /auth/callback). Stricter limit per IP. Fail-closed on error.
+ */
+function createAuthLoginRateLimiter() {
+  const max = RATE_LIMITS.AUTH_LOGIN;
+  const windowMs = RATE_LIMITS.AUTH_WINDOW_MS;
   return async (c: Context, next: Next): Promise<Response | void> => {
-    // Get IP address for rate limiting
-    const ip =
-      c.req.header('x-forwarded-for') ??
-      c.req.header('x-real-ip') ??
-      c.req.header('cf-connecting-ip') ??
-      'unknown';
-    const key = `auth:${ip}`;
-
+    const ip = getClientIp(c);
+    const key = `auth_login:${ip}`;
     try {
-      const result = await checkRateLimit(
-        key,
-        RATE_LIMITS.AUTH,
-        RATE_LIMITS.WINDOW_MS
-      );
-
+      const result = await checkRateLimit(key, max, windowMs);
       if (!result.allowed) {
         const ttl = Math.ceil((result.resetAt - Date.now()) / 1000);
+        c.header('Retry-After', String(ttl));
+        return c.json(
+          {
+            code: ErrorCode.RATE_LIMIT_EXCEEDED,
+            error: 'Too many login attempts, please try again later',
+            message: `Login rate limit exceeded, retry in ${ttl} seconds`,
+          },
+          429
+        );
+      }
+      c.header('X-RateLimit-Limit', String(max));
+      c.header('X-RateLimit-Remaining', String(result.remaining));
+      c.header('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
+      return next();
+    } catch {
+      c.header('Retry-After', '60');
+      return c.json(
+        {
+          code: ErrorCode.INTERNAL_SERVER_ERROR,
+          error: 'Authentication service temporarily unavailable',
+          message: 'Please try again later',
+        },
+        503
+      );
+    }
+  };
+}
+
+/**
+ * Rate limiter for refresh and logout (POST /auth/refresh, POST /auth/logout). More lenient. Fail-closed on error.
+ */
+function createAuthRefreshRateLimiter() {
+  const max = RATE_LIMITS.AUTH_REFRESH;
+  const windowMs = RATE_LIMITS.AUTH_WINDOW_MS;
+  return async (c: Context, next: Next): Promise<Response | void> => {
+    const ip = getClientIp(c);
+    const key = `auth_refresh:${ip}`;
+    try {
+      const result = await checkRateLimit(key, max, windowMs);
+      if (!result.allowed) {
+        const ttl = Math.ceil((result.resetAt - Date.now()) / 1000);
+        c.header('Retry-After', String(ttl));
         return c.json(
           {
             code: ErrorCode.RATE_LIMIT_EXCEEDED,
@@ -71,18 +120,42 @@ function authRateLimiter() {
           429
         );
       }
-
-      // Add rate limit headers
-      c.header('X-RateLimit-Limit', String(RATE_LIMITS.AUTH));
+      c.header('X-RateLimit-Limit', String(max));
       c.header('X-RateLimit-Remaining', String(result.remaining));
       c.header('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
-
       return next();
     } catch {
-      // On error, allow the request (fail open)
-      return next();
+      c.header('Retry-After', '60');
+      return c.json(
+        {
+          code: ErrorCode.INTERNAL_SERVER_ERROR,
+          error: 'Authentication service temporarily unavailable',
+          message: 'Please try again later',
+        },
+        503
+      );
     }
   };
+}
+
+/**
+ * Record a failed login attempt for the client IP and set lockout if threshold reached.
+ * Call only when redirecting with an error (e.g. missing_code, token_exchange_failed).
+ */
+async function recordFailedLoginAttempt(c: Context): Promise<void> {
+  const ip = getClientIp(c);
+  const failedKey = `auth_failed:${ip}`;
+  const lockoutKey = `auth_lockout:${ip}`;
+  const max = RATE_LIMITS.AUTH_FAILED_MAX;
+  const windowMs = RATE_LIMITS.AUTH_FAILED_WINDOW_MS;
+  try {
+    const result = await checkRateLimit(failedKey, max, windowMs);
+    if (result.remaining === 0) {
+      await setLockout(lockoutKey, Date.now() + RATE_LIMITS.AUTH_LOCKOUT_MS);
+    }
+  } catch {
+    // Best effort; do not block the error redirect
+  }
 }
 
 /**
@@ -90,20 +163,35 @@ function authRateLimiter() {
  * @param app - Hono app instance
  */
 export function registerAuthRoutes(app: Hono): void {
-  // Apply rate limiting to all auth routes
-  app.use('/auth/*', authRateLimiter());
-
   /**
    * OIDC Callback Endpoint
    * Handles OIDC authorization code callback
    * Exchanges code for tokens and sets httpOnly cookies
+   * Rate limited per IP (login limit); lockout checked inside handler.
    */
-  app.get('/auth/callback', async (c) => {
+  app.get('/auth/callback', createAuthLoginRateLimiter(), async (c) => {
     try {
+      const ip = getClientIp(c);
+      const lockoutKey = `auth_lockout:${ip}`;
+      if (await isLockedOut(lockoutKey)) {
+        const resetAt = await getLockoutResetTime(lockoutKey);
+        const ttl = resetAt ? Math.ceil((resetAt - Date.now()) / 1000) : 60;
+        c.header('Retry-After', String(ttl));
+        return c.json(
+          {
+            code: ErrorCode.RATE_LIMIT_EXCEEDED,
+            error: 'Too many failed login attempts, try again later',
+            message: `Account temporarily locked, retry in ${ttl} seconds`,
+          },
+          429
+        );
+      }
+
       const code = c.req.query('code');
       const state = c.req.query('state');
 
       if (!code) {
+        await recordFailedLoginAttempt(c);
         return c.redirect(
           `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=missing_code`
         );
@@ -119,6 +207,7 @@ export function registerAuthRoutes(app: Hono): void {
         logError('Code verifier not found in cookies', {
           event: 'code_verifier_missing',
         });
+        await recordFailedLoginAttempt(c);
         return c.redirect(
           `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=code_verifier_missing`
         );
@@ -151,6 +240,7 @@ export function registerAuthRoutes(app: Hono): void {
         logError('Token endpoint not found in OIDC configuration', {
           event: 'token_endpoint_missing',
         });
+        await recordFailedLoginAttempt(c);
         return c.redirect(
           `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=token_endpoint_missing`
         );
@@ -172,6 +262,7 @@ export function registerAuthRoutes(app: Hono): void {
           status: tokenResponse.status,
           error: errorText,
         });
+        await recordFailedLoginAttempt(c);
         return c.redirect(
           `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/auth/callback?error=token_exchange_failed`
         );
@@ -209,6 +300,7 @@ export function registerAuthRoutes(app: Hono): void {
         },
         errorObj
       );
+      await recordFailedLoginAttempt(c);
       const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
       return c.redirect(`${frontendUrl}/auth/callback?error=callback_failed`);
     }
@@ -219,7 +311,7 @@ export function registerAuthRoutes(app: Hono): void {
    * Refreshes access token using refresh token from cookie
    * Uses a lock mechanism to prevent concurrent refresh calls with the same token
    */
-  app.post('/auth/refresh', async (c) => {
+  app.post('/auth/refresh', createAuthRefreshRateLimiter(), async (c) => {
     try {
       const refreshToken = getCookie(c, COOKIE_NAMES.REFRESH_TOKEN);
 
@@ -406,7 +498,7 @@ export function registerAuthRoutes(app: Hono): void {
    * Logout Endpoint
    * Clears all authentication cookies
    */
-  app.post('/auth/logout', (c) => {
+  app.post('/auth/logout', createAuthRefreshRateLimiter(), (c) => {
     try {
       clearAuthCookies(c);
       return c.json({

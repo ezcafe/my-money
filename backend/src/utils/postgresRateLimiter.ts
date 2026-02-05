@@ -114,6 +114,107 @@ export async function checkRateLimit(
 }
 
 /**
+ * Check if a key is currently locked out (e.g. auth lockout after failed attempts).
+ * Returns true if a row exists for the key and reset_time > NOW().
+ * @param key - Lockout key (e.g. auth_lockout:${ip})
+ * @returns True if locked out
+ */
+export async function isLockedOut(key: string): Promise<boolean> {
+  try {
+    const client = await getDbClient();
+    try {
+      const result = await client.query<{ reset_time: Date }>(
+        'SELECT reset_time FROM "rate_limit" WHERE key = $1',
+        [key]
+      );
+      if (result.rows.length === 0 || !result.rows[0]) {
+        return false;
+      }
+      const resetTime = result.rows[0].reset_time;
+      return resetTime.getTime() > Date.now();
+    } finally {
+      await client.end();
+    }
+  } catch (error) {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logError(
+      'Lockout check failed',
+      { event: 'lockout_check_failed', key },
+      errorObj
+    );
+    // On error, treat as not locked out so auth can proceed (fail open for read)
+    return false;
+  }
+}
+
+/**
+ * Set a lockout for a key until the given timestamp.
+ * Reuses the rate_limit table: INSERT or UPDATE with count=1 and reset_time=lockoutEnd.
+ * @param key - Lockout key (e.g. auth_lockout:${ip})
+ * @param lockoutEndMs - End of lockout period (timestamp in ms)
+ */
+export async function setLockout(
+  key: string,
+  lockoutEndMs: number
+): Promise<void> {
+  try {
+    const lockoutEnd = new Date(lockoutEndMs);
+    const client = await getDbClient();
+    try {
+      await client.query(
+        `INSERT INTO "rate_limit" (key, count, reset_time, created_at)
+        VALUES ($1, 1, $2, NOW())
+        ON CONFLICT (key) DO UPDATE
+          SET count = 1, reset_time = $2`,
+        [key, lockoutEnd]
+      );
+    } finally {
+      await client.end();
+    }
+  } catch (error) {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logError(
+      'Set lockout failed',
+      { event: 'set_lockout_failed', key },
+      errorObj
+    );
+    throw errorObj;
+  }
+}
+
+/**
+ * Get lockout reset time for a key if currently locked out.
+ * @param key - Lockout key
+ * @returns Reset time in ms, or null if not locked out
+ */
+export async function getLockoutResetTime(key: string): Promise<number | null> {
+  try {
+    const client = await getDbClient();
+    try {
+      const result = await client.query<{ reset_time: Date }>(
+        'SELECT reset_time FROM "rate_limit" WHERE key = $1',
+        [key]
+      );
+      if (result.rows.length === 0 || !result.rows[0]) {
+        return null;
+      }
+      const resetTime = result.rows[0].reset_time.getTime();
+      return resetTime > Date.now() ? resetTime : null;
+    } finally {
+      await client.end();
+    }
+  } catch (error) {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logError(
+      'Get lockout reset time failed',
+      { event: 'get_lockout_reset_failed', key },
+      errorObj
+    );
+    return null;
+  }
+}
+
+/**
  * Clear expired rate limit entries
  * @returns Number of entries deleted
  */

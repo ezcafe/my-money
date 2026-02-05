@@ -5,7 +5,16 @@
  */
 
 import React, { memo } from 'react';
-import { List, ListItemButton, ListItemText, ListItemIcon, Divider, Chip, Stack, Typography } from '@mui/material';
+import {
+  List,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+  Chip,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { useNavigate } from 'react-router';
 import { Person, Star, ChevronRight } from '@mui/icons-material';
 import { usePayees } from '../hooks/usePayees';
