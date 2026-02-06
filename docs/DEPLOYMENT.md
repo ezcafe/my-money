@@ -194,6 +194,8 @@ postgresql://user:password@host:5432/dbname?connection_limit=100&pool_timeout=20
    npm run docker:prod:deploy:no-build
    ```
 
+   **Data persistence:** Production Compose uses a fixed project name (`my-money-prod`) and a fixed Postgres volume name (`mymoney_postgres_data`), so database data persists across `docker:prod:down` and `docker:prod:up`. The Postgres volume is mounted at `/var/lib/postgresql` (not `/var/lib/postgresql/data`) so the image's anonymous volume does not shadow the named volume and cause data loss. Do not run `npm run docker:prune` (or `docker volume prune`) if you want to keep the database.
+
 ### Option 2: Manual Deployment
 
 For manual deployment (no Docker), ensure `.env` exists in **root**, **backend/**, and **frontend/** (see [Environment Setup](#1-environment-variables) for creation examples). The backend and frontend processes read from their own directories.

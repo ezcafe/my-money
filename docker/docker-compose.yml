@@ -38,8 +38,10 @@ services:
     # Remove in production or use conditional port mapping
     ports:
       - "5432:5432"
+    # Mount named volume at parent path so the image's anonymous volume at
+    # /var/lib/postgresql does not shadow our volume and cause data loss on down/up.
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -217,6 +219,7 @@ services:
 
 volumes:
   postgres_data:
+    name: mymoney_postgres_data
     driver: local
 
 networks:

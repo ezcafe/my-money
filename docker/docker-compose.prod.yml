@@ -8,6 +8,9 @@
 #   1. Comment out or remove the postgres service from base docker-compose.yml
 #   2. Update DATABASE_URL in .env to point to external database
 #   3. Remove postgres dependency from backend service
+#
+# Pinned project name ensures consistent volume/network names across down/up cycles.
+name: my-money-prod
 
 services:
   postgres:
@@ -73,9 +76,10 @@ services:
     # The container always listens on port 80 internally (nginx).
 
 # Production volume configuration
-# Consider using named volumes with specific drivers for production
+# Explicit volume name ensures same volume is used regardless of project name (data persists across down/up).
 volumes:
   postgres_data:
+    name: mymoney_postgres_data
     driver: local
     # Optional: Use a specific driver for production (e.g., for cloud storage)
     # driver: cloudstor:aws
