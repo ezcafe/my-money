@@ -12,7 +12,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, Link } from 'react-router';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { Snackbar, Alert } from '@mui/material';
 import { GET_BUDGET_NOTIFICATIONS } from '../graphql/queries';
@@ -38,11 +38,18 @@ interface BudgetNotification {
   };
 }
 
+/** Optional action link for success notifications */
+export interface SuccessNotificationAction {
+  label: string;
+  href: string;
+}
+
 interface NotificationContextType {
   notifications: BudgetNotification[];
   showNotification: (notification: BudgetNotification) => void;
   markAsRead: (id: string) => Promise<void>;
-  showSuccessNotification: (message: string) => void;
+  showSuccessNotification: (message: string, action?: SuccessNotificationAction) => void;
+  closeSuccessNotification: () => void;
   showErrorNotification: (message: string) => void;
   errorMessage: string | null;
   errorOpen: boolean;
@@ -66,6 +73,7 @@ export function NotificationProvider({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorOpen, setErrorOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [successAction, setSuccessAction] = useState<SuccessNotificationAction | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
   const processedNotificationIds = useRef<Set<string>>(new Set());
   const [isVisible, setIsVisible] = useState(true);
@@ -191,9 +199,19 @@ export function NotificationProvider({
     setErrorMessage(null);
   }, []);
 
-  const showSuccessNotification = useCallback((message: string): void => {
-    setSuccessMessage(message);
-    setSuccessOpen(true);
+  const showSuccessNotification = useCallback(
+    (message: string, action?: SuccessNotificationAction): void => {
+      setSuccessMessage(message);
+      setSuccessAction(action ?? null);
+      setSuccessOpen(true);
+    },
+    []
+  );
+
+  const closeSuccessNotification = useCallback((): void => {
+    setSuccessOpen(false);
+    setSuccessMessage(null);
+    setSuccessAction(null);
   }, []);
 
   const showErrorNotification = useCallback((message: string): void => {
@@ -208,6 +226,7 @@ export function NotificationProvider({
       }
       setSuccessOpen(false);
       setSuccessMessage(null);
+      setSuccessAction(null);
     },
     []
   );
@@ -235,6 +254,7 @@ export function NotificationProvider({
         showNotification,
         markAsRead,
         showSuccessNotification,
+        closeSuccessNotification,
         showErrorNotification,
         errorMessage,
         errorOpen,
@@ -291,6 +311,17 @@ export function NotificationProvider({
         <Alert
           onClose={handleSuccessClose}
           severity="success"
+          action={
+            successAction ? (
+              <Link
+                to={successAction.href}
+                onClick={closeSuccessNotification}
+                style={{ color: 'inherit', fontWeight: 600 }}
+              >
+                {successAction.label}
+              </Link>
+            ) : undefined
+          }
           sx={{
             width: '100%',
             maxWidth: { xs: '90vw', sm: '400px' },

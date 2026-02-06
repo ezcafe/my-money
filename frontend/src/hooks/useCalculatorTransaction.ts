@@ -11,6 +11,7 @@ import { useAccounts } from './useAccounts';
 import { useCategories } from './useCategories';
 import { usePayees } from './usePayees';
 import { useMostUsedTransactionDetails } from './useMostUsedTransactionDetails';
+import { useNotifications } from '../contexts/NotificationContext';
 
 /**
  * Calculator transaction hook return type
@@ -40,6 +41,7 @@ export function useCalculatorTransaction(
   const { accounts } = useAccounts();
   const { categories } = useCategories();
   const { payees } = usePayees();
+  const { showSuccessNotification } = useNotifications();
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
@@ -145,7 +147,15 @@ export function useCalculatorTransaction(
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
     },
-    onCompleted: () => {
+    onCompleted: (data: unknown) => {
+      const payload = data as { createTransaction?: { id?: string } };
+      const id = payload?.createTransaction?.id;
+      if (id) {
+        showSuccessNotification('Transaction added', {
+          label: 'View',
+          href: `/transactions/${id}/edit`,
+        });
+      }
       setError(null);
       onTransactionCreated?.();
     },

@@ -26,6 +26,7 @@ import {
 } from '../graphql/queries';
 import { useAccounts } from '../hooks/useAccounts';
 import { useHeader } from '../contexts/HeaderContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import {
   getRecurringTypeOptions,
   getCronExpression,
@@ -40,6 +41,11 @@ import {
 } from '../utils/groupSelectOptions';
 import type { Account } from '../hooks/useAccounts';
 import type { Category } from '../hooks/useCategories';
+
+/** Result shape of createTransaction mutation (used for typing mutation response) */
+interface CreateTransactionMutationResult {
+  createTransaction: { id: string };
+}
 
 /**
  * Optional props passed by TransactionAddPageWrapper (from location state or search params).
@@ -72,6 +78,7 @@ export function TransactionAddPage({
   const navigate = useNavigate();
   const returnTo = validateReturnUrl(returnToProp, '/');
   const { setTitle } = useHeader();
+  const { showSuccessNotification } = useNotifications();
 
   /** Show Recurring section only when navigated from schedule page */
   const showRecurring = returnTo === '/schedule';
@@ -164,33 +171,34 @@ export function TransactionAddPage({
     };
   }, [setTitle]);
 
-  const [createTransaction, { loading: creatingTransaction }] = useMutation(CREATE_TRANSACTION, {
-    refetchQueries: () => {
-      const queries: Array<
-        | { query: typeof GET_TRANSACTIONS }
-        | { query: typeof GET_RECENT_TRANSACTIONS }
-        | { query: typeof GET_ACCOUNT; variables: { id: string } }
-        | { query: typeof GET_RECURRING_TRANSACTIONS }
-      > = [
-        { query: GET_TRANSACTIONS },
-        { query: GET_RECENT_TRANSACTIONS },
-        { query: GET_RECURRING_TRANSACTIONS },
-      ];
-      // Only refetch GET_ACCOUNT if we have an accountId from the form
-      if (accountId) {
-        queries.push({ query: GET_ACCOUNT, variables: { id: accountId } });
-      }
-      return queries;
-    },
-    awaitRefetchQueries: true,
-    onError: (err: unknown) => {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-    },
-    onCompleted: () => {
-      setError(null);
-    },
-  });
+  const [createTransaction, { loading: creatingTransaction }] =
+    useMutation<CreateTransactionMutationResult>(CREATE_TRANSACTION, {
+      refetchQueries: () => {
+        const queries: Array<
+          | { query: typeof GET_TRANSACTIONS }
+          | { query: typeof GET_RECENT_TRANSACTIONS }
+          | { query: typeof GET_ACCOUNT; variables: { id: string } }
+          | { query: typeof GET_RECURRING_TRANSACTIONS }
+        > = [
+          { query: GET_TRANSACTIONS },
+          { query: GET_RECENT_TRANSACTIONS },
+          { query: GET_RECURRING_TRANSACTIONS },
+        ];
+        // Only refetch GET_ACCOUNT if we have an accountId from the form
+        if (accountId) {
+          queries.push({ query: GET_ACCOUNT, variables: { id: accountId } });
+        }
+        return queries;
+      },
+      awaitRefetchQueries: true,
+      onError: (err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+      },
+      onCompleted: () => {
+        setError(null);
+      },
+    });
 
   const [createRecurringTransaction, { loading: creatingRecurring }] = useMutation(
     CREATE_RECURRING_TRANSACTION,
@@ -320,11 +328,20 @@ export function TransactionAddPage({
               note: note || null,
             };
 
-            await createTransaction({
+            const txResult = await createTransaction({
               variables: {
                 input: transactionInput,
               },
             });
+            const txId = txResult.data?.createTransaction?.id;
+            if (txId) {
+              showSuccessNotification('Transaction added', {
+                label: 'View',
+                href: `/transactions/${txId}/edit`,
+              });
+            }
+          } else {
+            showSuccessNotification('Recurring transaction created');
           }
 
           // Navigate back to return URL
@@ -346,11 +363,18 @@ export function TransactionAddPage({
             note: note || null,
           };
 
-          await createTransaction({
+          const result = await createTransaction({
             variables: {
               input: transactionInput,
             },
           });
+          const txId = result.data?.createTransaction?.id;
+          if (txId) {
+            showSuccessNotification('Transaction added', {
+              label: 'View',
+              href: `/transactions/${txId}/edit`,
+            });
+          }
 
           // Navigate back to return URL
           const validReturnUrl = validateReturnUrl(returnTo, '/');
