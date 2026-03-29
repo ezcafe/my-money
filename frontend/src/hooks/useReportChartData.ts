@@ -10,6 +10,7 @@ import {
   formatMonthYear,
   formatCurrencyPreserveDecimals,
 } from '../utils/formatting';
+import { getCurrencySymbol, COLOR_SUCCESS, COLOR_GRAY_500 } from '../components/charts/chartUtils';
 import type { DateFormat } from '../contexts/DateFormatContext';
 
 /**
@@ -75,23 +76,34 @@ export interface Budget {
 }
 
 /**
- * Sankey chart data
+ * Sankey node data (matching sure app's pattern)
+ */
+export interface SankeyNodeData {
+  name: string;
+  value: number;
+  percentage: number;
+  color: string;
+}
+
+/**
+ * Sankey link data (matching sure app's pattern)
+ */
+export interface SankeyLinkData {
+  source: number;
+  target: number;
+  value: number;
+  color: string;
+  percentage: number;
+}
+
+/**
+ * Sankey chart data (matching sure app's pattern)
+ * Flow: Income Categories -> Cash Flow -> Expense Categories -> Surplus
  */
 export interface SankeyData {
-  node: {
-    label: string[];
-    pad: number;
-    thickness: number;
-    line: {
-      color: string;
-      width: number;
-    };
-  };
-  link: {
-    source: number[];
-    target: number[];
-    value: number[];
-  };
+  nodes: SankeyNodeData[];
+  links: SankeyLinkData[];
+  currencySymbol: string;
 }
 
 /**
@@ -507,7 +519,8 @@ export function useReportChartData(
 
   /**
    * Prepare Sankey diagram data
-   * Flow: Income Categories -> Account -> Expense Categories
+   * Flow: Income Categories -> Cash Flow (central) -> Expense Categories -> Surplus
+   * Follows sure app's build_cashflow_sankey_data pattern.
    */
   const sankeyData = useMemo<SankeyData | null>(() => {
     if (transactions.length === 0) {
@@ -520,164 +533,75 @@ export function useReportChartData(
       (t) => !t.category || t.category.categoryType === 'Expense'
     );
 
-    // Build node map and links
-    const nodeMap = new Map<string, number>();
-    const links: Array<{ source: string; target: string; value: number }> = [];
-
-    // Process income: Income Category -> Account
-    // Structure: Map<categoryName, Map<accountName, amount>>
-    const incomeByCategoryAccount = new Map<string, Map<string, number>>();
-
-    for (const transaction of incomeTransactions) {
-      const categoryName = transaction.category?.name ?? 'Uncategorized';
-      const accountName = transaction.account?.name ?? 'Unknown Account';
-      const value = Number(transaction.value);
-
-      if (!incomeByCategoryAccount.has(categoryName)) {
-        incomeByCategoryAccount.set(categoryName, new Map());
-      }
-      const accountMap = incomeByCategoryAccount.get(categoryName)!;
-      accountMap.set(accountName, (accountMap.get(accountName) ?? 0) + value);
+    // Aggregate income by category
+    const incomeByCategory = new Map<string, number>();
+    for (const t of incomeTransactions) {
+      const name = t.category?.name ?? 'Uncategorized';
+      incomeByCategory.set(name, (incomeByCategory.get(name) ?? 0) + Number(t.value));
     }
 
-    // Process expenses: Account -> Expense Category
-    // Structure: Map<accountName, Map<categoryName, amount>>
-    const expenseByAccountCategory = new Map<string, Map<string, number>>();
-
-    for (const transaction of expenseTransactions) {
-      const accountName = transaction.account?.name ?? 'Unknown Account';
-      const categoryName = transaction.category?.name ?? 'Uncategorized';
-      const value = Math.abs(Number(transaction.value));
-
-      if (!expenseByAccountCategory.has(accountName)) {
-        expenseByAccountCategory.set(accountName, new Map());
-      }
-      const categoryMap = expenseByAccountCategory.get(accountName)!;
-      categoryMap.set(categoryName, (categoryMap.get(categoryName) ?? 0) + value);
+    // Aggregate expenses by category
+    const expenseByCategory = new Map<string, number>();
+    for (const t of expenseTransactions) {
+      const name = t.category?.name ?? 'Uncategorized';
+      expenseByCategory.set(name, (expenseByCategory.get(name) ?? 0) + Math.abs(Number(t.value)));
     }
 
-    // Create nodes and links for income flow: Income Category -> Account
-    for (const [categoryName, accountMap] of incomeByCategoryAccount.entries()) {
-      const incomeCategoryNodeId = `income_category_${categoryName}`;
-      const categoryTotal = Array.from(accountMap.values()).reduce((sum, val) => sum + val, 0);
-      nodeMap.set(incomeCategoryNodeId, (nodeMap.get(incomeCategoryNodeId) ?? 0) + categoryTotal);
+    const totalIncome = Array.from(incomeByCategory.values()).reduce((s, v) => s + v, 0);
+    const totalExpense = Array.from(expenseByCategory.values()).reduce((s, v) => s + v, 0);
 
-      for (const [accountName, value] of accountMap.entries()) {
-        const accountNodeId = `account_${accountName}`;
-        nodeMap.set(accountNodeId, (nodeMap.get(accountNodeId) ?? 0) + value);
+    if (totalIncome === 0 && totalExpense === 0) return null;
 
-        // Link: Income Category -> Account
-        links.push({
-          source: incomeCategoryNodeId,
-          target: accountNodeId,
-          value,
-        });
-      }
+    // Build nodes and links following sure app pattern
+    const nodes: SankeyData['nodes'] = [];
+    const links: SankeyData['links'] = [];
+    const nodeIndices = new Map<string, number>();
+
+    const addNode = (key: string, name: string, value: number, percentage: number, color: string): number => {
+      if (nodeIndices.has(key)) return nodeIndices.get(key)!;
+      const idx = nodes.length;
+      nodes.push({ name, value: Math.round(value * 100) / 100, percentage: Math.round(percentage * 10) / 10, color });
+      nodeIndices.set(key, idx);
+      return idx;
+    };
+
+    // Central "Cash Flow" node
+    const cashFlowIdx = addNode('cash_flow', 'Cash Flow', totalIncome, 100, COLOR_SUCCESS);
+
+    // Income categories -> Cash Flow (inbound)
+    const sortedIncome = Array.from(incomeByCategory.entries()).sort((a, b) => b[1] - a[1]);
+    for (const [catName, value] of sortedIncome) {
+      if (value <= 0) continue;
+      const pct = totalIncome > 0 ? (value / totalIncome) * 100 : 0;
+      const idx = addNode(`income_${catName}`, catName, value, pct, COLOR_SUCCESS);
+      links.push({ source: idx, target: cashFlowIdx, value, color: COLOR_SUCCESS, percentage: Math.round(pct * 10) / 10 });
     }
 
-    // Create nodes and links for expense flow: Account -> Expense Category
-    for (const [accountName, categoryMap] of expenseByAccountCategory.entries()) {
-      const accountNodeId = `account_${accountName}`;
-      // Account node already created from income flow, just ensure it exists
-      if (!nodeMap.has(accountNodeId)) {
-        nodeMap.set(accountNodeId, 0);
-      }
-
-      for (const [categoryName, value] of categoryMap.entries()) {
-        const expenseCategoryNodeId = `expense_category_${categoryName}`;
-        nodeMap.set(expenseCategoryNodeId, (nodeMap.get(expenseCategoryNodeId) ?? 0) + value);
-
-        // Link: Account -> Expense Category
-        links.push({
-          source: accountNodeId,
-          target: expenseCategoryNodeId,
-          value,
-        });
-      }
+    // Cash Flow -> Expense categories (outbound)
+    const sortedExpense = Array.from(expenseByCategory.entries()).sort((a, b) => b[1] - a[1]);
+    for (const [catName, value] of sortedExpense) {
+      if (value <= 0) continue;
+      const pct = totalExpense > 0 ? (value / totalExpense) * 100 : 0;
+      const idx = addNode(`expense_${catName}`, catName, value, pct, COLOR_GRAY_500);
+      links.push({ source: cashFlowIdx, target: idx, value, color: COLOR_GRAY_500, percentage: Math.round(pct * 10) / 10 });
     }
 
-    // Convert node map to array with labels
-    const nodeLabels: string[] = [];
-    const nodeValues: number[] = [];
-    const nodeIdToIndex = new Map<string, number>();
-
-    // Add nodes in order: Income Categories -> Accounts -> Expense Categories
-    let nodeIndex = 0;
-
-    // Column 0: Income Categories
-    for (const categoryName of Array.from(incomeByCategoryAccount.keys()).sort()) {
-      const nodeId = `income_category_${categoryName}`;
-      nodeIdToIndex.set(nodeId, nodeIndex);
-      nodeLabels.push(categoryName);
-      nodeValues.push(nodeMap.get(nodeId) ?? 0);
-      nodeIndex++;
+    // Surplus node if income > expenses
+    const net = totalIncome - totalExpense;
+    if (net > 0) {
+      const pct = totalIncome > 0 ? (net / totalIncome) * 100 : 0;
+      const surplusIdx = addNode('surplus', 'Surplus', net, pct, COLOR_SUCCESS);
+      links.push({ source: cashFlowIdx, target: surplusIdx, value: net, color: COLOR_SUCCESS, percentage: Math.round(pct * 10) / 10 });
     }
 
-    // Column 1: Accounts (union of accounts from income and expense)
-    const accountSet = new Set<string>();
-    for (const accountMap of incomeByCategoryAccount.values()) {
-      for (const accountName of accountMap.keys()) {
-        accountSet.add(accountName);
-      }
-    }
-    for (const accountName of expenseByAccountCategory.keys()) {
-      accountSet.add(accountName);
-    }
-    for (const accountName of Array.from(accountSet).sort()) {
-      const nodeId = `account_${accountName}`;
-      nodeIdToIndex.set(nodeId, nodeIndex);
-      nodeLabels.push(accountName);
-      nodeValues.push(nodeMap.get(nodeId) ?? 0);
-      nodeIndex++;
-    }
-
-    // Column 2: Expense Categories
-    const expenseCategorySet = new Set<string>();
-    for (const categoryMap of expenseByAccountCategory.values()) {
-      for (const categoryName of categoryMap.keys()) {
-        expenseCategorySet.add(categoryName);
-      }
-    }
-    for (const categoryName of Array.from(expenseCategorySet).sort()) {
-      const nodeId = `expense_category_${categoryName}`;
-      nodeIdToIndex.set(nodeId, nodeIndex);
-      nodeLabels.push(categoryName);
-      nodeValues.push(nodeMap.get(nodeId) ?? 0);
-      nodeIndex++;
-    }
-
-    // Convert links to indices
-    const linkSources: number[] = [];
-    const linkTargets: number[] = [];
-    const linkValues: number[] = [];
-
-    for (const link of links) {
-      const sourceIdx = nodeIdToIndex.get(link.source);
-      const targetIdx = nodeIdToIndex.get(link.target);
-      if (sourceIdx !== undefined && targetIdx !== undefined) {
-        linkSources.push(sourceIdx);
-        linkTargets.push(targetIdx);
-        linkValues.push(link.value);
-      }
-    }
+    if (links.length === 0) return null;
 
     return {
-      node: {
-        label: nodeLabels,
-        pad: 15,
-        thickness: 20,
-        line: {
-          color: 'black',
-          width: 0.5,
-        },
-      },
-      link: {
-        source: linkSources,
-        target: linkTargets,
-        value: linkValues,
-      },
+      nodes,
+      links,
+      currencySymbol: getCurrencySymbol(_currency),
     };
-  }, [transactions]);
+  }, [transactions, _currency]);
 
   return {
     chartData,

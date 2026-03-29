@@ -85,6 +85,7 @@ services:
       - "prometheus.scrape=true"
       - "prometheus.port=4000"
       - "prometheus.path=/metrics"
+      - "wud.watch=false" # WUD will ignore this container
     env_file:
       - ../.env
     environment:
@@ -175,6 +176,7 @@ services:
       - "com.docker.compose.service=frontend"
       - "security.scan=true"
       - "security.policy=restricted"
+      - "wud.watch=false" # WUD will ignore this container
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:

@@ -1,561 +1,464 @@
 /**
- * Sankey Chart Component
- * Custom SVG-based Sankey diagram for cash flow visualization
- * Refactored with proper graph analysis, interactive tooltips, and improved visual design
+ * SankeyChart Component
+ * D3-sankey-powered Sankey diagram for cash flow visualization.
+ * Follows sure app's sankey_chart_controller.js patterns.
+ *
+ * Features:
+ * - d3-sankey layout with dynamic node padding
+ * - Gradient links (source-to-target color at 10% opacity)
+ * - Rounded corner nodes (left for source, right for target)
+ * - Two-line labels: name + currency value
+ * - Label collision detection per column
+ * - Hover: dim non-connected to 40%, reveal hidden labels
+ * - Custom tooltip following cursor
+ * - Responsive via ResizeObserver
  */
 
-import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import { Box, Tooltip, Typography, useTheme } from '@mui/material';
-import type { Theme } from '@mui/material/styles';
-import { formatCurrencyPreserveDecimals } from '../utils/formatting';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
+import * as d3 from 'd3';
+import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
+import type { SankeyNode as D3SankeyNode, SankeyGraph } from 'd3-sankey';
+import { useResizeObserver } from './charts/useResizeObserver';
+import { D3Tooltip } from './charts/D3Tooltip';
+import { getCurrencySymbol } from './charts/chartUtils';
 
-/**
- * Sankey node data
- */
-interface SankeyNode {
-  id: string;
-  label: string;
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** Node data passed from the data layer */
+export interface SankeyNodeData {
+  name: string;
   value: number;
-  column: number;
-  y: number;
-  height: number;
-  x: number;
-  width: number;
+  percentage: number;
+  color: string;
 }
 
-/**
- * Sankey link data
- */
-interface SankeyLink {
-  source: string;
-  target: string;
+/** Link data passed from the data layer */
+export interface SankeyLinkData {
+  source: number;
+  target: number;
   value: number;
-  sourceNode: SankeyNode;
-  targetNode: SankeyNode;
+  color: string;
+  percentage: number;
 }
 
-/**
- * Sankey chart data
- */
-interface SankeyData {
-  nodes: SankeyNode[];
-  links: SankeyLink[];
+/** Full chart data */
+export interface SankeyChartData {
+  nodes: SankeyNodeData[];
+  links: SankeyLinkData[];
+  currencySymbol: string;
 }
 
-/**
- * Sankey chart props
- */
+/** Props */
 interface SankeyChartProps {
-  data: {
-    node: {
-      label: string[];
-      pad?: number;
-      thickness?: number;
-    };
-    link: {
-      source: number[];
-      target: number[];
-      value: number[];
-    };
-  };
-  width?: number;
-  height?: number;
-  currency?: string;
+  data: SankeyChartData;
+  height: number;
+  currency: string;
+}
+
+// ---------------------------------------------------------------------------
+// Constants (from sure app)
+// ---------------------------------------------------------------------------
+
+const HOVER_OPACITY = 0.4;
+const HOVER_FILTER = 'saturate(1.3) brightness(1.1)';
+const EXTENT_MARGIN = 16;
+const MIN_NODE_PADDING = 4;
+const MAX_PADDING_RATIO = 0.4;
+const CORNER_RADIUS = 8;
+const NODE_WIDTH = 15;
+const DEFAULT_NODE_PADDING = 20;
+const MIN_LABEL_SPACING = 28;
+const DEFAULT_COLOR = '#9E9E9E';
+
+// ---------------------------------------------------------------------------
+// Internal types for d3-sankey layout results
+// ---------------------------------------------------------------------------
+
+type SNode = D3SankeyNode<SankeyNodeData, SankeyLinkData>;
+type SGraph = SankeyGraph<SankeyNodeData, SankeyLinkData>;
+
+// ---------------------------------------------------------------------------
+// Utility functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a D3 color with opacity. Handles hex colors.
+ */
+function colorWithOpacity(nodeColor: string, opacity = 0.1): string {
+  const c = d3.color(nodeColor);
+  if (c) {
+    c.opacity = opacity;
+    return c.formatRgb();
+  }
+  return nodeColor;
 }
 
 /**
- * Analyze graph structure to determine node columns
- * Uses topological sorting to assign nodes to columns based on their position in the flow
+ * Calculate dynamic node padding to prevent padding from dominating with many nodes.
+ * Ported from sure app's calculateNodePadding.
  */
-function analyzeGraphStructure(
-  nodeLabels: string[],
-  linkSources: number[],
-  linkTargets: number[]
-): Map<number, number> {
-  const columnMap = new Map<number, number>();
-  const inDegree = new Map<number, number>();
-  const outDegree = new Map<number, number>();
-  const outgoingLinks = new Map<number, number[]>();
-  const incomingLinks = new Map<number, number[]>();
+function calculateNodePadding(nodeCount: number, chartHeight: number): number {
+  const availableHeight = chartHeight - EXTENT_MARGIN * 2;
+  const maxPaddingTotal = availableHeight * MAX_PADDING_RATIO;
+  const gaps = Math.max(nodeCount - 1, 1);
+  const dynamicPadding = Math.min(DEFAULT_NODE_PADDING, Math.floor(maxPaddingTotal / gaps));
+  return Math.max(MIN_NODE_PADDING, dynamicPadding);
+}
 
-  // Initialize maps
-  for (let i = 0; i < nodeLabels.length; i++) {
-    inDegree.set(i, 0);
-    outDegree.set(i, 0);
-    outgoingLinks.set(i, []);
-    incomingLinks.set(i, []);
+/**
+ * Build SVG path for a node rectangle with rounded corners.
+ * Source nodes get left-rounded, target nodes get right-rounded.
+ * Ported from sure app's nodePath.
+ */
+function buildNodePath(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  isSource: boolean,
+  isTarget: boolean
+): string {
+  const h = y1 - y0;
+  const r = Math.max(0, Math.min(CORNER_RADIUS, h / 2));
+
+  if (h < r * 2) {
+    return `M ${x0},${y0} L ${x1},${y0} L ${x1},${y1} L ${x0},${y1} Z`;
   }
 
-  // Build graph structure
-  for (let i = 0; i < linkSources.length; i++) {
-    const source = linkSources[i] ?? 0;
-    const target = linkTargets[i] ?? 0;
-
-    inDegree.set(target, (inDegree.get(target) ?? 0) + 1);
-    outDegree.set(source, (outDegree.get(source) ?? 0) + 1);
-
-    outgoingLinks.get(source)!.push(target);
-    incomingLinks.get(target)!.push(source);
+  if (isSource) {
+    return `M ${x0 + r},${y0} L ${x1},${y0} L ${x1},${y1} L ${x0 + r},${y1} Q ${x0},${y1} ${x0},${y1 - r} L ${x0},${y0 + r} Q ${x0},${y0} ${x0 + r},${y0} Z`;
   }
 
-  // Find source nodes (nodes with no incoming links) - these are column 0
-  const sourceNodes: number[] = [];
-  for (let i = 0; i < nodeLabels.length; i++) {
-    if ((inDegree.get(i) ?? 0) === 0) {
-      sourceNodes.push(i);
-      columnMap.set(i, 0);
-    }
+  if (isTarget) {
+    return `M ${x0},${y0} L ${x1 - r},${y0} Q ${x1},${y0} ${x1},${y0 + r} L ${x1},${y1 - r} Q ${x1},${y1} ${x1 - r},${y1} L ${x0},${y1} Z`;
   }
 
-  // BFS to assign columns
-  const visited = new Set<number>();
-  const queue: Array<{ node: number; column: number }> = sourceNodes.map((node) => ({
-    node,
-    column: 0,
-  }));
+  return `M ${x0},${y0} L ${x1},${y0} L ${x1},${y1} L ${x0},${y1} Z`;
+}
 
-  while (queue.length > 0) {
-    const { node, column } = queue.shift()!;
-    if (visited.has(node)) {
-      continue;
-    }
-    visited.add(node);
+/**
+ * Calculate which labels should be hidden to prevent overlap.
+ * Ported from sure app's calculateHiddenLabels.
+ */
+function calculateHiddenLabels(nodes: SNode[], chartHeight: number): Set<number> {
+  const hidden = new Set<number>();
+  const isLarge = chartHeight > 600;
+  const minSpacing = isLarge ? MIN_LABEL_SPACING * 0.7 : MIN_LABEL_SPACING;
 
-    const currentColumn = columnMap.get(node) ?? 0;
-    columnMap.set(node, Math.max(currentColumn, column));
+  // Group by depth (column)
+  const columns = new Map<number, SNode[]>();
+  for (const node of nodes) {
+    const depth = node.depth ?? 0;
+    if (!columns.has(depth)) columns.set(depth, []);
+    columns.get(depth)!.push(node);
+  }
 
-    // Process outgoing links
-    const targets = outgoingLinks.get(node) ?? [];
-    for (const target of targets) {
-      if (!visited.has(target)) {
-        const targetColumn = Math.max(columnMap.get(target) ?? 0, column + 1);
-        columnMap.set(target, targetColumn);
-        queue.push({ node: target, column: column + 1 });
+  for (const columnNodes of columns.values()) {
+    columnNodes.sort((a, b) => ((a.y0! + a.y1!) / 2) - ((b.y0! + b.y1!) / 2));
+
+    let lastVisibleY = -Infinity;
+
+    for (const node of columnNodes) {
+      const nodeY = (node.y0! + node.y1!) / 2;
+      const nodeHeight = node.y1! - node.y0!;
+
+      if (isLarge && nodeHeight > minSpacing * 1.5) {
+        lastVisibleY = nodeY;
+      } else if (nodeY - lastVisibleY < minSpacing) {
+        hidden.add(node.index!);
+      } else {
+        lastVisibleY = nodeY;
       }
     }
   }
 
-  // Handle any unvisited nodes (isolated nodes)
-  for (let i = 0; i < nodeLabels.length; i++) {
-    if (!columnMap.has(i)) {
-      // Assign to last column if it has no outgoing links, otherwise find max column
-      const maxColumn = Math.max(...Array.from(columnMap.values()), 0);
-      columnMap.set(i, (outDegree.get(i) ?? 0) === 0 ? maxColumn + 1 : maxColumn);
-    }
-  }
-
-  return columnMap;
+  return hidden;
 }
 
 /**
- * Calculate Sankey layout with proper graph analysis
+ * Format currency with symbol.
  */
-function calculateLayout(
-  nodeLabels: string[],
-  linkSources: number[],
-  linkTargets: number[],
-  linkValues: number[],
-  width: number,
-  height: number
-): SankeyData {
-  const nodePadding = 8;
-  const minNodeHeight = 24;
-  const nodeWidth = 24;
-  const columnPadding = 40;
-
-  // Analyze graph structure to determine columns
-  const columnMap = analyzeGraphStructure(nodeLabels, linkSources, linkTargets);
-  const maxColumn = Math.max(...Array.from(columnMap.values()), 0);
-  const columnCount = maxColumn + 1;
-
-  // Calculate node values
-  const nodeValues = new Map<number, number>();
-  for (let i = 0; i < linkSources.length; i++) {
-    const source = linkSources[i] ?? 0;
-    const target = linkTargets[i] ?? 0;
-    const value = linkValues[i] ?? 0;
-
-    // For source nodes, accumulate outgoing values
-    // For target nodes, accumulate incoming values
-    nodeValues.set(source, (nodeValues.get(source) ?? 0) + value);
-    nodeValues.set(target, (nodeValues.get(target) ?? 0) + value);
-  }
-
-  // Group nodes by column
-  const nodesByColumn: Map<
-    number,
-    Array<{ index: number; value: number; label: string }>
-  > = new Map();
-
-  for (let i = 0; i < nodeLabels.length; i++) {
-    const column = columnMap.get(i) ?? 0;
-    if (!nodesByColumn.has(column)) {
-      nodesByColumn.set(column, []);
-    }
-    const label = nodeLabels[i];
-    if (label) {
-      const nodeValue = nodeValues.get(i) ?? 0;
-      nodesByColumn.get(column)!.push({
-        index: i,
-        value: nodeValue,
-        label,
-      });
-    }
-  }
-
-  // Calculate column width
-  const availableWidth = width - (columnCount - 1) * columnPadding;
-  const columnWidth = availableWidth / columnCount;
-
-  // Calculate positions for each column
-  const nodes: SankeyNode[] = [];
-
-  for (let col = 0; col < columnCount; col++) {
-    const columnNodes = nodesByColumn.get(col) ?? [];
-
-    // Sort nodes by value (largest first) for better visual hierarchy
-    columnNodes.sort((a, b) => b.value - a.value);
-
-    const totalValue = columnNodes.reduce((sum, n) => sum + n.value, 0);
-    const minTotalHeight =
-      minNodeHeight * columnNodes.length + nodePadding * (columnNodes.length - 1);
-    const totalHeight = Math.max(totalValue, minTotalHeight);
-    const scale =
-      totalHeight > 0 ? (height - nodePadding * (columnNodes.length + 1)) / totalHeight : 1;
-
-    let currentY = nodePadding;
-
-    for (const nodeData of columnNodes) {
-      const nodeHeight = Math.max(nodeData.value * scale, minNodeHeight);
-      const x = col * (columnWidth + columnPadding) + (columnWidth - nodeWidth) / 2;
-
-      nodes.push({
-        id: `node-${nodeData.index}`,
-        label: nodeData.label,
-        value: nodeData.value,
-        column: col,
-        y: currentY,
-        height: nodeHeight,
-        x,
-        width: nodeWidth,
-      });
-      currentY += nodeHeight + nodePadding;
-    }
-  }
-
-  // Create links
-  const nodeMap = new Map(
-    nodes.map((n) => {
-      const match = n.id.match(/node-(\d+)/);
-      const index = match ? parseInt(match[1] ?? '0', 10) : 0;
-      return [index, n];
-    })
-  );
-  const links: SankeyLink[] = [];
-
-  for (let i = 0; i < linkSources.length; i++) {
-    const sourceIdx = linkSources[i] ?? 0;
-    const targetIdx = linkTargets[i] ?? 0;
-    const value = linkValues[i] ?? 0;
-
-    const sourceNode = nodeMap.get(sourceIdx);
-    const targetNode = nodeMap.get(targetIdx);
-
-    if (sourceNode && targetNode) {
-      links.push({
-        source: `node-${sourceIdx}`,
-        target: `node-${targetIdx}`,
-        value,
-        sourceNode,
-        targetNode,
-      });
-    }
-  }
-
-  return { nodes, links };
+function formatCurrency(value: number, symbol: string): string {
+  const formatted = Math.abs(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${value < 0 ? '-' : ''}${symbol}${formatted}`;
 }
 
-/**
- * Generate SVG path for Sankey link with smooth curves
- */
-function generateLinkPath(
-  sourceX: number,
-  sourceY: number,
-  sourceHeight: number,
-  targetX: number,
-  targetY: number,
-  targetHeight: number
-): string {
-  const dx = targetX - sourceX;
-  const curvature = 0.4;
-
-  const cp1x = sourceX + dx * curvature;
-  const cp2x = sourceX + dx * (1 - curvature);
-
-  return `M ${sourceX} ${sourceY}
-          L ${sourceX} ${sourceY + sourceHeight}
-          C ${cp1x} ${sourceY + sourceHeight} ${cp2x} ${targetY + targetHeight} ${targetX} ${targetY + targetHeight}
-          L ${targetX} ${targetY}
-          C ${cp2x} ${targetY} ${cp1x} ${sourceY} ${sourceX} ${sourceY}
-          Z`;
-}
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 /**
- * Truncate label to fit available space
+ * D3-sankey Sankey Chart component.
  */
-function truncateLabel(label: string, maxLength: number): string {
-  if (label.length <= maxLength) {
-    return label;
-  }
-  return `${label.slice(0, maxLength - 3)}...`;
-}
-
-/**
- * Get color for node based on column and value
- */
-function getNodeColor(column: number, maxColumn: number, theme: Theme): string {
-  // Income flow (early columns) - green shades
-  if (column === 0) {
-    return theme.palette.success.main;
-  }
-  // Budget node (middle) - primary color
-  if (column === Math.floor(maxColumn / 2)) {
-    return theme.palette.primary.main;
-  }
-  // Expense flow (later columns) - red/orange shades
-  if (column > maxColumn / 2) {
-    return theme.palette.error.main;
-  }
-  // Default - secondary
-  return theme.palette.secondary.main;
-}
-
-/**
- * Get color for link based on source and target columns
- */
-function getLinkColor(
-  sourceColumn: number,
-  targetColumn: number,
-  maxColumn: number,
-  theme: Theme
-): string {
-  // Income flow
-  if (sourceColumn < maxColumn / 2 && targetColumn < maxColumn / 2) {
-    return theme.palette.success.main;
-  }
-  // Expense flow
-  if (sourceColumn > maxColumn / 2 || targetColumn > maxColumn / 2) {
-    return theme.palette.error.main;
-  }
-  // Default
-  return theme.palette.primary.main;
-}
-
-/**
- * Sankey Chart Component
- */
-export function SankeyChart({
-  data,
-  width = 800,
-  height = 600,
-  currency = 'USD',
-}: SankeyChartProps): React.JSX.Element {
-  const theme = useTheme();
+export function SankeyChart({ data, height, currency }: SankeyChartProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(width);
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [hoveredLink, setHoveredLink] = useState<number | null>(null);
+  const { width: containerWidth } = useResizeObserver(containerRef);
 
-  useEffect(() => {
-    const updateWidth = (): void => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth);
+  const [hoveredElement, setHoveredElement] = useState<{ type: 'node' | 'link'; index: number } | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+  const currencySymbol = data.currencySymbol || getCurrencySymbol(currency);
+
+  // Compute sankey layout
+  const layoutResult = useMemo<SGraph | null>(() => {
+    if (!data.nodes.length || !data.links.length || containerWidth <= 0 || height <= 0) return null;
+
+    const nodePadding = calculateNodePadding(data.nodes.length, height);
+
+    const sankeyGen = sankey<SankeyNodeData, SankeyLinkData>()
+      .nodeWidth(NODE_WIDTH)
+      .nodePadding(nodePadding)
+      .extent([
+        [EXTENT_MARGIN, EXTENT_MARGIN],
+        [containerWidth - EXTENT_MARGIN, height - EXTENT_MARGIN],
+      ]);
+
+    try {
+      return sankeyGen({
+        nodes: data.nodes.map((d) => ({ ...d })),
+        links: data.links.map((d) => ({ ...d })),
+      });
+    } catch {
+      return null;
+    }
+  }, [data, containerWidth, height]);
+
+  // Hidden labels
+  const hiddenLabels = useMemo(() => {
+    if (!layoutResult) return new Set<number>();
+    return calculateHiddenLabels(layoutResult.nodes, height);
+  }, [layoutResult, height]);
+
+  // Connected elements for hover highlighting
+  const hoverConnected = useMemo(() => {
+    if (!hoveredElement || !layoutResult) return { links: new Set<number>(), nodes: new Set<number>() };
+
+    const connLinks = new Set<number>();
+    const connNodes = new Set<number>();
+
+    if (hoveredElement.type === 'link') {
+      connLinks.add(hoveredElement.index);
+      const link = layoutResult.links[hoveredElement.index];
+      if (link) {
+        const srcNode = link.source as SNode;
+        const tgtNode = link.target as SNode;
+        if (srcNode.index !== undefined) connNodes.add(srcNode.index);
+        if (tgtNode.index !== undefined) connNodes.add(tgtNode.index);
       }
-    };
+    } else {
+      connNodes.add(hoveredElement.index);
+      for (let i = 0; i < layoutResult.links.length; i++) {
+        const link = layoutResult.links[i];
+        if (!link) continue;
+        const srcNode = link.source as SNode;
+        const tgtNode = link.target as SNode;
+        if (srcNode.index === hoveredElement.index || tgtNode.index === hoveredElement.index) {
+          connLinks.add(i);
+          if (srcNode.index !== undefined) connNodes.add(srcNode.index);
+          if (tgtNode.index !== undefined) connNodes.add(tgtNode.index);
+        }
+      }
+    }
 
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return (): void => {
-      window.removeEventListener('resize', updateWidth);
-    };
-  }, []);
+    return { links: connLinks, nodes: connNodes };
+  }, [hoveredElement, layoutResult]);
 
-  const chartWidth = containerWidth > 0 ? containerWidth : width;
+  // Link path generator
+  const linkPathGen = useMemo(() => sankeyLinkHorizontal(), []);
 
-  const sankeyData = useMemo(() => {
-    return calculateLayout(
-      data.node.label,
-      data.link.source.map((s) => s ?? 0),
-      data.link.target.map((t) => t ?? 0),
-      data.link.value.map((v) => v ?? 0),
-      chartWidth,
-      height
+  // Tooltip content
+  const tooltipContent = useMemo(() => {
+    if (!hoveredElement || !layoutResult) return null;
+
+    if (hoveredElement.type === 'node') {
+      const node = layoutResult.nodes[hoveredElement.index];
+      if (!node) return null;
+      return (
+        <div>
+          <div style={{ fontWeight: 600, marginBottom: 2 }}>{node.name}</div>
+          <div>{formatCurrency(node.value ?? 0, currencySymbol)} ({node.percentage ?? 0}%)</div>
+        </div>
+      );
+    }
+
+    const link = layoutResult.links[hoveredElement.index];
+    if (!link) return null;
+    const percentage = (link as unknown as SankeyLinkData).percentage ?? 0;
+    return (
+      <div>
+        {formatCurrency(link.value ?? 0, currencySymbol)} ({percentage}%)
+      </div>
     );
-  }, [data, chartWidth, height]);
+  }, [hoveredElement, layoutResult, currencySymbol]);
 
-  const maxColumn = useMemo(() => {
-    return Math.max(...sankeyData.nodes.map((n) => n.column), 0);
-  }, [sankeyData.nodes]);
-
-  const handleNodeMouseEnter = useCallback((nodeId: string) => {
-    setHoveredNode(nodeId);
+  // Handlers
+  const handleNodeEnter = useCallback((event: React.MouseEvent, nodeIndex: number) => {
+    setHoveredElement({ type: 'node', index: nodeIndex });
+    setTooltipPos({ x: event.pageX, y: event.pageY });
   }, []);
 
-  const handleNodeMouseLeave = useCallback(() => {
-    setHoveredNode(null);
+  const handleLinkEnter = useCallback((event: React.MouseEvent, linkIndex: number) => {
+    setHoveredElement({ type: 'link', index: linkIndex });
+    setTooltipPos({ x: event.pageX, y: event.pageY });
   }, []);
 
-  const handleLinkMouseEnter = useCallback((linkIndex: number) => {
-    setHoveredLink(linkIndex);
+  const handleMouseMove = useCallback((event: React.MouseEvent) => {
+    setTooltipPos({ x: event.pageX, y: event.pageY });
   }, []);
 
-  const handleLinkMouseLeave = useCallback(() => {
-    setHoveredLink(null);
+  const handleMouseLeave = useCallback(() => {
+    setHoveredElement(null);
   }, []);
 
-  // Calculate label position and max length
-  const labelMaxLength = useMemo(() => {
-    if (chartWidth < 600) {
-      return 12;
-    }
-    if (chartWidth < 1000) {
-      return 18;
-    }
-    return 25;
-  }, [chartWidth]);
+  if (containerWidth <= 0 || !layoutResult) {
+    return <div ref={containerRef} style={{ width: '100%', height }} />;
+  }
+
+  const isHovering = hoveredElement !== null;
 
   return (
-    <Box ref={containerRef} sx={{ width: '100%', height, position: 'relative' }}>
-      <svg width={chartWidth} height={height} style={{ display: 'block' }}>
+    <div ref={containerRef} style={{ width: '100%', height, position: 'relative' }}>
+      <svg width={containerWidth} height={height} style={{ display: 'block' }}>
+        {/* Gradient definitions for links */}
         <defs>
-          <linearGradient id="linkGradientIncome" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={theme.palette.success.main} stopOpacity={0.4} />
-            <stop offset="100%" stopColor={theme.palette.success.main} stopOpacity={0.6} />
-          </linearGradient>
-          <linearGradient id="linkGradientExpense" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={theme.palette.error.main} stopOpacity={0.4} />
-            <stop offset="100%" stopColor={theme.palette.error.main} stopOpacity={0.6} />
-          </linearGradient>
-          <linearGradient id="linkGradientDefault" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={theme.palette.primary.main} stopOpacity={0.4} />
-            <stop offset="100%" stopColor={theme.palette.primary.main} stopOpacity={0.6} />
-          </linearGradient>
+          {layoutResult.links.map((link, i) => {
+            const srcNode = link.source as SNode;
+            const tgtNode = link.target as SNode;
+            const srcColor = srcNode.color || DEFAULT_COLOR;
+            const tgtColor = tgtNode.color || DEFAULT_COLOR;
+            return (
+              <linearGradient
+                key={`link-grad-${i}`}
+                id={`sankey-link-grad-${i}`}
+                gradientUnits="userSpaceOnUse"
+                x1={srcNode.x1}
+                x2={tgtNode.x0}
+              >
+                <stop offset="0%" stopColor={colorWithOpacity(srcColor, 0.1)} />
+                <stop offset="100%" stopColor={colorWithOpacity(tgtColor, 0.1)} />
+              </linearGradient>
+            );
+          })}
         </defs>
 
-        {/* Render links */}
-        {sankeyData.links.map((link, idx) => {
-          const sourceX = link.sourceNode.x + link.sourceNode.width;
-          const targetX = link.targetNode.x;
-          const path = generateLinkPath(
-            sourceX,
-            link.sourceNode.y,
-            link.sourceNode.height,
-            targetX,
-            link.targetNode.y,
-            link.targetNode.height
-          );
+        {/* Links */}
+        <g fill="none">
+          {layoutResult.links.map((link, i) => {
+            const isConnected = hoverConnected.links.has(i);
+            const opacity = isHovering ? (isConnected ? 1 : HOVER_OPACITY) : 1;
+            const filter = isHovering && isConnected ? HOVER_FILTER : 'none';
 
-          const linkColor = getLinkColor(
-            link.sourceNode.column,
-            link.targetNode.column,
-            maxColumn,
-            theme
-          );
-          const isHovered =
-            hoveredLink === idx || hoveredNode === link.source || hoveredNode === link.target;
-          const gradientId =
-            link.sourceNode.column < maxColumn / 2 && link.targetNode.column < maxColumn / 2
-              ? 'linkGradientIncome'
-              : link.sourceNode.column > maxColumn / 2 || link.targetNode.column > maxColumn / 2
-                ? 'linkGradientExpense'
-                : 'linkGradientDefault';
-
-          return (
-            <Tooltip
-              key={`link-${idx}`}
-              title={
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    {link.sourceNode.label} → {link.targetNode.label}
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatCurrencyPreserveDecimals(link.value, currency)}
-                  </Typography>
-                </Box>
-              }
-              arrow
-            >
+            return (
               <path
-                d={path}
-                fill={`url(#${gradientId})`}
-                stroke={linkColor}
-                strokeWidth={isHovered ? 2 : 1}
-                opacity={isHovered ? 0.8 : 0.5}
-                style={{ cursor: 'pointer' }}
-                onMouseEnter={() => handleLinkMouseEnter(idx)}
-                onMouseLeave={handleLinkMouseLeave}
+                key={`link-${i}`}
+                d={linkPathGen(link as never) ?? ''}
+                stroke={`url(#sankey-link-grad-${i})`}
+                strokeWidth={Math.max(1, link.width ?? 1)}
+                opacity={opacity}
+                filter={filter}
+                style={{ transition: 'opacity 0.3s ease', cursor: 'default' }}
+                onMouseEnter={(e) => handleLinkEnter(e, i)}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
               />
-            </Tooltip>
-          );
-        })}
+            );
+          })}
+        </g>
 
-        {/* Render nodes */}
-        {sankeyData.nodes.map((node) => {
-          const isHovered = hoveredNode === node.id;
-          const nodeColor = getNodeColor(node.column, maxColumn, theme);
-          const labelX = node.column === 0 ? node.x - 8 : node.x + node.width + 8;
-          const labelAnchor = node.column === 0 ? 'end' : 'start';
-          const truncatedLabel = truncateLabel(node.label, labelMaxLength);
+        {/* Nodes */}
+        <g>
+          {layoutResult.nodes.map((node) => {
+            const nodeIdx = node.index ?? 0;
+            const isSource = (node.sourceLinks?.length ?? 0) > 0 && (node.targetLinks?.length ?? 0) === 0;
+            const isTarget = (node.targetLinks?.length ?? 0) > 0 && (node.sourceLinks?.length ?? 0) === 0;
+            const isConnected = hoverConnected.nodes.has(nodeIdx);
+            const nodeOpacity = isHovering ? (isConnected ? 1 : HOVER_OPACITY) : 1;
 
-          return (
-            <Tooltip
-              key={node.id}
-              title={
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    {node.label}
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatCurrencyPreserveDecimals(node.value, currency)}
-                  </Typography>
-                </Box>
-              }
-              arrow
-            >
+            const x0 = node.x0 ?? 0;
+            const y0 = node.y0 ?? 0;
+            const x1 = node.x1 ?? 0;
+            const y1 = node.y1 ?? 0;
+            const color = node.color || DEFAULT_COLOR;
+
+            // Label positioning (left of node or right, based on position)
+            const isLeftSide = x0 < containerWidth / 2;
+            const labelX = isLeftSide ? x1 + 6 : x0 - 6;
+            const labelAnchor = isLeftSide ? 'start' : 'end';
+            const labelY = (y0 + y1) / 2;
+
+            // Label visibility
+            const isLabelHidden = hiddenLabels.has(nodeIdx);
+            const showLabel = isHovering
+              ? isConnected ? true : !isLabelHidden
+              : !isLabelHidden;
+            const labelOpacity = isHovering
+              ? (isConnected ? 1 : (isLabelHidden ? 0 : HOVER_OPACITY))
+              : (isLabelHidden ? 0 : 1);
+
+            return (
               <g
-                onMouseEnter={() => handleNodeMouseEnter(node.id)}
-                onMouseLeave={handleNodeMouseLeave}
-                style={{ cursor: 'pointer' }}
+                key={`node-${nodeIdx}`}
+                style={{ transition: 'opacity 0.3s ease' }}
+                opacity={nodeOpacity}
               >
-                <rect
-                  x={node.x}
-                  y={node.y}
-                  width={node.width}
-                  height={node.height}
-                  fill={nodeColor}
-                  stroke={isHovered ? theme.palette.text.primary : theme.palette.divider}
-                  strokeWidth={isHovered ? 2 : 1}
-                  rx={4}
-                  opacity={isHovered ? 1 : 0.9}
-                  style={{ transition: 'all 0.2s ease' }}
+                {/* Node rectangle with rounded corners */}
+                <path
+                  d={buildNodePath(x0, y0, x1, y1, isSource, isTarget)}
+                  fill={color}
+                  stroke="none"
+                  style={{ cursor: 'default' }}
+                  onMouseEnter={(e) => handleNodeEnter(e, nodeIdx)}
+                  onMouseMove={handleMouseMove}
+                  onMouseLeave={handleMouseLeave}
                 />
-                <text
-                  x={labelX}
-                  y={node.y + node.height / 2}
-                  textAnchor={labelAnchor}
-                  dominantBaseline="middle"
-                  fontSize={12}
-                  fill={theme.palette.text.primary}
-                  fontWeight={isHovered ? 600 : 400}
-                  style={{ pointerEvents: 'none', transition: 'font-weight 0.2s ease' }}
-                >
-                  {truncatedLabel}
-                </text>
+
+                {/* Label: name + currency value */}
+                {showLabel ? <text
+                    x={labelX}
+                    y={labelY}
+                    textAnchor={labelAnchor}
+                    dy="-0.2em"
+                    style={{
+                      opacity: labelOpacity,
+                      transition: 'opacity 0.2s ease',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <tspan
+                      fontSize={12}
+                      fontWeight={500}
+                      fill="currentColor"
+                    >
+                      {node.name}
+                    </tspan>
+                    <tspan
+                      x={labelX}
+                      dy="1.2em"
+                      fontSize={10.4}
+                      fontFamily="monospace"
+                      fill="#737373"
+                    >
+                      {formatCurrency(node.value ?? 0, currencySymbol)}
+                    </tspan>
+                  </text> : null}
               </g>
-            </Tooltip>
-          );
-        })}
+            );
+          })}
+        </g>
       </svg>
-    </Box>
+
+      <D3Tooltip
+        visible={hoveredElement !== null}
+        x={tooltipPos.x}
+        y={tooltipPos.y}
+        content={tooltipContent}
+      />
+    </div>
   );
 }
